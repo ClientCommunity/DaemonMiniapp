@@ -4297,84 +4297,187 @@ async def handle_callbacks(e):
             )
 
         elif data.startswith("s2_qty_confirm|"):
-            parts=data.split("|")
-            if len(parts)==6:
+            parts = data.split("|")
+            if len(parts) == 6:
                 _, country, year_str, base_price_str, final_price_str, qty_str = parts
             else:
-                _, country, year_str, base_price_str, qty_str = parts; final_price_str = str(apply_server_discount(uid, 2, int(base_price_str)))
+                _, country, year_str, base_price_str, qty_str = parts
+                final_price_str = str(apply_server_discount(uid, 2, int(base_price_str)))
             base_price, final_price, qty = int(base_price_str), int(final_price_str), int(qty_str)
             total_price = final_price * qty
-            bought = []
-            clients_to_logout = []
-            sellers_paid=False
+
+            # 1. Atomic balance check & upfront deduction
             async with get_user_lock(uid):
                 bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
-                rows = cur.execute(
-                    "SELECT phone, session_file, country_icon, account_year, twofa, seller_id FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND available=1 LIMIT ?",
-                    (f"{country}%", int(year_str), base_price, qty)
-                ).fetchall()
-                if len(rows) < qty:
-                    return await e.edit("❌ <b>Not enough stock now.</b>", buttons=[[p_btn("Back", f"s2_yr|{country}")]])
+                initial_count = cur.execute(
+                    "SELECT COUNT(*) FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND available=1",
+                    (f"{country}%", int(year_str), base_price)
+                ).fetchone()[0]
+                if initial_count < qty:
+                    return await e.edit("❌ <b>Not enough stock available now.</b>", buttons=[[p_btn("Back", f"s2_yr|{country}")]])
                 if bal < total_price:
                     return await e.edit(f"❌ <b>Insufficient balance.</b>\nNeed {format_price(uid, total_price)}.", buttons=[[p_btn("Recharge", "menu_deposit"), p_btn("Cancel", "srv_2_pg|1")]])
                 cur.execute("UPDATE users SET balance = balance - ? WHERE user_id=? AND balance >= ?", (total_price, uid, total_price))
                 if cur.rowcount == 0:
                     return await e.edit("❌ <b>Balance changed. Try again.</b>", buttons=[[p_btn("Back", f"s2_yr|{country}")]])
-                for row in rows:
-                    cur.execute("UPDATE stock SET available=0 WHERE phone=?", (row[0],))
                 db.commit()
 
-            await e.edit(f"🔄 <b>Preparing {qty} Server 2 session(s)...</b>")
-            current_client=None
-            try:
-                for phone, sess, c_icon, actual_year, twofa_pass, seller_id in rows:
-                    clean_sess = sess[:-8] if sess.endswith(".session") else sess
-                    dyn_id, dyn_hash = get_api_credentials()
-                    current_client = TelegramClient(clean_sess, dyn_id, dyn_hash)
-                    await current_client.connect()
-                    if not await current_client.is_user_authorized():
-                        await remove_invalid_server2_session(phone, sess, "authorization check failed during bulk purchase")
-                        raise Exception(f"Invalid session +{phone}")
-                    await current_client.disconnect();current_client=None
-                    await bot.send_file(uid, sess, caption=f"{P_YES} <b>Server 2 session delivered</b>\nPhone: <code>+{str(phone).lstrip('+')}</code>\n2FA: <code>{twofa_pass}</code>")
-                    bought.append((phone, seller_id, actual_year, c_icon, twofa_pass))
-                    cur.execute("INSERT INTO orders (user_id, country, year, price, phone, otp, server) VALUES (?,?,?,?,?,?,?)", (uid, country, actual_year, final_price, phone, None, "Server 2"))
-                    clients_to_logout.append((None,sess,cur.lastrowid))
-                    cur.execute("DELETE FROM stock WHERE phone=?", (phone,))
-                db.commit()
-                for phone, seller_id, actual_year, c_icon, twofa_pass in bought:
-                    if seller_id:
-                        seller_cut = int(final_price * 0.90)
-                        update_balance(seller_id, seller_cut, "sales_balance")
-                        try: await bot.send_message(seller_id, f"{P_GIFT} <b>Account Sold!</b>\nYour uploaded number +{phone} was sold. {P_CASH}{seller_cut} added to Sales Balance.")
-                        except: pass
-                sellers_paid=True
-                order_ids=[str(item[2]) for item in clients_to_logout if item[2]]
-                await log_primary_purchase(uid, country, final_price, total_price, int(year_str), qty, bought[0][0] if bought else None, "Server 2",",".join(order_ids))
-                await e.edit(f"{P_YES} <b>Purchase complete!</b>\nDelivered: <b>{len(bought)}</b>\nTotal: {format_price(uid, total_price)}", buttons=[[p_btn("Buy More", "s2_buy_session"), p_btn("Menu", "menu_main")]])
-            except Exception as ex:
+            await e.edit(f"🔄 <b>Verifying {qty} Server 2 session(s)...</b>\n<i>Testing live account health and filtering dead accounts...</i>")
+
+            valid_sessions = []
+            dead_phones = []
+
+            # 2. Collect up to 'qty' verified live sessions from stock
+            while len(valid_sessions) < qty:
                 async with get_user_lock(uid):
-                    delivered_phones={str(item[0]) for item in bought}
-                    refund_amount=(qty-len(delivered_phones))*final_price
-                    if refund_amount:cur.execute("UPDATE users SET balance=balance+? WHERE user_id=?",(refund_amount,uid))
-                    for phone, *_ in rows:
-                        if str(phone) not in delivered_phones:
-                            cur.execute("UPDATE stock SET available=1 WHERE phone=? AND EXISTS (SELECT 1 FROM stock WHERE phone=?)", (phone, phone))
+                    candidate = cur.execute(
+                        "SELECT phone, session_file, country_icon, account_year, twofa, seller_id FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND available=1 LIMIT 1",
+                        (f"{country}%", int(year_str), base_price)
+                    ).fetchone()
+                    if not candidate:
+                        break
+                    cand_phone, cand_sess, cand_icon, cand_year, cand_twofa, cand_seller = candidate
+                    cur.execute("UPDATE stock SET available=0 WHERE phone=?", (cand_phone,))
                     db.commit()
-                if not sellers_paid:
-                    for phone,seller_id,*_rest in bought:
-                        if seller_id:update_balance(seller_id,int(final_price*0.90),"sales_balance")
-                await send_admin_error("Server 2 bulk buy failed", str(ex))
-                await e.edit(f"⚠️ <b>Bulk purchase partially completed.</b>\nDelivered: {len(delivered_phones)}\nRefunded undelivered: ₹{refund_amount}", buttons=[[p_btn("Back", "s2_buy_session")]])
+
+                clean_sess = cand_sess[:-8] if cand_sess.endswith(".session") else cand_sess
+                dyn_id, dyn_hash = get_api_credentials()
+                test_client = None
+                is_authorized = False
+                try:
+                    test_client = TelegramClient(clean_sess, dyn_id, dyn_hash)
+                    await test_client.connect()
+                    if await test_client.is_user_authorized():
+                        is_authorized = True
+                except Exception as ex:
+                    logger.warning("Session verification failed for +%s: %s", cand_phone, ex)
+                    is_authorized = False
+                finally:
+                    if test_client and test_client.is_connected():
+                        try: await test_client.disconnect()
+                        except Exception: pass
+
+                if is_authorized:
+                    valid_sessions.append({
+                        'phone': str(cand_phone),
+                        'sess': cand_sess,
+                        'c_icon': cand_icon,
+                        'year': cand_year,
+                        'twofa': cand_twofa or "None",
+                        'seller_id': cand_seller
+                    })
+                else:
+                    dead_phones.append(str(cand_phone))
+                    await remove_invalid_server2_session(cand_phone, cand_sess, "Dead/unauthorized session auto-filtered during bulk verification")
+
+            delivered_count = len(valid_sessions)
+            refund_count = qty - delivered_count
+            refund_amount = refund_count * final_price
+
+            # 3. Auto-refund any shortfall directly back to user's wallet
+            if refund_amount > 0:
+                async with get_user_lock(uid):
+                    cur.execute("UPDATE users SET balance = balance + ? WHERE user_id=?", (refund_amount, uid))
+                    db.commit()
+
+            # 4. Handle 0 valid accounts case
+            if delivered_count == 0:
+                return await e.edit(
+                    f"❌ <b>Stock Verification Failed</b>\n\n"
+                    f"None of the requested sessions could be verified as active.\n"
+                    f"💰 Full refund of <b>{format_price(uid, total_price)}</b> has been credited back to your balance.",
+                    buttons=[[p_btn("Back to Menu", "menu_main")]]
+                )
+
+            # 5. Build .ZIP archive containing only valid accounts & accounts_info.txt
+            os.makedirs("sessions", exist_ok=True)
+            zip_filename = f"bulk_sessions_{uid}_{int(time.time())}.zip"
+            zip_filepath = os.path.join("sessions", zip_filename)
+
+            try:
+                with zipfile.ZipFile(zip_filepath, 'w', compression=zipfile.ZIP_DEFLATED) as zipf:
+                    summary_lines = [
+                        "==================================================",
+                        "          SERVER 2 BULK ACCOUNT DELIVERY          ",
+                        "==================================================",
+                        f"Country: {country}",
+                        f"Year: {year_str}",
+                        f"Delivered Accounts: {delivered_count}",
+                        f"Delivery Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                        "==================================================\n",
+                    ]
+                    for idx, acc in enumerate(valid_sessions, start=1):
+                        sess_file = acc['sess']
+                        clean_num = str(acc['phone']).lstrip('+')
+                        if os.path.exists(sess_file):
+                            zipf.write(sess_file, arcname=f"+{clean_num}.session")
+                        summary_lines.append(f"{idx}. Phone: +{clean_num} | 2FA: {acc['twofa']} | Year: {acc['year']}")
+
+                    summary_lines.append("\n==================================================")
+                    summary_lines.append("Instructions: Use .session files in Telethon, Pyrogram, or automation software.")
+                    zipf.writestr("accounts_info.txt", "\n".join(summary_lines))
+
+                # 6. Record completed orders and pay sellers
+                order_ids = []
+                for acc in valid_sessions:
+                    cur.execute(
+                        "INSERT INTO orders (user_id, country, year, price, phone, otp, server) VALUES (?,?,?,?,?,?,?)",
+                        (uid, country, acc['year'], final_price, acc['phone'], None, "Server 2")
+                    )
+                    order_ids.append(str(cur.lastrowid))
+                    cur.execute("DELETE FROM stock WHERE phone=?", (acc['phone'],))
+
+                    if acc['seller_id']:
+                        seller_cut = int(final_price * 0.90)
+                        update_balance(acc['seller_id'], seller_cut, "sales_balance")
+                        try:
+                            await bot.send_message(
+                                acc['seller_id'],
+                                f"{P_GIFT} <b>Account Sold!</b>\nYour uploaded number +{acc['phone']} was sold.\n{P_CASH}{seller_cut} added to Sales Balance."
+                            )
+                        except Exception:
+                            pass
+                db.commit()
+
+                # 7. Deliver .ZIP file to the user
+                new_bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
+                actual_charged = delivered_count * final_price
+
+                caption_lines = [
+                    f"{P_YES} <b>Server 2 Bulk Sessions Delivered (.ZIP)</b>\n",
+                    f"🏳️ <b>Country:</b> {country}",
+                    f"📅 <b>Year:</b> {year_str}",
+                    f"📦 <b>Delivered Accounts:</b> <b>{delivered_count}/{qty}</b>",
+                    f"💳 <b>Amount Charged:</b> <b>{format_price(uid, actual_charged)}</b>",
+                ]
+                if refund_amount > 0:
+                    caption_lines.append(f"↩️ <b>Auto-Refunded ({refund_count} dead/out-of-stock):</b> <b>{format_price(uid, refund_amount)}</b>")
+                caption_lines.append(f"💰 <b>Current Balance:</b> {format_price(uid, new_bal)}\n")
+                caption_lines.append("<i>📁 All verified session files & 2FA passwords are packaged inside the attached .ZIP archive.</i>")
+
+                caption = "\n".join(caption_lines)
+                await bot.send_file(uid, zip_filepath, caption=caption, parse_mode="html")
+
+                await log_primary_purchase(
+                    uid, country, final_price, actual_charged, int(year_str),
+                    delivered_count, valid_sessions[0]['phone'] if valid_sessions else None,
+                    "Server 2", ",".join(order_ids)
+                )
+
+                await e.edit(
+                    f"{P_YES} <b>Bulk Purchase Complete!</b>\n"
+                    f"Delivered: <b>{delivered_count}/{qty}</b> accounts (.zip attached above).\n"
+                    f"Charged: <b>{format_price(uid, actual_charged)}</b>"
+                    f"{f' (Refunded: ₹{refund_amount})' if refund_amount > 0 else ''}",
+                    buttons=[[p_btn("Buy More", "menu_buy"), p_btn("Main Menu", "menu_main")]]
+                )
+
             finally:
-                if current_client:
-                    try: await current_client.disconnect()
-                    except: pass
-                for client, sess, _order_id in clients_to_logout:
-                    if client:
-                        try: await client.disconnect()
-                        except: pass
-                    delete_session_files(sess)
+                if os.path.exists(zip_filepath):
+                    try: os.remove(zip_filepath)
+                    except Exception: pass
+                for acc in valid_sessions:
+                    delete_session_files(acc['sess'])
 
         elif data == "s2_qty_cancel":
             session_buy_state.pop(uid, None)
