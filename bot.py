@@ -2745,7 +2745,11 @@ def fampay_setting(key, default=""):
     return str(row[0]) if row and row[0] is not None else str(default)
 
 async def create_fampay_checkout(uid, amount, old_reference=None, gateway_id=None):
-    gateway = cur.execute("SELECT id,name,upi_id,payment_name FROM fampay_gateways WHERE id=? AND enabled=1", (gateway_id,)).fetchone() if gateway_id else None
+    if gateway_id:
+        gateway = cur.execute("SELECT id,name,upi_id,payment_name FROM fampay_gateways WHERE id=? AND enabled=1", (gateway_id,)).fetchone()
+    else:
+        # Multi-account rotation: automatically pick an active enabled gateway
+        gateway = cur.execute("SELECT id,name,upi_id,payment_name FROM fampay_gateways WHERE enabled=1 ORDER BY RANDOM() LIMIT 1").fetchone()
     if gateway_id and not gateway:
         raise FamPayError("selected UPI gateway is unavailable")
     upi_id = (gateway[2] if gateway else fampay_setting("fampay_upi_id")).strip()

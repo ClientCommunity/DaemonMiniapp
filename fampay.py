@@ -1,8 +1,14 @@
 """Safe FamPay-purpose deposit verification and exactly-once wallet crediting."""
 from __future__ import annotations
 
+import asyncio
+import email
+from email.header import decode_header
+import imaplib
 import json
+import logging
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -11,6 +17,8 @@ from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 import aiohttp
 
 from database import connect, transaction, utcnow
+
+logger = logging.getLogger(__name__)
 
 VERIFY_URL = os.getenv("FAMPAY_VERIFY_URL", "https://growfan.in/api/api.php/").strip()
 VERIFY_TIMEOUT = max(3, float(os.getenv("FAMPAY_VERIFY_TIMEOUT", "15")))
@@ -64,20 +72,131 @@ def _parse_response(payload) -> Verification:
     return Verification(verified, amount, transaction_id, raw)
 
 
+def _check_imap_sync(gmail: str, app_password: str, reference: str, expected_amount: int) -> Verification:
+    """Connect via IMAP SSL to Gmail, search for FamPay/UPI credit emails matching reference and amount."""
+    mail = None
+    try:
+        clean_pw = app_password.replace(" ", "")
+        mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+        mail.login(gmail, clean_pw)
+        mail.select("INBOX", readonly=True)
+
+        ref_upper = reference.upper()
+        # Search directly for reference string
+        status, messages = mail.search(None, f'(TEXT "{ref_upper}")')
+        msg_ids = messages[0].split() if (status == "OK" and messages and messages[0]) else []
+
+        if not msg_ids:
+            # Fallback: scan recent 25 messages
+            status, all_messages = mail.search(None, 'ALL')
+            if status == "OK" and all_messages and all_messages[0]:
+                msg_ids = all_messages[0].split()[-25:]
+
+        for mid in reversed(msg_ids[-25:]):
+            res, data = mail.fetch(mid, "(RFC822)")
+            if res != "OK" or not data or not data[0]:
+                continue
+            raw_email = data[0][1]
+            if not isinstance(raw_email, (bytes, bytearray)):
+                continue
+            msg = email.message_from_bytes(raw_email)
+
+            body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    ctype = part.get_content_type()
+                    cdispo = str(part.get("Content-Disposition"))
+                    if ctype in ("text/plain", "text/html") and "attachment" not in cdispo:
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            body += payload.decode(errors="ignore") + " "
+            else:
+                payload = msg.get_payload(decode=True)
+                if payload:
+                    body = payload.decode(errors="ignore")
+
+            subject = ""
+            raw_subj = msg.get("Subject", "")
+            for decoded_str, charset in decode_header(raw_subj):
+                if isinstance(decoded_str, bytes):
+                    subject += decoded_str.decode(charset or "utf-8", errors="ignore")
+                else:
+                    subject += str(decoded_str)
+
+            full_text = f"{subject}\n{body}"
+
+            if ref_upper in full_text.upper():
+                amt_str = str(expected_amount)
+                if amt_str in full_text:
+                    # Extract 12-digit UTR if present
+                    utr_match = re.search(r"\b([0-9]{12})\b", full_text)
+                    utr = utr_match.group(1) if utr_match else None
+                    if not utr:
+                        alt_match = re.search(r"\b(?:utr|txn|ref(?:erence)?)\s*(?:id|no\.?|num)?[:\s]+([A-Za-z0-9_-]{8,32})\b", full_text, re.IGNORECASE)
+                        utr = alt_match.group(1) if alt_match else None
+
+                    try:
+                        mail.close()
+                        mail.logout()
+                    except Exception:
+                        pass
+
+                    return Verification(
+                        verified=True,
+                        amount=expected_amount,
+                        transaction_id=utr or f"IMAP_{reference}",
+                        raw=json.dumps({"subject": subject, "utr": utr, "matched_ref": reference})
+                    )
+    except Exception as exc:
+        logger.warning("FamPay Gmail IMAP check error for %s: %s", gmail, exc)
+        return Verification(verified=False, amount=None, transaction_id=None, raw=str(exc))
+    finally:
+        if mail:
+            try:
+                mail.close()
+                mail.logout()
+            except Exception:
+                pass
+
+    return Verification(verified=False, amount=None, transaction_id=None, raw="no_matching_email_found")
+
+
 async def verify(reference: str) -> Verification:
-    timeout = aiohttp.ClientTimeout(total=VERIFY_TIMEOUT)
+    # 1. Primary: Verify via Gmail IMAP SSL using gateway credentials
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(_verification_url(reference), headers={"Accept": "application/json"}) as response:
-                text = await response.text()
-                if response.status != 200:
-                    raise FamPayError(f"verification gateway HTTP {response.status}")
-    except (aiohttp.ClientError, TimeoutError) as exc:
-        raise FamPayError("verification gateway unavailable") from exc
-    try:
-        return _parse_response(json.loads(text))
-    except json.JSONDecodeError as exc:
-        raise FamPayError("verification gateway returned invalid JSON") from exc
+        with connect() as conn:
+            order = conn.execute("SELECT gateway_id, amount FROM fampay_orders WHERE reference=?", (reference,)).fetchone()
+            if order:
+                gid = order["gateway_id"]
+                gw = None
+                if gid:
+                    gw = conn.execute("SELECT gmail, app_password FROM fampay_gateways WHERE id=?", (gid,)).fetchone()
+                if not gw or not gw["gmail"] or not gw["app_password"]:
+                    gw = conn.execute("SELECT gmail, app_password FROM fampay_gateways WHERE enabled=1 AND gmail IS NOT NULL AND app_password IS NOT NULL LIMIT 1").fetchone()
+
+                if gw and gw["gmail"] and gw["app_password"]:
+                    from secrets_manager import decrypt_secret
+                    stored_pw = gw["app_password"]
+                    app_pw = decrypt_secret(stored_pw[4:]) if stored_pw.startswith("enc:") else stored_pw
+                    imap_verif = await asyncio.to_thread(_check_imap_sync, gw["gmail"], app_pw, reference, int(order["amount"]))
+                    if imap_verif.verified:
+                        return imap_verif
+    except Exception as exc:
+        logger.warning("FamPay IMAP verification attempt failed for %s: %s", reference, exc)
+
+    # 2. Secondary fallback: HTTP verification if configured and not default growfan stub
+    if VERIFY_URL and "growfan.in" not in VERIFY_URL:
+        timeout = aiohttp.ClientTimeout(total=VERIFY_TIMEOUT)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(_verification_url(reference), headers={"Accept": "application/json"}) as response:
+                    text = await response.text()
+                    if response.status == 200:
+                        return _parse_response(json.loads(text))
+        except Exception as exc:
+            logger.warning("FamPay HTTP fallback failed for %s: %s", reference, exc)
+
+    return Verification(verified=False, amount=None, transaction_id=None, raw="pending")
 
 
 def credit(reference: str, verification: Verification) -> dict | None:
