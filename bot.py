@@ -500,6 +500,7 @@ admin_dep_state = {}
 user_spam_cooldown = {}
 session_buy_state = {}
 transfer_state = {}
+reseller_state = {}
 admin_upload_tier = {}
 sell_state = {}
 user_locks = {}
@@ -1123,6 +1124,10 @@ async def log_primary_purchase(uid, country, price, paid, year, qty, phone=None,
         "Thanks for Purchase"
     )
     await send_dual_log(admin_text, public_text)
+    try:
+        await process_reseller_commission(uid, paid or price, f"{server or 'Store'} Purchase")
+    except Exception as ex:
+        logger.warning("Reseller commission trigger error: %s", ex)
 
 async def log_smm_purchase(uid, link, price, service, order_id):
     user_label=await get_user_log_label(uid);handle=await bot_public_handle()
@@ -1135,6 +1140,10 @@ async def log_smm_purchase(uid, link, price, service, order_id):
                 f"<b>Price:</b> ₹{format_smm_money(price)}\n<b>Service:</b> {html.escape(str(service))}\n"
                 f"<b>Order ID:</b> <code>{html.escape(str(order_id))}</code>\n<b>Server:</b> Server 5")
     await send_dual_log(admin_text,public_text)
+    try:
+        await process_reseller_commission(uid, int(price), f"Server 5: {service}")
+    except Exception as ex:
+        logger.warning("Reseller commission trigger error for SMM: %s", ex)
 
 async def send_main_menu(e, uid):
     ensure_user(uid)
@@ -2224,6 +2233,39 @@ async def process_referral_bonus(uid, amount):
     except Exception:
         pass
 
+async def process_reseller_commission(customer_uid, purchase_amount, description="Purchase"):
+    """Credit margin commission to the reseller if customer joined via custom margin link."""
+    try:
+        user_row = cur.execute("SELECT referred_by, reseller_token FROM users WHERE user_id=?", (customer_uid,)).fetchone()
+        if not user_row or not user_row[0] or not user_row[1]:
+            return
+        reseller_uid, token = user_row[0], user_row[1]
+        link_row = cur.execute("SELECT margin_percent FROM reseller_links WHERE token=? AND user_id=?", (token, reseller_uid)).fetchone()
+        if not link_row or link_row[0] <= 0:
+            return
+        margin_pct = link_row[0]
+        commission = max(1, int(round((purchase_amount * margin_pct) / 100.0)))
+        async with get_user_lock(reseller_uid):
+            cur.execute("UPDATE users SET sales_balance = sales_balance + ? WHERE user_id=?", (commission, reseller_uid))
+            cur.execute(
+                "INSERT INTO reseller_earnings (reseller_id, customer_id, token, amount, commission, description) VALUES (?,?,?,?,?,?)",
+                (reseller_uid, customer_uid, token, purchase_amount, commission, description)
+            )
+            db.commit()
+
+        try:
+            await bot.send_message(
+                reseller_uid,
+                f"💼 <b>Reseller Commission Earned!</b>\n\n"
+                f"Your customer <code>{customer_uid}</code> made a purchase of <b>₹{purchase_amount}</b> ({description}).\n"
+                f"💰 Margin ({margin_pct}%): <b>₹{commission}</b> added to your Sales Balance!",
+                buttons=[[p_btn("View Account", "menu_account")]]
+            )
+        except Exception:
+            pass
+    except Exception as ex:
+        logger.warning("Error processing reseller commission for %s: %s", customer_uid, ex)
+
 # ================= DATABASE SETUP & MIGRATIONS =================
 def setup_db():
     cur.executescript("""
@@ -2289,6 +2331,29 @@ def setup_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS reseller_links (
+        token TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        margin_percent INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS reseller_earnings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reseller_id INTEGER NOT NULL,
+        customer_id INTEGER NOT NULL,
+        token TEXT,
+        amount INTEGER NOT NULL,
+        commission INTEGER NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    ensure_column("users", "reseller_token", "TEXT")
+    cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('reseller_min_margin', '5')")
+    cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('reseller_max_margin', '50')")
 
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('lzt_global_markup', '20')")
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('bot_status', 'on')")
@@ -4707,11 +4772,69 @@ async def handle_callbacks(e):
             c_btn = "💱 Switch to USDT" if c_pref == "INR" else "💱 Switch to INR"
 
             btns = [
-                [p_btn("💸 Transfer Balance", "menu_transfer"), p_btn("Manage Uploads", "menu_uploads")],
-                [p_btn(c_btn, "tgl_curr"), p_btn("Claim Promo Code", "claim_promo")],
-                [p_btn("Back", "menu_main")]
+                [p_btn("💸 Transfer Balance", "menu_transfer"), p_btn("💼 Reseller Link", "menu_reseller")],
+                [p_btn("Manage Uploads", "menu_uploads"), p_btn("Claim Promo Code", "claim_promo")],
+                [p_btn(c_btn, "tgl_curr"), p_btn("Back", "menu_main")]
             ]
+            if s_bal > 0:
+                btns.insert(2, [p_btn(f"🔄 Convert Sales ({format_price(uid, s_bal)}) to Balance", "wd_to_main")])
             await e.edit(msg, buttons=btns)
+
+        elif data == "menu_reseller":
+            me = await bot.get_me()
+            r_link = cur.execute("SELECT token, margin_percent FROM reseller_links WHERE user_id=? ORDER BY created_at DESC LIMIT 1", (uid,)).fetchone()
+            min_m_row = cur.execute("SELECT value FROM settings WHERE key='reseller_min_margin'").fetchone()
+            max_m_row = cur.execute("SELECT value FROM settings WHERE key='reseller_max_margin'").fetchone()
+            min_m = int(min_m_row[0]) if min_m_row else 5
+            max_m = int(max_m_row[0]) if max_m_row else 50
+            earnings_row = cur.execute("SELECT COUNT(*), COALESCE(SUM(commission), 0) FROM reseller_earnings WHERE reseller_id=?", (uid,)).fetchone()
+            total_orders, total_earned = earnings_row[0] or 0, earnings_row[1] or 0
+            cust_count = cur.execute("SELECT COUNT(*) FROM users WHERE referred_by=? AND reseller_token IS NOT NULL", (uid,)).fetchone()[0]
+
+            if r_link:
+                token, margin = r_link
+                link_url = f"https://t.me/{me.username}?start=resell_{token}"
+                msg = (
+                    f"💼 <b>Your Reseller Dashboard</b>\n\n"
+                    f"🔗 <b>Your Reseller Link:</b>\n<code>{link_url}</code>\n\n"
+                    f"📈 <b>Current Margin:</b> <b>+{margin}%</b>\n"
+                    f"👥 <b>Customers Linked:</b> <b>{cust_count}</b>\n"
+                    f"🛒 <b>Customer Orders:</b> <b>{total_orders}</b>\n"
+                    f"💰 <b>Total Margin Earned:</b> <b>{format_price(uid, total_earned)}</b>\n\n"
+                    f"<i>Every time a user joins via your link and purchases, your +{margin}% margin is instantly credited to your Sales Balance!</i>\n\n"
+                    f"⚙️ <i>Allowed margin range: {min_m}% to {max_m}%.</i>"
+                )
+                btns = [
+                    [p_btn("✏️ Change Margin %", "reseller_set_margin")],
+                    [p_btn("Back to Profile", "menu_account")]
+                ]
+            else:
+                msg = (
+                    f"💼 <b>Create Your Reseller Link</b>\n\n"
+                    f"Earn automated profits on every purchase made by your customers!\n\n"
+                    f"• Set your custom profit margin ({min_m}% to {max_m}%).\n"
+                    f"• Share your unique reseller link.\n"
+                    f"• Every purchase made by your customers instantly credits your profit margin to your balance!\n\n"
+                    f"👉 Tap the button below to set your margin:"
+                )
+                btns = [
+                    [p_btn("➕ Create Reseller Link", "reseller_set_margin")],
+                    [p_btn("Back to Profile", "menu_account")]
+                ]
+            await e.edit(msg, buttons=btns)
+
+        elif data == "reseller_set_margin":
+            min_m_row = cur.execute("SELECT value FROM settings WHERE key='reseller_min_margin'").fetchone()
+            max_m_row = cur.execute("SELECT value FROM settings WHERE key='reseller_max_margin'").fetchone()
+            min_m = int(min_m_row[0]) if min_m_row else 5
+            max_m = int(max_m_row[0]) if max_m_row else 50
+            reseller_state[uid] = "wait_margin"
+            msg = (
+                f"📈 <b>Set Reseller Margin Percentage</b>\n\n"
+                f"Please reply with your desired profit margin percentage (between <b>{min_m}%</b> and <b>{max_m}%</b>).\n\n"
+                f"<i>Example: reply <code>15</code> for 15% profit on all purchases.</i>"
+            )
+            await e.edit(msg, buttons=[[p_btn("Cancel", "menu_reseller")]])
 
         elif data == "menu_transfer":
             row = cur.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id=?", (uid,)).fetchone()
@@ -6298,12 +6421,30 @@ async def handle_callbacks(e):
                         await bot.send_message(uid, f"✅ <b>Giveaway created</b>\n\nPrize: <b>{prize}</b>\nTicket: ₹{ticket_price}\nNeed participants: {min_participants}\nWinners: {winners_count}\nLink: <code>{link}</code>", buttons=[[p_btn("Open Giveaway", url=link)]])
 
                     elif action == "refsettings" and has_perm(uid, 'p_settings'):
-                        minimum=fampay_setting("ref_topup_min", "0"); reward=fampay_setting("ref_reward", "0"); withdrawal=fampay_setting("ref_withdraw_min", "50")
-                        await e.edit(f"👥 <b>Referral Settings</b>\n\nQualifying top-up: ₹{minimum}\nFixed reward: ₹{reward}\nMinimum withdrawal: ₹{withdrawal}\n\nA referrer receives the fixed reward once, only when a new referred user completes a qualifying top-up.", buttons=[[p_btn("Set Top-up Needed", "adm_ref_topup"), p_btn("Set Reward on Deposit", "adm_ref_reward")], [p_btn("Set Min Withdrawal", "adm_ref_withdraw")], [p_btn("Back", "adm_adminmain")]])
-                    elif action in ("ref_topup", "ref_reward", "ref_withdraw") and has_perm(uid, 'p_settings'):
+                        minimum=fampay_setting("ref_topup_min", "0"); reward=fampay_setting("ref_reward", "0")
+                        min_m=fampay_setting("reseller_min_margin", "5"); max_m=fampay_setting("reseller_max_margin", "50")
+                        msg = (f"👥 <b>Referral & Reseller Settings</b>\n\n"
+                               f"🎁 Qualifying top-up: ₹{minimum}\n"
+                               f"💵 Fixed reward: ₹{reward}\n\n"
+                               f"💼 <b>Reseller Custom Margin Limits:</b>\n"
+                               f"• Minimum allowed margin: <b>{min_m}%</b>\n"
+                               f"• Maximum allowed margin: <b>{max_m}%</b>")
+                        buttons=[
+                            [p_btn("Set Top-up Needed", "adm_ref_topup"), p_btn("Set Reward on Deposit", "adm_ref_reward")],
+                            [p_btn("Set Min Reseller %", "adm_resell_min"), p_btn("Set Max Reseller %", "adm_resell_max")],
+                            [p_btn("Back", "adm_adminmain")]
+                        ]
+                        await e.edit(msg, buttons=buttons)
+                    elif action in ("ref_topup", "ref_reward", "ref_withdraw", "resell_min", "resell_max") and has_perm(uid, 'p_settings'):
                         payment_admin_state[uid]={"step": action}
-                        labels={"ref_topup":"minimum top-up required for a referral reward", "ref_reward":"fixed referral reward", "ref_withdraw":"minimum referral-balance withdrawal"}
-                        await e.edit(f"Send the {labels[action]} in INR (whole number).",buttons=[[p_btn("Cancel","adm_refsettings")]])
+                        labels={
+                            "ref_topup":"minimum top-up required for a referral reward in ₹",
+                            "ref_reward":"fixed referral reward in ₹",
+                            "ref_withdraw":"minimum referral withdrawal in ₹",
+                            "resell_min":"minimum reseller margin percentage (e.g. 5)",
+                            "resell_max":"maximum reseller margin percentage (e.g. 50)"
+                        }
+                        await e.edit(f"Send the {labels[action]} (whole number).",buttons=[[p_btn("Cancel","adm_refsettings")]])
 
                     elif action == "usdtrate" and has_perm(uid, 'p_settings'):
                         r = float((await get_reply(f"💲 <b>Enter 1$ = how much INR?</b>")).text)
@@ -6523,6 +6664,37 @@ async def handle_text_inputs(e):
         if bal < total:
             return await e.reply(msg + "\n\n❌ <b>Insufficient balance.</b>", buttons=[[p_btn("Recharge", "menu_deposit"), p_btn("Cancel", "s2_qty_cancel")]])
         return await e.reply(msg, buttons=[[p_btn("✅ Confirm Buy", f"s2_qty_confirm|{tier}|{country}|{year}|{price}|{final_price}|{qty}")], [p_btn("❌ Cancel", "s2_qty_cancel")]])
+
+    if uid in reseller_state and reseller_state[uid] == "wait_margin":
+        reseller_state.pop(uid, None)
+        val = text.strip().replace("%", "")
+        min_m_row = cur.execute("SELECT value FROM settings WHERE key='reseller_min_margin'").fetchone()
+        max_m_row = cur.execute("SELECT value FROM settings WHERE key='reseller_max_margin'").fetchone()
+        min_m = int(min_m_row[0]) if min_m_row else 5
+        max_m = int(max_m_row[0]) if max_m_row else 50
+        if not val.isdigit() or not (min_m <= int(val) <= max_m):
+            return await e.reply(
+                f"❌ Please enter a valid whole percentage between <b>{min_m}%</b> and <b>{max_m}%</b>.",
+                buttons=[[p_btn("Try Again", "reseller_set_margin"), p_btn("Back", "menu_reseller")]]
+            )
+        margin_pct = int(val)
+        existing = cur.execute("SELECT token FROM reseller_links WHERE user_id=?", (uid,)).fetchone()
+        if existing:
+            token = existing[0]
+            cur.execute("UPDATE reseller_links SET margin_percent=? WHERE token=?", (margin_pct, token))
+        else:
+            token = secrets.token_hex(4).lower()
+            cur.execute("INSERT INTO reseller_links (token, user_id, margin_percent) VALUES (?,?,?)", (token, uid, margin_pct))
+        db.commit()
+        me = await bot.get_me()
+        link_url = f"https://t.me/{me.username}?start=resell_{token}"
+        return await e.reply(
+            f"✅ <b>Reseller Link Updated!</b>\n\n"
+            f"📈 Your Profit Margin: <b>+{margin_pct}%</b>\n"
+            f"🔗 Reseller Link:\n<code>{link_url}</code>\n\n"
+            f"Share this link with your customers. You will automatically receive your +{margin_pct}% profit on every purchase they make!",
+            buttons=[[p_btn("Reseller Dashboard", "menu_reseller"), p_btn("Main Menu", "menu_main")]]
+        )
 
     if uid in giveaway_ticket_state:
         gid = giveaway_ticket_state.pop(uid, None)
@@ -6771,11 +6943,12 @@ async def handle_text_inputs(e):
                     cur.execute("UPDATE fampay_gateways SET app_password=? WHERE id=?",("enc:"+encrypt_secret(value.replace(" ","")),gid))
             except (ValueError,AssertionError):return await e.reply("❌ Invalid value. Please try again.")
             db.commit();payment_admin_state.pop(uid,None);return await e.reply("✅ Gateway setting saved.",buttons=[[p_btn("Gateway",f"adm_fampay_gateway|{gid}")]])
-        if step in ("ref_topup", "ref_reward", "ref_withdraw"):
+        if step in ("ref_topup", "ref_reward", "ref_withdraw", "resell_min", "resell_max"):
             value=text.strip()
             if not value.isdigit() or int(value)<0:return await e.reply("❌ Send a valid whole-number amount.")
-            keys={"ref_topup":"ref_topup_min","ref_reward":"ref_reward","ref_withdraw":"ref_withdraw_min"};cur.execute("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)",(keys[step],value));db.commit();payment_admin_state.pop(uid,None)
-            return await e.reply("✅ Referral setting saved.",buttons=[[p_btn("Referral Settings","adm_refsettings")]])
+            keys={"ref_topup":"ref_topup_min","ref_reward":"ref_reward","ref_withdraw":"ref_withdraw_min","resell_min":"reseller_min_margin","resell_max":"reseller_max_margin"}
+            cur.execute("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)",(keys[step],value));db.commit();payment_admin_state.pop(uid,None)
+            return await e.reply("✅ Referral / Reseller setting saved.",buttons=[[p_btn("Referral Settings","adm_refsettings")]])
         if step in ("fampay_min","fampay_upi","fampay_name"):
             value=" ".join(text.strip().split())
             if step=="fampay_min":
@@ -7278,6 +7451,14 @@ async def handle_start(e):
                 ref = start_param.replace("ref_", "")
                 if ref.isdigit() and int(ref) != uid:
                     cur.execute("UPDATE users SET referred_by=? WHERE user_id=? AND referred_by IS NULL", (int(ref), uid))
+                    db.commit()
+
+            if start_param.startswith("resell_"):
+                token = start_param.replace("resell_", "").strip()
+                rlink = cur.execute("SELECT user_id, margin_percent FROM reseller_links WHERE token=?", (token,)).fetchone()
+                if rlink and rlink[0] != uid:
+                    reseller_uid, margin_pct = rlink[0], rlink[1]
+                    cur.execute("UPDATE users SET referred_by=?, reseller_token=? WHERE user_id=? AND referred_by IS NULL", (reseller_uid, token, uid))
                     db.commit()
 
         if not await check_channel_joined(uid):
