@@ -499,7 +499,8 @@ deposit_input = {}
 admin_dep_state = {}
 user_spam_cooldown = {}
 session_buy_state = {}
-wd_state = {}
+transfer_state = {}
+admin_upload_tier = {}
 sell_state = {}
 user_locks = {}
 user_filters = {}
@@ -2267,6 +2268,8 @@ def setup_db():
             cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
     ensure_column("users", "pref_curr", "TEXT DEFAULT 'INR'")
+    ensure_column("users", "promo_balance", "INTEGER DEFAULT 0")
+    ensure_column("stock", "quality_tier", "TEXT DEFAULT 'good'")
     ensure_column("orders", "server", "TEXT DEFAULT 'Server 2'")
     ensure_column("fampay_orders", "check_count", "INTEGER NOT NULL DEFAULT 0")
     ensure_column("fampay_orders", "review_status", "TEXT")
@@ -2275,6 +2278,17 @@ def setup_db():
     ensure_column("fampay_orders", "reviewed_by", "INTEGER")
     ensure_column("fampay_orders", "reviewed_at", "TEXT")
     ensure_column("fampay_orders", "gateway_id", "INTEGER")
+
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_stock_quality ON stock(quality_tier, country_name, available)")
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS balance_transfers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        recipient_id INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
 
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('lzt_global_markup', '20')")
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('bot_status', 'on')")
@@ -3297,7 +3311,7 @@ async def handle_callbacks(e):
             if not await check_channel_joined(uid): return await e.answer("⚠️ Join channels first!", alert=True)
             await send_terms_or_main_menu(e, uid)
         elif data == "menu_main" or data == "cancel_action":
-            wd_state.pop(uid, None); sell_state.pop(uid, None); deposit_input.pop(uid, None); manual_dep_state.pop(uid, None); lzt_search_state.pop(uid, None); server3_search_state.discard(uid); server4_search_state.pop(uid,None); server4_country_search_state.pop(uid,None); restore_state.pop(uid, None); giveaway_ticket_state.pop(uid, None)
+            transfer_state.pop(uid, None); sell_state.pop(uid, None); deposit_input.pop(uid, None); manual_dep_state.pop(uid, None); lzt_search_state.pop(uid, None); server3_search_state.discard(uid); server4_search_state.pop(uid,None); server4_country_search_state.pop(uid,None); restore_state.pop(uid, None); giveaway_ticket_state.pop(uid, None)
             await cleanup_deposit_media(uid)
             await send_main_menu(e, uid)
         elif data == "tc_accept":
@@ -4589,23 +4603,109 @@ async def handle_callbacks(e):
 
         # --- MENU EXTRAS ---
         elif data == "menu_account":
-            r = cur.execute("SELECT balance, sales_balance, total_deposited, joined_date FROM users WHERE user_id=?", (uid,)).fetchone()
-            bal, s_bal, dep, date = r
+            r = cur.execute("SELECT balance, sales_balance, total_deposited, joined_date, COALESCE(promo_balance, 0) FROM users WHERE user_id=?", (uid,)).fetchone()
+            bal, s_bal, dep, date, promo_bal = r
+            transferable = max(0, bal - promo_bal)
             me = await bot.get_me()
             o = cur.execute("SELECT COUNT(*), SUM(price) FROM orders WHERE user_id=?", (uid,)).fetchone()
-            msg = (f"{P_ACC} <b>USER PROFILE</b>\n\n{P_ID} ID: <code>{uid}</code>\n{P_CASH} Main Balance: {format_price(uid, bal)}\n🤝 Sales Balance: {format_price(uid, s_bal)}\n"
-                   f"💳 Deposited: {format_price(uid, dep)}\n🛒 Total Spent: {format_price(uid, o[1] or 0)} ({o[0]} Accs)\n{P_CAL} Joined: {date[:10]}\n\n"
+            msg = (f"{P_ACC} <b>USER PROFILE</b>\n\n"
+                   f"{P_ID} ID: <code>{uid}</code>\n"
+                   f"{P_CASH} Total Balance: {format_price(uid, bal)}\n"
+                   f"💸 Transferable: <b>{format_price(uid, transferable)}</b>\n"
+                   f"🔒 Promo Balance (Locked): <b>{format_price(uid, promo_bal)}</b>\n"
+                   f"🤝 Sales Balance: {format_price(uid, s_bal)}\n"
+                   f"💳 Deposited: {format_price(uid, dep)}\n"
+                   f"🛒 Total Spent: {format_price(uid, o[1] or 0)} ({o[0]} Accs)\n"
+                   f"{P_CAL} Joined: {date[:10]}\n\n"
                    f"👥 Referral Link:\n<code>https://t.me/{me.username}?start=ref_{uid}</code>")
 
             c_pref = get_currency_pref(uid)
             c_btn = "💱 Switch to USDT" if c_pref == "INR" else "💱 Switch to INR"
 
             btns = [
-                [p_btn("Withdraw Sales", "wd_sales"), p_btn("Manage Uploads", "menu_uploads")],
+                [p_btn("💸 Transfer Balance", "menu_transfer"), p_btn("Manage Uploads", "menu_uploads")],
                 [p_btn(c_btn, "tgl_curr"), p_btn("Claim Promo Code", "claim_promo")],
                 [p_btn("Back", "menu_main")]
             ]
             await e.edit(msg, buttons=btns)
+
+        elif data == "menu_transfer":
+            row = cur.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id=?", (uid,)).fetchone()
+            bal = row[0] if row else 0
+            promo_bal = row[1] if row else 0
+            transferable = max(0, bal - promo_bal)
+            if transferable <= 0:
+                return await safe_answer_cb(e, "❌ You have no transferable balance. (Promo code balance cannot be transferred).", alert=True)
+            transfer_state[uid] = {"step": "wait_target"}
+            msg = (f"💸 <b>Transfer Balance to Another User</b>\n\n"
+                   f"💰 Total Balance: <b>{format_price(uid, bal)}</b>\n"
+                   f"🔒 Promo Balance (Locked): <b>{format_price(uid, promo_bal)}</b>\n"
+                   f"✅ Transferable Balance: <b>{format_price(uid, transferable)}</b>\n\n"
+                   f"👉 <b>Please send the recipient's numerical Telegram User ID or @username:</b>")
+            await e.edit(msg, buttons=[[p_btn("Cancel", "menu_account")]])
+
+        elif data.startswith("xfer_do|"):
+            parts = data.split("|")
+            target_uid = int(parts[1])
+            amount = int(parts[2])
+            st = transfer_state.pop(uid, None)
+
+            if target_uid == uid:
+                return await safe_answer_cb(e, "❌ Cannot transfer balance to yourself.", alert=True)
+            if amount <= 0:
+                return await safe_answer_cb(e, "❌ Invalid transfer amount.", alert=True)
+
+            async with get_user_lock(uid):
+                async with get_user_lock(target_uid):
+                    row = cur.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id=?", (uid,)).fetchone()
+                    if not row:
+                        return await e.edit("❌ User record not found.", buttons=[[p_btn("Back", "menu_account")]])
+                    bal, promo_bal = row[0], row[1]
+                    transferable = max(0, bal - promo_bal)
+                    if amount > transferable:
+                        return await e.edit(
+                            f"❌ <b>Transfer Failed</b>\n\n"
+                            f"Insufficient transferable balance (Available: ₹{transferable}).\n"
+                            f"<i>Promo balance ({format_price(uid, promo_bal)}) cannot be transferred.</i>",
+                            buttons=[[p_btn("Back to Profile", "menu_account")]]
+                        )
+
+                    cur.execute(
+                        "UPDATE users SET balance = balance - ? WHERE user_id = ? AND (balance - COALESCE(promo_balance, 0)) >= ?",
+                        (amount, uid, amount)
+                    )
+                    if cur.rowcount == 0:
+                        return await e.edit("❌ Transfer failed. Balance changed. Try again.", buttons=[[p_btn("Back", "menu_account")]])
+
+                    cur.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (target_uid,))
+                    cur.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, target_uid))
+                    cur.execute(
+                        "INSERT INTO balance_transfers (sender_id, recipient_id, amount) VALUES (?,?,?)",
+                        (uid, target_uid, amount)
+                    )
+                    db.commit()
+
+            new_bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
+            await e.edit(
+                f"✅ <b>Transfer Successful!</b>\n\n"
+                f"💸 Transferred: <b>₹{amount}</b>\n"
+                f"👤 Recipient: <code>{target_uid}</code>\n"
+                f"💰 Your Remaining Balance: <b>{format_price(uid, new_bal)}</b>",
+                buttons=[[p_btn("Back to Profile", "menu_account"), p_btn("Main Menu", "menu_main")]]
+            )
+
+            try:
+                rec_bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (target_uid,)).fetchone()[0]
+                sender_label = await get_user_log_label(uid)
+                await bot.send_message(
+                    target_uid,
+                    f"🎁 <b>Balance Received!</b>\n\n"
+                    f"You have received <b>₹{amount}</b> from {sender_label}.\n"
+                    f"💳 Your New Balance: <b>{format_price(target_uid, rec_bal)}</b>",
+                    buttons=[[p_btn("View Account", "menu_account"), p_btn("Shop Now", "menu_buy")]]
+                )
+            except Exception as ex:
+                logger.info("Could not notify transfer recipient %s: %s", target_uid, ex)
 
         elif data == "claim_promo":
             promo_state[uid] = "wait_code"
@@ -4750,35 +4850,27 @@ async def handle_callbacks(e):
         elif data == "wd_sales":
             s_bal = cur.execute("SELECT sales_balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
             if s_bal <= 0: return await e.answer("❌ Sales Balance is 0.", alert=True)
-            minimum=int(fampay_setting("ref_withdraw_min", "50") or 50)
-            btns = [[p_btn("Move to Main Balance", "wd_to_main")], [p_btn(f"Withdraw on UPI (Min ₹{minimum})", "wd_to_upi")], [p_btn(f"Withdraw as USDT (Min ₹{minimum})", "wd_to_usdt")], [p_btn("Back", "menu_account")]]
-            await e.edit(f"🤝 <b>Withdraw Referral Balance</b>\n\nAvailable: ₹{s_bal}\nMinimum external withdrawal: ₹{minimum}\n\nSelect Method:", buttons=btns)
+            btns = [
+                [p_btn(f"🔄 Move {format_price(uid, s_bal)} to Main Balance", "wd_to_main")],
+                [p_btn("Back", "menu_account")]
+            ]
+            await e.edit(
+                f"🤝 <b>Referral Earnings</b>\n\n"
+                f"Available: <b>{format_price(uid, s_bal)}</b>\n\n"
+                f"External withdrawals are disabled. You can move your referral earnings to your Main Balance to buy accounts or transfer to other users:",
+                buttons=btns
+            )
 
         elif data == "wd_to_main":
             async with get_user_lock(uid):
                 s_bal = cur.execute("SELECT sales_balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
-                if s_bal <= 0: return await e.answer("❌ Error.", alert=True)
+                if s_bal <= 0: return await e.answer("❌ Sales balance is empty.", alert=True)
                 cur.execute("UPDATE users SET sales_balance = 0, balance = balance + ? WHERE user_id=?", (s_bal, uid))
                 db.commit()
-            await e.edit(f"{P_YES} <b>Successfully transferred ₹{s_bal} to Main Balance!</b>", buttons=[[p_btn("Back to Menu", "menu_account")]])
+            await e.edit(f"{P_YES} <b>Successfully transferred {format_price(uid, s_bal)} to Main Balance!</b>", buttons=[[p_btn("Back to Profile", "menu_account")]])
 
-        elif data == "wd_to_upi":
-            s_bal = cur.execute("SELECT sales_balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
-            minimum=int(fampay_setting('ref_withdraw_min','50') or 50)
-            if s_bal < minimum: return await e.answer(f"❌ Minimum ₹{minimum} required for withdrawal.", alert=True)
-            wd_state[uid] = {'amount': s_bal, 'method': 'UPI'}
-            await e.edit(f"{P_BANK} <b>Enter your UPI ID to withdraw:</b>\n\n<i>Reply to this message with your exact UPI ID.</i>", buttons=[[p_btn("Cancel", "menu_account")]])
-
-        elif data == "wd_to_usdt":
-            s_bal = cur.execute("SELECT sales_balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
-            minimum=int(fampay_setting("ref_withdraw_min", "50") or 50)
-            if s_bal < minimum: return await e.answer(f"❌ Minimum ₹{minimum} required for withdrawal.", alert=True)
-            await e.edit("<b>Select USDT network:</b>", buttons=[[p_btn("BEP20", "wd_usdt_net|BEP20"), p_btn("TRC20", "wd_usdt_net|TRC20")], [p_btn("USDT Polygon", "wd_usdt_net|POLYGON")], [p_btn("Back", "wd_sales")]])
-
-        elif data.startswith("wd_usdt_net|"):
-            network=data.split("|",1)[1]
-            wd_state[uid]={'amount': cur.execute("SELECT sales_balance FROM users WHERE user_id=?", (uid,)).fetchone()[0], 'method': f'USDT {network}'}
-            await e.edit(f"<b>Enter your {network} USDT wallet address:</b>\n\n<i>Reply with the address carefully. This cannot be changed after submitting.</i>",buttons=[[p_btn("Cancel","menu_account")]])
+        elif data in ("wd_to_upi", "wd_to_usdt") or data.startswith("wd_usdt_net|"):
+            return await e.answer("❌ External withdrawals are disabled. Move earnings to Main Balance to transfer to other users.", alert=True)
 
         elif data == "menu_sell":
             rows = cur.execute("SELECT country_code, year, price_good, price_spam FROM sell_prices").fetchall()
@@ -6668,12 +6760,17 @@ async def handle_text_inputs(e):
             return await e.reply("❌ You have already claimed this promo code!", buttons=[[p_btn("Back to Menu", "menu_main")]])
 
         async with get_user_lock(uid):
-            cur.execute("UPDATE users SET balance = balance + ? WHERE user_id=?", (val, uid))
+            cur.execute("UPDATE users SET balance = balance + ?, promo_balance = COALESCE(promo_balance, 0) + ? WHERE user_id=?", (val, val, uid))
             cur.execute("UPDATE promo_codes SET used_count = used_count + 1 WHERE code=?", (code,))
             cur.execute("INSERT INTO promo_logs (code, user_id) VALUES (?,?)", (code, uid))
             db.commit()
 
-        await e.reply(f"🎁 <b>Promo Code Claimed!</b>\n\n₹{val} has been successfully added to your main balance.", buttons=[[p_btn("Back to Menu", "menu_main")]])
+        await e.reply(
+            f"🎁 <b>Promo Code Claimed!</b>\n\n"
+            f"₹{val} has been added to your balance.\n"
+            f"<i>(Note: Promo balance can be used to purchase numbers and accounts, but cannot be transferred).</i>",
+            buttons=[[p_btn("Back to Menu", "menu_main")]]
+        )
         return
 
     # FAMPAY AUTOMATIC DEPOSIT AMOUNT INPUT
@@ -6773,27 +6870,103 @@ async def handle_text_inputs(e):
 
         return await e.reply("✅ Proof screenshot received. Admins will verify and credit shortly.", buttons=[[p_btn("Back to Menu", "menu_main")]])
 
-    if uid in wd_state:
-        payout_details = text.strip()
-        state = wd_state.pop(uid)
-        amt = state['amount']; method=state.get('method', 'UPI')
-        if not 3 <= len(payout_details) <= 256:
-            return await e.reply("❌ Send a valid payout address or UPI ID.")
+    # BALANCE TRANSFER INPUT
+    if uid in transfer_state:
+        st = transfer_state[uid]
+        step = st.get("step")
 
-        async with get_user_lock(uid):
-            cur.execute("UPDATE users SET sales_balance = sales_balance - ? WHERE user_id=? AND sales_balance >= ?", (amt, uid, amt))
-            if cur.rowcount != 1:
-                return await e.reply("❌ Your referral balance changed. Please try again.")
-            cur.execute("INSERT INTO withdrawals (user_id, amount, method, details, status) VALUES (?,?,?,?,?)", (uid, amt, method, payout_details, "pending"))
-            wd_id = cur.lastrowid
-            db.commit()
+        if step == "wait_target":
+            target_str = text.strip()
+            target_uid = None
+            if target_str.startswith("@"):
+                target_username = target_str.lstrip("@").lower()
+                try:
+                    entity = await bot.get_entity(target_str)
+                    if entity and hasattr(entity, "id"):
+                        target_uid = entity.id
+                except Exception:
+                    pass
+            elif target_str.isdigit():
+                target_uid = int(target_str)
+            else:
+                return await e.reply("❌ Invalid format. Please enter a valid numerical Telegram ID or @username.")
 
-        await e.reply("✅ <b>Withdrawal Request Submitted!</b>\nYour request has been sent to the Admin for approval.", buttons=[[p_btn("Back to Menu", "menu_main")]])
-        adm_msg = f"🔔 <b>NEW WITHDRAWAL REQUEST</b>\n\n👤 User: <code>{uid}</code>\n💰 Amount: ₹{amt}\n🏦 UPI ID: <code>{upi_id}</code>"
-        btns = [[p_btn("✅ Approve", f"wd_act|app|{wd_id}"), p_btn("❌ Reject", f"wd_act|rej|{wd_id}")]]
-        try: await bot.send_message(ADMIN_ID, adm_msg, buttons=btns)
-        except: pass
-        return
+            if not target_uid:
+                return await e.reply("❌ Could not find a Telegram user with that ID or username. Please check and try again.")
+
+            if target_uid == uid:
+                return await e.reply("❌ You cannot transfer balance to yourself! Please enter a different recipient.")
+
+            ensure_user(target_uid)
+
+            row = cur.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id=?", (uid,)).fetchone()
+            bal = row[0] if row else 0
+            promo_bal = row[1] if row else 0
+            transferable = max(0, bal - promo_bal)
+            if transferable <= 0:
+                transfer_state.pop(uid, None)
+                return await e.reply("❌ You have no transferable balance. (Promo code balance cannot be transferred).", buttons=[[p_btn("Back to Profile", "menu_account")]])
+
+            recip_label = f"<code>{target_uid}</code>"
+            try:
+                rec_entity = await bot.get_entity(target_uid)
+                rec_name = getattr(rec_entity, 'first_name', '') or ''
+                rec_username = f"@{rec_entity.username}" if getattr(rec_entity, 'username', None) else ''
+                recip_label = f"<b>{html.escape(rec_name)}</b> ({rec_username or target_uid})"
+            except Exception:
+                pass
+
+            st["step"] = "wait_amount"
+            st["target_uid"] = target_uid
+            st["recip_label"] = recip_label
+
+            await e.reply(
+                f"💸 <b>Transfer Balance</b>\n\n"
+                f"👤 Recipient: {recip_label}\n"
+                f"🆔 Recipient ID: <code>{target_uid}</code>\n"
+                f"💰 Available Transferable: <b>{format_price(uid, transferable)}</b>\n\n"
+                f"👉 <b>Enter the amount in INR (₹) you want to transfer:</b>",
+                buttons=[[p_btn("Cancel", "menu_account")]]
+            )
+            return
+
+        elif step == "wait_amount":
+            amt_str = text.strip()
+            if not amt_str.isdigit() or int(amt_str) <= 0:
+                return await e.reply("❌ Please enter a valid whole number amount greater than 0.")
+
+            amount = int(amt_str)
+            row = cur.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id=?", (uid,)).fetchone()
+            bal = row[0] if row else 0
+            promo_bal = row[1] if row else 0
+            transferable = max(0, bal - promo_bal)
+
+            if amount > transferable:
+                return await e.reply(
+                    f"❌ Amount exceeds your transferable balance!\n"
+                    f"💰 Available: <b>{format_price(uid, transferable)}</b>\n"
+                    f"<i>(Note: Promo balance of ₹{promo_bal} is locked and cannot be transferred.)</i>\n\n"
+                    f"👉 Enter a smaller amount:",
+                    buttons=[[p_btn("Cancel", "menu_account")]]
+                )
+
+            target_uid = st["target_uid"]
+            recip_label = st.get("recip_label", f"<code>{target_uid}</code>")
+
+            msg = (
+                f"⚠️ <b>Confirm Balance Transfer</b>\n\n"
+                f"👤 Recipient: {recip_label}\n"
+                f"🆔 Recipient ID: <code>{target_uid}</code>\n"
+                f"💸 Transfer Amount: <b>₹{amount}</b>\n"
+                f"💰 Your Remaining Balance: <b>{format_price(uid, bal - amount)}</b>\n\n"
+                f"Are you sure you want to transfer this balance? This action is irreversible!"
+            )
+            btns = [
+                [p_btn(f"✅ Confirm Transfer (₹{amount})", f"xfer_do|{target_uid}|{amount}")],
+                [p_btn("❌ Cancel", "menu_account")]
+            ]
+            await e.reply(msg, buttons=btns)
+            return
 
     if uid in sell_state:
         st = sell_state[uid]
