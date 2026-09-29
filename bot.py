@@ -4212,96 +4212,154 @@ async def handle_callbacks(e):
 
         # --- SERVER 2 (LOCAL) ---
         elif data.startswith("srv_2_pg|"):
-            page = int(data.split("|")[1])
             total_bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
+            good_count = cur.execute("SELECT COUNT(*) FROM stock WHERE available=1 AND COALESCE(quality_tier, 'good')='good'").fetchone()[0]
+            cheap_count = cur.execute("SELECT COUNT(*) FROM stock WHERE available=1 AND quality_tier='cheap'").fetchone()[0]
             return await e.edit(
-                f"{P_STORE} <b>Server 2 Purchase Options</b>\n\n"
-                "Choose exactly what you want to receive:\n\n"
-                "👤 <b>Telegram Account</b> — receive the phone number, then use the bot to read the login OTP.\n"
-                "📂 <b>Telegram Session</b> — receive the ready-to-use <code>.session</code> file.\n\n"
-                f"💰 <b>Balance:</b> {format_price(uid, total_bal)}",
+                f"{P_STORE} <b>Server 2 (Local Accounts & Sessions)</b>\n\n"
+                f"Choose Quality Tier:\n\n"
+                f"🟢 <b>Good Quality</b> ({good_count} accounts)\n"
+                f"<i>High trust, aged accounts with maximum longevity.</i>\n\n"
+                f"🟡 <b>Cheap Quality</b> ({cheap_count} accounts)\n"
+                f"<i>Budget accounts suitable for mass usage.</i>\n\n"
+                f"💳 <b>Your Balance:</b> {format_price(uid, total_bal)}",
                 buttons=[
-                    [p_btn("👤 Buy Telegram Account", "s2_countries|account|1", style="success")],
-                    [p_btn("📂 Buy Telegram Session (.session)", "s2_countries|session|1", style="primary")],
+                    [p_btn(f"🟢 Good Quality ({good_count})", "s2_tier|good|1", style="success")],
+                    [p_btn(f"🟡 Cheap Quality ({cheap_count})", "s2_tier|cheap|1", style="primary")],
                     [p_btn("Back to Servers", "menu_buy")],
                 ],
             )
 
+        elif data.startswith("s2_tier|"):
+            parts = data.split("|")
+            tier = parts[1]
+            page = int(parts[2]) if len(parts) > 2 else 1
+            tier_name = "Good Quality" if tier == "good" else "Cheap Quality"
+            tier_icon = "🟢" if tier == "good" else "🟡"
+            total_bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
+            return await e.edit(
+                f"{P_STORE} <b>Server 2 ({tier_icon} {tier_name})</b>\n\n"
+                "Choose what you want to receive:\n\n"
+                "👤 <b>Telegram Account</b> — receive the phone number, then use the bot to read the login OTP.\n"
+                "📂 <b>Telegram Session</b> — receive the ready-to-use <code>.session</code> file.\n\n"
+                f"💰 <b>Balance:</b> {format_price(uid, total_bal)}",
+                buttons=[
+                    [p_btn(f"👤 Buy {tier_name} Account", f"s2_countries|{tier}|account|1", style="success")],
+                    [p_btn(f"📂 Buy {tier_name} Session (.session)", f"s2_countries|{tier}|session|1", style="primary")],
+                    [p_btn("Back to Quality Selection", "srv_2_pg|1")],
+                ],
+            )
+
         elif data.startswith("s2_countries|"):
-            _, purchase_type, page_text = data.split("|")
+            parts = data.split("|")
+            if len(parts) == 4:
+                _, tier, purchase_type, page_text = parts
+            else:
+                _, purchase_type, page_text = parts
+                tier = "good"
             if purchase_type not in ("account", "session"):
                 return await e.answer("Invalid purchase option.", alert=True)
             page = max(1, int(page_text))
             limit, offset = 10, (page - 1) * 10
-            total_row = cur.execute("SELECT COUNT(DISTINCT country_name) FROM stock WHERE available=1").fetchone()
+            total_row = cur.execute(
+                "SELECT COUNT(DISTINCT country_name) FROM stock WHERE available=1 AND COALESCE(quality_tier, 'good')=?",
+                (tier,)
+            ).fetchone()
             total = total_row[0] if total_row else 0
 
-            rows = cur.execute("SELECT country_icon, country_name, COUNT(*) FROM stock WHERE available=1 GROUP BY country_name ORDER BY country_name ASC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
-            if not rows and page == 1: return await e.edit("❌ <b>Server 2 Empty.</b>", buttons=[[p_btn("Back", "menu_buy")]])
+            rows = cur.execute(
+                "SELECT country_icon, country_name, COUNT(*) FROM stock WHERE available=1 AND COALESCE(quality_tier, 'good')=? GROUP BY country_name ORDER BY country_name ASC LIMIT ? OFFSET ?",
+                (tier, limit, offset)
+            ).fetchall()
+            tier_label = "Good Quality" if tier == "good" else "Cheap Quality"
+            tier_icon = "🟢" if tier == "good" else "🟡"
+            if not rows and page == 1:
+                return await e.edit(f"❌ <b>No stock currently in Server 2 ({tier_label}).</b>", buttons=[[p_btn("Back", "srv_2_pg|1")]])
 
             total_bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
             msg = (f"<b>Click country to view price and stock:</b>\n"
                    f"─────────────────────\n"
                    f"✅ Total balance: {format_price(uid, total_bal)}\n"
+                   f"✅ Quality: {tier_icon} {tier_label}\n"
                    f"✅ Server: Server (2)\n"
-                   f"✅ Page {page} of {((total + limit - 1) // limit)}\n")
+                   f"✅ Page {page} of {max(1, ((total + limit - 1) // limit))}\n")
 
             label = "Telegram Account" if purchase_type == "account" else "Telegram Session (.session)"
-            msg = f"{P_STORE} <b>Buy {label}</b>\n\n" + msg
+            msg = f"{P_STORE} <b>Buy {label} ({tier_label})</b>\n\n" + msg
             year_callback = "s2_accyr" if purchase_type == "account" else "s2_yr"
-            btns = [[p_btn(f"{i} {n} ({c})", f"{year_callback}|{n[:20]}")] for (i, n, c) in rows]
+            btns = [[p_btn(f"{i} {n} ({c})", f"{year_callback}|{tier}|{n[:20]}")] for (i, n, c) in rows]
             nav = []
-            if page > 1: nav.append(p_btn("Prev", f"s2_countries|{purchase_type}|{page-1}"))
-            if offset + limit < total: nav.append(p_btn("Next", f"s2_countries|{purchase_type}|{page+1}"))
+            if page > 1: nav.append(p_btn("Prev", f"s2_countries|{tier}|{purchase_type}|{page-1}"))
+            if offset + limit < total: nav.append(p_btn("Next", f"s2_countries|{tier}|{purchase_type}|{page+1}"))
             if nav: btns.append(nav)
-            btns.append([p_btn("Back to Purchase Options", "srv_2_pg|1")])
+            btns.append([p_btn("Back to Purchase Options", f"s2_tier|{tier}|1")])
             await e.edit(msg, buttons=btns)
 
         elif data == "s2_buy_session":
             rows = cur.execute(
-                "SELECT country_icon, country_name, COUNT(*) FROM stock WHERE available=1 GROUP BY country_name ORDER BY country_name ASC LIMIT 50"
+                "SELECT country_icon, country_name, COUNT(*) FROM stock WHERE available=1 AND COALESCE(quality_tier, 'good')='good' GROUP BY country_name ORDER BY country_name ASC LIMIT 50"
             ).fetchall()
             if not rows:
                 return await e.edit("❌ <b>Server 2 Empty.</b>", buttons=[[p_btn("Back", "menu_buy")]])
             msg = (f"{P_STORE} <b>Server 2 Buy Session</b>\n\n"
                    "Choose a country, then choose year and send how many accounts you need to buy.\n"
                    "After confirmation, the bot validates and sends the original authorized session file(s).")
-            btns = [[p_btn(f"{i} {n} ({c})", f"s2_yr|{n[:20]}")] for (i, n, c) in rows]
+            btns = [[p_btn(f"{i} {n} ({c})", f"s2_yr|good|{n[:20]}")] for (i, n, c) in rows]
             btns.append([p_btn("Back", "srv_2_pg|1")])
             await e.edit(msg, buttons=btns)
 
         elif data.startswith("s2_yr|"):
-            country = data.split("|")[1]
-            rows = cur.execute("SELECT account_year, price, COUNT(*) FROM stock WHERE available=1 AND country_name LIKE ? GROUP BY account_year, price ORDER BY account_year DESC", (f"{country}%",)).fetchall()
+            parts = data.split("|")
+            if len(parts) == 3:
+                tier, country = parts[1], parts[2]
+            else:
+                tier, country = "good", parts[1]
+            rows = cur.execute(
+                "SELECT account_year, price, COUNT(*) FROM stock WHERE available=1 AND COALESCE(quality_tier, 'good')=? AND country_name LIKE ? GROUP BY account_year, price ORDER BY account_year DESC",
+                (tier, f"{country}%")
+            ).fetchall()
             if not rows: return await e.answer("❌ Out of stock.", alert=True)
-            msg = f"{P_CAL} <b>Select Year</b>\n🏳️ Country: <b>{country}</b>\n\n"
-            btns = [[p_btn(f"{y} | {format_price(uid, p)} | {c}", f"s2_cf|{country}|{y}|{p}")] for (y, p, c) in rows]
-            btns.append([p_btn("Back", "srv_2_pg|1")])
+            tier_icon = "🟢" if tier == "good" else "🟡"
+            tier_label = "Good" if tier == "good" else "Cheap"
+            msg = f"{P_CAL} <b>Select Year ({tier_icon} {tier_label})</b>\n🏳️ Country: <b>{country}</b>\n\n"
+            btns = [[p_btn(f"{y} | {format_price(uid, p)} | {c}", f"s2_cf|{tier}|{country}|{y}|{p}")] for (y, p, c) in rows]
+            btns.append([p_btn("Back", f"s2_countries|{tier}|session|1")])
             await e.edit(msg, buttons=btns)
 
         elif data.startswith("s2_accyr|"):
-            country = data.split("|", 1)[1]
+            parts = data.split("|")
+            if len(parts) == 3:
+                tier, country = parts[1], parts[2]
+            else:
+                tier, country = "good", parts[1]
             rows = cur.execute(
-                "SELECT account_year, price, COUNT(*) FROM stock WHERE available=1 AND country_name LIKE ? GROUP BY account_year, price ORDER BY account_year DESC",
-                (f"{country}%",),
+                "SELECT account_year, price, COUNT(*) FROM stock WHERE available=1 AND COALESCE(quality_tier, 'good')=? AND country_name LIKE ? GROUP BY account_year, price ORDER BY account_year DESC",
+                (tier, f"{country}%")
             ).fetchall()
             if not rows:
                 return await e.answer("❌ Out of stock.", alert=True)
-            msg = f"{P_CAL} <b>Select Account Year</b>\n🏳️ Country: <b>{country}</b>\n\nYou will receive the full OTP-assisted account purchase."
-            btns = [[p_btn(f"{y} | {format_price(uid, p)} | {c} in stock", f"s2_cf_old|{country}|{y}|{p}")] for y, p, c in rows]
-            btns.append([p_btn("Back", "s2_countries|account|1")])
+            tier_icon = "🟢" if tier == "good" else "🟡"
+            tier_label = "Good" if tier == "good" else "Cheap"
+            msg = f"{P_CAL} <b>Select Account Year ({tier_icon} {tier_label})</b>\n🏳️ Country: <b>{country}</b>\n\nYou will receive the full OTP-assisted account purchase."
+            btns = [[p_btn(f"{y} | {format_price(uid, p)} | {c} in stock", f"s2_cf_old|{tier}|{country}|{y}|{p}")] for y, p, c in rows]
+            btns.append([p_btn("Back", f"s2_countries|{tier}|account|1")])
             await e.edit(msg, buttons=btns)
 
         elif data.startswith("s2_cf|"):
             parts = data.split("|")
-            country, year, base_price = parts[1], parts[2], parts[3]
+            if len(parts) == 5:
+                tier, country, year, base_price = parts[1], parts[2], parts[3], parts[4]
+            else:
+                tier, country, year, base_price = "good", parts[1], parts[2], parts[3]
             stock_count = cur.execute(
-                "SELECT COUNT(*) FROM stock WHERE available=1 AND country_name LIKE ? AND account_year=? AND price=?",
-                (f"{country}%", int(year), int(base_price))
+                "SELECT COUNT(*) FROM stock WHERE available=1 AND COALESCE(quality_tier, 'good')=? AND country_name LIKE ? AND account_year=? AND price=?",
+                (tier, f"{country}%", int(year), int(base_price))
             ).fetchone()[0]
-            session_buy_state[uid] = {"country": country, "year": int(year), "price": int(base_price), "final_price": apply_server_discount(uid, 2, int(base_price)), "stock": stock_count}
+            session_buy_state[uid] = {"country": country, "year": int(year), "price": int(base_price), "tier": tier, "final_price": apply_server_discount(uid, 2, int(base_price)), "stock": stock_count}
+            tier_label = "🟢 Good Quality" if tier == "good" else "🟡 Cheap Quality"
             return await e.edit(
                 f"{P_CART} <b>How many sessions do you want?</b>\n\n"
+                f"🏷️ <b>Quality:</b> {tier_label}\n"
                 f"🏳️ <b>Country:</b> {country}\n"
                 f"{P_CAL} <b>Year:</b> {year}\n"
                 f"{P_CASH} <b>Each:</b> {format_price(uid, apply_server_discount(uid, 2, int(base_price)))}{discount_label(uid,2)}\n"
@@ -4312,10 +4370,14 @@ async def handle_callbacks(e):
 
         elif data.startswith("s2_qty_confirm|"):
             parts = data.split("|")
-            if len(parts) == 6:
+            if len(parts) == 7:
+                _, tier, country, year_str, base_price_str, final_price_str, qty_str = parts
+            elif len(parts) == 6:
                 _, country, year_str, base_price_str, final_price_str, qty_str = parts
+                tier = "good"
             else:
                 _, country, year_str, base_price_str, qty_str = parts
+                tier = "good"
                 final_price_str = str(apply_server_discount(uid, 2, int(base_price_str)))
             base_price, final_price, qty = int(base_price_str), int(final_price_str), int(qty_str)
             total_price = final_price * qty
@@ -4324,16 +4386,16 @@ async def handle_callbacks(e):
             async with get_user_lock(uid):
                 bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
                 initial_count = cur.execute(
-                    "SELECT COUNT(*) FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND available=1",
-                    (f"{country}%", int(year_str), base_price)
+                    "SELECT COUNT(*) FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND COALESCE(quality_tier, 'good')=? AND available=1",
+                    (f"{country}%", int(year_str), base_price, tier)
                 ).fetchone()[0]
                 if initial_count < qty:
-                    return await e.edit("❌ <b>Not enough stock available now.</b>", buttons=[[p_btn("Back", f"s2_yr|{country}")]])
+                    return await e.edit("❌ <b>Not enough stock available now.</b>", buttons=[[p_btn("Back", f"s2_yr|{tier}|{country}")]])
                 if bal < total_price:
                     return await e.edit(f"❌ <b>Insufficient balance.</b>\nNeed {format_price(uid, total_price)}.", buttons=[[p_btn("Recharge", "menu_deposit"), p_btn("Cancel", "srv_2_pg|1")]])
                 cur.execute("UPDATE users SET balance = balance - ? WHERE user_id=? AND balance >= ?", (total_price, uid, total_price))
                 if cur.rowcount == 0:
-                    return await e.edit("❌ <b>Balance changed. Try again.</b>", buttons=[[p_btn("Back", f"s2_yr|{country}")]])
+                    return await e.edit("❌ <b>Balance changed. Try again.</b>", buttons=[[p_btn("Back", f"s2_yr|{tier}|{country}")]])
                 db.commit()
 
             await e.edit(f"🔄 <b>Verifying {qty} Server 2 session(s)...</b>\n<i>Testing live account health and filtering dead accounts...</i>")
@@ -4345,8 +4407,8 @@ async def handle_callbacks(e):
             while len(valid_sessions) < qty:
                 async with get_user_lock(uid):
                     candidate = cur.execute(
-                        "SELECT phone, session_file, country_icon, account_year, twofa, seller_id FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND available=1 LIMIT 1",
-                        (f"{country}%", int(year_str), base_price)
+                        "SELECT phone, session_file, country_icon, account_year, twofa, seller_id FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND COALESCE(quality_tier, 'good')=? AND available=1 LIMIT 1",
+                        (f"{country}%", int(year_str), base_price, tier)
                     ).fetchone()
                     if not candidate:
                         break
@@ -4499,18 +4561,36 @@ async def handle_callbacks(e):
 
         elif data.startswith("s2_cf_old|"):
             parts = data.split("|")
-            country, year, base_price = parts[1], parts[2], parts[3]
+            if len(parts) == 5:
+                tier, country, year, base_price = parts[1], parts[2], parts[3], parts[4]
+            else:
+                tier, country, year, base_price = "good", parts[1], parts[2], parts[3]
             bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
             final_price = apply_server_discount(uid, 2, int(base_price))
             diff = final_price - bal
-            msg = (f"{P_STORE} <b>Confirm Purchase</b>\n\n{P_CASH} <b>Price:</b> {format_price(uid, final_price)}\n💳 <b>Balance:</b> {format_price(uid, bal)}\n\n🏳️ <b>Country:</b> {country}\n🌍 <b>Region:</b> Server 2 (Local)")
-            btns = [[p_btn("Need Recharge", "menu_deposit")] if diff > 0 else [p_btn("✅ Purchase", f"s2_buy|{country}|{year}|{base_price}")]]
+            tier_label = "Good Quality" if tier == "good" else "Cheap Quality"
+            tier_icon = "🟢" if tier == "good" else "🟡"
+            msg = (f"{P_STORE} <b>Confirm Purchase</b>\n\n"
+                   f"🏷️ <b>Quality:</b> {tier_icon} {tier_label}\n"
+                   f"{P_CASH} <b>Price:</b> {format_price(uid, final_price)}\n"
+                   f"💳 <b>Balance:</b> {format_price(uid, bal)}\n\n"
+                   f"🏳️ <b>Country:</b> {country}\n"
+                   f"🌍 <b>Region:</b> Server 2 (Local)")
+            btns = [[p_btn("Need Recharge", "menu_deposit")] if diff > 0 else [p_btn("✅ Purchase", f"s2_buy|{tier}|{country}|{year}|{base_price}")]]
+            btns.append([p_btn("Back", f"s2_accyr|{tier}|{country}")])
             await e.edit(msg, buttons=btns)
 
         elif data.startswith("s2_buy|"):
             parts = data.split("|")
-            country, year_str, price_str = parts[1], parts[2], parts[3]
-            specific_phone = parts[4] if len(parts) > 4 else None
+            if len(parts) >= 6:
+                tier, country, year_str, price_str, specific_phone = parts[1], parts[2], parts[3], parts[4], parts[5]
+            elif len(parts) == 5:
+                tier, country, year_str, price_str = parts[1], parts[2], parts[3], parts[4]
+                specific_phone = None
+            else:
+                tier = "good"
+                country, year_str, price_str = parts[1], parts[2], parts[3]
+                specific_phone = parts[4] if len(parts) > 4 else None
             base_price = int(price_str)
             final_price = apply_server_discount(uid, 2, base_price)
 
@@ -4518,7 +4598,7 @@ async def handle_callbacks(e):
                 if specific_phone:
                     row = cur.execute("SELECT phone, session_file, country_icon, account_year, twofa, seller_id FROM stock WHERE phone=? AND available=1", (specific_phone,)).fetchone()
                 else:
-                    row = cur.execute("SELECT phone, session_file, country_icon, account_year, twofa, seller_id FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND available=1 LIMIT 1", (f"{country}%", int(year_str), base_price)).fetchone()
+                    row = cur.execute("SELECT phone, session_file, country_icon, account_year, twofa, seller_id FROM stock WHERE country_name LIKE ? AND account_year=? AND price=? AND COALESCE(quality_tier, 'good')=? AND available=1 LIMIT 1", (f"{country}%", int(year_str), base_price, tier)).fetchone()
 
                 if not row: return await e.answer("❌ Sold out!", alert=True)
                 phone, sess, c_icon, actual_year, twofa_pass, seller_id = row
@@ -5933,6 +6013,17 @@ async def handle_callbacks(e):
                         await bot.send_message(uid, f"✅ Deleted!")
 
                     elif action == "addzip" and has_perm(uid, 'p_add_stock'):
+                        tier_prompt = (
+                            "🏷️ <b>Select Quality Tier for this ZIP upload:</b>\n\n"
+                            "1️⃣ Reply <b>1</b> or <b>good</b> for 🟢 Good Quality\n"
+                            "2️⃣ Reply <b>2</b> or <b>cheap</b> for 🟡 Cheap Quality\n\n"
+                            "<i>(Default is Good Quality)</i>"
+                        )
+                        tier_reply = (await get_reply(tier_prompt)).text.strip().lower()
+                        upload_tier = "cheap" if tier_reply in ("2", "cheap", "c") else "good"
+                        tier_badge = "🟡 Cheap Quality" if upload_tier == "cheap" else "🟢 Good Quality"
+                        await bot.send_message(uid, f"Selected Quality Tier: <b>{tier_badge}</b>")
+
                         resp = await get_reply(f"📦 <b>Send the ZIP file containing <code>.session</code> files:</b>")
                         if not resp.file or not (resp.file.name or "").lower().endswith('.zip'):
                             return await bot.send_message(uid, f"❌ Invalid file.")
@@ -6036,11 +6127,11 @@ async def handle_callbacks(e):
                                         source_path = acc['path'] + ext
                                         if os.path.exists(source_path):
                                             os.replace(source_path, perm_base + ext)
-                                    cur.execute("INSERT OR REPLACE INTO stock (phone, session_file, country_name, country_icon, account_year, category, price, available, twofa) VALUES (?,?,?,?,?,?,?,?,?)",
-                                                (acc['phone'], perm_base + ".session", c_name, c_icon, year, 'Good', price, 1, twofa_pass))
+                                    cur.execute("INSERT OR REPLACE INTO stock (phone, session_file, country_name, country_icon, account_year, category, price, available, twofa, quality_tier) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                                                (acc['phone'], perm_base + ".session", c_name, c_icon, year, 'Good', price, 1, twofa_pass, upload_tier))
                                     success += 1
                             db.commit()
-                            summary=f"✅ <b>Bulk Interactive Upload Complete!</b>\n🟢 Added: {success}\n🔴 Skipped: {len(scan_failures)}"
+                            summary=f"✅ <b>Bulk Interactive Upload Complete!</b>\n🟢 Added: {success} ({tier_badge})\n🔴 Skipped: {len(scan_failures)}"
                             if scan_failures:summary += "\n\n<pre>"+html.escape("\n".join(scan_failures[:20]))+"</pre>"
                             await bot.send_message(uid,summary)
                         finally:
@@ -6050,6 +6141,17 @@ async def handle_callbacks(e):
                                 shutil.rmtree(extracted_dir)
 
                     elif action == "addstock" and has_perm(uid, 'p_add_stock'):
+                        tier_prompt = (
+                            "🏷️ <b>Select Quality Tier for this account:</b>\n\n"
+                            "1️⃣ Reply <b>1</b> or <b>good</b> for 🟢 Good Quality\n"
+                            "2️⃣ Reply <b>2</b> or <b>cheap</b> for 🟡 Cheap Quality\n\n"
+                            "<i>(Default is Good Quality)</i>"
+                        )
+                        tier_reply = (await get_reply(tier_prompt)).text.strip().lower()
+                        upload_tier = "cheap" if tier_reply in ("2", "cheap", "c") else "good"
+                        tier_badge = "🟡 Cheap Quality" if upload_tier == "cheap" else "🟢 Good Quality"
+                        await bot.send_message(uid, f"Selected Quality Tier: <b>{tier_badge}</b>")
+
                         os.makedirs("sessions", exist_ok=True)
                         phone = (await get_reply(f"📱 Enter Phone (+919999...):")).text.replace(" ", "").replace("+", "")
                         sp = f"sessions/{phone}"
@@ -6088,10 +6190,10 @@ async def handle_callbacks(e):
                                 await bot.send_message(uid, f"⚡ <b>Auto-detected Price:</b> ₹{price} for {c_name}")
                             else: price = int((await get_reply(f"💰 Price (₹):")).text)
 
-                        cur.execute("INSERT OR REPLACE INTO stock (phone, session_file, country_name, country_icon, account_year, category, price, available, twofa) VALUES (?,?,?,?,?,?,?,?,?)",
-                                    (phone, sp + ".session", c_name, c_icon, year, 'Good', price, 1, twofa_pass))
+                        cur.execute("INSERT OR REPLACE INTO stock (phone, session_file, country_name, country_icon, account_year, category, price, available, twofa, quality_tier) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                                    (phone, sp + ".session", c_name, c_icon, year, 'Good', price, 1, twofa_pass, upload_tier))
                         db.commit()
-                        await bot.send_message(uid, f"✅ Added!")
+                        await bot.send_message(uid, f"✅ Added to {tier_badge}!")
 
                     elif action == "supporturl" and has_perm(uid, 'p_settings'):
                         url = (await get_reply("🔗 Enter new Support URL:")).text
@@ -6388,23 +6490,26 @@ async def handle_text_inputs(e):
     if uid in session_buy_state:
         st = session_buy_state.pop(uid, None)
         qty_text = text.strip()
+        tier = st.get("tier", "good")
         if not qty_text.isdigit() or int(qty_text) <= 0:
-            return await e.reply("❌ Send a valid quantity.", buttons=[[p_btn("Back", f"s2_yr|{st['country']}")]])
+            return await e.reply("❌ Send a valid quantity.", buttons=[[p_btn("Back", f"s2_yr|{tier}|{st['country']}")]])
         qty = int(qty_text)
         country, year, price = st["country"], int(st["year"]), int(st["price"])
         final_price = int(st.get("final_price", apply_server_discount(uid, 2, price)))
         available = cur.execute(
-            "SELECT COUNT(*) FROM stock WHERE available=1 AND country_name LIKE ? AND account_year=? AND price=?",
-            (f"{country}%", year, price)
+            "SELECT COUNT(*) FROM stock WHERE available=1 AND COALESCE(quality_tier, 'good')=? AND country_name LIKE ? AND account_year=? AND price=?",
+            (tier, f"{country}%", year, price)
         ).fetchone()[0]
         if qty > available:
             return await e.reply(
                 f"❌ Only <b>{available}</b> account(s) are available for this selection.",
-                buttons=[[p_btn("Choose Again", f"s2_yr|{country}"), p_btn("Cancel", "s2_qty_cancel")]]
+                buttons=[[p_btn("Choose Again", f"s2_yr|{tier}|{country}"), p_btn("Cancel", "s2_qty_cancel")]]
             )
         bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
         total = qty * final_price
+        tier_label = "🟢 Good Quality" if tier == "good" else "🟡 Cheap Quality"
         msg = (f"{P_STORE} <b>Confirm Server 2 Buy Session</b>\n\n"
+               f"🏷️ <b>Quality:</b> {tier_label}\n"
                f"🏳️ <b>Country:</b> {country}\n"
                f"{P_CAL} <b>Year:</b> {year}\n"
                f"📦 <b>Quantity:</b> {qty}\n"
@@ -6413,7 +6518,7 @@ async def handle_text_inputs(e):
                f"💰 <b>Balance:</b> {format_price(uid, bal)}")
         if bal < total:
             return await e.reply(msg + "\n\n❌ <b>Insufficient balance.</b>", buttons=[[p_btn("Recharge", "menu_deposit"), p_btn("Cancel", "s2_qty_cancel")]])
-        return await e.reply(msg, buttons=[[p_btn("✅ Confirm Buy", f"s2_qty_confirm|{country}|{year}|{price}|{final_price}|{qty}")], [p_btn("❌ Cancel", "s2_qty_cancel")]])
+        return await e.reply(msg, buttons=[[p_btn("✅ Confirm Buy", f"s2_qty_confirm|{tier}|{country}|{year}|{price}|{final_price}|{qty}")], [p_btn("❌ Cancel", "s2_qty_cancel")]])
 
     if uid in giveaway_ticket_state:
         gid = giveaway_ticket_state.pop(uid, None)
