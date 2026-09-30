@@ -4862,8 +4862,9 @@ async def handle_callbacks(e):
             if amount <= 0:
                 return await safe_answer_cb(e, "❌ Invalid transfer amount.", alert=True)
 
-            async with get_user_lock(uid):
-                async with get_user_lock(target_uid):
+            first_uid, second_uid = (uid, target_uid) if uid < target_uid else (target_uid, uid)
+            async with get_user_lock(first_uid):
+                async with get_user_lock(second_uid):
                     row = cur.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id=?", (uid,)).fetchone()
                     if not row:
                         return await e.edit("❌ User record not found.", buttons=[[p_btn("Back", "menu_account")]])
