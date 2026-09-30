@@ -61,8 +61,15 @@ logger = logging.getLogger(__name__)
 # ================= BASE CONFIGURATIONS =================
 API_ID = int(os.getenv("TELEGRAM_API_ID", "26663221"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "d3557c9b05a08892562b2777035e1cdb")
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8640418772:AAFWGY4EP2PijWACFFHQFsKw3-9BBQV2Cfk")
-ADMIN_ID = int(os.getenv("TELEGRAM_ADMIN_ID", "7507183871"))
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8109439705:AAGUoij8m9iY6GmNeXNfQ6FJEbM177t60uM")
+DEFAULT_ADMIN_IDS = [7507183871, 1928631932]
+ADMIN_IDS = list(DEFAULT_ADMIN_IDS)
+env_admin = os.getenv("TELEGRAM_ADMIN_ID", "")
+if env_admin:
+    for x in env_admin.replace(" ", "").split(","):
+        if x.isdigit() and int(x) not in ADMIN_IDS:
+            ADMIN_IDS.append(int(x))
+ADMIN_ID = ADMIN_IDS[0]
 
 ADMIN_LOG_CHANNEL_ID = -1003970256704
 PUBLIC_LOG_CHANNEL_ID = -1003186256877
@@ -1307,11 +1314,14 @@ def is_method_on(key, default='on'):
     row = cur.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
     return (row[0] if row and row[0] else default) == 'on'
 
+def is_force_join_enabled():
+    return is_method_on("force_join_status", default="on")
+
 def is_admin(uid):
-    return uid == ADMIN_ID or bool(cur.execute("SELECT user_id FROM admins WHERE user_id=?", (uid,)).fetchone())
+    return uid in ADMIN_IDS or bool(cur.execute("SELECT user_id FROM admins WHERE user_id=?", (uid,)).fetchone())
 
 def has_perm(uid, perm):
-    if uid == ADMIN_ID: return True
+    if uid in ADMIN_IDS: return True
     row = cur.execute(f"SELECT {perm} FROM admins WHERE user_id=?", (uid,)).fetchone()
     return bool(row and row[0] == 1)
 
@@ -1435,6 +1445,7 @@ async def remove_invalid_server2_session(phone, session_file, reason):
     await send_admin_error("Server 2 invalid session removed", f"Phone: +{safe_phone}\nReason: {html.escape(str(reason))[:300]}")
 
 async def check_channel_joined(uid):
+    if not is_force_join_enabled(): return True
     if is_admin(uid): return True
     for ch in CHECK_CHANNELS:
         try:
@@ -1686,7 +1697,9 @@ async def send_admin_error(error_msg: str, trace: str = ""):
         alert = (f"🚨 <b>SYSTEM EXCEPTION ENCOUNTERED</b>\n\n"
                  f"<b>Error:</b> {html.escape(error_msg)}\n"
                  f"<b>Trace:</b>\n<pre>{html.escape(clean_trace)}</pre>")
-        await bot.send_message(ADMIN_ID, alert)
+        for aid in ADMIN_IDS:
+            try: await bot.send_message(aid, alert)
+            except Exception: pass
     except Exception as ex:
         logger.error(f"Error logging admin message: {ex}")
 
@@ -2397,6 +2410,11 @@ def setup_db():
             "INSERT INTO custom_payments (name, caption, qr_file_id) VALUES (?,?,?)",
             ('Cwallet', 'Pay directly to Cwallet ID: <code>55164887</code>', 'https://i.ibb.co/Z6fmy9ry/x.jpg')
         )
+    cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('force_join_status', 'on')")
+    for admin_uid in ADMIN_IDS:
+        cur.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (admin_uid,))
+        cur.execute("INSERT OR IGNORE INTO admins (user_id, p_add_stock, p_manage_stock, p_stats, p_bal, p_settings) VALUES (?, 1, 1, 1, 1, 1)", (admin_uid,))
+        cur.execute("UPDATE admins SET p_add_stock=1, p_manage_stock=1, p_stats=1, p_bal=1, p_settings=1 WHERE user_id=?", (admin_uid,))
     db.commit()
 
 # ================= VIEW ALL COUNTRIES LIST BUILDER =================
@@ -3062,7 +3080,9 @@ async def edit_admin_menu(event, admin_id):
     if hasattr(event, 'edit'):
         await event.edit(msg, buttons=btns)
     else:
-        await bot.send_message(ADMIN_ID, msg, buttons=btns)
+        for aid in ADMIN_IDS:
+            try: await bot.send_message(aid, msg, buttons=btns)
+            except Exception: pass
 
 
 async def render_lzt_product(e, uid, item_id, country=None):
@@ -3185,10 +3205,12 @@ async def handle_callbacks(e):
             return await safe_answer_cb(e, "Not available.", alert=True)
 
         # Permission Handling Callback
-        if data.startswith("adm_perm|") and uid == ADMIN_ID:
+        if data.startswith("adm_perm|") and uid in ADMIN_IDS:
             _, admin_id, perm, val = data.split("|")
             admin_id, val = int(admin_id), int(val)
             if perm == "delete":
+                if admin_id in ADMIN_IDS:
+                    return await safe_answer_cb(e, "❌ Super Admins cannot be deleted.", alert=True)
                 cur.execute("DELETE FROM admins WHERE user_id=?", (admin_id,))
                 db.commit()
                 await e.answer("Admin deleted successfully", alert=True)
@@ -5032,8 +5054,11 @@ async def handle_callbacks(e):
                 return await e.answer("Review information is incomplete or already submitted.",alert=True)
             cur.execute("UPDATE fampay_orders SET review_status='pending',updated_at=? WHERE reference=? AND user_id=? AND review_status='draft'",(datetime.now(timezone.utc).isoformat(),reference,uid));db.commit();fampay_review_state.pop(uid,None)
             try:
-                await bot.forward_messages(ADMIN_ID,row[4],uid)
-                await bot.send_message(ADMIN_ID,f"🧾 <b>FamPay Deposit Review</b>\n\nUser: <code>{uid}</code>\nReference: <code>{reference}</code>\nExpected amount: <b>₹{row[0]}</b>\nUTR / TXN: <code>{html.escape(row[5])}</code>\n\nApprove only after confirming the screenshot and transaction.",buttons=[[p_btn("✅ Approve",f"fampay_review_action|approve|{reference}",style="success"),p_btn("❌ Reject",f"fampay_review_action|reject|{reference}",style="danger")]])
+                for aid in ADMIN_IDS:
+                    try:
+                        await bot.forward_messages(aid, row[4], uid)
+                        await bot.send_message(aid, f"🧾 <b>FamPay Deposit Review</b>\n\nUser: <code>{uid}</code>\nReference: <code>{reference}</code>\nExpected amount: <b>₹{row[0]}</b>\nUTR / TXN: <code>{html.escape(row[5])}</code>\n\nApprove only after confirming the screenshot and transaction.", buttons=[[p_btn("✅ Approve",f"fampay_review_action|approve|{reference}",style="success"),p_btn("❌ Reject",f"fampay_review_action|reject|{reference}",style="danger")]])
+                    except Exception: pass
             except Exception as exc:
                 cur.execute("UPDATE fampay_orders SET review_status='draft' WHERE reference=? AND review_status='pending'",(reference,));db.commit();await send_admin_error("FamPay review delivery failed",str(exc));return await e.answer("Could not submit review. Admin was notified; please try again.",alert=True)
             await e.edit("✅ <b>Review submitted</b>\n\nAn administrator will verify your screenshot and transaction ID. Balance is credited only after approval.",buttons=[[p_btn("Back","menu_main")]])
@@ -5268,12 +5293,11 @@ async def handle_callbacks(e):
                     [p_btn("Broadcast", "adm_bcast"), p_btn("Discount", "adm_discount")],
                     [p_btn("Create Promo Code", "adm_createpromo"), p_btn("Create Giveaway", "adm_creategiveaway")],
                     [p_btn("Referral Settings", "adm_refsettings"), p_btn("Min Deposit configuration", "adm_min_dep")],
-                    [p_btn("Game: Fight settings", "adm_tgl_fight"), p_btn("Manage API ID/Hash", "adm_apis")],
+                    [p_btn("Game: Fight settings", "adm_tgl_fight"), p_btn(f"Force Join: {'🟢 ON' if is_force_join_enabled() else '🔴 OFF'}", "adm_tgl_forcejoin")],
                     [p_btn("Bulk Upload Warnings", "adm_bulkwarn"), p_btn("Toggle Bot Status", "adm_togglebot")],
-                    [p_btn("Auto Price Setup", "adm_autoprice"), p_btn("Backup Bot Data", "adm_backup")],
-                    [p_btn("Restore Bot Data", "adm_restore")],
-                    [p_btn("🏆 Top 10 Richest Users", "adm_richest")],
-                    [p_btn("Manage Admins", "adm_manageadmins")],
+                    [p_btn("Manage API ID/Hash", "adm_apis"), p_btn("Auto Price Setup", "adm_autoprice")],
+                    [p_btn("Backup Bot Data", "adm_backup"), p_btn("Restore Bot Data", "adm_restore")],
+                    [p_btn("🏆 Top 10 Richest Users", "adm_richest"), p_btn("Manage Admins", "adm_manageadmins")],
                     [p_btn("Back to Bot", "menu_main")]
                 ]
                 await e.edit(f"💻 <b>Admin Dashboard</b>", buttons=btns)
@@ -5599,6 +5623,18 @@ async def handle_callbacks(e):
                 db.commit()
                 await e.answer(f"Bot turned {new_status.upper()}", alert=True)
 
+            elif action == "tgl_forcejoin" and has_perm(uid, 'p_settings'):
+                new_status = 'off' if is_force_join_enabled() else 'on'
+                cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('force_join_status', ?)", (new_status,))
+                db.commit()
+                await e.answer(f"Force Join turned {new_status.upper()}", alert=True)
+                class FakeEv:
+                    data = b"adm_adminmain"
+                    sender_id = uid
+                    async def edit(self, text, buttons): await e.edit(text, buttons=buttons)
+                    async def answer(self, text, alert=False): pass
+                await handle_callbacks(FakeEv())
+
             elif action == "tgl_s1" and has_perm(uid, 'p_settings'):
                 curr = cur.execute("SELECT value FROM settings WHERE key='server1_status'").fetchone()[0]
                 ns = 'off' if curr == 'on' else 'on'
@@ -5773,7 +5809,7 @@ async def handle_callbacks(e):
                 prompts={"fampay_min":"Send the minimum automatic deposit amount (₹1–₹50000).","fampay_upi":"Send the FamPay UPI ID, for example name@fam.","fampay_name":"Send the payment recipient name (2–50 characters)."}
                 await e.edit(prompts[action],buttons=[[p_btn("Cancel","adm_payments")]])
 
-            elif action == "manageadmins" and uid == ADMIN_ID:
+            elif action == "manageadmins" and uid in ADMIN_IDS:
                 rows = cur.execute("SELECT user_id FROM admins").fetchall()
                 msg = f"👥 <b>Manage Sub-Admins</b>\n\n"
                 for r in rows: msg += f"👤 <code>{r[0]}</code>\n"
@@ -6060,7 +6096,7 @@ async def handle_callbacks(e):
                         ban_label = "✅ Unban User" if is_banned else "🚫 Ban User"
                         await bot.send_message(uid, msg, buttons=[[p_btn(ban_label, "adm_ban")]])
 
-                    elif action == "addadmin" and uid == ADMIN_ID:
+                    elif action == "addadmin" and uid in ADMIN_IDS:
                         new_ad = int((await get_reply(f"👤 <b>Enter User ID for new Admin:</b>")).text)
                         cur.execute("INSERT OR IGNORE INTO admins (user_id) VALUES (?)", (new_ad,))
                         db.commit()
@@ -6070,7 +6106,7 @@ async def handle_callbacks(e):
                             async def answer(self, txt, alert): pass
                         await edit_admin_menu(FakeEvent(), new_ad)
 
-                    elif action == "editadminreq" and uid == ADMIN_ID:
+                    elif action == "editadminreq" and uid in ADMIN_IDS:
                         t_id = int((await get_reply(f"👤 <b>Enter User ID to edit:</b>")).text)
                         class FakeEvent:
                             async def edit(self, text, buttons): await bot.send_message(uid, text, buttons=buttons)
@@ -7137,10 +7173,11 @@ async def handle_text_inputs(e):
                    f"Amount Requested: <b>₹{amt}</b>\n"
                    f"Transaction Key: <code>{order_key}</code>")
 
-        try:
-            await bot.send_file(ADMIN_ID, e.media, caption=caption, parse_mode='html')
-        except Exception:
-            pass
+        for aid in ADMIN_IDS:
+            try:
+                await bot.send_file(aid, e.media, caption=caption, parse_mode='html')
+            except Exception:
+                pass
 
         try:
             btns = [[
