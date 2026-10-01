@@ -30,7 +30,7 @@ from database import connect, utcnow
 logger = logging.getLogger(__name__)
 
 webapp_bp = Blueprint("webapp", __name__)
-_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8109439705:AAGUoij8m9iY6GmNeXNfQ6FJEbM177t60uM")
+_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8273842990:AAF5PA9ikw0ABRqES1lCIPoczOdUZVCs1yU")
 
 
 def validate_telegram_init_data(init_data_raw: str, bot_token: str) -> dict | None:

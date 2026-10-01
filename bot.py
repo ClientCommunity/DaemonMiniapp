@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 # ================= BASE CONFIGURATIONS =================
 API_ID = int(os.getenv("TELEGRAM_API_ID", "26663221"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "d3557c9b05a08892562b2777035e1cdb")
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8109439705:AAGUoij8m9iY6GmNeXNfQ6FJEbM177t60uM")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8273842990:AAF5PA9ikw0ABRqES1lCIPoczOdUZVCs1yU")
 DEFAULT_ADMIN_IDS = [7507183871, 1928631932]
 ADMIN_IDS = list(DEFAULT_ADMIN_IDS)
 env_admin = os.getenv("TELEGRAM_ADMIN_ID", "")
