@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite databases & temp journals
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Sessions & sensitive key files
+.payment_encryption.key
+sessions/
+*.session
+*.session-wal
+*.session-shm
+*.session-journal
+
+# Temporary files & archives
+temp_*
+*.zip
