@@ -238,8 +238,8 @@ LZT_PROXY = os.getenv("LZT_PROXY", "").strip()
 LZT_REQUEST_DEBUG = os.getenv("LZT_REQUEST_DEBUG", "1").strip().lower() not in ("0", "false", "no", "off")
 LZT_FAST_BUY_RETRIES = int(os.getenv("LZT_FAST_BUY_RETRIES", "5"))
 LZT_PRICE_CURRENCY = os.getenv("LZT_PRICE_CURRENCY", "rub").strip().lower() or "rub"
-LZT_MIN_REQUEST_INTERVAL = max(0.2, float(os.getenv("LZT_MIN_REQUEST_INTERVAL", "0.25")))
-LZT_RATE_LIMIT_COOLDOWN = float(os.getenv("LZT_RATE_LIMIT_COOLDOWN", "30"))
+LZT_MIN_REQUEST_INTERVAL = max(0.5, float(os.getenv("LZT_MIN_REQUEST_INTERVAL", "0.75")))
+LZT_RATE_LIMIT_COOLDOWN = float(os.getenv("LZT_RATE_LIMIT_COOLDOWN", "60"))
 AUTO_CANCEL_SECONDS = 600
 
 # Optional Telegram custom emoji IDs. Set env vars to Telegram custom emoji
@@ -2046,11 +2046,12 @@ async def lzt_request(method, endpoint, params=None, data=None, return_error=Fal
                     if r.status >= 500 and attempt < max_retries:
                         await asyncio.sleep(0.25 * attempt)
                         continue
-                    if r.status == 429:
-                        retry_after = parse_lzt_retry_after(r.headers)
+                    is_rate_limited = (r.status == 429) or (r.status == 403 and "exceeded" in (text or "").lower())
+                    if is_rate_limited:
+                        retry_after = parse_lzt_retry_after(r.headers) or 60.0
                         wait_for = await apply_lzt_rate_limit_cooldown(retry_after)
                         if LZT_REQUEST_DEBUG:
-                            logger.warning("LZT API HTTP 429: %s %s retry_after=%s body=%s", method, masked_url, wait_for, text[:500])
+                            logger.warning("LZT API rate limited (%s): %s %s retry_after=%.1fs body=%s", r.status, method, masked_url, wait_for, text[:500])
                         if attempt < max_retries:
                             await asyncio.sleep(wait_for)
                             continue
@@ -2203,11 +2204,10 @@ async def cache_lzt_stock_loop():
     while True:
         try:
             keys_to_update = list(active_filter_keys)
-            tasks = []
             for fkey in keys_to_update:
                 for country in COUNTRY_CODES.keys():
-                    tasks.append(fetch_and_cache(country, fkey))
-            await asyncio.gather(*tasks)
+                    await fetch_and_cache(country, fkey)
+                    await asyncio.sleep(0.5)
         except Exception as e:
             logger.error(f"Background LZT cache index failed: {e}")
         await asyncio.sleep(max(30, LZT_CACHE_REFRESH_SECONDS))
@@ -3861,8 +3861,9 @@ async def handle_callbacks(e):
                     except:
                         if fkey not in cached_lzt_stock:
                             cached_lzt_stock[fkey] = {}
-            tasks = [quick_fetch(c) for c in COUNTRY_CODES.keys()]
-            await asyncio.gather(*tasks)
+            for c in COUNTRY_CODES.keys():
+                await quick_fetch(c)
+                await asyncio.sleep(0.3)
 
             class FakeEv:
                 data = b"srv_1_pg|1"
