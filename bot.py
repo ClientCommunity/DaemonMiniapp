@@ -5786,7 +5786,14 @@ async def handle_callbacks(e):
             elif action.startswith("fampay_gateway_toggle|") and has_perm(uid, 'p_settings'):
                 gid=int(action.rsplit("|",1)[1]);cur.execute("UPDATE fampay_gateways SET enabled=1-enabled WHERE id=?",(gid,));db.commit();await e.edit("Gateway updated.",buttons=[[p_btn("Back",f"adm_fampay_gateway|{gid}")]])
             elif action.startswith("fampay_gateway_edit|") and has_perm(uid, 'p_settings'):
-                _,gid,field=action.split("|",2);payment_admin_state[uid]={"step":f"fpg_edit_{field}","gateway_id":int(gid)};await e.edit(f"Send new {field} value.",buttons=[[p_btn("Cancel",f"adm_fampay_gateway|{gid}")]])
+                _,gid,field=action.split("|",2);payment_admin_state[uid]={"step":f"fpg_edit_{field}","gateway_id":int(gid)}
+                prompts = {
+                    "gmail": "✉️ Send the full Gmail address used for IMAP auto-verification (example: <code>yourname@gmail.com</code>).",
+                    "password": "🔑 Send the 16-character Google App Password (from myaccount.google.com/apppasswords).",
+                    "upi": "💳 Send the new UPI ID (example: <code>name@fam</code>).",
+                    "limits": "📊 Send the deposit limits as <code>minimum | maximum</code> (example: <code>50 | 10000</code>)."
+                }
+                await e.edit(prompts.get(field, f"Send new {field} value."), buttons=[[p_btn("Cancel", f"adm_fampay_gateway|{gid}")]])
             elif action == "tgl_upi" and has_perm(uid, 'p_settings'):
                 ns = 'off' if is_method_on("upi_status") else 'on'
                 cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('upi_status', ?)", (ns,))
@@ -6614,8 +6621,10 @@ async def handle_text_inputs(e):
     uid = e.sender_id
     if not is_private_event(e) and not is_admin(uid):
         return
+    raw_text = getattr(e, 'raw_text', None)
+    if raw_text and raw_text.startswith('/'): return
     if getattr(e, 'text', None) and e.text.startswith('/'): return
-    text = e.text or ""
+    text = (raw_text if raw_text is not None else (e.text or "")) or ""
 
     if uid in smm_state:
         state=smm_state[uid]
@@ -6966,20 +6975,29 @@ async def handle_text_inputs(e):
             except (ValueError,AssertionError):return await e.reply("❌ Use valid values: <code>minimum | maximum</code>.")
             cur.execute("INSERT INTO fampay_gateways(name,upi_id,min_deposit,max_deposit) VALUES(?,?,?,?)",(state["name"],state["upi_id"],minimum,maximum));db.commit();payment_admin_state.pop(uid,None);return await e.reply("✅ Gateway added. Configure Gmail and app password from its settings.",buttons=[[p_btn("UPI Gateways","adm_fampay_gateways")]])
         if step.startswith("fpg_edit_"):
-            field=step.removeprefix("fpg_edit_");gid=state["gateway_id"];value=text.strip()
+            field=step.removeprefix("fpg_edit_");gid=state["gateway_id"];raw_input=(getattr(e,"raw_text",None) or text).strip()
             try:
                 if field=="upi":
-                    if not re.fullmatch(r"[A-Za-z0-9._-]{2,128}@[A-Za-z]{2,32}",value):raise ValueError
-                    cur.execute("UPDATE fampay_gateways SET upi_id=? WHERE id=?",(value,gid))
+                    clean_upi=re.sub(r"<[^>]+>","",raw_input).strip()
+                    if not re.fullmatch(r"[A-Za-z0-9._-]{2,128}@[A-Za-z]{2,32}",clean_upi):raise ValueError
+                    cur.execute("UPDATE fampay_gateways SET upi_id=? WHERE id=?",(clean_upi,gid))
                 elif field=="limits":
-                    minimum,maximum=[int(x.strip()) for x in value.split("|",1)];assert 1<=minimum<=maximum<=50000;cur.execute("UPDATE fampay_gateways SET min_deposit=?,max_deposit=? WHERE id=?",(minimum,maximum,gid))
+                    minimum,maximum=[int(x.strip()) for x in raw_input.split("|",1)];assert 1<=minimum<=maximum<=50000;cur.execute("UPDATE fampay_gateways SET min_deposit=?,max_deposit=? WHERE id=?",(minimum,maximum,gid))
                 elif field=="gmail":
-                    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+",value):raise ValueError
-                    cur.execute("UPDATE fampay_gateways SET gmail=? WHERE id=?",(value,gid))
+                    clean_email=re.sub(r"<[^>]+>","",raw_input).replace("mailto:","").strip().lower()
+                    if "@" not in clean_email and clean_email:clean_email+="@gmail.com"
+                    if not re.fullmatch(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",clean_email):raise ValueError
+                    cur.execute("UPDATE fampay_gateways SET gmail=? WHERE id=?",(clean_email,gid))
                 else:
-                    if len(value.replace(" ",""))<8:raise ValueError
-                    cur.execute("UPDATE fampay_gateways SET app_password=? WHERE id=?",("enc:"+encrypt_secret(value.replace(" ","")),gid))
-            except (ValueError,AssertionError):return await e.reply("❌ Invalid value. Please try again.")
+                    clean_pw=raw_input.replace(" ","").strip()
+                    if len(clean_pw)<8:raise ValueError
+                    cur.execute("UPDATE fampay_gateways SET app_password=? WHERE id=?",("enc:"+encrypt_secret(clean_pw),gid))
+            except (ValueError,AssertionError):
+                prompts={"gmail":"❌ Invalid email format. Send a valid address, for example: <code>yourname@gmail.com</code>.",
+                         "upi":"❌ Invalid UPI ID. Send in format: <code>username@handle</code> (for example <code>name@fam</code>).",
+                         "limits":"❌ Invalid limits. Send in format: <code>minimum | maximum</code> (for example <code>50 | 10000</code>).",
+                         "password":"❌ Invalid app password. Google App Passwords must be at least 8 characters (normally 16 letters)."}
+                return await e.reply(prompts.get(field,"❌ Invalid value. Please try again."))
             db.commit();payment_admin_state.pop(uid,None);return await e.reply("✅ Gateway setting saved.",buttons=[[p_btn("Gateway",f"adm_fampay_gateway|{gid}")]])
         if step in ("ref_topup", "ref_reward", "ref_withdraw", "resell_min", "resell_max"):
             value=text.strip()
