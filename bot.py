@@ -7529,7 +7529,7 @@ async def handle_start(e):
 
 async def main():
     setup_db()
-    print("✅ SERVER 1 COMPLETED STABLY")
+    print("[+] SERVER 1 COMPLETED STABLY")
 
     # Start Flask webhook server in background
     start_webhook()
