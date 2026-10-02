@@ -84,6 +84,8 @@ export interface ActiveOtpSession {
   country: string;
   phone: string;
   priceInr: number;
+  promoUsed: number;
+  mainUsed: number;
   status: OtpStatus;
   otpCode: string | null;
   startTime: number;

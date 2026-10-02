@@ -69,14 +69,20 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Load initial state from localStorage or fallback
-  const getSavedState = <T,>(key: string, fallback: T): T => {
+  const getSavedState = <T,>(key: string, defaultValue: T): T => {
     try {
       const raw = localStorage.getItem(`${LOCAL_STORAGE_KEY}_${key}`);
-      if (raw) return JSON.parse(raw);
-    } catch {
-      // ignore
+      if (!raw) return defaultValue;
+      const parsed = JSON.parse(raw);
+      if (parsed === null || parsed === undefined) return defaultValue;
+      if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
+        return { ...defaultValue, ...parsed };
+      }
+      return parsed as T;
+    } catch (e) {
+      console.warn(`Failed to parse localStorage key ${key}:`, e);
+      return defaultValue;
     }
-    return fallback;
   };
 
   const [user, setUser] = useState<UserProfile>(() => getSavedState('user', initialUserProfile));
@@ -145,6 +151,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Invariant 2: Purchases deduct Promo Balance first, then Main Balance
   const deductPurchaseAmount = (costInr: number): { success: boolean; promoUsed: number; mainUsed: number } => {
+    if (isNaN(costInr) || costInr <= 0) return { success: false, promoUsed: 0, mainUsed: 0 };
+
     if (user.balance < costInr) {
       addToast(
         `Insufficient balance. Required: ${formatPrice(costInr)}, Available: ${formatPrice(user.balance)}.`,
@@ -206,6 +214,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Server 2: Purchase Sessions (Good vs Cheap Quality)
   const purchaseServer2Session = (stockItem: Server2StockItem, quantity: number): boolean => {
+    if (isNaN(quantity) || quantity <= 0) {
+      addToast('Quantity must be at least 1.', 'error', 'Invalid Quantity');
+      return false;
+    }
+    if (quantity > stockItem.stockCount) {
+      addToast(`Quantity exceeds available stock (${stockItem.stockCount}).`, 'error', 'Out of Stock');
+      return false;
+    }
+
     const totalCost = stockItem.priceInr * quantity;
     const deduction = deductPurchaseAmount(totalCost);
     if (!deduction.success) return false;
@@ -269,6 +286,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       country: service.country,
       phone: generatedPhone,
       priceInr: service.priceInr,
+      promoUsed: deduction.promoUsed,
+      mainUsed: deduction.mainUsed,
       status: 'waiting',
       otpCode: null,
       startTime: Date.now(),
@@ -371,13 +390,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Cancel & Refund Active OTP
   const cancelActiveOtp = (orderId: string) => {
-    if (!activeOtpSession || activeOtpSession.orderId !== orderId) return;
+    if (!activeOtpSession || activeOtpSession.orderId !== orderId || activeOtpSession.status !== 'waiting') return;
 
     // Refund cost to user
     const refundAmount = activeOtpSession.priceInr;
+    const promoRefund = activeOtpSession.promoUsed || 0;
+
     setUser((prev) => ({
       ...prev,
-      balance: prev.balance + refundAmount
+      balance: prev.balance + refundAmount,
+      promoBalance: prev.promoBalance + promoRefund,
+      totalSaved: Math.max(0, prev.totalSaved - promoRefund)
     }));
 
     // Mark in history as refunded
@@ -508,7 +531,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, message: 'Please enter a valid Telegram ID or @username.' };
     }
 
-    if (amount <= 0) {
+    if (recipient === user.username || recipient === `@${user.username}` || recipient === user.telegramId) {
+      return { success: false, message: 'Cannot transfer funds to yourself.' };
+    }
+
+    if (isNaN(amount) || amount <= 0) {
       return { success: false, message: 'Transfer amount must be greater than ₹0.' };
     }
 
@@ -553,7 +580,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Invariant 4: Reseller Custom Margin Engine (₹5 <= Margin <= ₹100)
   const updateResellerMargin = (newMargin: number): { success: boolean; message: string } => {
-    if (newMargin < 5 || newMargin > 100) {
+    if (isNaN(newMargin) || newMargin < 5 || newMargin > 100) {
       const err = 'Custom margin must be between ₹5 and ₹100.';
       addToast(err, 'error', 'Invalid Margin');
       return { success: false, message: err };
