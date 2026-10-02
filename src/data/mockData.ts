@@ -529,6 +529,18 @@ export const server5Catalog: SmmServiceItem[] = [
     refillDays: 30
   },
   {
+    id: "smm_yt_subs",
+    platform: "youtube",
+    categoryName: "YouTube Subscribers",
+    name: "YouTube Real Channel Subscribers (Non-Drop)",
+    ratePer1000: 450,
+    minQuantity: 50,
+    maxQuantity: 10000,
+    avgSpeed: "500 / day",
+    description: "High-quality real YouTube channel subscribers with 30-day refill warranty.",
+    refillDays: 30
+  },
+  {
     id: "smm_tk_followers",
     platform: "tiktok",
     categoryName: "TikTok Followers",
@@ -541,6 +553,18 @@ export const server5Catalog: SmmServiceItem[] = [
     refillDays: 30
   },
   {
+    id: "smm_tk_likes",
+    platform: "tiktok",
+    categoryName: "TikTok Likes & Views",
+    name: "TikTok High Retention Likes & Views Combo",
+    ratePer1000: 45,
+    minQuantity: 100,
+    maxQuantity: 50000,
+    avgSpeed: "Instant",
+    description: "Boost your TikTok FYP presence with algorithmic high-quality likes.",
+    refillDays: 30
+  },
+  {
     id: "smm_tw_followers",
     platform: "twitter",
     categoryName: "Twitter (X) Followers",
@@ -550,6 +574,18 @@ export const server5Catalog: SmmServiceItem[] = [
     maxQuantity: 10000,
     avgSpeed: "1,000 / day",
     description: "High quality followers with active tweet history.",
+    refillDays: 30
+  },
+  {
+    id: "smm_tw_retweets",
+    platform: "twitter",
+    categoryName: "Twitter (X) Retweets & Likes",
+    name: "Twitter / X Viral Organic Retweets + Likes",
+    ratePer1000: 90,
+    minQuantity: 100,
+    maxQuantity: 20000,
+    avgSpeed: "Instant",
+    description: "Instant retweets from organic profiles for social proof.",
     refillDays: 30
   }
 ];
