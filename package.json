@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "node scripts/verifyAllFeatures.mjs"
+    "test": "node scripts/verifyAllFeatures.mjs",
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
