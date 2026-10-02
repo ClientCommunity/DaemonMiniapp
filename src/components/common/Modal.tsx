@@ -1,0 +1,62 @@
+import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}
+
+export const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children
+}) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm animate-fade-in">
+      {/* Background click to dismiss */}
+      <div className="absolute inset-0" onClick={onClose} />
+
+      {/* Sheet Content */}
+      <div className="relative w-full max-w-[430px] bg-[#15151c] border-t border-[#262630] rounded-t-3xl p-5 shadow-2xl z-10 max-h-[85vh] overflow-y-auto no-scrollbar animate-slide-up">
+        {/* Drag handle */}
+        <div className="w-12 h-1 bg-[#262630] rounded-full mx-auto mb-4" />
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            {title && <h3 className="font-bold text-base text-white">{title}</h3>}
+            {subtitle && <p className="text-xs text-[#a1a1aa] mt-0.5">{subtitle}</p>}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full bg-[#1f1f2a] text-[#a1a1aa] hover:text-white transition-colors"
+            aria-label="Close modal"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+};
