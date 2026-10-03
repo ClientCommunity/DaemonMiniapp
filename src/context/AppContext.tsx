@@ -300,7 +300,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const historyRecord: HistoryItem = {
       id: orderId,
       category: 'otp_activation',
-      title: `${service.icon} ${service.serviceName} (${service.country})`,
+      title: `${service.serviceName} (${service.country})`,
       subtitle: `Server ${service.server} · Waiting for SMS`,
       amountInr: -service.priceInr,
       date: 'Just now',

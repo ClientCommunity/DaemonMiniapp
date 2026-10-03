@@ -1,8 +1,8 @@
 import React from 'react';
-import { SmmPlatform } from '../../types';
+import { SmmPlatform, OtpAppCode } from '../../types';
 
 interface PlatformIconProps {
-  platform: SmmPlatform | 'facebook' | 'discord' | 'threads' | string;
+  platform: SmmPlatform | OtpAppCode | 'facebook' | 'discord' | 'threads' | 'google' | 'gmail' | 'whatsapp' | 'spamchat' | 'sms' | string;
   className?: string;
   size?: number | string;
   colored?: boolean;
@@ -17,6 +17,7 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
 
   switch (norm) {
     case 'telegram':
+    case 'tg':
       return (
         <svg
           viewBox="0 0 24 24"
@@ -47,7 +48,34 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
         </svg>
       );
 
+    case 'whatsapp':
+    case 'wa':
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={className}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {colored ? (
+            <>
+              <circle cx="12" cy="12" r="12" fill="#25D366" />
+              <path
+                d="M17.472 14.382c-.301-.15-1.78-.879-2.056-.979-.276-.1-.476-.15-.677.15-.2.301-.777.979-.953 1.18-.175.2-.351.225-.652.075-.301-.15-1.272-.469-2.423-1.496-.896-.799-1.501-1.786-1.677-2.087-.175-.3-.019-.463.132-.612.135-.135.301-.351.451-.527.151-.175.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.677-1.631-.928-2.233-.244-.586-.492-.506-.677-.515h-.577c-.201 0-.527.075-.802.376-.276.301-1.053 1.029-1.053 2.509s1.079 2.903 1.229 3.104c.151.2 2.123 3.242 5.143 4.545.719.311 1.28.497 1.718.636.722.23 1.379.197 1.9.12.58-.087 1.78-.727 2.031-1.429.251-.702.251-1.304.176-1.429-.076-.126-.276-.201-.577-.351z"
+                fill="#FFFFFF"
+              />
+            </>
+          ) : (
+            <path
+              d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.2-1.2l-.3-.2-3.1.8.8-3-.2-.3A8 8 0 1 1 12 20z"
+              fill="currentColor"
+            />
+          )}
+        </svg>
+      );
+
     case 'instagram':
+    case 'ig':
       return (
         <svg
           viewBox="0 0 24 24"
@@ -105,7 +133,112 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
         </svg>
       );
 
+    case 'google':
+    case 'gmail':
+    case 'go':
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={className}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {colored ? (
+            <>
+              <rect width="24" height="24" rx="6" fill="#181820" stroke="#262630" strokeWidth="1" />
+              <g transform="translate(3, 3) scale(0.75)">
+                <path
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  fill="#EA4335"
+                />
+              </g>
+            </>
+          ) : (
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"
+              fill="currentColor"
+            />
+          )}
+        </svg>
+      );
+
+    case 'spam':
+    case 'spamchat':
+    case 'sms':
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={className}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {colored ? (
+            <>
+              <defs>
+                <linearGradient id="spam-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#8B5CF6" />
+                  <stop offset="1" stopColor="#6366F1" />
+                </linearGradient>
+              </defs>
+              <rect width="24" height="24" rx="6" fill="url(#spam-grad)" />
+              <path
+                d="M6 8a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-2.5l-3 2.5V16H9a3 3 0 0 1-3-3V8z"
+                fill="#FFFFFF"
+                fillOpacity="0.25"
+              />
+              <path
+                d="M12.5 7.5L8.5 12.5h3.5l-.5 4 4-5h-3.5l.5-4z"
+                fill="#FFFFFF"
+              />
+            </>
+          ) : (
+            <path
+              d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12l-4-5h3l.5-3 4 5h-3l-.5 3z"
+              fill="currentColor"
+            />
+          )}
+        </svg>
+      );
+
+    case 'all':
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={className}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {colored ? (
+            <>
+              <rect width="24" height="24" rx="6" fill="#181820" stroke="#383848" strokeWidth="1" />
+              <circle cx="8" cy="8" r="2.2" fill="#7C3AED" />
+              <circle cx="16" cy="8" r="2.2" fill="#25D366" />
+              <circle cx="8" cy="16" r="2.2" fill="#2AABEE" />
+              <circle cx="16" cy="16" r="2.2" fill="#FE2C55" />
+            </>
+          ) : (
+            <path
+              d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"
+              fill="currentColor"
+            />
+          )}
+        </svg>
+      );
+
     case 'youtube':
+    case 'yt':
       return (
         <svg
           viewBox="0 0 24 24"
@@ -134,6 +267,7 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
       );
 
     case 'tiktok':
+    case 'tk':
       return (
         <svg
           viewBox="0 0 24 24"
@@ -173,6 +307,7 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
 
     case 'twitter':
     case 'x':
+    case 'tw':
       return (
         <svg
           viewBox="0 0 24 24"
@@ -198,6 +333,7 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
       );
 
     case 'facebook':
+    case 'fb':
       return (
         <svg
           viewBox="0 0 24 24"

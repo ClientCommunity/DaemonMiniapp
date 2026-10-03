@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { Copy, Check, Clock, Radio, XCircle, CheckCircle2 } from 'lucide-react';
+import { PlatformIcon } from '../common/PlatformIcon';
 
 export const ActiveOtpCard: React.FC = () => {
   const { activeOtpSession, cancelActiveOtp, finishActiveOtp, addToast } = useApp();
@@ -46,14 +47,20 @@ export const ActiveOtpCard: React.FC = () => {
       {/* Header bar */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-              isReceived ? 'bg-[#22c55e]' : 'bg-[#f59e0b]'
-            }`} />
-            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-              isReceived ? 'bg-[#22c55e]' : 'bg-[#f59e0b]'
-            }`} />
-          </span>
+          <PlatformIcon
+            platform={
+              serviceName.toLowerCase().includes('telegram')
+                ? 'tg'
+                : serviceName.toLowerCase().includes('whatsapp')
+                ? 'wa'
+                : serviceName.toLowerCase().includes('instagram')
+                ? 'ig'
+                : serviceName.toLowerCase().includes('google')
+                ? 'go'
+                : 'spam'
+            }
+            className="w-4 h-4 shrink-0"
+          />
           <span className="text-xs font-bold text-white tracking-wide uppercase">
             {serviceName} ({country})
           </span>

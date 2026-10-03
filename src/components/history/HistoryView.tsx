@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OrderCategory, HistoryItem } from '../../types';
 import { Search, ShoppingBag, Smartphone, Rocket, Wallet, Send, ChevronRight } from 'lucide-react';
+import { PlatformIcon } from '../common/PlatformIcon';
 import { ReceiptDrawer } from './ReceiptDrawer';
 
 export const HistoryView: React.FC = () => {
@@ -29,8 +30,17 @@ export const HistoryView: React.FC = () => {
     return true;
   });
 
-  const getCategoryIcon = (category: HistoryItem['category']) => {
-    switch (category) {
+  const getItemIcon = (item: HistoryItem) => {
+    const t = (item.title + ' ' + (item.subtitle || '')).toLowerCase();
+    if (t.includes('telegram')) return <PlatformIcon platform="tg" className="w-5 h-5" />;
+    if (t.includes('whatsapp')) return <PlatformIcon platform="wa" className="w-5 h-5" />;
+    if (t.includes('instagram')) return <PlatformIcon platform="ig" className="w-5 h-5" />;
+    if (t.includes('youtube')) return <PlatformIcon platform="yt" className="w-5 h-5" />;
+    if (t.includes('tiktok')) return <PlatformIcon platform="tk" className="w-5 h-5" />;
+    if (t.includes('twitter') || t.includes(' x ')) return <PlatformIcon platform="tw" className="w-5 h-5" />;
+    if (t.includes('google') || t.includes('gmail')) return <PlatformIcon platform="go" className="w-5 h-5" />;
+
+    switch (item.category) {
       case 'otp_activation':
         return <Smartphone className="w-4 h-4 text-[#8b5cf6]" />;
       case 'account_purchase':
@@ -112,7 +122,7 @@ export const HistoryView: React.FC = () => {
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-[#121217] border border-[#262630] flex items-center justify-center shrink-0">
-                    {getCategoryIcon(item.category)}
+                    {getItemIcon(item)}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-bold text-white truncate">

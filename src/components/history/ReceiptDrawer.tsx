@@ -9,6 +9,7 @@ import {
   Check,
   Download
 } from 'lucide-react';
+import { PlatformIcon } from '../common/PlatformIcon';
 
 export const ReceiptDrawer: React.FC = () => {
   const { selectedReceiptItem, closeReceiptDrawer, formatPrice, addToast } = useApp();
@@ -89,9 +90,31 @@ export const ReceiptDrawer: React.FC = () => {
         <div className="p-3.5 bg-[#181820] border border-[#262630] rounded-2xl flex flex-col gap-2.5 text-xs">
           <div className="flex items-center justify-between pb-2 border-b border-[#262630]">
             <span className="text-[#a1a1aa]">Product / Service</span>
-            <span className="font-bold text-white text-right max-w-[200px] truncate">
-              {item.title}
-            </span>
+            <div className="flex items-center gap-1.5 justify-end">
+              {['telegram', 'whatsapp', 'instagram', 'youtube', 'tiktok', 'twitter', 'google'].some(p => item.title.toLowerCase().includes(p)) && (
+                <PlatformIcon
+                  platform={
+                    item.title.toLowerCase().includes('telegram')
+                      ? 'tg'
+                      : item.title.toLowerCase().includes('whatsapp')
+                      ? 'wa'
+                      : item.title.toLowerCase().includes('instagram')
+                      ? 'ig'
+                      : item.title.toLowerCase().includes('youtube')
+                      ? 'yt'
+                      : item.title.toLowerCase().includes('tiktok')
+                      ? 'tk'
+                      : item.title.toLowerCase().includes('twitter')
+                      ? 'tw'
+                      : 'go'
+                  }
+                  className="w-4 h-4 shrink-0"
+                />
+              )}
+              <span className="font-bold text-white text-right max-w-[180px] truncate">
+                {item.title}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center justify-between pb-2 border-b border-[#262630]">
