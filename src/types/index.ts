@@ -18,7 +18,7 @@ export interface UserProfile {
 
 export type ServerId = 1 | 2 | 3 | 4 | 5;
 
-// Server 1: LZT Market Global Accounts
+// Server 1: Global 2FA Telegram Accounts
 export interface Server1AccountItem {
   id: string;
   country: string;
@@ -38,7 +38,7 @@ export interface Server1AccountItem {
   };
 }
 
-// Server 2: Local Session Stock (Segmented Good vs Cheap Quality)
+// Server 2: Aged Session Vault (Segmented Good vs Cheap Quality)
 export type Server2QualityTier = 'good' | 'cheap';
 export type Server2DeliveryFormat = 'account' | 'session';
 
@@ -57,12 +57,12 @@ export interface Server2StockItem {
   sampleSessionUrl?: string;
 }
 
-// Server 3 & 4: Virtual OTP Numbers (Fast OTP & Fresh Numbers)
+// Server 3 & 4: Virtual OTP Numbers (Instant OTP & Fresh Carrier Numbers)
 export type OtpAppCode = 'wa' | 'tg' | 'ig' | 'spam' | 'go' | 'all';
 
 export interface VirtualOtpServiceItem {
   id: string;
-  server: 3 | 4; // 3 = Fast OTP (DGOTP), 4 = Fresh Numbers (Tempora)
+  server: 3 | 4; // 3 = Instant Virtual OTP, 4 = Fresh Carrier Numbers
   serviceCode: string;
   serviceName: string;
   country: string;

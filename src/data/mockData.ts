@@ -35,7 +35,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 42,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+91 98234 19283",
       twoFa: "krish@2024TG",
@@ -53,7 +53,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 85,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+7 912 849 2011",
       twoFa: "tgPass@2024RU",
@@ -71,7 +71,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 18,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+1 415 892 0184",
       twoFa: "usSafe@tg2024",
@@ -89,7 +89,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 63,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+62 812 904 8831",
       twoFa: "indoSecured#24",
@@ -107,7 +107,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 37,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+84 938 102 944",
       twoFa: "vnPass@2024",
@@ -125,7 +125,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 29,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+55 11 98402 1194",
       twoFa: "brasilSafe#24",
@@ -143,7 +143,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 54,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+234 803 912 8490",
       twoFa: "ngKey#2024",
@@ -161,7 +161,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 31,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+63 917 849 0184",
       twoFa: "phSafe#2024",
@@ -179,7 +179,7 @@ export const server1Catalog: Server1AccountItem[] = [
     stockCount: 22,
     platform: "Telegram",
     format: "Session + 2FA",
-    subtitle: "Global Market Stock",
+    subtitle: "Verified Global Account",
     credentialsSample: {
       phone: "+7 701 984 0192",
       twoFa: "kzKey#2024",
@@ -322,7 +322,7 @@ export const server2Catalog: Server2StockItem[] = [
 ];
 
 export const server34Catalog: VirtualOtpServiceItem[] = [
-  // Server 3: Fast OTP (DGOTP)
+  // Server 3: Instant Virtual OTP Hub
   {
     id: "s3_tg_in",
     server: 3,
@@ -408,7 +408,7 @@ export const server34Catalog: VirtualOtpServiceItem[] = [
     successRate: 98.2
   },
 
-  // Server 4: Fresh Numbers (Tempora)
+  // Server 4: Fresh Carrier Numbers
   {
     id: "s4_tg_us",
     server: 4,

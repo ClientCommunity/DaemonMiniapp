@@ -177,7 +177,7 @@ export const ResellerEngine: React.FC = () => {
         {/* Real-Time Price Preview Comparison */}
         <div className="p-3 rounded-xl bg-[#0b0b0e] border border-[#262630] flex flex-col gap-1.5 font-mono text-xs">
           <div className="flex items-center justify-between text-[#a1a1aa]">
-            <span>Base Provider Cost:</span>
+            <span>Wholesale Cost:</span>
             <span>{formatPrice(selectedProduct.priceInr)}</span>
           </div>
           <div className="flex items-center justify-between text-[#22c55e] font-bold">

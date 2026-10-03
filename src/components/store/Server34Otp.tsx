@@ -47,7 +47,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
         <div className="flex flex-col">
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-[#8b5cf6]" />
-            {isServer3 ? 'Server 3: Fast OTP (DGOTP)' : 'Server 4: Fresh Numbers (Tempora)'}
+            {isServer3 ? 'Server 3: Instant Virtual OTP' : 'Server 4: Fresh Carrier Numbers'}
           </span>
           <span className="text-[11px] text-[#a1a1aa]">
             {isServer3

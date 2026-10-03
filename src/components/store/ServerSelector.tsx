@@ -6,8 +6,8 @@ export const ServerSelector: React.FC = () => {
   const { selectedServer, setSelectedServer } = useApp();
 
   const servers: { id: ServerId; title: string; badge: string }[] = [
-    { id: 1, title: 'Server 1', badge: 'LZT Market' },
-    { id: 2, title: 'Server 2', badge: 'Local Stock' },
+    { id: 1, title: 'Server 1', badge: 'Global 2FA' },
+    { id: 2, title: 'Server 2', badge: 'Aged Sessions' },
     { id: 3, title: 'Server 3', badge: 'Fast OTP' },
     { id: 4, title: 'Server 4', badge: 'Fresh Numbers' },
     { id: 5, title: 'Server 5', badge: 'SMM Services' },

@@ -189,7 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       amountInr: -account.priceInr,
       date: 'Just now',
       status: 'success',
-      server: 'Server 1 (LZT Market)',
+      server: 'Server 1 (Global 2FA)',
       phone: account.credentialsSample?.phone || '+91 98234 19283',
       twoFa: account.credentialsSample?.twoFa || 'tgPass@2024',
       refunded: false
@@ -241,7 +241,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       amountInr: -totalCost,
       date: 'Just now',
       status: 'success',
-      server: 'Server 2 (Sessions Stock)',
+      server: 'Server 2 (Aged Sessions)',
       quantity,
       sessionDownloadUrl: stockItem.sampleSessionUrl || `https://krishminiapp.mock/download/${orderId}.zip`,
       refunded: false

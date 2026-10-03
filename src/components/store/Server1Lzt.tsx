@@ -50,7 +50,7 @@ export const Server1Lzt: React.FC = () => {
       {/* Banner / Intro */}
       <div className="p-3 mb-3 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between">
         <div className="flex flex-col">
-          <span className="text-xs font-bold text-white">LZT Market Accounts</span>
+          <span className="text-xs font-bold text-white">Server 1: Global 2FA Accounts</span>
           <span className="text-[11px] text-[#a1a1aa]">
             Global aged Telegram accounts with instant 2FA credentials
           </span>
