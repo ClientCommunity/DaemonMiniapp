@@ -218,6 +218,9 @@ def run_flask():
 
 def start_webhook():
     """Start Flask webhook server in background thread"""
+    if os.getenv("DISABLE_BOT_WEBHOOK", "0") == "1":
+        print("Flask webhook disabled in bot (managed by app.py)")
+        return
     webhook_thread = threading.Thread(target=run_flask, daemon=True)
     webhook_thread.start()
     print(f"✅ Flask Webhook server started on http://{FLASK_HOST}:{FLASK_PORT}")
@@ -2366,7 +2369,7 @@ def setup_db():
     """)
     ensure_column("users", "reseller_token", "TEXT")
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('reseller_min_margin', '5')")
-    cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('reseller_max_margin', '50')")
+    cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('reseller_max_margin', '100')")
 
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('lzt_global_markup', '20')")
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('bot_status', 'on')")
@@ -6467,7 +6470,7 @@ async def handle_callbacks(e):
 
                     elif action == "refsettings" and has_perm(uid, 'p_settings'):
                         minimum=fampay_setting("ref_topup_min", "0"); reward=fampay_setting("ref_reward", "0")
-                        min_m=fampay_setting("reseller_min_margin", "5"); max_m=fampay_setting("reseller_max_margin", "50")
+                        min_m=fampay_setting("reseller_min_margin", "5"); max_m=fampay_setting("reseller_max_margin", "100")
                         msg = (f"👥 <b>Referral & Reseller Settings</b>\n\n"
                                f"🎁 Qualifying top-up: ₹{minimum}\n"
                                f"💵 Fixed reward: ₹{reward}\n\n"
