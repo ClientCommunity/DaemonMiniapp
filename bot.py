@@ -7559,7 +7559,11 @@ async def main():
 
 if __name__ == '__main__':
     setup_db()
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     try:
         bot.start(bot_token=BOT_TOKEN)
         loop.run_until_complete(main())
