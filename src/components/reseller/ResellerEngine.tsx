@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { server1Catalog } from '../../data/mockData';
 import {
   Share2,
   Copy,
@@ -11,17 +10,70 @@ import {
   Sliders,
   Sparkles
 } from 'lucide-react';
+import { PlatformIcon } from '../common/PlatformIcon';
+
+interface ServerProductOption {
+  id: number;
+  serverName: string;
+  badge: string;
+  category: string;
+  basePriceInr: number;
+  platformIcon?: string;
+}
 
 export const ResellerEngine: React.FC = () => {
   const { resellerConfig, updateResellerMargin, formatPrice, addToast } = useApp();
 
+  const serverProducts: ServerProductOption[] = [
+    {
+      id: 1,
+      serverName: 'Server 1: Global 2FA Accounts',
+      badge: 'Global 2FA',
+      category: 'Telegram Accounts with instant 2FA credentials',
+      basePriceInr: 85,
+      platformIcon: 'tg'
+    },
+    {
+      id: 2,
+      serverName: 'Server 2: Aged Session Vault',
+      badge: 'Aged Sessions',
+      category: 'Multi-year Telegram sessions (Good / Cheap)',
+      basePriceInr: 60,
+      platformIcon: 'tg'
+    },
+    {
+      id: 3,
+      serverName: 'Server 3: Instant Virtual OTP',
+      badge: 'Fast OTP',
+      category: 'Instant 1-3s SMS activation pool',
+      basePriceInr: 45,
+      platformIcon: 'wa'
+    },
+    {
+      id: 4,
+      serverName: 'Server 4: Fresh Carrier Numbers',
+      badge: 'Fresh Numbers',
+      category: 'Private non-recycled carrier numbers pool',
+      basePriceInr: 55,
+      platformIcon: 'tg'
+    },
+    {
+      id: 5,
+      serverName: 'Server 5: SMM Services Hub',
+      badge: 'SMM Boost',
+      category: 'Organic members, followers & views (per 1K)',
+      basePriceInr: 95,
+      platformIcon: 'instagram'
+    }
+  ];
+
   const [marginInput, setMarginInput] = useState<number>(resellerConfig.marginInr);
-  const [selectedProductId, setSelectedProductId] = useState<string>(server1Catalog[0].id);
+  const [selectedServerId, setSelectedServerId] = useState<number>(1);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedStandardRef, setCopiedStandardRef] = useState(false);
 
-  const selectedProduct = server1Catalog.find((p) => p.id === selectedProductId) || server1Catalog[0];
-  const finalPriceInr = selectedProduct.priceInr + marginInput;
+  const selectedServer = serverProducts.find((s) => s.id === selectedServerId) || serverProducts[0];
+  const finalPriceInr = selectedServer.basePriceInr + marginInput;
 
   const standardRefLink = `https://t.me/DeamonOTPbot?start=ref_7507183871`;
 
@@ -135,24 +187,61 @@ export const ResellerEngine: React.FC = () => {
           <span className="text-[10px] text-[#a1a1aa]">Allowed: ₹5 – ₹100</span>
         </div>
 
-        {/* Product selector to preview margin on */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] text-[#a1a1aa] font-semibold">Select Base Product</label>
-          <select
-            value={selectedProductId}
-            onChange={(e) => setSelectedProductId(e.target.value)}
-            className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7c3aed]"
-          >
-            {server1Catalog.map((item) => (
-              <option key={item.id} value={item.id} className="bg-[#181820] text-white">
-                {item.icon} {item.country} Telegram Account — Base {formatPrice(item.priceInr)}
-              </option>
-            ))}
-          </select>
+        {/* Server Selection (Strictly 5 Servers) */}
+        <div className="flex flex-col gap-2">
+          <label className="text-[11px] text-[#a1a1aa] font-semibold flex items-center justify-between">
+            <span>Select Server Product</span>
+            <span className="text-[10px] text-[#8b5cf6] font-bold">
+              Server {selectedServer.id} Selected
+            </span>
+          </label>
+
+          {/* Quick Server Tabs Selector */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+            {serverProducts.map((s) => {
+              const isActive = selectedServerId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSelectedServerId(s.id)}
+                  className={`flex flex-col items-center justify-center px-3 py-2 rounded-xl border text-xs shrink-0 transition-all active:scale-95 ${
+                    isActive
+                      ? 'bg-[#7c3aed] border-[#8b5cf6] text-white shadow-violet-glow-sm font-bold ring-1 ring-[#8b5cf6]/50'
+                      : 'bg-[#0b0b0e] border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#383848]'
+                  }`}
+                >
+                  <PlatformIcon platform={s.platformIcon || 'tg'} className="w-3.5 h-3.5 mb-1" />
+                  <span className="text-[11px] font-bold leading-tight">Server {s.id}</span>
+                  <span className={`text-[9px] mt-0.5 leading-none ${isActive ? 'text-white/90' : 'text-[#71717a]'}`}>
+                    {s.badge}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Detailed Server Dropdown */}
+          <div className="relative mt-1">
+            <select
+              value={selectedServerId}
+              onChange={(e) => setSelectedServerId(Number(e.target.value))}
+              className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#7c3aed] transition-colors appearance-none pr-8 font-medium"
+            >
+              {serverProducts.map((s) => (
+                <option key={s.id} value={s.id} className="bg-[#181820] text-white">
+                  {s.serverName} — Wholesale {formatPrice(s.basePriceInr)}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#a1a1aa] text-[10px]">
+              ▼
+            </div>
+          </div>
         </div>
 
         {/* Profit margin slider & numeric input */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 pt-1">
           <div className="flex items-center justify-between text-xs font-bold">
             <span className="text-white">Your Custom Profit Margin</span>
             <span className="text-[#22c55e] font-mono text-sm">+₹{marginInput}</span>
@@ -175,19 +264,28 @@ export const ResellerEngine: React.FC = () => {
         </div>
 
         {/* Real-Time Price Preview Comparison */}
-        <div className="p-3 rounded-xl bg-[#0b0b0e] border border-[#262630] flex flex-col gap-1.5 font-mono text-xs">
+        <div className="p-3.5 rounded-xl bg-[#0b0b0e] border border-[#262630] flex flex-col gap-2 font-mono text-xs">
           <div className="flex items-center justify-between text-[#a1a1aa]">
-            <span>Wholesale Cost:</span>
-            <span>{formatPrice(selectedProduct.priceInr)}</span>
+            <span className="font-sans">Selected Server:</span>
+            <div className="flex items-center gap-1.5 justify-end">
+              <PlatformIcon platform={selectedServer.platformIcon || 'tg'} className="w-4 h-4 shrink-0" />
+              <span className="text-white font-bold font-sans text-right max-w-[200px] truncate">
+                {selectedServer.serverName}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-[#a1a1aa]">
+            <span className="font-sans">Wholesale Base Cost:</span>
+            <span>{formatPrice(selectedServer.basePriceInr)}</span>
           </div>
           <div className="flex items-center justify-between text-[#22c55e] font-bold">
-            <span>Your Profit Margin:</span>
+            <span className="font-sans">Your Added Margin:</span>
             <span>+{formatPrice(marginInput)}</span>
           </div>
-          <div className="h-px bg-[#262630] my-1" />
+          <div className="h-px bg-[#262630] my-0.5" />
           <div className="flex items-center justify-between text-white font-extrabold text-sm">
-            <span>Customer Final Price:</span>
-            <span className="text-[#22c55e]">{formatPrice(finalPriceInr)}</span>
+            <span className="font-sans">Customer Store Price:</span>
+            <span className="text-[#22c55e] font-mono text-base">{formatPrice(finalPriceInr)}</span>
           </div>
         </div>
 
