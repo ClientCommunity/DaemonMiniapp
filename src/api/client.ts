@@ -6,7 +6,7 @@
 
 const BASE_URL =
   (import.meta as unknown as { env?: Record<string, string | undefined> })?.env
-    ?.VITE_API_BASE_URL || '/api';
+    ?.VITE_API_BASE_URL || 'https://daemonproxy-7m1m.onrender.com';
 
 /**
  * Extracts raw Telegram WebApp initData string if available in current window.
@@ -30,13 +30,10 @@ export function resolveApiUrl(path: string): string {
     return path;
   }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  if (cleanPath.startsWith('/api') && BASE_URL === '/api') {
-    return cleanPath;
-  }
-  if (cleanPath.startsWith('/api') && BASE_URL.endsWith('/api')) {
-    return `${BASE_URL.slice(0, -4)}${cleanPath}`;
-  }
   const cleanBase = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+  if (cleanPath.startsWith('/api') && cleanBase.endsWith('/api')) {
+    return `${cleanBase.slice(0, -4)}${cleanPath}`;
+  }
   return `${cleanBase}${cleanPath}`;
 }
 
