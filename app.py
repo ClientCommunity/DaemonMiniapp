@@ -74,6 +74,16 @@ def create_app() -> Flask:
     # 2. Global CORS Headers
     @app.after_request
     def apply_cors_headers(response):
+        # When request comes through reverse proxy (e.g. Go edge proxy on Render),
+        # the proxy already writes global CORS headers. Adding them here causes
+        # duplicate headers ("*, *") which modern browsers and Telegram WebViews strictly block.
+        if (
+            request.headers.get("X-Proxy-Secret")
+            or request.headers.get("X-Real-IP")
+            or request.headers.get("X-Forwarded-For")
+        ):
+            return response
+
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "*"
