@@ -2213,6 +2213,15 @@ async def cache_lzt_stock_loop():
 
                 if data is not None:
                     cached_lzt_stock[fkey][country_name] = (data[1], data[2])
+                    try:
+                        iso, flag = COUNTRY_CODES.get(country_name, ("GL", "🌐"))
+                        cur.execute("""
+                            INSERT OR REPLACE INTO lzt_stock_cache (country, iso_code, flag, stock_count, price, updated_at)
+                            VALUES (?, ?, ?, ?, ?, datetime('now'))
+                        """, (country_name, iso, flag, int(data[1]), float(data[2])))
+                        db.commit()
+                    except Exception:
+                        pass
             except Exception as ex:
                 if fkey not in cached_lzt_stock:
                     cached_lzt_stock[fkey] = {}

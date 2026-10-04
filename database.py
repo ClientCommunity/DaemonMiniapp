@@ -671,6 +671,17 @@ def migrate() -> None:
             conn.execute("ALTER TABLE service_servers ADD COLUMN display_name TEXT NOT NULL DEFAULT ''")
         conn.execute("UPDATE service_servers SET display_name=CASE server_no WHEN 3 THEN 'Fast OTP' WHEN 4 THEN 'Fresh Numbers' END WHERE display_name='' OR display_name IS NULL")
 
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS lzt_stock_cache (
+            country TEXT PRIMARY KEY,
+            iso_code TEXT NOT NULL,
+            flag TEXT NOT NULL,
+            stock_count INTEGER DEFAULT 0,
+            price REAL DEFAULT 0,
+            updated_at TEXT NOT NULL
+        )
+        """)
+
 
 # ==============================================================================
 # DATABASE HELPER DATA STRUCTURES & FUNCTIONS

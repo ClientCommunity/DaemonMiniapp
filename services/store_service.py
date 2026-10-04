@@ -30,54 +30,49 @@ def get_all_servers_overview() -> list[dict[str, Any]]:
 
 
 def get_server1_stock() -> list[dict[str, Any]]:
-    """Return Server 1 stock items (Global 2FA Accounts)."""
+    """Return Server 1 stock items (Global 2FA Accounts from live LZT Market)."""
+    items = []
     with connect() as conn:
+        # 1. Primary: live cached LZT market inventory
         rows = conn.execute("""
-            SELECT country_icon, country_name, price, COUNT(*) as stock_count
-            FROM stock
-            WHERE available = 1 AND (category = 'Server 1' OR category = 'Good')
-            GROUP BY country_name
-            ORDER BY country_name ASC
+            SELECT country, iso_code, flag, stock_count, price
+            FROM lzt_stock_cache
+            WHERE stock_count > 0
+            ORDER BY stock_count DESC, country ASC
             LIMIT 60
         """).fetchall()
 
-    items = []
-    for r in rows:
-        items.append({
-            "id": r["country_name"],
-            "name": r["country_name"],
-            "country": r["country_name"],
-            "icon": r["country_icon"] or "🌍",
-            "price": int(r["price"] or 80),
-            "stock": int(r["stock_count"]),
-            "subtitle": "Global Market 2FA",
-        })
-
-    if not items:
-        # Fallback standard active catalogue if local cache is currently empty
-        defaults = [
-            ("India", "🇮🇳", 85, 45),
-            ("Russia", "🇷🇺", 95, 30),
-            ("USA", "🇺🇸", 120, 20),
-            ("Indonesia", "🇮🇩", 75, 50),
-            ("Vietnam", "🇻🇳", 80, 40),
-            ("Brazil", "🇧🇷", 90, 25),
-            ("Nigeria", "🇳🇬", 65, 60),
-            ("Philippines", "🇵🇭", 80, 35),
-            ("Kazakhstan", "🇰🇿", 90, 15),
-        ]
-        items = [
-            {
-                "id": c,
-                "name": c,
-                "country": c,
-                "icon": flag,
-                "price": price,
-                "stock": stock,
+        for r in rows:
+            items.append({
+                "id": r["country"],
+                "name": r["country"],
+                "country": r["country"],
+                "icon": r["flag"] or "🌐",
+                "price": int(round(r["price"] or 80)),
+                "stock": int(r["stock_count"]),
                 "subtitle": "Global Market 2FA",
-            }
-            for c, flag, price, stock in defaults
-        ]
+            })
+
+        # 2. Secondary fallback: local stock table if populated
+        if not items:
+            stock_rows = conn.execute("""
+                SELECT country_icon, country_name, price, COUNT(*) as stock_count
+                FROM stock
+                WHERE available = 1 AND (category = 'Server 1' OR category = 'Good')
+                GROUP BY country_name
+                ORDER BY stock_count DESC
+                LIMIT 60
+            """).fetchall()
+            for r in stock_rows:
+                items.append({
+                    "id": r["country_name"],
+                    "name": r["country_name"],
+                    "country": r["country_name"],
+                    "icon": r["country_icon"] or "🌍",
+                    "price": int(r["price"] or 80),
+                    "stock": int(r["stock_count"]),
+                    "subtitle": "Global Market 2FA",
+                })
 
     return items
 
@@ -159,32 +154,6 @@ def get_server3_stock() -> list[dict[str, Any]]:
             })
     except Exception as exc:
         logger.warning("Error querying server3_services: %s", exc)
-
-    if not items:
-        # Standard curated platform listing
-        defaults = [
-            ("Telegram", "tg", "✈️", 45),
-            ("WhatsApp", "wa", "💬", 50),
-            ("Google / Gmail", "go", "🔍", 35),
-            ("Instagram", "ig", "📸", 30),
-            ("Discord", "ds", "🎮", 25),
-            ("OpenAI / ChatGPT", "openai", "🤖", 40),
-            ("TikTok", "tk", "🎵", 30),
-            ("Twitter / X", "tw", "🐦", 35),
-        ]
-        items = [
-            {
-                "id": code,
-                "name": name,
-                "country": name,
-                "icon": icon,
-                "price": price,
-                "stock": 999,
-                "subtitle": "Instant Virtual OTP",
-            }
-            for name, code, icon, price in defaults
-        ]
-
     return items
 
 
@@ -213,28 +182,6 @@ def get_server4_stock() -> list[dict[str, Any]]:
             })
     except Exception as exc:
         logger.warning("Error querying server4_services: %s", exc)
-
-    if not items:
-        defaults = [
-            ("Telegram", "tg", "✈️", 55),
-            ("WhatsApp", "wa", "💬", 60),
-            ("Google / Gmail", "go", "🔍", 40),
-            ("Instagram", "ig", "📸", 35),
-            ("Snapchat", "fu", "👻", 35),
-            ("Amazon", "am", "📦", 40),
-        ]
-        items = [
-            {
-                "id": code,
-                "name": name,
-                "country": name,
-                "icon": icon,
-                "price": price,
-                "stock": 999,
-                "subtitle": "Fresh Carrier Number",
-            }
-            for name, code, icon, price in defaults
-        ]
 
     return items
 
@@ -268,28 +215,5 @@ def get_server5_stock() -> list[dict[str, Any]]:
             })
     except Exception as exc:
         logger.warning("Error querying smm_services: %s", exc)
-
-    if not items:
-        defaults = [
-            ("Telegram Channel Members (High Quality)", "Telegram", "✈️", 95),
-            ("Instagram Real Followers", "Instagram", "📸", 120),
-            ("YouTube Video Views", "YouTube", "▶️", 140),
-            ("Twitter / X Followers", "Twitter", "🐦", 110),
-        ]
-        items = [
-            {
-                "id": idx + 1,
-                "name": name,
-                "country": cat,
-                "category": cat,
-                "icon": icon,
-                "price": price,
-                "min_qty": 100,
-                "max_qty": 10000,
-                "stock": 9999,
-                "subtitle": "Rate per 1,000",
-            }
-            for idx, (name, cat, icon, price) in enumerate(defaults)
-        ]
 
     return items
