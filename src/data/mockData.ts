@@ -534,7 +534,7 @@ export const server5Catalog: SmmServiceItem[] = [
     categoryName: "YouTube Subscribers",
     name: "YouTube Real Channel Subscribers (Non-Drop)",
     ratePer1000: 450,
-    minQuantity: 50,
+    minQuantity: 100,
     maxQuantity: 10000,
     avgSpeed: "500 / day",
     description: "High-quality real YouTube channel subscribers with 30-day refill warranty.",

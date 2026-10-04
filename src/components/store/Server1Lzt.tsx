@@ -11,14 +11,16 @@ export const Server1Lzt: React.FC = () => {
     purchaseServer1Account,
     purchasedCredentialsModal,
     closeCredentialsModal,
-    addToast
+    addToast,
+    server1Items,
   } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedForPurchase, setSelectedForPurchase] = useState<Server1AccountItem | null>(null);
 
-  // Filter accounts
-  const filtered = server1Catalog.filter((item) =>
+  // Filter accounts (consuming live inventory from AppContext with mock fallback)
+  const items = server1Items && server1Items.length > 0 ? server1Items : server1Catalog;
+  const filtered = items.filter((item) =>
     item.country.toLowerCase().includes(search.toLowerCase())
   );
 

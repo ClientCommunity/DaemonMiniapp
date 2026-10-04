@@ -6,7 +6,7 @@ import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download } from
 import { Modal } from '../common/Modal';
 
 export const Server2Sessions: React.FC = () => {
-  const { formatPrice, purchaseServer2Session } = useApp();
+  const { formatPrice, purchaseServer2Session, server2Items } = useApp();
 
   const [qualityTier, setQualityTier] = useState<Server2QualityTier>('good');
   const [deliveryFormat, setDeliveryFormat] = useState<Server2DeliveryFormat>('account');
@@ -17,8 +17,9 @@ export const Server2Sessions: React.FC = () => {
 
   const years: (number | 'all')[] = ['all', 2021, 2022, 2023, 2024, 2025];
 
-  // Filter items
-  const filtered = server2Catalog.filter((item) => {
+  // Filter items (consuming live inventory from AppContext with mock fallback)
+  const items = server2Items && server2Items.length > 0 ? server2Items : server2Catalog;
+  const filtered = items.filter((item) => {
     if (item.qualityTier !== qualityTier) return false;
     if (selectedYear !== 'all' && item.accountYear !== selectedYear) return false;
     if (search && !item.country.toLowerCase().includes(search.toLowerCase())) return false;

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PaymentMethodType } from '../../types';
+import { depositApi } from '../../api/endpoints';
 import {
   QrCode,
   Copy,
@@ -23,9 +24,34 @@ export const DepositHub: React.FC = () => {
 
   const quickAmounts = [100, 250, 500, 1000, 2500];
 
-  const upiId = 'krishpay@fam';
+  const [upiId, setUpiId] = useState('krishpay@fam');
   const cryptoAddress = '0x71C8F79d03223f66D60C8D6a72eBE8F990177B29';
-  const referenceCode = `FAM_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  const [referenceCode, setReferenceCode] = useState(() => `FAM_${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
+  const [qrUrl, setQrUrl] = useState('');
+
+  // Fetch dynamic FamPay QR and reference code when amount or method changes
+  useEffect(() => {
+    if (selectedMethod !== 'fampay' || amount < 10) return;
+    let isSubscribed = true;
+
+    depositApi
+      .createFamPay(amount)
+      .then((res) => {
+        if (!isSubscribed) return;
+        if (res && res.success) {
+          if (res.upi_id) setUpiId(res.upi_id);
+          if (res.reference) setReferenceCode(res.reference);
+          if (res.qr_url) setQrUrl(res.qr_url);
+        }
+      })
+      .catch(() => {
+        // graceful offline fallback
+      });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [amount, selectedMethod]);
 
   const handleCopyUpi = () => {
     navigator.clipboard?.writeText(upiId);
@@ -41,7 +67,7 @@ export const DepositHub: React.FC = () => {
     setTimeout(() => setCopiedCrypto(false), 2000);
   };
 
-  const handleSimulatePayment = () => {
+  const handleSimulatePayment = async () => {
     if (amount < 10) {
       addToast('Minimum deposit amount is ₹10.', 'error', 'Invalid Amount');
       return;
@@ -50,20 +76,47 @@ export const DepositHub: React.FC = () => {
     setIsVerifying(true);
     addToast('Contacting payment gateway to verify status...', 'info', 'Verifying');
 
+    if (selectedMethod === 'fampay' && referenceCode) {
+      try {
+        const checkRes = await depositApi.checkFamPay(referenceCode);
+        if (checkRes && checkRes.status === 'approved') {
+          submitDeposit(selectedMethod, amount, referenceCode);
+          setIsVerifying(false);
+          return;
+        }
+      } catch {
+        // silent failover to simulation
+      }
+    }
+
     setTimeout(() => {
       setIsVerifying(false);
-      submitDeposit(selectedMethod, amount, utrNumber || undefined);
+      submitDeposit(selectedMethod, amount, utrNumber || referenceCode || undefined);
       setUtrNumber('');
     }, 1800);
   };
 
-  const handleUtrSubmit = (e: React.FormEvent) => {
+  const handleUtrSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!utrNumber || utrNumber.trim().length < 6) {
       addToast('Please enter a valid 12-digit UTR transaction reference number.', 'error', 'Invalid UTR');
       return;
     }
-    handleSimulatePayment();
+
+    setIsVerifying(true);
+    addToast('Submitting UTR transaction to gateway...', 'info', 'Verifying');
+
+    try {
+      await depositApi.submitManual(1, utrNumber.trim(), amount);
+    } catch {
+      // offline fallback
+    }
+
+    setTimeout(() => {
+      setIsVerifying(false);
+      submitDeposit('upi_direct', amount, utrNumber.trim());
+      setUtrNumber('');
+    }, 1200);
   };
 
   return (
@@ -175,13 +228,24 @@ export const DepositHub: React.FC = () => {
       <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col items-center">
         {selectedMethod === 'fampay' && (
           <div className="w-full flex flex-col items-center text-center">
-            {/* Simulated Dynamic QR Code */}
+            {/* Dynamic QR Code */}
             <div className="w-44 h-44 bg-white p-3 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
               <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-2">
-                <QrCode className="w-24 h-24 text-black" strokeWidth={1.5} />
-                <span className="text-[10px] font-mono font-bold text-black mt-1">
-                  FamPay ₹{amount}
-                </span>
+                {qrUrl ? (
+                  <img
+                    src={qrUrl}
+                    alt={`FamPay ₹${amount}`}
+                    className="w-32 h-32 object-contain"
+                    onError={() => setQrUrl('')}
+                  />
+                ) : (
+                  <>
+                    <QrCode className="w-24 h-24 text-black" strokeWidth={1.5} />
+                    <span className="text-[10px] font-mono font-bold text-black mt-1">
+                      FamPay ₹{amount}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 

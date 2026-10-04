@@ -11,7 +11,7 @@ interface Server34OtpProps {
 }
 
 export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
-  const { formatPrice, requestVirtualOtp } = useApp();
+  const { formatPrice, requestVirtualOtp, server34Items } = useApp();
 
   const [activeCategory, setActiveCategory] = useState<OtpAppCode>('all');
   const [search, setSearch] = useState('');
@@ -25,8 +25,9 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     { code: 'spam', label: 'SpamChat' },
   ];
 
-  // Filter items by server, app category, and search query
-  const filtered = server34Catalog.filter((item) => {
+  // Filter items by server, app category, and search query (consuming live inventory from AppContext with mock fallback)
+  const items = server34Items && server34Items.length > 0 ? server34Items : server34Catalog;
+  const filtered = items.filter((item) => {
     if (item.server !== serverId) return false;
     if (activeCategory !== 'all' && item.category !== activeCategory) return false;
     if (search) {

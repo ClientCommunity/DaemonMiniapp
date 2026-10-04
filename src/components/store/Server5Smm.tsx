@@ -6,7 +6,7 @@ import { PlatformIcon } from '../common/PlatformIcon';
 import { Rocket, Link as LinkIcon, ShieldCheck, Zap, Info, Check, Clock } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
-  const { formatPrice, submitSmmOrder } = useApp();
+  const { formatPrice, submitSmmOrder, server5Items } = useApp();
 
   const [activePlatform, setActivePlatform] = useState<SmmPlatform>('telegram');
   const [selectedServiceId, setSelectedServiceId] = useState<string>(server5Catalog[0].id);
@@ -25,8 +25,9 @@ export const Server5Smm: React.FC = () => {
     { id: 'twitter', label: 'Twitter (X)' },
   ];
 
-  // Available services for chosen platform
-  const platformServices = server5Catalog.filter((s) => s.platform === activePlatform);
+  // Available services for chosen platform (consuming live inventory from AppContext with mock fallback)
+  const allServices = server5Items && server5Items.length > 0 ? server5Items : server5Catalog;
+  const platformServices = allServices.filter((s) => s.platform === activePlatform);
   const currentService = platformServices.find((s) => s.id === selectedServiceId) || platformServices[0];
 
   // Total Price: (ratePer1000 * quantity) / 1000
@@ -36,7 +37,7 @@ export const Server5Smm: React.FC = () => {
 
   const handlePlatformChange = (p: SmmPlatform) => {
     setActivePlatform(p);
-    const firstService = server5Catalog.find((s) => s.platform === p);
+    const firstService = allServices.find((s) => s.platform === p);
     if (firstService) {
       setSelectedServiceId(firstService.id);
       setQuantity(firstService.minQuantity);
