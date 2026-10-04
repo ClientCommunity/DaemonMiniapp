@@ -62,7 +62,7 @@ DB_PATH = Path(_env_db) if _env_db else (BASE_DIR / "otp_bot_final.db")
 
 # Server / Networking
 FLASK_HOST = os.getenv("FLASK_HOST", "0.0.0.0")
-FLASK_PORT = int(os.getenv("FLASK_PORT", os.getenv("PORT", "5073")))
+FLASK_PORT = int(os.getenv("FLASK_PORT", os.getenv("PORT", os.getenv("SERVER_PORT", "6357"))))
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "deamon_webhook_secret_key_2026").strip()
 
 # Sessions directory for downloaded / purchased .session files
