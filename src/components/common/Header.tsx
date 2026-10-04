@@ -1,9 +1,17 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { BadgeCheck, ArrowLeftRight } from 'lucide-react';
+import { BadgeCheck, ArrowLeftRight, RefreshCw } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { user, currency, toggleCurrency, addToast } = useApp();
+  const {
+    user,
+    currency,
+    toggleCurrency,
+    addToast,
+    backendConnected,
+    isCheckingBackend,
+    recheckConnection,
+  } = useApp();
 
   const handleCopyId = () => {
     navigator.clipboard?.writeText(user.telegramId);
@@ -12,10 +20,10 @@ export const Header: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#121217]/90 backdrop-blur-md border-b border-[#262630] pt-[max(12px,env(safe-area-inset-top))] pb-3 px-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         {/* User Info (Left) */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative shrink-0">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-sm text-white shadow-md ring-2 ring-[#262630]">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full rounded-full object-cover" />
@@ -23,22 +31,30 @@ export const Header: React.FC = () => {
                 user.firstName.substring(0, 2).toUpperCase()
               )}
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#22c55e] rounded-full border-2 border-[#121217]" />
+            <div
+              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#121217] ${
+                backendConnected === true
+                  ? 'bg-[#22c55e]'
+                  : backendConnected === false
+                  ? 'bg-[#ef4444]'
+                  : 'bg-[#eab308]'
+              }`}
+            />
           </div>
 
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-1">
-              <span className="font-bold text-sm text-white tracking-tight">
+              <span className="font-bold text-sm text-white tracking-tight truncate max-w-[110px]">
                 {user.firstName}
               </span>
-              <BadgeCheck className="w-4 h-4 text-[#22c55e]" />
+              <BadgeCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
             </div>
             <div className="flex items-center gap-1.5 text-xs text-[#a1a1aa]">
-              <span className="font-mono">@{user.username}</span>
+              <span className="font-mono truncate max-w-[80px]">@{user.username}</span>
               <span>•</span>
               <button
                 onClick={handleCopyId}
-                className="font-mono hover:text-white transition-colors"
+                className="font-mono hover:text-white transition-colors shrink-0"
                 title="Click to copy ID"
               >
                 ID: {user.telegramId}
@@ -47,16 +63,52 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Currency Switcher (Right) */}
-        <div className="flex items-center gap-2">
+        {/* Right Actions: Live Connection Pill + Currency Switcher */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Connection Status Pill */}
+          <button
+            onClick={() => recheckConnection(true)}
+            disabled={isCheckingBackend}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all active:scale-95 shadow-sm ${
+              backendConnected === true
+                ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/30 hover:bg-[#10b981]/20'
+                : backendConnected === false
+                ? 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/30 hover:bg-[#ef4444]/20'
+                : 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30'
+            }`}
+            title="Click to re-verify backend connectivity"
+            aria-label="Backend Connection Status"
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                backendConnected === true
+                  ? 'bg-[#10b981] animate-pulse shadow-[0_0_8px_#10b981]'
+                  : backendConnected === false
+                  ? 'bg-[#ef4444]'
+                  : 'bg-[#f59e0b] animate-ping'
+              }`}
+            />
+            <span className="tracking-tight">
+              {isCheckingBackend
+                ? 'Checking...'
+                : backendConnected === true
+                ? 'Connected'
+                : backendConnected === false
+                ? 'Not Connected'
+                : 'Connecting...'}
+            </span>
+            {isCheckingBackend && <RefreshCw className="w-2.5 h-2.5 animate-spin ml-0.5" />}
+          </button>
+
+          {/* Currency Switcher */}
           <button
             onClick={toggleCurrency}
-            className="flex items-center gap-1.5 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-3 py-1.5 transition-all shadow-sm"
+            className="flex items-center gap-1 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-2.5 py-1 transition-all shadow-sm"
             aria-label="Toggle currency between INR and USDT"
           >
-            <ArrowLeftRight className="w-3.5 h-3.5 text-[#8b5cf6]" />
-            <span className="text-xs font-bold text-[#22c55e]">
-              {currency === 'INR' ? '₹ INR' : '$ USDT'}
+            <ArrowLeftRight className="w-3 h-3 text-[#8b5cf6]" />
+            <span className="text-[11px] font-bold text-[#22c55e]">
+              {currency === 'INR' ? '₹' : '$'}
             </span>
           </button>
         </div>

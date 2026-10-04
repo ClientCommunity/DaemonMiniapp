@@ -33,6 +33,7 @@ import {
   resellerApi,
   historyApi,
 } from '../api/endpoints';
+import { api } from '../api/client';
 import {
   adaptBackendUser,
   adaptHistoryItem,
@@ -56,6 +57,11 @@ export interface AppContextType {
   history: HistoryItem[];
   resellerConfig: ResellerConfig;
   toasts: ToastMessage[];
+
+  // Backend Connectivity
+  backendConnected: boolean | null;
+  isCheckingBackend: boolean;
+  recheckConnection: (notify?: boolean) => Promise<boolean>;
 
   // Store inventory state
   server1Items: Server1AccountItem[];
@@ -151,6 +157,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [server34Items, setServer34Items] = useState<VirtualOtpServiceItem[]>(server34Catalog);
   const [server5Items, setServer5Items] = useState<SmmServiceItem[]>(server5Catalog);
   const [isLoadingStore, setIsLoadingStore] = useState<boolean>(false);
+  const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
+  const [isCheckingBackend, setIsCheckingBackend] = useState<boolean>(false);
 
   // Modals
   const [purchasedCredentialsModal, setPurchasedCredentialsModal] = useState<{
@@ -311,45 +319,114 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
+  // Check backend health and sync connection state
+  const recheckConnection = useCallback(
+    async (notify: boolean = true): Promise<boolean> => {
+      setIsCheckingBackend(true);
+      try {
+        const healthRes = await api.get<{ status?: string }>('/api/health');
+        if (healthRes?.status === 'healthy') {
+          setBackendConnected(true);
+          if (notify) {
+            addToast('Connected to live Daemon backend server!', 'success', 'Connected');
+          }
+          refreshUser().catch(() => {});
+          refreshStore().catch(() => {});
+          return true;
+        }
+      } catch {
+        try {
+          const authRes = await authApi.authenticate();
+          if (authRes?.success) {
+            setBackendConnected(true);
+            if (notify) {
+              addToast('Connected to live Daemon backend server!', 'success', 'Connected');
+            }
+            refreshUser().catch(() => {});
+            refreshStore().catch(() => {});
+            return true;
+          }
+        } catch {
+          // both failed
+        }
+      } finally {
+        setIsCheckingBackend(false);
+      }
+
+      setBackendConnected(false);
+      if (notify) {
+        addToast('Backend not connected. Running in offline/preview mode.', 'warning', 'Not Connected');
+      }
+      return false;
+    },
+    [addToast, refreshStore, refreshUser]
+  );
+
   // Initial synchronization with backend REST API on mount
   useEffect(() => {
     let isMounted = true;
 
     async function initializeSession() {
+      setIsCheckingBackend(true);
+      let isOnline = false;
       try {
-        const authRes = await authApi.authenticate();
-        if (isMounted && authRes?.success && authRes.user) {
-          setUser((prev) => adaptBackendUser(authRes.user, prev));
-        }
+        const healthRes = await api.get<{ status?: string }>('/api/health');
+        isOnline = healthRes?.status === 'healthy';
       } catch {
-        // browser mode fallback
-      }
-
-      try {
-        const resellerRes = await resellerApi.getStats();
-        if (isMounted && resellerRes) {
-          setResellerConfig((prev) => adaptResellerConfig(resellerRes, prev));
+        try {
+          const authRes = await authApi.authenticate();
+          isOnline = !!authRes?.success;
+        } catch {
+          isOnline = false;
         }
-      } catch {
-        // offline fallback
-      }
-
-      try {
-        const historyRes = await historyApi.getHistory();
-        if (
-          isMounted &&
-          historyRes?.success &&
-          Array.isArray(historyRes.items) &&
-          historyRes.items.length > 0
-        ) {
-          setHistory(historyRes.items.map((item, idx) => adaptHistoryItem(item, idx)));
-        }
-      } catch {
-        // offline fallback
       }
 
       if (isMounted) {
-        await refreshStore();
+        setBackendConnected(isOnline);
+        setIsCheckingBackend(false);
+        if (isOnline) {
+          addToast('Connected to live Daemon backend server!', 'success', 'Connected');
+        } else {
+          addToast('Backend not connected. Running in offline/preview mode.', 'warning', 'Not Connected');
+        }
+      }
+
+      if (isOnline) {
+        try {
+          const authRes = await authApi.authenticate();
+          if (isMounted && authRes?.success && authRes.user) {
+            setUser((prev) => adaptBackendUser(authRes.user, prev));
+          }
+        } catch {
+          // browser mode fallback
+        }
+
+        try {
+          const resellerRes = await resellerApi.getStats();
+          if (isMounted && resellerRes) {
+            setResellerConfig((prev) => adaptResellerConfig(resellerRes, prev));
+          }
+        } catch {
+          // offline fallback
+        }
+
+        try {
+          const historyRes = await historyApi.getHistory();
+          if (
+            isMounted &&
+            historyRes?.success &&
+            Array.isArray(historyRes.items) &&
+            historyRes.items.length > 0
+          ) {
+            setHistory(historyRes.items.map((item, idx) => adaptHistoryItem(item, idx)));
+          }
+        } catch {
+          // offline fallback
+        }
+
+        if (isMounted) {
+          await refreshStore();
+        }
       }
     }
 
@@ -358,7 +435,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => {
       isMounted = false;
     };
-  }, [refreshStore]);
+  }, [addToast, refreshStore]);
 
   // Invariant 2: Purchases deduct Promo Balance first, then Main Balance
   const deductPurchaseAmount = (
@@ -1183,6 +1260,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         refreshUser,
         refreshHistory,
         refreshReseller,
+        backendConnected,
+        isCheckingBackend,
+        recheckConnection,
       }}
     >
       {children}

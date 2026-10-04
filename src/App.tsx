@@ -11,20 +11,45 @@ import { ProfileView } from './components/profile/ProfileView';
 import { P2PTransferModal } from './components/profile/P2PTransferModal';
 
 const AppContent: React.FC = () => {
-  const { activeTab } = useApp();
+  const { activeTab, setActiveTab } = useApp();
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
   // Initialize Telegram WebApp SDK
   useEffect(() => {
     try {
       if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation?.();
+        tg.setHeaderColor?.('#0b0b0e');
+        tg.setBackgroundColor?.('#0b0b0e');
       }
     } catch {
       // not in telegram webview
     }
   }, []);
+
+  // Sync Telegram native BackButton with active tab
+  useEffect(() => {
+    try {
+      const backButton = window.Telegram?.WebApp?.BackButton;
+      if (backButton) {
+        if (activeTab !== 'home') {
+          backButton.show();
+          const handleBack = () => setActiveTab('home');
+          backButton.onClick(handleBack);
+          return () => {
+            backButton.offClick(handleBack);
+          };
+        } else {
+          backButton.hide();
+        }
+      }
+    } catch {
+      // not in telegram webview
+    }
+  }, [activeTab, setActiveTab]);
 
   return (
     <div className="relative w-full max-w-[430px] mx-auto min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl border-x border-[#181820]/40">
