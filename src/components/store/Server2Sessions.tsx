@@ -6,7 +6,7 @@ import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download } from
 import { Modal } from '../common/Modal';
 
 export const Server2Sessions: React.FC = () => {
-  const { formatPrice, purchaseServer2Session, server2Items } = useApp();
+  const { formatPrice, purchaseServer2Session, server2Items, backendConnected } = useApp();
 
   const [qualityTier, setQualityTier] = useState<Server2QualityTier>('good');
   const [deliveryFormat, setDeliveryFormat] = useState<Server2DeliveryFormat>('account');
@@ -17,8 +17,10 @@ export const Server2Sessions: React.FC = () => {
 
   const years: (number | 'all')[] = ['all', 2021, 2022, 2023, 2024, 2025];
 
-  // Filter items (consuming live inventory from AppContext with mock fallback)
-  const items = server2Items && server2Items.length > 0 ? server2Items : server2Catalog;
+  // Strict real data: when connected to backend, only display real live stock
+  const items = backendConnected
+    ? server2Items
+    : (server2Items && server2Items.length > 0 ? server2Items : server2Catalog);
   const filtered = items.filter((item) => {
     if (item.qualityTier !== qualityTier) return false;
     if (selectedYear !== 'all' && item.accountYear !== selectedYear) return false;
@@ -164,11 +166,17 @@ export const Server2Sessions: React.FC = () => {
           </div>
         ))}
 
-        {filtered.length === 0 && (
+        {items.length === 0 ? (
+          <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center gap-2 text-[#a1a1aa]">
+            <Package className="w-8 h-8 text-[#8b5cf6]/50 mb-1" />
+            <span className="text-sm font-bold text-white">No Server 2 accounts in stock</span>
+            <span className="text-xs">Stock is uploaded periodically by administrators. Check back soon.</span>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
             No accounts match current filters.
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Purchase Modal with Quantity & Bulk ZIP Badge */}

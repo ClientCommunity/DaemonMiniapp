@@ -3,6 +3,7 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/common/Header';
 import { BottomNav } from './components/common/BottomNav';
 import { ToastContainer } from './components/common/Toast';
+import { InitialLoadingScreen } from './components/common/InitialLoadingScreen';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { StorefrontView } from './components/store/StorefrontView';
 import { DepositHub } from './components/deposit/DepositHub';
@@ -11,7 +12,13 @@ import { ProfileView } from './components/profile/ProfileView';
 import { P2PTransferModal } from './components/profile/P2PTransferModal';
 
 const AppContent: React.FC = () => {
-  const { activeTab, setActiveTab } = useApp();
+  const {
+    activeTab,
+    setActiveTab,
+    isInitialLoading,
+    initialLoadingStep,
+    initialLoadingMessage,
+  } = useApp();
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
   // Initialize Telegram WebApp SDK
@@ -50,6 +57,15 @@ const AppContent: React.FC = () => {
       // not in telegram webview
     }
   }, [activeTab, setActiveTab]);
+
+  if (isInitialLoading) {
+    return (
+      <InitialLoadingScreen
+        step={initialLoadingStep}
+        statusMessage={initialLoadingMessage}
+      />
+    );
+  }
 
   return (
     <div className="relative w-full max-w-[430px] mx-auto min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl border-x border-[#181820]/40">

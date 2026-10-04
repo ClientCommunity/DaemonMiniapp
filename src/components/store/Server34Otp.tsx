@@ -11,7 +11,7 @@ interface Server34OtpProps {
 }
 
 export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
-  const { formatPrice, requestVirtualOtp, server34Items } = useApp();
+  const { formatPrice, requestVirtualOtp, server34Items, backendConnected } = useApp();
 
   const [activeCategory, setActiveCategory] = useState<OtpAppCode>('all');
   const [search, setSearch] = useState('');
@@ -25,10 +25,12 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     { code: 'spam', label: 'SpamChat' },
   ];
 
-  // Filter items by server, app category, and search query (consuming live inventory from AppContext with mock fallback)
-  const items = server34Items && server34Items.length > 0 ? server34Items : server34Catalog;
-  const filtered = items.filter((item) => {
-    if (item.server !== serverId) return false;
+  // Strict real data: when connected to backend, only display real live stock
+  const allItems = backendConnected
+    ? server34Items
+    : (server34Items && server34Items.length > 0 ? server34Items : server34Catalog);
+  const serverItems = allItems.filter((item) => item.server === serverId);
+  const filtered = serverItems.filter((item) => {
     if (activeCategory !== 'all' && item.category !== activeCategory) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -122,57 +124,67 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
       {/* Virtual Numbers List */}
       <div className="grid grid-cols-1 gap-2.5">
-        {filtered.map((service) => (
-          <div
-            key={service.id}
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#383848] transition-all"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Authentic Platform SVG Badge */}
-              <div className="w-10 h-10 rounded-xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-center p-2 shrink-0 shadow-inner">
-                <PlatformIcon platform={service.category || service.serviceCode} className="w-6 h-6" />
-              </div>
-              
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-white truncate">
-                    {service.serviceName}
-                  </span>
-                  <span className="text-[10px] text-[#a1a1aa] px-1.5 py-0.5 rounded bg-[#0b0b0e] border border-[#262630]">
-                    {service.country}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-[#a1a1aa] mt-1">
-                  <span className="text-[#22c55e] font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
-                    {service.speed}
-                  </span>
-                  <span>•</span>
-                  <span>{service.successRate}% Success</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-1.5 shrink-0 pl-2">
-              <span className="text-sm font-extrabold text-[#22c55e] font-mono">
-                {formatPrice(service.priceInr)}
+        {serverItems.length === 0 ? (
+          <div className="p-10 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
+            <Radio className="w-8 h-8 text-[#71717a]" />
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-semibold text-white">No OTP Numbers in Stock</span>
+              <span className="text-xs text-[#a1a1aa]">
+                Live pool is currently empty for Server {serverId}. Check back shortly.
               </span>
-              <button
-                type="button"
-                onClick={() => requestVirtualOtp(service)}
-                className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold px-3 py-1.5 rounded-xl shadow-violet-glow-sm transition-all active:scale-95"
-              >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Get OTP</span>
-              </button>
             </div>
           </div>
-        ))}
-
-        {filtered.length === 0 && (
+        ) : filtered.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
-            No virtual numbers available for this category right now.
+            No virtual numbers available matching your search or category.
           </div>
+        ) : (
+          filtered.map((service) => (
+            <div
+              key={service.id}
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#383848] transition-all"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Authentic Platform SVG Badge */}
+                <div className="w-10 h-10 rounded-xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-center p-2 shrink-0 shadow-inner">
+                  <PlatformIcon platform={service.category || service.serviceCode} className="w-6 h-6" />
+                </div>
+                
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-white truncate">
+                      {service.serviceName}
+                    </span>
+                    <span className="text-[10px] text-[#a1a1aa] px-1.5 py-0.5 rounded bg-[#0b0b0e] border border-[#262630]">
+                      {service.country}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-[#a1a1aa] mt-1">
+                    <span className="text-[#22c55e] font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
+                      {service.speed}
+                    </span>
+                    <span>•</span>
+                    <span>{service.successRate}% Success</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end gap-1.5 shrink-0 pl-2">
+                <span className="text-sm font-extrabold text-[#22c55e] font-mono">
+                  {formatPrice(service.priceInr)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => requestVirtualOtp(service)}
+                  className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold px-3 py-1.5 rounded-xl shadow-violet-glow-sm transition-all active:scale-95"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Get OTP</span>
+                </button>
+              </div>
+            </div>
+          ))
         )}
       </div>
 

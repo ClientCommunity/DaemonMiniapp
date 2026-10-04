@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
-  const { user, transferableBalance, formatPrice, resetDemoData, addToast } = useApp();
+  const { user, transferableBalance, formatPrice, resetDemoData, addToast, backendConnected } = useApp();
 
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -125,20 +125,35 @@ export const ProfileView: React.FC = () => {
       {/* Embedded Reseller Custom Margin Engine */}
       <ResellerEngine />
 
-      {/* Dev Reset Utility */}
-      <div className="mt-2 p-4 rounded-2xl bg-[#181820]/60 border border-[#262630] flex items-center justify-between">
-        <div className="flex flex-col">
-          <span className="text-xs font-bold text-white">Demo Data Controls</span>
-          <span className="text-[10px] text-[#a1a1aa]">Reset wallet balances and mock state</span>
+      {/* Dev Reset Utility or Production Server Status */}
+      {!backendConnected ? (
+        <div className="mt-2 p-4 rounded-2xl bg-[#181820]/60 border border-[#262630] flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-white">Demo Data Controls</span>
+            <span className="text-[10px] text-[#a1a1aa]">Reset wallet balances and mock state</span>
+          </div>
+          <button
+            onClick={resetDemoData}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1f1f2a] hover:bg-[#262630] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white transition-all active:scale-95"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-[#8b5cf6]" />
+            <span>Reset Demo</span>
+          </button>
         </div>
-        <button
-          onClick={resetDemoData}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1f1f2a] hover:bg-[#262630] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white transition-all active:scale-95"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-[#8b5cf6]" />
-          <span>Reset Demo</span>
-        </button>
-      </div>
+      ) : (
+        <div className="mt-2 p-3.5 rounded-2xl bg-[#181820]/60 border border-[#22c55e]/30 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#22c55e] animate-pulse" />
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-white">Production Server Synchronized</span>
+              <span className="text-[10px] text-[#a1a1aa]">Live backend connection active • Real-time telemetry</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/20 px-2 py-0.5 rounded-lg">
+            LIVE
+          </span>
+        </div>
+      )}
 
       {/* Modal */}
       <P2PTransferModal

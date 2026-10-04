@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { server1Catalog } from '../../data/mockData';
 import { Server1AccountItem } from '../../types';
-import { Search, ShoppingBag, ShieldCheck, Key, Phone, Download, Check, Copy } from 'lucide-react';
+import { Search, ShoppingBag, ShieldCheck, Key, Phone, Download, Check, Copy, Globe } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
 export const Server1Lzt: React.FC = () => {
@@ -13,13 +13,16 @@ export const Server1Lzt: React.FC = () => {
     closeCredentialsModal,
     addToast,
     server1Items,
+    backendConnected,
   } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedForPurchase, setSelectedForPurchase] = useState<Server1AccountItem | null>(null);
 
-  // Filter accounts (consuming live inventory from AppContext with mock fallback)
-  const items = server1Items && server1Items.length > 0 ? server1Items : server1Catalog;
+  // Strict real data: when connected to backend, only display real live stock
+  const items = backendConnected
+    ? server1Items
+    : (server1Items && server1Items.length > 0 ? server1Items : server1Catalog);
   const filtered = items.filter((item) =>
     item.country.toLowerCase().includes(search.toLowerCase())
   );
@@ -113,11 +116,17 @@ export const Server1Lzt: React.FC = () => {
           </div>
         ))}
 
-        {filtered.length === 0 && (
+        {items.length === 0 ? (
+          <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center gap-2 text-[#a1a1aa]">
+            <Globe className="w-8 h-8 text-[#8b5cf6]/50 mb-1" />
+            <span className="text-sm font-bold text-white">No Server 1 stock available</span>
+            <span className="text-xs">Market inventory is refreshing or currently out of stock.</span>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
             No accounts match your search query.
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Confirmation Purchase Modal */}

@@ -6,10 +6,10 @@ import { PlatformIcon } from '../common/PlatformIcon';
 import { Rocket, Link as LinkIcon, ShieldCheck, Zap, Info, Check, Clock } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
-  const { formatPrice, submitSmmOrder, server5Items } = useApp();
+  const { formatPrice, submitSmmOrder, server5Items, backendConnected } = useApp();
 
   const [activePlatform, setActivePlatform] = useState<SmmPlatform>('telegram');
-  const [selectedServiceId, setSelectedServiceId] = useState<string>(server5Catalog[0].id);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(server5Catalog[0]?.id || '');
   const [targetLink, setTargetLink] = useState('');
   const [quantity, setQuantity] = useState(1000);
 
@@ -25,8 +25,10 @@ export const Server5Smm: React.FC = () => {
     { id: 'twitter', label: 'Twitter (X)' },
   ];
 
-  // Available services for chosen platform (consuming live inventory from AppContext with mock fallback)
-  const allServices = server5Items && server5Items.length > 0 ? server5Items : server5Catalog;
+  // Available services for chosen platform (consuming live inventory from AppContext with mock fallback when disconnected)
+  const allServices = backendConnected
+    ? server5Items
+    : (server5Items && server5Items.length > 0 ? server5Items : server5Catalog);
   const platformServices = allServices.filter((s) => s.platform === activePlatform);
   const currentService = platformServices.find((s) => s.id === selectedServiceId) || platformServices[0];
 
@@ -98,48 +100,60 @@ export const Server5Smm: React.FC = () => {
         </div>
       </div>
 
-      {/* Social Media Platform SVG Selector Tabs */}
-      <div className="mb-3.5">
-        <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider">
-          Select Platform
+      {allServices.length === 0 ? (
+        <div className="p-10 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
+          <Rocket className="w-8 h-8 text-[#71717a]" />
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-white">No SMM Services Configured</span>
+            <span className="text-xs text-[#a1a1aa]">
+              The backend currently has no active SMM provider packages loaded. Check back soon.
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
-          {platforms.map((p) => {
-            const isActive = activePlatform === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handlePlatformChange(p.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 active:scale-95 ${
-                  isActive
-                    ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
-                    : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#383848]'
-                }`}
-              >
-                <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                  <PlatformIcon platform={p.id} className="w-5 h-5" />
-                </div>
-                <span>{p.label}</span>
-                {p.badge && (
-                  <span
-                    className={`text-[9px] px-1 py-0.2 rounded font-extrabold uppercase ${
+      ) : (
+        <>
+          {/* Social Media Platform SVG Selector Tabs */}
+          <div className="mb-3.5">
+            <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider">
+              Select Platform
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
+              {platforms.map((p) => {
+                const isActive = activePlatform === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handlePlatformChange(p.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 active:scale-95 ${
                       isActive
-                        ? 'bg-[#7c3aed] text-white'
-                        : 'bg-[#262630] text-[#a1a1aa]'
+                        ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
+                        : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#383848]'
                     }`}
                   >
-                    {p.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                      <PlatformIcon platform={p.id} className="w-5 h-5" />
+                    </div>
+                    <span>{p.label}</span>
+                    {p.badge && (
+                      <span
+                        className={`text-[9px] px-1 py-0.2 rounded font-extrabold uppercase ${
+                          isActive
+                            ? 'bg-[#7c3aed] text-white'
+                            : 'bg-[#262630] text-[#a1a1aa]'
+                        }`}
+                      >
+                        {p.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* Service Packages (Visual Cards Selection) */}
-      <div className="mb-3">
+          {/* Service Packages (Visual Cards Selection) */}
+          <div className="mb-3">
         <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider flex items-center justify-between">
           <span>Choose Package</span>
           <span className="text-[10px] text-[#8b5cf6] font-normal">
@@ -336,6 +350,8 @@ export const Server5Smm: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
+  )}
+</div>
   );
 };

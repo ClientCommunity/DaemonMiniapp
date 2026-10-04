@@ -103,7 +103,17 @@ export const HistoryView: React.FC = () => {
 
       {/* History Items List */}
       <div className="flex flex-col gap-2">
-        {filteredHistory.length === 0 ? (
+        {history.length === 0 ? (
+          <div className="p-10 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
+            <ShoppingBag className="w-8 h-8 text-[#71717a]" />
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-semibold text-white">No Orders Placed Yet</span>
+              <span className="text-xs text-[#a1a1aa]">
+                Your transactions, accounts, and virtual OTP orders will appear here once placed.
+              </span>
+            </div>
+          </div>
+        ) : filteredHistory.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
             No transactions found for the selected filter.
           </div>

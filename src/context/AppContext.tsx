@@ -62,6 +62,9 @@ export interface AppContextType {
   backendConnected: boolean | null;
   isCheckingBackend: boolean;
   recheckConnection: (notify?: boolean) => Promise<boolean>;
+  isInitialLoading: boolean;
+  initialLoadingStep: number;
+  initialLoadingMessage: string;
 
   // Store inventory state
   server1Items: Server1AccountItem[];
@@ -159,6 +162,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isLoadingStore, setIsLoadingStore] = useState<boolean>(false);
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
   const [isCheckingBackend, setIsCheckingBackend] = useState<boolean>(false);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
+  const [initialLoadingStep, setInitialLoadingStep] = useState<number>(1);
+  const [initialLoadingMessage, setInitialLoadingMessage] = useState<string>('Establishing secure connection...');
 
   // Modals
   const [purchasedCredentialsModal, setPurchasedCredentialsModal] = useState<{
@@ -239,7 +245,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const refreshHistory = useCallback(async () => {
     try {
       const historyRes = await historyApi.getHistory();
-      if (historyRes?.success && Array.isArray(historyRes.items) && historyRes.items.length > 0) {
+      if (historyRes?.success && Array.isArray(historyRes.items)) {
         const adapted = historyRes.items.map((item, idx) => adaptHistoryItem(item, idx));
         setHistory(adapted);
       }
@@ -273,12 +279,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         storeApi.getServer5(),
       ]);
 
-      if (
-        s1.status === 'fulfilled' &&
-        s1.value.success &&
-        Array.isArray(s1.value.items) &&
-        s1.value.items.length > 0
-      ) {
+      if (s1.status === 'fulfilled' && s1.value.success && Array.isArray(s1.value.items)) {
         setServer1Items(s1.value.items.map((item, idx) => adaptServer1Item(item, idx)));
       }
 
@@ -289,7 +290,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (s2Cheap.status === 'fulfilled' && s2Cheap.value.success && Array.isArray(s2Cheap.value.items)) {
         s2Combined.push(...s2Cheap.value.items.map((item) => adaptServer2Item(item, 'cheap')));
       }
-      if (s2Combined.length > 0) {
+      if (s2Good.status === 'fulfilled' || s2Cheap.status === 'fulfilled') {
         setServer2Items(s2Combined);
       }
 
@@ -300,16 +301,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (s4.status === 'fulfilled' && s4.value.success && Array.isArray(s4.value.items)) {
         s34Combined.push(...s4.value.items.map((item) => adaptServer34Item(item, 4)));
       }
-      if (s34Combined.length > 0) {
+      if (s3.status === 'fulfilled' || s4.status === 'fulfilled') {
         setServer34Items(s34Combined);
       }
 
-      if (
-        s5.status === 'fulfilled' &&
-        s5.value.success &&
-        Array.isArray(s5.value.items) &&
-        s5.value.items.length > 0
-      ) {
+      if (s5.status === 'fulfilled' && s5.value.success && Array.isArray(s5.value.items)) {
         setServer5Items(s5.value.items.map((item) => adaptServer5Item(item)));
       }
     } catch {
@@ -368,6 +364,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     async function initializeSession() {
       setIsCheckingBackend(true);
+      setIsInitialLoading(true);
+      setInitialLoadingStep(1);
+      setInitialLoadingMessage('Connecting to Daemon Edge Proxy...');
+
       let isOnline = false;
       try {
         const healthRes = await api.get<{ status?: string }>('/api/health');
@@ -384,14 +384,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (isMounted) {
         setBackendConnected(isOnline);
         setIsCheckingBackend(false);
-        if (isOnline) {
-          addToast('Connected to live Daemon backend server!', 'success', 'Connected');
-        } else {
-          addToast('Backend not connected. Running in offline/preview mode.', 'warning', 'Not Connected');
-        }
       }
 
       if (isOnline) {
+        if (isMounted) {
+          setInitialLoadingStep(2);
+          setInitialLoadingMessage('Authenticating Telegram profile & wallet...');
+        }
+
         try {
           const authRes = await authApi.authenticate();
           if (isMounted && authRes?.success && authRes.user) {
@@ -412,12 +412,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         try {
           const historyRes = await historyApi.getHistory();
-          if (
-            isMounted &&
-            historyRes?.success &&
-            Array.isArray(historyRes.items) &&
-            historyRes.items.length > 0
-          ) {
+          if (isMounted && historyRes?.success && Array.isArray(historyRes.items)) {
             setHistory(historyRes.items.map((item, idx) => adaptHistoryItem(item, idx)));
           }
         } catch {
@@ -425,8 +420,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         if (isMounted) {
+          setInitialLoadingStep(3);
+          setInitialLoadingMessage('Synchronizing live store catalogues...');
           await refreshStore();
         }
+
+        if (isMounted) {
+          addToast('Connected to live Daemon backend server!', 'success', 'Connected');
+        }
+      } else {
+        if (isMounted) {
+          addToast('Backend not connected. Running in offline/preview mode.', 'warning', 'Not Connected');
+        }
+      }
+
+      if (isMounted) {
+        setTimeout(() => {
+          if (isMounted) {
+            setIsInitialLoading(false);
+          }
+        }, 350);
       }
     }
 
@@ -1263,6 +1276,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         backendConnected,
         isCheckingBackend,
         recheckConnection,
+        isInitialLoading,
+        initialLoadingStep,
+        initialLoadingMessage,
       }}
     >
       {children}
