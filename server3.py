@@ -15,6 +15,7 @@ import aiohttp
 
 from database import connect, transaction, utcnow
 from secrets_manager import decrypt_secret
+from api_cooldown import check_cooldown, is_cooling_down, record_rate_limit, get_cooldown_remaining
 
 DEFAULT_ENDPOINT = "https://dgotp.in/stubs/handler_api.php"
 
@@ -49,6 +50,9 @@ class DGOTPError(RuntimeError):
         "BAD_SERVICE": "The service is unavailable.", "BAD_SERVER": "The provider server is unavailable.",
         "NO_ACTIVATION": "This activation no longer exists.", "BAD_ID": "The provider order ID is invalid.",
         "BAD_STATUS": "The requested provider status is invalid.", "STATUS_CANCEL": "The activation was cancelled.",
+        "HTTP_429": "Provider rate limit exceeded. Pausing requests for 10 seconds.",
+        "TOO_MANY_REQUESTS": "Provider rate limit exceeded. Pausing requests for 10 seconds.",
+        "RATE_LIMIT_COOLDOWN": "Provider is cooling down due to rate limit. Please wait 10 seconds.",
     }
 
     def __init__(self, code: str):
@@ -73,18 +77,29 @@ class Server3Client:
             raise DGOTPError("API_DISABLED")
         if not cfg["api_key"]:
             raise DGOTPError("BAD_KEY")
+        target_url = cfg["api_url"] or DEFAULT_ENDPOINT
+        if is_cooling_down(target_url):
+            raise DGOTPError("RATE_LIMIT_COOLDOWN")
         stored_key = cfg["api_key"]
         api_key = decrypt_secret(stored_key[4:]) if stored_key.startswith("enc:") else stored_key
         query = {"api_key": api_key, "action": action, **params}
         timeout = aiohttp.ClientTimeout(total=max(1, cfg["timeout_seconds"]))
         error: Exception | None = None
         for attempt in range(max(0, cfg["retry_count"]) + 1):
+            if is_cooling_down(target_url):
+                raise DGOTPError("RATE_LIMIT_COOLDOWN")
             try:
                 async with aiohttp.ClientSession(timeout=timeout) as session:
-                    async with session.get(cfg["api_url"] or DEFAULT_ENDPOINT, params=query) as response:
+                    async with session.get(target_url, params=query) as response:
                         body = (await response.text()).strip()
+                        if response.status == 429:
+                            record_rate_limit(target_url, 10.0, reason="HTTP 429")
+                            raise DGOTPError("HTTP_429")
                         if response.status >= 400:
                             raise DGOTPError(f"HTTP_{response.status}")
+                        if body in ("TOO_MANY_REQUESTS", "RATE_LIMIT") or "rate limit" in body.lower():
+                            record_rate_limit(target_url, 10.0, reason=body)
+                            raise DGOTPError("TOO_MANY_REQUESTS")
                         if body in DGOTPError.FRIENDLY or body.startswith(("BAD_", "ERROR_", "NO_")):
                             raise DGOTPError(body)
                         return body
@@ -206,7 +221,8 @@ class Server3Client:
         """Continuously refresh stock without ever stopping the bot."""
         while True:
             cfg = self._config()
-            if cfg["service_enabled"] and cfg["api_enabled"] and cfg["api_key"]:
+            target_url = cfg["api_url"] or DEFAULT_ENDPOINT
+            if cfg["service_enabled"] and cfg["api_enabled"] and cfg["api_key"] and not is_cooling_down(target_url):
                 try:
                     await self.sync_catalogue()
                 except (DGOTPError, aiohttp.ClientError, asyncio.TimeoutError):

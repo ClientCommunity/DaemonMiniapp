@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify
 import threading
 from datetime import datetime
+from api_cooldown import check_cooldown, is_cooling_down, record_rate_limit, get_cooldown_remaining
 
 from telethon import TelegramClient, events, Button
 from telethon.errors import (
@@ -242,7 +243,7 @@ LZT_REQUEST_DEBUG = os.getenv("LZT_REQUEST_DEBUG", "1").strip().lower() not in (
 LZT_FAST_BUY_RETRIES = int(os.getenv("LZT_FAST_BUY_RETRIES", "5"))
 LZT_PRICE_CURRENCY = os.getenv("LZT_PRICE_CURRENCY", "rub").strip().lower() or "rub"
 LZT_MIN_REQUEST_INTERVAL = max(0.5, float(os.getenv("LZT_MIN_REQUEST_INTERVAL", "0.75")))
-LZT_RATE_LIMIT_COOLDOWN = float(os.getenv("LZT_RATE_LIMIT_COOLDOWN", "60"))
+LZT_RATE_LIMIT_COOLDOWN = float(os.getenv("LZT_RATE_LIMIT_COOLDOWN", "10"))
 AUTO_CANCEL_SECONDS = 600
 
 # Optional Telegram custom emoji IDs. Set env vars to Telegram custom emoji
@@ -571,10 +572,20 @@ async def bot_api_edit_text(event,text,keyboard):
     if not message_id or not chat_id:return False
     payload={"chat_id":chat_id,"message_id":message_id,"text":text,"parse_mode":"HTML",
              "reply_markup":{"inline_keyboard":keyboard}}
+    tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText"
+    if is_cooling_down(tg_url):
+        return False
     try:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
-            async with session.post(f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",json=payload) as response:
+            async with session.post(tg_url,json=payload) as response:
+                if response.status == 429:
+                    record_rate_limit(tg_url, 10.0, reason="Telegram HTTP 429")
+                    return False
                 result=await response.json(content_type=None)
+                if isinstance(result, dict) and result.get("error_code") == 429:
+                    retry_sec = (result.get("parameters", {}).get("retry_after") if isinstance(result.get("parameters"), dict) else None) or 10.0
+                    record_rate_limit(tg_url, float(retry_sec), reason="Telegram error_code 429")
+                    return False
         return bool(result.get("ok"))
     except (aiohttp.ClientError,asyncio.TimeoutError,ValueError):
         return False
@@ -1848,9 +1859,10 @@ async def wait_lzt_rate_limit():
     global _lzt_last_request_at
     async with _lzt_rate_lock:
         now = time.monotonic()
+        cooldown_rem = get_cooldown_remaining(LZT_BASE_URL)
         blocked_wait = max(0.0, _lzt_blocked_until - now)
         spacing_wait = max(0.0, LZT_MIN_REQUEST_INTERVAL - (now - _lzt_last_request_at))
-        wait_for = max(blocked_wait, spacing_wait)
+        wait_for = max(blocked_wait, spacing_wait, cooldown_rem)
         if wait_for > 0:
             await asyncio.sleep(wait_for)
         _lzt_last_request_at = time.monotonic()
@@ -1879,6 +1891,7 @@ async def apply_lzt_rate_limit_cooldown(retry_after=None):
     global _lzt_blocked_until
     wait_for = max(float(retry_after or 0), LZT_RATE_LIMIT_COOLDOWN)
     _lzt_blocked_until = max(_lzt_blocked_until, time.monotonic() + wait_for)
+    record_rate_limit(LZT_BASE_URL, wait_for, reason="LZT 429 rate limit")
     logger.warning("LZT API rate limited; pausing market requests for %.1fs", wait_for)
     return wait_for
 
@@ -2614,15 +2627,23 @@ async def check_upi_expiry_loop(order_id, uid, qr_msg_id):
 
 async def query_upi_payment_success(order_id):
     verify_url = f"https://redoxng.in/api/verify.php?orderId={order_id}&mid={UPI_MID}"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(verify_url, timeout=15) as resp:
-            data = await resp.json()
-            status_str = str(data.get("status", "")).upper()
-            return (
-                data.get("success") is True or
-                str(data.get("status", "")).lower() == "success" or
-                status_str in ("TXN_SUCCESS", "SUCCESS", "COMPLETED")
-            )
+    if is_cooling_down(verify_url):
+        return False
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(verify_url, timeout=15) as resp:
+                if resp.status == 429:
+                    record_rate_limit(verify_url, 10.0, reason="Redox verify 429")
+                    return False
+                data = await resp.json()
+                status_str = str(data.get("status", "")).upper()
+                return (
+                    data.get("success") is True or
+                    str(data.get("status", "")).lower() == "success" or
+                    status_str in ("TXN_SUCCESS", "SUCCESS", "COMPLETED")
+                )
+    except Exception:
+        return False
 
 async def complete_upi_order(order_id, uid, amount, qr_msg_id, edit_event=None):
     async with get_user_lock(uid):
@@ -2755,11 +2776,16 @@ async def keypad_logic(e):
 
         order_id = f"UPI{uid}{int(time.time())}"
         gen_url = f"https://redoxng.in/api/genqr.php?upi={UPI_ID}&amount={amt}&name=Deamon&orderId={order_id}"
+        if is_cooling_down(gen_url):
+            return await e.edit(f"{P_NO} Payment gateway is cooling down due to rate limits. Please try again in 10 seconds.", buttons=[[p_btn("Back", "menu_main")]])
         await e.edit(f"{P_TIME} Generating secure QR code...")
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(gen_url, timeout=15) as resp:
+                    if resp.status == 429:
+                        record_rate_limit(gen_url, 10.0, reason="Redox genqr 429")
+                        raise Exception("Redox QR rate limit (HTTP 429)")
                     data = await resp.json()
                     if not data.get("success"):
                         raise Exception(f"Redox QR error: {data.get('message', 'Unknown api failure')}")

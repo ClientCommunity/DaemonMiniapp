@@ -11,6 +11,7 @@ from urllib.parse import urlsplit, urlunsplit
 import aiohttp
 from database import connect, transaction, utcnow
 from secrets_manager import encrypt_secret, decrypt_secret
+from api_cooldown import check_cooldown, is_cooling_down, record_rate_limit, get_cooldown_remaining
 
 class SMMError(RuntimeError):
     def __init__(self, code, detail=""):
@@ -63,16 +64,28 @@ class Client:
     async def request(self, action, **params):
         p=self.config()
         if not p["enabled"]:raise SMMError("PROVIDER_DISABLED")
+        target_url = p["api_url"]
+        if is_cooling_down(target_url):
+            rem = get_cooldown_remaining(target_url)
+            raise SMMError("RATE_LIMIT", f"Provider {target_url} is cooling down ({rem:.1f}s remaining).")
         key=p["api_key"]; key=decrypt_secret(key[4:]) if key.startswith("enc:") else key
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
-                async with session.post(p["api_url"],data={"key":key,"action":action,**params}) as response:
+                async with session.post(target_url,data={"key":key,"action":action,**params}) as response:
                     raw=await response.text()
+                    if response.status == 429 or (response.status >= 400 and "rate limit" in raw.lower()):
+                        record_rate_limit(target_url, 10.0, reason=f"HTTP {response.status}")
+                        raise SMMError("RATE_LIMIT", f"HTTP {response.status}: {raw}")
                     if response.status>=400:raise SMMError("HTTP_ERROR",f"HTTP {response.status}: {raw}")
         except (aiohttp.ClientError,asyncio.TimeoutError) as exc:raise SMMError("NETWORK_ERROR",repr(exc)) from exc
         try:value=json.loads(raw)
         except json.JSONDecodeError as exc:raise SMMError("INVALID_JSON",raw) from exc
-        if isinstance(value,dict) and value.get("error"):raise SMMError("PROVIDER_ERROR",value["error"])
+        if isinstance(value,dict) and value.get("error"):
+            err_str = str(value["error"]).lower()
+            if "rate limit" in err_str or "too many requests" in err_str:
+                record_rate_limit(target_url, 10.0, reason=str(value["error"]))
+                raise SMMError("RATE_LIMIT", value["error"])
+            raise SMMError("PROVIDER_ERROR",value["error"])
         return value
     async def balance(self):
         value=await self.request("balance")
@@ -95,12 +108,23 @@ class Client:
 
 async def test_provider(url,key):
     url=normalize_api_url(url)
+    if is_cooling_down(url):
+        rem = get_cooldown_remaining(url)
+        raise SMMError("RATE_LIMIT", f"Provider {url} is currently cooling down ({rem:.1f}s remaining).")
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
         async with session.post(url,data={"key":key,"action":"balance"}) as response:
             raw=await response.text()
+            if response.status == 429 or (response.status >= 400 and "rate limit" in raw.lower()):
+                record_rate_limit(url, 10.0, reason=f"HTTP {response.status}")
+                raise SMMError("RATE_LIMIT", f"HTTP {response.status}: {raw}")
     try:
         value=json.loads(raw)
-        if value.get("error"):raise SMMError("PROVIDER_ERROR",value["error"])
+        if value.get("error"):
+            err_str = str(value["error"]).lower()
+            if "rate limit" in err_str or "too many requests" in err_str:
+                record_rate_limit(url, 10.0, reason=str(value["error"]))
+                raise SMMError("RATE_LIMIT", value["error"])
+            raise SMMError("PROVIDER_ERROR",value["error"])
         return float(value["balance"]),str(value.get("currency","USD"))
     except (json.JSONDecodeError,KeyError,TypeError,ValueError) as exc:raise SMMError("CONNECTION_TEST_FAILED",raw) from exc
 

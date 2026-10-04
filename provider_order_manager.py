@@ -7,8 +7,9 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from database import connect, transaction, utcnow
-from server3 import DGOTPError, client as server3_client
-from server4 import TemporaError, client as server4_client
+from api_cooldown import is_cooling_down
+from server3 import DEFAULT_ENDPOINT as SERVER3_DEFAULT_ENDPOINT, DGOTPError, client as server3_client
+from server4 import ENDPOINT as SERVER4_DEFAULT_ENDPOINT, TemporaError, client as server4_client
 
 logger = logging.getLogger(__name__)
 ACTIVATION_TTL = max(300, int(os.getenv("PROVIDER_ACTIVATION_TTL", "1200")))
@@ -71,6 +72,12 @@ class ProviderOrderManager:
             await self.notify(event, payload)
 
     async def _poll_server3(self, rows):
+        if not rows:
+            return
+        cfg = server3_client._config()
+        endpoint = cfg["api_url"] or SERVER3_DEFAULT_ENDPOINT
+        if is_cooling_down(endpoint):
+            return
         for row in rows:
             try:
                 status, code = await server3_client.get_status(row["provider_order_id"])
@@ -79,10 +86,16 @@ class ProviderOrderManager:
                 elif status == "cancelled":
                     await self._emit("refunded", cancel_and_refund("server3_orders", row["provider_order_id"], "provider_cancelled"))
             except DGOTPError:
+                if is_cooling_down(endpoint):
+                    break
                 continue
 
     async def _poll_server4(self, rows):
         if not rows:
+            return
+        cfg = server4_client.config()
+        endpoint = cfg["api_url"] or SERVER4_DEFAULT_ENDPOINT
+        if is_cooling_down(endpoint):
             return
         ids = [row["provider_order_id"] for row in rows]
         try:

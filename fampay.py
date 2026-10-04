@@ -17,6 +17,7 @@ from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 import aiohttp
 
 from database import connect, transaction, utcnow
+from api_cooldown import is_cooling_down, record_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -186,10 +187,15 @@ async def verify(reference: str) -> Verification:
 
     # 2. Secondary fallback: HTTP verification if configured and not default growfan stub
     if VERIFY_URL and "growfan.in" not in VERIFY_URL:
+        if is_cooling_down(VERIFY_URL):
+            return Verification(verified=False, amount=None, transaction_id=None, raw="cooldown_rate_limited")
         timeout = aiohttp.ClientTimeout(total=VERIFY_TIMEOUT)
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(_verification_url(reference), headers={"Accept": "application/json"}) as response:
+                    if response.status == 429:
+                        record_rate_limit(VERIFY_URL, 10.0, reason="HTTP 429")
+                        return Verification(verified=False, amount=None, transaction_id=None, raw="rate_limited")
                     text = await response.text()
                     if response.status == 200:
                         return _parse_response(json.loads(text))

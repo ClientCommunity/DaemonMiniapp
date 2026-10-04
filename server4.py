@@ -12,6 +12,7 @@ import aiohttp
 
 from database import connect, transaction, utcnow
 from secrets_manager import decrypt_secret
+from api_cooldown import check_cooldown, is_cooling_down, record_rate_limit, get_cooldown_remaining
 
 ENDPOINT = "https://api.temporasms.com/stubs/handler_api.php"
 
@@ -26,6 +27,8 @@ class TemporaError(RuntimeError):
         "TOO_MANY_REQUESTS": "Provider rate limit exceeded", "UNDER_DEVELOPMENT": "Feature under development",
         "NO_ACTIVATION": "Activation not found", "BAD_STATUS": "Invalid activation status",
         "NO_NUMBERS": "No numbers currently available",
+        "HTTP_429": "Provider rate limit exceeded",
+        "RATE_LIMIT_COOLDOWN": "Provider rate limit cooldown active",
     }
 
     def __init__(self, code: str):
@@ -48,22 +51,32 @@ class TemporaClient:
         cfg = self.config()
         if not cfg["api_enabled"] or not cfg["api_key"]:
             raise TemporaError("BAD_KEY")
+        target_url = cfg["api_url"] or ENDPOINT
+        if is_cooling_down(target_url):
+            raise TemporaError("TOO_MANY_REQUESTS")
         stored = cfg["api_key"]
         key = decrypt_secret(stored[4:]) if stored.startswith("enc:") else stored
         query = {"api_key": key, "action": action, **params}
         timeout = aiohttp.ClientTimeout(total=max(1, cfg["timeout_seconds"]))
         last_error = None
         for attempt in range(max(0, cfg["retry_count"]) + 1):
+            if is_cooling_down(target_url):
+                raise TemporaError("TOO_MANY_REQUESTS")
             try:
                 async with aiohttp.ClientSession(timeout=timeout) as session:
-                    async with session.get(cfg["api_url"] or ENDPOINT, params=query) as response:
+                    async with session.get(target_url, params=query) as response:
                         body = (await response.text()).strip()
+                        if response.status == 429:
+                            record_rate_limit(target_url, 10.0, reason="HTTP 429")
+                            raise TemporaError("TOO_MANY_REQUESTS")
                         if response.status >= 400:
                             raise TemporaError(f"HTTP_{response.status}")
                         if body in TemporaError.MESSAGES:
-                            if body == "TOO_MANY_REQUESTS" and attempt < cfg["retry_count"]:
-                                await asyncio.sleep(min(2 ** attempt + 1, 10))
-                                continue
+                            if body == "TOO_MANY_REQUESTS":
+                                record_rate_limit(target_url, 10.0, reason="body TOO_MANY_REQUESTS")
+                                if attempt < cfg["retry_count"]:
+                                    await asyncio.sleep(10.0)
+                                    continue
                             raise TemporaError(body)
                         return body
             except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
@@ -323,7 +336,8 @@ class TemporaClient:
     async def catalogue_loop(self, interval: float = 60) -> None:
         while True:
             cfg = self.config()
-            if cfg["service_enabled"] and cfg["api_enabled"] and cfg["api_key"]:
+            target_url = cfg["api_url"] or ENDPOINT
+            if cfg["service_enabled"] and cfg["api_enabled"] and cfg["api_key"] and not is_cooling_down(target_url):
                 try:
                     await self.sync_all()
                 except (TemporaError, aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as exc:
