@@ -1,0 +1,27 @@
+# Render Blueprint Specification
+# Deploys the Telegram Mini App React SPA on Render
+services:
+  - type: web
+    name: daemon-miniapp
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
+      - path: /*
+        name: Content-Security-Policy
+        value: "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org telegram:;"
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: VITE_BASE_PATH
+        value: "/"
+      - key: VITE_API_BASE_URL
+        value: "/api"

@@ -5,8 +5,12 @@ import react from '@vitejs/plugin-react'
 declare const process: { env?: Record<string, string | undefined> };
 
 // https://vite.dev/config/
+const basePath =
+  (typeof process !== 'undefined' && process.env?.VITE_BASE_PATH) ||
+  (typeof process !== 'undefined' && process.env?.RENDER ? '/' : '/DaemonMiniapp/');
+
 export default defineConfig({
-  base: '/DaemonMiniapp/',
+  base: basePath,
   plugins: [react()],
   server: {
     port: 3000,
