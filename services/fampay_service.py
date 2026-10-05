@@ -37,9 +37,16 @@ def create_fampay_checkout(user_id: int, amount: int) -> dict[str, Any]:
             LIMIT 1
         """).fetchone()
 
-        upi_id = gw["upi_id"] if gw else "fampay@upi"
-        payment_name = gw["name"] if gw else "FamPay"
-        gateway_id = gw["id"] if gw else 1
+        if not gw:
+            return {
+                "success": False,
+                "code": "GATEWAY_OFFLINE",
+                "error": "FamPay QR gateway is currently offline or unconfigured. Please use Manual UPI Deposit.",
+            }
+
+        upi_id = gw["upi_id"]
+        payment_name = gw["name"] or "FamPay"
+        gateway_id = gw["id"]
 
         conn.execute("""
             INSERT INTO fampay_orders (

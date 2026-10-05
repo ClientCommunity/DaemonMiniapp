@@ -155,8 +155,19 @@ def migrate() -> None:
             phone TEXT,
             otp TEXT,
             server TEXT DEFAULT 'Local',
+            date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            promo_deducted INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS deposits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount INTEGER NOT NULL,
+            method_name TEXT,
+            status TEXT DEFAULT 'pending',
             date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id);
 
         CREATE TABLE IF NOT EXISTS custom_payments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -529,7 +540,7 @@ def migrate() -> None:
             ('orders_per_page','10'),('default_currency','INR'),('low_balance','10');
         """)
 
-        # 2. Dynamic column migrations: users table
+        # 2. Dynamic column migrations: users table & orders table
         user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
         if "promo_balance" not in user_columns:
             conn.execute("ALTER TABLE users ADD COLUMN promo_balance INTEGER DEFAULT 0")
@@ -539,6 +550,10 @@ def migrate() -> None:
             conn.execute("ALTER TABLE users ADD COLUMN pref_curr TEXT DEFAULT 'INR'")
         if "sales_balance" not in user_columns:
             conn.execute("ALTER TABLE users ADD COLUMN sales_balance INTEGER DEFAULT 0")
+
+        order_columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
+        if "promo_deducted" not in order_columns:
+            conn.execute("ALTER TABLE orders ADD COLUMN promo_deducted INTEGER DEFAULT 0")
 
         # 3. Dynamic schema migration: stock table with CHECK(quality_tier IN ('good', 'cheap'))
         stock_sql_row = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='stock'").fetchone()

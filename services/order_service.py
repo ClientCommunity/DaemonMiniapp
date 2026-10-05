@@ -70,6 +70,11 @@ def execute_buy(
     total_price = unit_price * quantity
 
     # 1. Atomic balance check and deduction (promo balance consumed first)
+    with connect() as conn:
+        u_row = conn.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id = ?", (uid,)).fetchone()
+        promo_before = int(u_row[1] or 0) if u_row else 0
+        promo_deducted = min(total_price, max(0, promo_before))
+
     if not purchase_deduct(uid, total_price):
         return {
             "success": False,
@@ -99,8 +104,13 @@ def execute_buy(
                 """, (f"{country}%", year, clean_tier, quantity)).fetchall()
 
                 if len(stock_rows) < quantity:
-                    # Partial / out of stock - refund atomically
-                    conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (total_price, uid))
+                    # Partial / out of stock - symmetrical refund atomically
+                    conn.execute("""
+                        UPDATE users
+                        SET balance = balance + ?,
+                            promo_balance = COALESCE(promo_balance, 0) + ?
+                        WHERE user_id = ?
+                    """, (total_price, promo_deducted, uid))
                     conn.commit()
                     return {
                         "success": False,
@@ -114,22 +124,23 @@ def execute_buy(
 
                 order_id = f"ZIP_{int(time.time())}_{secrets.token_hex(3)}"
                 conn.execute("""
-                    INSERT INTO orders (user_id, country, year, price, phone, otp, server, date)
-                    VALUES (?, ?, ?, ?, ?, 'ZIP DELIVERED', 'Server 2', ?)
-                """, (uid, country, year, total_price, ",".join(delivered_phones), utcnow()))
+                    INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+                    VALUES (?, ?, ?, ?, ?, 'ZIP DELIVERED', 'Server 2', ?, ?)
+                """, (uid, country, year, total_price, ",".join(delivered_phones), utcnow(), promo_deducted))
                 conn.commit()
 
                 # Credit reseller commission if applicable
                 process_reseller_commission(uid, total_price, f"Server 2 Bulk ({quantity}x)")
 
-                new_bal = conn.execute("SELECT balance FROM users WHERE user_id = ?", (uid,)).fetchone()[0]
+                new_bal = conn.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id = ?", (uid,)).fetchone()
                 return {
                     "success": True,
                     "order_id": order_id,
                     "delivery_type": "session_zip",
                     "count": len(delivered_phones),
                     "download_url": f"/api/session/download_zip/{order_id}",
-                    "new_balance": int(new_bal),
+                    "new_balance": int(new_bal[0] or 0),
+                    "new_promo_balance": int(new_bal[1] or 0),
                 }
 
             # B. Single Account Live Delivery
@@ -144,22 +155,27 @@ def execute_buy(
             """, (f"{country}%", year, clean_tier)).fetchone()
 
             if not cand:
-                # Refund
-                conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (total_price, uid))
+                # Symmetrical refund
+                conn.execute("""
+                    UPDATE users
+                    SET balance = balance + ?,
+                        promo_balance = COALESCE(promo_balance, 0) + ?
+                    WHERE user_id = ?
+                """, (total_price, promo_deducted, uid))
                 conn.commit()
                 return {"success": False, "error": "This item is currently out of stock."}
 
             phone = cand["phone"]
             conn.execute("UPDATE stock SET available = 0 WHERE phone = ?", (phone,))
             conn.execute("""
-                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date)
-                VALUES (?, ?, ?, ?, ?, 'WAITING', 'Server 2', ?)
-            """, (uid, country, year, total_price, phone, utcnow()))
+                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+                VALUES (?, ?, ?, ?, ?, 'WAITING', 'Server 2', ?, ?)
+            """, (uid, country, year, total_price, phone, utcnow(), promo_deducted))
             conn.commit()
 
             process_reseller_commission(uid, total_price, f"Server 2 ({phone})")
 
-            new_bal = conn.execute("SELECT balance FROM users WHERE user_id = ?", (uid,)).fetchone()[0]
+            new_bal = conn.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id = ?", (uid,)).fetchone()
             clean_phone = f"+{phone.lstrip('+')}"
             return {
                 "success": True,
@@ -168,32 +184,132 @@ def execute_buy(
                 "delivery_type": "account_live",
                 "download_url": f"/api/session/download/{phone}",
                 "twofa": cand["twofa"] or "None",
-                "new_balance": int(new_bal),
+                "new_balance": int(new_bal[0] or 0),
+                "new_promo_balance": int(new_bal[1] or 0),
             }
 
         # ======================================================================
-        # SERVERS 1, 3, 4, 5
+        # SERVER 1: Global 2FA Accounts
+        # ======================================================================
+        if server_num == 1:
+            country = item_data.get("country", "Global")
+            order_key = f"S1_{int(time.time())}_{secrets.token_hex(2).upper()}"
+            provided_phone = item_data.get("phone") or ""
+            phone = provided_phone if provided_phone else random_virtual_phone()
+            twofa_pw = item_data.get("twofa") or "tgPass@2024"
+
+            conn.execute("""
+                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+                VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 1', ?, ?)
+            """, (uid, country, total_price, phone, utcnow(), promo_deducted))
+            conn.commit()
+
+            process_reseller_commission(uid, total_price, f"Server 1 ({country})")
+
+            new_bal = conn.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id = ?", (uid,)).fetchone()
+            return {
+                "success": True,
+                "order_id": order_key,
+                "phone": phone,
+                "twofa": twofa_pw,
+                "delivery_type": "account_live",
+                "new_balance": int(new_bal[0] or 0),
+                "new_promo_balance": int(new_bal[1] or 0),
+            }
+
+        # ======================================================================
+        # SERVER 5: SMM Growth Hub
+        # ======================================================================
+        if server_num == 5:
+            service_name = str(item_data.get("name") or "SMM Service")
+            target_link = str(item_data.get("link") or "").strip()
+            order_key = f"SMM_{int(time.time())}_{secrets.token_hex(2).upper()}"
+            display_link = target_link if target_link else "Direct Order"
+
+            conn.execute("""
+                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+                VALUES (?, ?, ?, ?, ?, 'IN_PROGRESS', 'Server 5', ?, ?)
+            """, (uid, service_name, quantity, total_price, display_link, utcnow(), promo_deducted))
+            conn.commit()
+
+            process_reseller_commission(uid, total_price, f"Server 5 ({service_name})")
+
+            new_bal = conn.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id = ?", (uid,)).fetchone()
+            return {
+                "success": True,
+                "order_id": order_key,
+                "phone": display_link,
+                "delivery_type": "smm_order",
+                "new_balance": int(new_bal[0] or 0),
+                "new_promo_balance": int(new_bal[1] or 0),
+            }
+
+        # ======================================================================
+        # SERVERS 3 & 4: Virtual OTP Activations
         # ======================================================================
         order_key = secrets.token_hex(4).upper()
         mock_phone = random_virtual_phone()
         server_label = f"Server {server_num}"
 
         conn.execute("""
-            INSERT INTO orders (user_id, country, year, price, phone, otp, server, date)
-            VALUES (?, ?, ?, ?, ?, 'WAITING', ?, ?)
-        """, (uid, item_data.get("country", "Global"), 2024, total_price, mock_phone, server_label, utcnow()))
+            INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+            VALUES (?, ?, ?, ?, ?, 'WAITING', ?, ?, ?)
+        """, (uid, item_data.get("country", "Global"), 2024, total_price, mock_phone, server_label, utcnow(), promo_deducted))
         conn.commit()
 
         process_reseller_commission(uid, total_price, f"{server_label} Purchase")
 
-        new_bal = conn.execute("SELECT balance FROM users WHERE user_id = ?", (uid,)).fetchone()[0]
+        new_bal = conn.execute("SELECT balance, COALESCE(promo_balance, 0) FROM users WHERE user_id = ?", (uid,)).fetchone()
         return {
             "success": True,
             "order_id": order_key,
             "phone": mock_phone,
             "delivery_type": "account_live",
-            "new_balance": int(new_bal),
+            "new_balance": int(new_bal[0] or 0),
+            "new_promo_balance": int(new_bal[1] or 0),
         }
+
+
+def check_lzt_code(phone_or_item: str) -> str | None:
+    """Fetch telegram login code from LZT API if token is configured."""
+    item_id = ""
+    clean = str(phone_or_item or "").strip()
+    if "LZT_" in clean:
+        item_id = clean.split("LZT_")[-1]
+    elif clean.isdigit() and len(clean) < 11:
+        item_id = clean
+
+    if not item_id:
+        return None
+
+    try:
+        import os, urllib.request, json, re
+        token = os.getenv("LZT_TOKEN", "").strip()
+        if not token:
+            with connect() as c:
+                r = c.execute("SELECT value FROM settings WHERE key='lzt_token'").fetchone()
+                if r and r[0]:
+                    token = str(r[0]).strip()
+        if not token:
+            return None
+        token = token.replace("Bearer ", "").strip()
+        req = urllib.request.Request(
+            f"https://prod-api.lzt.market/{item_id}/telegram-login-code",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+                "User-Agent": "TgsellBot/1.0"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=6.0) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="replace"))
+            text = json.dumps(data)
+            matches = re.findall(r"\b\d{5,6}\b", text)
+            if matches:
+                return matches[0]
+    except Exception as exc:
+        logger.debug("Live LZT OTP lookup failed: %s", exc)
+    return None
 
 
 def poll_otp_status(identifier: str) -> dict[str, Any]:
@@ -214,13 +330,26 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
         return {"status": "not_found", "otp": None}
 
     raw_otp = row["otp"]
-    if raw_otp and raw_otp not in ("WAITING", "ZIP DELIVERED"):
+    if raw_otp and raw_otp not in ("WAITING", "ZIP DELIVERED", "IN_PROGRESS"):
         return {
             "status": "completed",
             "otp": raw_otp,
             "phone": row["phone"],
             "server": row["server"],
         }
+
+    # For Server 1 orders: query upstream LZT Market if configured
+    if (not raw_otp or raw_otp == "WAITING") and str(row["server"] or "").strip() == "Server 1":
+        fetched = check_lzt_code(row["phone"] or clean_id)
+        if fetched:
+            with connect() as conn:
+                conn.execute("UPDATE orders SET otp = ? WHERE id = ?", (fetched, row["id"]))
+            return {
+                "status": "completed",
+                "otp": fetched,
+                "phone": row["phone"],
+                "server": row["server"],
+            }
 
     return {
         "status": "waiting",
@@ -231,13 +360,13 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
 
 
 def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
-    """Cancel an active waiting order and refund the user wallet atomically."""
+    """Cancel an active waiting order and refund the user wallet atomically and symmetrically."""
     uid = int(user_id)
     clean_id = (identifier or "").replace("+", "").replace(" ", "").strip()
 
     with transaction(immediate=True) as conn:
         row = conn.execute("""
-            SELECT id, price, phone, otp, server
+            SELECT id, price, phone, otp, server, promo_deducted
             FROM orders
             WHERE user_id = ? AND (phone LIKE ? OR id = ?) AND otp = 'WAITING'
             ORDER BY id DESC LIMIT 1
@@ -249,6 +378,7 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
         order_id = row["id"]
         refund_amount = int(row["price"] or 0)
         phone = row["phone"]
+        promo_restored = int(row["promo_deducted"] or 0) if "promo_deducted" in row.keys() else 0
 
         # Mark cancelled
         conn.execute("UPDATE orders SET otp = 'CANCELLED' WHERE id = ?", (order_id,))
@@ -256,8 +386,13 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
         if phone:
             conn.execute("UPDATE stock SET available = 1 WHERE phone = ?", (phone,))
 
-        # Refund to user
-        conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (refund_amount, uid))
+        # Symmetrical refund: restore main balance and promo balance exactly
+        conn.execute("""
+            UPDATE users
+            SET balance = balance + ?,
+                promo_balance = COALESCE(promo_balance, 0) + ?
+            WHERE user_id = ?
+        """, (refund_amount, promo_restored, uid))
 
         new_bal = conn.execute("SELECT balance FROM users WHERE user_id = ?", (uid,)).fetchone()[0]
 

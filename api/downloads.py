@@ -39,11 +39,20 @@ def download_session(phone: str):
 
         stock_row = conn.execute("SELECT session_file, twofa FROM stock WHERE phone = ?", (clean_phone,)).fetchone()
 
-    # Look for session file on disk
+    from config import BASE_DIR
+    from pathlib import Path
+
+    raw_file = (stock_row["session_file"] or "").strip() if stock_row else ""
     possible_paths = [
         SESSIONS_DIR / f"{clean_phone}.session",
-        SESSIONS_DIR / (stock_row["session_file"] if stock_row and stock_row["session_file"] else ""),
     ]
+    if raw_file:
+        possible_paths.extend([
+            SESSIONS_DIR / os.path.basename(raw_file),
+            BASE_DIR / raw_file,
+            SESSIONS_DIR / raw_file,
+            Path(raw_file),
+        ])
 
     sess_path = None
     for p in possible_paths:

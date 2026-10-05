@@ -34,7 +34,7 @@ def deposit_fampay():
     amount = int(data.get("amount", 100))
 
     result = create_fampay_checkout(uid, amount)
-    status_code = 200 if result.get("success") else 400
+    status_code = 200 if result.get("success") else (503 if result.get("code") == "GATEWAY_OFFLINE" else 400)
     return jsonify(result), status_code
 
 
