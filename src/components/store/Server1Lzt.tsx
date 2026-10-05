@@ -21,6 +21,8 @@ import { Modal } from '../common/Modal';
 
 export const Server1Lzt: React.FC = () => {
   const {
+    user,
+    setActiveTab,
     formatPrice,
     purchaseServer1Account,
     purchasedCredentialsModal,
@@ -191,29 +193,32 @@ export const Server1Lzt: React.FC = () => {
         subtitle="Review account details before balance deduction"
         footer={
           selectedForPurchase ? (
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-3 w-full">
               <button
+                type="button"
                 onClick={() => setSelectedForPurchase(null)}
-                className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+                className="py-3.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-bold text-[#a1a1aa] hover:text-white active:scale-95 transition-all"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmBuy}
-                className="py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                disabled={user.balance < selectedForPurchase.priceInr}
+                className="py-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:grayscale"
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Buy ({formatPrice(selectedForPurchase.priceInr)})</span>
+                <Check className="w-4 h-4 text-black stroke-[3]" />
+                <span>Confirm & Pay ({formatPrice(selectedForPurchase.priceInr)})</span>
               </button>
             </div>
           ) : undefined
         }
       >
         {selectedForPurchase && (
-          <div className="flex flex-col gap-4">
-            <div className="p-3 rounded-xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between">
+          <div className="flex flex-col gap-3.5">
+            <div className="p-3.5 rounded-2xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{selectedForPurchase.icon}</span>
+                <span className="text-3xl">{selectedForPurchase.icon}</span>
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-white">
                     {selectedForPurchase.country} Telegram
@@ -223,20 +228,54 @@ export const Server1Lzt: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <div className="text-base font-extrabold text-[#22c55e] font-mono">
+              <div className="text-lg font-extrabold text-[#22c55e] font-mono">
                 {formatPrice(selectedForPurchase.priceInr)}
               </div>
             </div>
 
-            <div className="text-xs text-[#a1a1aa] bg-[#1f1f2a]/50 p-3 rounded-xl border border-[#262630] flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 text-white font-semibold">
-                <ShieldCheck className="w-4 h-4 text-[#22c55e]" />
-                <span>Instant Account Guarantee</span>
+            {/* Wallet Balance & Deduction Breakdown */}
+            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-2 text-xs">
+              <div className="flex items-center justify-between text-[#a1a1aa]">
+                <span>Your Wallet Balance:</span>
+                <span className="text-white font-mono font-bold">{formatPrice(user.balance)}</span>
               </div>
-              <p>
-                Credentials and session files will be delivered immediately on screen and saved in your Order History.
-              </p>
+              <div className="flex items-center justify-between text-[#a1a1aa]">
+                <span>Cost Deduction:</span>
+                <span className="text-[#ef4444] font-mono font-bold">-{formatPrice(selectedForPurchase.priceInr)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-[#262630] text-[#a1a1aa]">
+                <span>Balance After Purchase:</span>
+                <span className="text-[#22c55e] font-mono font-bold">
+                  {formatPrice(Math.max(0, user.balance - selectedForPurchase.priceInr))}
+                </span>
+              </div>
             </div>
+
+            {user.balance < selectedForPurchase.priceInr ? (
+              <div className="p-3 bg-red-950/20 border border-red-500/40 rounded-xl text-xs text-[#ef4444] flex items-center justify-between">
+                <span>⚠️ Insufficient balance for this account.</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedForPurchase(null);
+                    setActiveTab('deposit');
+                  }}
+                  className="font-bold underline text-white ml-2 shrink-0"
+                >
+                  Deposit Now
+                </button>
+              </div>
+            ) : (
+              <div className="text-xs text-[#a1a1aa] bg-[#1f1f2a]/50 p-3 rounded-xl border border-[#262630] flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5 text-white font-semibold">
+                  <ShieldCheck className="w-4 h-4 text-[#22c55e]" />
+                  <span>Instant Account Guarantee</span>
+                </div>
+                <p className="text-[11px]">
+                  Credentials and 2FA password delivered immediately on next screen with live Telegram login OTP retrieval.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </Modal>

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -31,17 +32,17 @@ export const Modal: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md animate-fade-in">
       {/* Background click to dismiss */}
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Sheet Content */}
-      <div className="relative w-full max-w-[430px] bg-[#15151c] border-t border-[#262630] rounded-t-3xl shadow-2xl z-10 max-h-[90vh] flex flex-col animate-slide-up overflow-hidden">
+      <div className="relative w-full max-w-[430px] bg-[#15151c] border-t sm:border border-[#262630] rounded-t-3xl sm:rounded-3xl shadow-2xl z-10 max-h-[90vh] flex flex-col animate-slide-up overflow-hidden">
         {/* Header */}
         <div className="p-4 pb-2 shrink-0">
           {/* Drag handle */}
-          <div className="w-12 h-1 bg-[#262630] rounded-full mx-auto mb-3" />
+          <div className="w-12 h-1 bg-[#262630] rounded-full mx-auto mb-3 sm:hidden" />
 
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -63,11 +64,15 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Sticky Fixed Footer */}
         {footer && (
-          <div className="p-3.5 bg-[#15151c] border-t border-[#262630] shrink-0 pb-safe">
+          <div className="p-4 pb-8 sm:pb-4 bg-[#15151c] border-t border-[#262630] shrink-0">
             {footer}
           </div>
         )}
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 };

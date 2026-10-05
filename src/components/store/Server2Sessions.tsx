@@ -3,11 +3,13 @@ import { useApp } from '../../context/AppContext';
 import { downloadApi } from '../../api/endpoints';
 import { server2Catalog } from '../../data/mockData';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
-import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2 } from 'lucide-react';
+import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
 export const Server2Sessions: React.FC = () => {
   const {
+    user,
+    setActiveTab,
     formatPrice,
     purchaseServer2Session,
     server2Items,
@@ -200,53 +202,57 @@ export const Server2Sessions: React.FC = () => {
         subtitle={itemForPurchase ? `${itemForPurchase.country} (${itemForPurchase.accountYear})` : ''}
         footer={
           itemForPurchase ? (
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-3 w-full">
               <button
+                type="button"
                 onClick={() => setItemForPurchase(null)}
-                className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+                className="py-3.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-bold text-[#a1a1aa] hover:text-white active:scale-95 transition-all"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmPurchase}
-                className="py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                disabled={user.balance < itemForPurchase.priceInr * quantity}
+                className="py-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:grayscale"
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Buy ({formatPrice(itemForPurchase.priceInr * quantity)})</span>
+                <Check className="w-4 h-4 text-black stroke-[3]" />
+                <span>Confirm & Pay ({formatPrice(itemForPurchase.priceInr * quantity)})</span>
               </button>
             </div>
           ) : undefined
         }
       >
         {itemForPurchase && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3.5">
             {/* Summary card */}
-            <div className="p-3 bg-[#0b0b0e] border border-[#262630] rounded-xl flex items-center justify-between">
+            <div className="p-3.5 bg-[#0b0b0e] border border-[#262630] rounded-2xl flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{itemForPurchase.icon}</span>
+                <span className="text-3xl">{itemForPurchase.icon}</span>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">
+                  <span className="text-sm font-bold text-white">
                     {itemForPurchase.country} Telegram
                   </span>
-                  <span className="text-[10px] text-[#a1a1aa]">
+                  <span className="text-[11px] text-[#a1a1aa]">
                     Tier: {itemForPurchase.qualityTier === 'good' ? '🟢 Good Quality' : '🟡 Cheap Quality'}
                   </span>
                 </div>
               </div>
-              <div className="text-sm font-mono font-bold text-[#22c55e]">
+              <div className="text-base font-mono font-extrabold text-[#22c55e]">
                 {formatPrice(itemForPurchase.priceInr)} / unit
               </div>
             </div>
 
             {/* Quantity Stepper (Especially for bulk sessions) */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#181820] border border-[#262630]">
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#262630]">
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-white">Quantity</span>
+                <span className="text-xs font-bold text-white">Order Quantity</span>
                 <span className="text-[10px] text-[#a1a1aa]">Select number of accounts</span>
               </div>
 
               <div className="flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   className="w-8 h-8 rounded-lg bg-[#1f1f2a] border border-[#262630] flex items-center justify-center text-white hover:bg-[#262630] active:scale-95"
                 >
@@ -256,6 +262,7 @@ export const Server2Sessions: React.FC = () => {
                   {quantity}
                 </span>
                 <button
+                  type="button"
                   onClick={() => setQuantity((q) => Math.min(itemForPurchase.stockCount, q + 1))}
                   className="w-8 h-8 rounded-lg bg-[#1f1f2a] border border-[#262630] flex items-center justify-center text-white hover:bg-[#262630] active:scale-95"
                 >
@@ -284,13 +291,39 @@ export const Server2Sessions: React.FC = () => {
               </div>
             )}
 
-            {/* Total Price & Confirmation */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0b0b0e] border border-[#262630]">
-              <span className="text-xs font-bold text-white">Total Amount</span>
-              <span className="text-lg font-extrabold text-[#22c55e] font-mono">
-                {formatPrice(itemForPurchase.priceInr * quantity)}
-              </span>
+            {/* Wallet Balance & Cost Breakdown */}
+            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-2 text-xs">
+              <div className="flex items-center justify-between text-[#a1a1aa]">
+                <span>Your Wallet Balance:</span>
+                <span className="text-white font-mono font-bold">{formatPrice(user.balance)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[#a1a1aa]">
+                <span>Total Amount ({quantity} accounts):</span>
+                <span className="text-[#ef4444] font-mono font-bold">-{formatPrice(itemForPurchase.priceInr * quantity)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-[#262630] text-[#a1a1aa]">
+                <span>Balance After Purchase:</span>
+                <span className="text-[#22c55e] font-mono font-bold">
+                  {formatPrice(Math.max(0, user.balance - itemForPurchase.priceInr * quantity))}
+                </span>
+              </div>
             </div>
+
+            {user.balance < itemForPurchase.priceInr * quantity && (
+              <div className="p-3 bg-red-950/20 border border-red-500/40 rounded-xl text-xs text-[#ef4444] flex items-center justify-between">
+                <span>⚠️ Insufficient balance for this order.</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setItemForPurchase(null);
+                    setActiveTab('deposit');
+                  }}
+                  className="font-bold underline text-white ml-2 shrink-0"
+                >
+                  Deposit Now
+                </button>
+              </div>
+            )}
           </div>
         )}
       </Modal>
