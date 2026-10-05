@@ -35,7 +35,7 @@ export const Server2Sessions: React.FC = () => {
 
   const handleConfirmPurchase = () => {
     if (!itemForPurchase) return;
-    const success = purchaseServer2Session(itemForPurchase, quantity);
+    const success = purchaseServer2Session(itemForPurchase, quantity, deliveryFormat);
     if (success) {
       setItemForPurchase(null);
     }
@@ -130,7 +130,8 @@ export const Server2Sessions: React.FC = () => {
         {filtered.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#383848] transition-all"
+            onClick={() => handleOpenPurchase(item)}
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#7c3aed]/50 transition-all cursor-pointer active:scale-[0.99]"
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">{item.icon}</span>
@@ -156,7 +157,10 @@ export const Server2Sessions: React.FC = () => {
                 {formatPrice(item.priceInr)}
               </span>
               <button
-                onClick={() => handleOpenPurchase(item)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenPurchase(item);
+                }}
                 className="flex items-center gap-1 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold px-3 py-1.5 rounded-xl shadow-sm transition-all active:scale-95"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />

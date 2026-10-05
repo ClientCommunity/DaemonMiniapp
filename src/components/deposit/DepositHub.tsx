@@ -3,13 +3,13 @@ import { useApp } from '../../context/AppContext';
 import { PaymentMethodType } from '../../types';
 import { depositApi } from '../../api/endpoints';
 import {
-  QrCode,
   Copy,
   Check,
   ShieldCheck,
   Zap,
   Building,
-  Coins
+  Coins,
+  AlertTriangle
 } from 'lucide-react';
 
 export const DepositHub: React.FC = () => {
@@ -79,21 +79,24 @@ export const DepositHub: React.FC = () => {
     if (selectedMethod === 'fampay' && referenceCode) {
       try {
         const checkRes = await depositApi.checkFamPay(referenceCode);
-        if (checkRes && checkRes.status === 'approved') {
+        if (checkRes && (checkRes.status === 'approved' || checkRes.status === 'verified')) {
           submitDeposit(selectedMethod, amount, referenceCode);
+          setIsVerifying(false);
+          return;
+        } else {
+          addToast('Payment not yet detected by bank gateway. If paid, please wait a moment or submit UTR below.', 'info', 'Awaiting Bank Update');
           setIsVerifying(false);
           return;
         }
       } catch {
-        // silent failover to simulation
+        addToast('Gateway check in progress. Please retry in a moment.', 'info', 'Checking Status');
+        setIsVerifying(false);
+        return;
       }
     }
 
-    setTimeout(() => {
-      setIsVerifying(false);
-      submitDeposit(selectedMethod, amount, utrNumber || referenceCode || undefined);
-      setUtrNumber('');
-    }, 1800);
+    setIsVerifying(false);
+    addToast('Please use UPI App or Manual UTR to complete your deposit.', 'info', 'Payment Notice');
   };
 
   const handleUtrSubmit = async (e: React.FormEvent) => {
@@ -104,19 +107,17 @@ export const DepositHub: React.FC = () => {
     }
 
     setIsVerifying(true);
-    addToast('Submitting UTR transaction to gateway...', 'info', 'Verifying');
+    addToast('Submitting UTR transaction for verification...', 'info', 'Verifying');
 
     try {
       await depositApi.submitManual(1, utrNumber.trim(), amount);
     } catch {
       // offline fallback
-    }
-
-    setTimeout(() => {
+    } finally {
       setIsVerifying(false);
       submitDeposit('upi_direct', amount, utrNumber.trim());
       setUtrNumber('');
-    }, 1200);
+    }
   };
 
   return (
@@ -229,25 +230,28 @@ export const DepositHub: React.FC = () => {
         {selectedMethod === 'fampay' && (
           <div className="w-full flex flex-col items-center text-center">
             {/* Dynamic QR Code */}
-            <div className="w-44 h-44 bg-white p-3 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
-              <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-2">
-                {qrUrl ? (
+            {qrUrl ? (
+              <div className="w-48 h-48 bg-white p-3 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
+                <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-2">
                   <img
                     src={qrUrl}
                     alt={`FamPay ₹${amount}`}
-                    className="w-32 h-32 object-contain"
+                    className="w-36 h-36 object-contain"
                     onError={() => setQrUrl('')}
                   />
-                ) : (
-                  <>
-                    <QrCode className="w-24 h-24 text-black" strokeWidth={1.5} />
-                    <span className="text-[10px] font-mono font-bold text-black mt-1">
-                      FamPay ₹{amount}
-                    </span>
-                  </>
-                )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="w-full bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 text-center my-3 flex flex-col items-center">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mb-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                </div>
+                <span className="text-sm font-bold text-white">QR Code Not Available Yet</span>
+                <span className="text-xs text-[#a1a1aa] mt-1 max-w-xs">
+                  Automated FamPay QR gateway is currently unconfigured. Please use Manual UPI Deposit with UTR verification below.
+                </span>
+              </div>
+            )}
 
             <span className="text-xs font-bold text-white mt-1">
               Scan with GPay, PhonePe, Paytm, or FamPay

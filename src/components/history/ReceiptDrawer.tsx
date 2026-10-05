@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { downloadApi } from '../../api/endpoints';
 import { Modal } from '../common/Modal';
 import {
   CheckCircle2,
@@ -42,15 +43,14 @@ export const ReceiptDrawer: React.FC = () => {
   };
 
   const handleDownloadSession = () => {
-    const fakeContent = `DOWNLOADED_SESSION_TOKEN_HASH_FOR_ORDER_${item.id}_PREVIEW_XYZ999`;
-    const blob = new Blob([fakeContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `session_${item.id}.session`;
-    link.click();
-    URL.revokeObjectURL(url);
-    addToast('Downloaded session file successfully!', 'success', 'Saved');
+    if (!item.sessionDownloadUrl) {
+      addToast('No session file attached to this order.', 'warning');
+      return;
+    }
+    const isZip = item.sessionDownloadUrl.includes('_zip') || item.sessionDownloadUrl.endsWith('.zip');
+    const filename = isZip ? `bulk_sessions_${item.id}.zip` : `session_${item.id}.session`;
+    downloadApi.triggerDownload(item.sessionDownloadUrl, filename);
+    addToast('Downloading session file from secure server...', 'success', 'Saved');
   };
 
   return (

@@ -1,8 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { otpApi, downloadApi } from '../../api/endpoints';
 import { server1Catalog } from '../../data/mockData';
 import { Server1AccountItem } from '../../types';
-import { Search, ShoppingBag, ShieldCheck, Key, Phone, Download, Check, Copy, Globe } from 'lucide-react';
+import {
+  Search,
+  ShoppingBag,
+  ShieldCheck,
+  Key,
+  Phone,
+  Download,
+  Check,
+  Copy,
+  Globe,
+  Mail,
+  RefreshCw,
+  Clock
+} from 'lucide-react';
 import { Modal } from '../common/Modal';
 
 export const Server1Lzt: React.FC = () => {
@@ -29,6 +43,22 @@ export const Server1Lzt: React.FC = () => {
 
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copied2Fa, setCopied2Fa] = useState(false);
+  const [copiedOtp, setCopiedOtp] = useState(false);
+
+  // Live Telegram Login Code (OTP) Retrieval State
+  const [isFetchingOtp, setIsFetchingOtp] = useState(false);
+  const [fetchedOtp, setFetchedOtp] = useState<string | null>(null);
+  const [otpNotice, setOtpNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (purchasedCredentialsModal?.isOpen) {
+      setFetchedOtp(purchasedCredentialsModal.otpCode || null);
+      setOtpNotice(null);
+      setCopiedOtp(false);
+      setCopiedPhone(false);
+      setCopied2Fa(false);
+    }
+  }, [purchasedCredentialsModal?.isOpen, purchasedCredentialsModal?.orderId, purchasedCredentialsModal?.otpCode]);
 
   const handleConfirmBuy = () => {
     if (!selectedForPurchase) return;
@@ -38,16 +68,36 @@ export const Server1Lzt: React.FC = () => {
     }
   };
 
-  const handleDownloadSession = (country: string) => {
-    const fakeContent = `TELETHON_SESSION_DATA_FOR_${country.toUpperCase()}_ACCOUNT_STRING_PREVIEW_XYZ123`;
-    const blob = new Blob([fakeContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `session_${country.toLowerCase()}_2fa.session`;
-    link.click();
-    URL.revokeObjectURL(url);
-    addToast('Downloaded session file successfully!', 'success', 'Saved');
+  const handleFetchTelegramCode = async () => {
+    if (!purchasedCredentialsModal) return;
+    const phoneOrId =
+      purchasedCredentialsModal.account?.credentialsSample?.phone ||
+      purchasedCredentialsModal.orderId ||
+      '';
+    setIsFetchingOtp(true);
+    setOtpNotice(null);
+
+    try {
+      const res = await otpApi.getStatus(phoneOrId);
+      if (res && (res.status === 'completed' || res.status === 'delivered') && res.otp) {
+        setFetchedOtp(res.otp);
+        setOtpNotice(null);
+        try {
+          if (window.Telegram?.WebApp?.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+          }
+        } catch {}
+        addToast(`Telegram Login Code received: ${res.otp}`, 'success', 'Code Received!');
+      } else {
+        setOtpNotice('⏳ Code not received yet. Request the login code inside official Telegram for this number, then tap Fetch again.');
+        addToast('No new login code detected yet. Request code in Telegram app first.', 'info');
+      }
+    } catch {
+      setOtpNotice('Network error while checking for login code. Please tap Fetch again.');
+      addToast('Failed to check login code. Try again.', 'error');
+    } finally {
+      setIsFetchingOtp(false);
+    }
   };
 
   return (
@@ -82,7 +132,8 @@ export const Server1Lzt: React.FC = () => {
         {filtered.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#383848] transition-all"
+            onClick={() => setSelectedForPurchase(item)}
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#7c3aed]/50 transition-all cursor-pointer active:scale-[0.99]"
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">{item.icon}</span>
@@ -106,7 +157,10 @@ export const Server1Lzt: React.FC = () => {
                 {formatPrice(item.priceInr)}
               </span>
               <button
-                onClick={() => setSelectedForPurchase(item)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedForPurchase(item);
+                }}
                 className="flex items-center gap-1 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold px-3 py-1.5 rounded-xl shadow-sm transition-all active:scale-95"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
@@ -247,22 +301,103 @@ export const Server1Lzt: React.FC = () => {
               </button>
             </div>
 
-            {/* Instruction */}
-            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl text-xs text-[#a1a1aa]">
-              <span className="font-semibold text-white block mb-1">Login Guidance:</span>
-              {purchasedCredentialsModal.account.credentialsSample?.loginInstruction ||
-                'Import the downloaded .session into your client or enter the phone number with 2FA password.'}
+            {/* Telegram Login Code (OTP) Retrieval Section */}
+            <div className="p-3 bg-[#121217] border border-[#262630] rounded-xl flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider">
+                  Telegram Login Code (OTP)
+                </span>
+                {fetchedOtp && (
+                  <button
+                    onClick={handleFetchTelegramCode}
+                    disabled={isFetchingOtp}
+                    className="flex items-center gap-1 text-[10px] text-[#8b5cf6] hover:text-[#a78bfa]"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isFetchingOtp ? 'animate-spin' : ''}`} />
+                    <span>Check Again</span>
+                  </button>
+                )}
+              </div>
+
+              {fetchedOtp ? (
+                <div className="p-3 bg-emerald-500/15 border border-emerald-500/40 rounded-xl flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-[#22c55e] uppercase font-semibold">
+                      Live Login Code
+                    </span>
+                    <span className="text-xl font-mono font-extrabold text-white tracking-widest mt-0.5">
+                      {fetchedOtp}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(fetchedOtp);
+                      setCopiedOtp(true);
+                      setTimeout(() => setCopiedOtp(false), 2000);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold text-xs shadow-sm transition-all active:scale-95"
+                  >
+                    {copiedOtp ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedOtp ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleFetchTelegramCode}
+                  disabled={isFetchingOtp}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold text-xs shadow-violet-glow-sm transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isFetchingOtp ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Contacting Telegram for Code...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4" />
+                      <span>📩 Fetch Telegram Login Code</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {otpNotice && (
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300 flex items-start gap-2">
+                  <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <span>{otpNotice}</span>
+                </div>
+              )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-2 pt-2">
+            {/* Login Guidance */}
+            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl text-xs text-[#a1a1aa]">
+              <span className="font-semibold text-white block mb-1">How to Login:</span>
+              <ol className="list-decimal list-inside space-y-0.5 text-[11px]">
+                <li>Enter the phone number into official Telegram app.</li>
+                <li>Tap <strong className="text-white">Fetch Telegram Login Code</strong> above.</li>
+                <li>Enter the 2FA Password if Telegram asks for cloud password.</li>
+              </ol>
+            </div>
+
+            {/* Optional Session Download (only if provided by backend) */}
+            {purchasedCredentialsModal.downloadUrl && (
               <button
-                onClick={() => handleDownloadSession(purchasedCredentialsModal.account!.country)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold text-xs shadow-green-glow transition-all active:scale-95"
+                onClick={() => {
+                  downloadApi.triggerDownload(
+                    purchasedCredentialsModal.downloadUrl!,
+                    `session_${purchasedCredentialsModal.orderId}.session`
+                  );
+                  addToast('Downloading session file...', 'info');
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630]"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 text-[#22c55e]" />
                 <span>Download .Session File</span>
               </button>
+            )}
+
+            {/* Action Buttons */}
+            <div className="pt-1">
               <button
                 onClick={closeCredentialsModal}
                 className="w-full py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630]"

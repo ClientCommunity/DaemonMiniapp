@@ -4,6 +4,7 @@ import {
   CurrencyPreference,
   Server1AccountItem,
   Server2StockItem,
+  Server2DeliveryFormat,
   VirtualOtpServiceItem,
   ActiveOtpSession,
   SmmServiceItem,
@@ -78,6 +79,8 @@ export interface AppContextType {
     isOpen: boolean;
     account?: Server1AccountItem;
     orderId?: string;
+    downloadUrl?: string;
+    otpCode?: string;
   } | null;
   selectedReceiptItem: HistoryItem | null;
 
@@ -91,7 +94,7 @@ export interface AppContextType {
 
   // Store & Wallet Operations
   purchaseServer1Account: (account: Server1AccountItem) => boolean;
-  purchaseServer2Session: (stockItem: Server2StockItem, quantity: number) => boolean;
+  purchaseServer2Session: (stockItem: Server2StockItem, quantity: number, format?: Server2DeliveryFormat) => boolean;
   requestVirtualOtp: (service: VirtualOtpServiceItem) => boolean;
   cancelActiveOtp: (orderId: string) => void;
   finishActiveOtp: (orderId: string) => void;
@@ -171,6 +174,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isOpen: boolean;
     account?: Server1AccountItem;
     orderId?: string;
+    downloadUrl?: string;
+    otpCode?: string;
   } | null>(null);
 
   const [selectedReceiptItem, setSelectedReceiptItem] = useState<HistoryItem | null>(null);
@@ -518,13 +523,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         qty: 1,
       })
       .then((res) => {
-        if (res && res.success && res.new_balance !== undefined) {
-          setUser((prev) => ({
-            ...prev,
-            balance: res.new_balance!,
-            promoBalance:
-              res.new_promo_balance !== undefined ? res.new_promo_balance : prev.promoBalance,
-          }));
+        if (res && res.success) {
+          if (res.new_balance !== undefined) {
+            setUser((prev) => ({
+              ...prev,
+              balance: res.new_balance!,
+              promoBalance:
+                res.new_promo_balance !== undefined ? res.new_promo_balance : prev.promoBalance,
+            }));
+          }
+          const realPhone = res.phone || account.credentialsSample?.phone;
+          const realTwofa = res.twofa || account.credentialsSample?.twoFa;
+          const realOrderId = String(res.order_id || orderId);
+
+          setPurchasedCredentialsModal((prev) => {
+            if (!prev) return null;
+            const currentAccount = prev.account || account;
+            return {
+              ...prev,
+              orderId: realOrderId,
+              downloadUrl: res.download_url,
+              account: {
+                ...currentAccount,
+                credentialsSample: {
+                  phone: realPhone || currentAccount.credentialsSample?.phone || '',
+                  twoFa: realTwofa || currentAccount.credentialsSample?.twoFa || '',
+                  sessionFile: currentAccount.credentialsSample?.sessionFile || '',
+                  loginInstruction: currentAccount.credentialsSample?.loginInstruction || '',
+                },
+              },
+            };
+          });
+
+          setHistory((hPrev) =>
+            hPrev.map((item) =>
+              item.id === orderId
+                ? {
+                    ...item,
+                    id: realOrderId,
+                    phone: realPhone,
+                    twoFa: realTwofa,
+                    sessionDownloadUrl: res.download_url || item.sessionDownloadUrl,
+                  }
+                : item
+            )
+          );
         }
       })
       .catch(() => {
@@ -539,8 +582,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return true;
   };
 
-  // Server 2: Purchase Sessions (Good vs Cheap Quality)
-  const purchaseServer2Session = (stockItem: Server2StockItem, quantity: number): boolean => {
+  // Server 2: Purchase Sessions (Good vs Cheap Quality + Delivery Format)
+  const purchaseServer2Session = (
+    stockItem: Server2StockItem,
+    quantity: number,
+    format: Server2DeliveryFormat = 'account'
+  ): boolean => {
     if (isNaN(quantity) || quantity <= 0) {
       addToast('Quantity must be at least 1.', 'error', 'Invalid Quantity');
       return false;
@@ -556,6 +603,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const orderId = `S2_${Date.now().toString().slice(-6)}`;
     const isBulk = quantity > 1;
+    const requestedFormat = format || (isBulk ? 'session' : 'account');
     const deliveryTitle = isBulk
       ? `📦 Bulk ZIP (${quantity}x ${stockItem.country} Sessions)`
       : `${stockItem.icon} ${stockItem.country} Telegram (${stockItem.accountYear})`;
@@ -567,13 +615,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: orderId,
       category: 'account_purchase',
       title: deliveryTitle,
-      subtitle: `Server 2 (${stockItem.subtitle}) · ${stockItem.accountYear}`,
+      subtitle: `Server 2 (${stockItem.subtitle}) · ${stockItem.accountYear} · ${requestedFormat === 'session' ? 'Session' : 'Account'}`,
       amountInr: -totalCost,
       date: 'Just now',
       status: 'success',
       server: 'Server 2 (Aged Sessions)',
       quantity,
-      sessionDownloadUrl: isBulk ? downloadZipUrl : stockItem.sampleSessionUrl || downloadSingleUrl,
+      sessionDownloadUrl: isBulk ? downloadZipUrl : (requestedFormat === 'session' ? downloadSingleUrl : stockItem.sampleSessionUrl),
       refunded: false,
     };
 
@@ -590,7 +638,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         },
         qty: quantity,
         tier: stockItem.qualityTier,
-        format: isBulk ? 'session' : 'account',
+        format: requestedFormat,
       })
       .then((res) => {
         if (res && res.success) {
@@ -602,8 +650,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 res.new_promo_balance !== undefined ? res.new_promo_balance : prev.promoBalance,
             }));
           }
-          if (isBulk && res.download_url) {
-            downloadApi.triggerDownload(res.download_url, `accounts_${res.order_id || orderId}.zip`);
+          if (res.download_url) {
+            setHistory((hPrev) =>
+              hPrev.map((item) =>
+                item.id === orderId
+                  ? {
+                      ...item,
+                      sessionDownloadUrl: res.download_url,
+                      id: String(res.order_id || orderId),
+                    }
+                  : item
+              )
+            );
+            if (isBulk || requestedFormat === 'session') {
+              downloadApi.triggerDownload(
+                res.download_url,
+                isBulk ? `accounts_${res.order_id || orderId}.zip` : `session_${res.order_id || orderId}.session`
+              );
+            }
           }
         }
       })
@@ -614,7 +678,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addToast(
       isBulk
         ? `Delivered ${quantity} sessions ZIP package successfully!`
-        : `Purchased ${stockItem.country} account! Session file ready.`,
+        : `Purchased ${stockItem.country} account! ${requestedFormat === 'session' ? 'Session file downloading.' : 'Credentials ready.'}`,
       'success',
       'Purchase Complete'
     );
@@ -776,52 +840,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [activeOtpSession?.orderId, activeOtpSession?.status, activeOtpSession?.phone, activeOtpSession?.server, addToast]);
 
-  // Active OTP countdown timer + offline fallback (decoupled 1000ms loop)
+  // Active OTP real countdown timer (No fake generators; SMS arrives strictly via real polling loop above)
   useEffect(() => {
     if (!activeOtpSession || activeOtpSession.status !== 'waiting') return;
 
     let isSubscribed = true;
     const orderId = activeOtpSession.orderId;
-    const startTime = activeOtpSession.startTime;
 
     const countdownInterval = setInterval(() => {
       if (!isSubscribed) return;
       setActiveOtpSession((prev) => {
         if (!prev || prev.orderId !== orderId || prev.status !== 'waiting') return prev;
 
-        // If offline and elapsed >= 5s and no code arrived yet, simulate resolution
-        const elapsed = (Date.now() - startTime) / 1000;
-        if (elapsed >= 5 && !prev.otpCode) {
-          const d1 = Math.floor(100 + Math.random() * 900);
-          const d2 = Math.floor(100 + Math.random() * 900);
-          const sampleCode = `${d1}-${d2}`;
-          try {
-            if (window.Telegram?.WebApp?.HapticFeedback) {
-              window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-            }
-          } catch {
-            // ignore
-          }
-          addToast(`SMS Code received for ${prev.phone}: ${sampleCode}`, 'success', 'OTP Code Arrived!');
-          setHistory((hPrev) =>
-            hPrev.map((item) =>
-              item.id === prev.orderId
-                ? {
-                    ...item,
-                    status: 'success',
-                    otpCode: sampleCode,
-                    subtitle: `Server ${prev.server} · SMS Received`,
-                  }
-                : item
-            )
-          );
-          return {
-            ...prev,
-            status: 'received',
-            otpCode: sampleCode,
-          };
-        }
-
+        // When timer reaches 0 without an SMS code arriving, transition to expired
         if (prev.remainingSeconds <= 1) {
           return {
             ...prev,
@@ -841,11 +872,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isSubscribed = false;
       clearInterval(countdownInterval);
     };
-  }, [activeOtpSession?.orderId, activeOtpSession?.status, activeOtpSession?.startTime, addToast]);
+  }, [activeOtpSession?.orderId, activeOtpSession?.status]);
+
+  // Auto-refund when active OTP expires without receiving SMS code
+  useEffect(() => {
+    if (activeOtpSession && activeOtpSession.status === 'expired') {
+      const expiredOrderId = activeOtpSession.orderId;
+      cancelActiveOtp(expiredOrderId);
+      addToast(
+        'SMS request timed out. Balance was automatically refunded to your wallet.',
+        'info',
+        'Automatic Refund'
+      );
+    }
+  }, [activeOtpSession?.status, activeOtpSession?.orderId]);
 
   // Cancel & Refund Active OTP
   const cancelActiveOtp = async (orderId: string) => {
-    if (!activeOtpSession || activeOtpSession.orderId !== orderId || activeOtpSession.status !== 'waiting') return;
+    if (!activeOtpSession || activeOtpSession.orderId !== orderId) return;
+    if (activeOtpSession.status !== 'waiting' && activeOtpSession.status !== 'expired') return;
 
     const refundAmount = activeOtpSession.priceInr;
     const promoRefund = activeOtpSession.promoUsed || 0;
@@ -994,21 +1039,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       usdt_bep20: 'USDT BEP20 Crypto',
     };
 
-    // Credit balance directly to main transferable balance
-    setUser((prev) => ({
-      ...prev,
-      balance: prev.balance + amount,
-      totalDeposited: prev.totalDeposited + amount,
-    }));
+    const isPending = Boolean(utr) || method === 'upi_direct';
+
+    // Only credit balance if automatically verified (not manual unverified UTR)
+    if (!isPending) {
+      setUser((prev) => ({
+        ...prev,
+        balance: prev.balance + amount,
+        totalDeposited: prev.totalDeposited + amount,
+      }));
+    }
 
     const newHistoryItem: HistoryItem = {
       id: orderId,
       category: 'deposit',
       title: `${methodNames[method]} Deposit`,
-      subtitle: utr ? `UTR: ${utr} · Verified` : 'Instant Top-Up · Credited',
+      subtitle: utr ? `UTR: ${utr} · Pending Verification` : 'Instant Top-Up · Credited',
       amountInr: amount,
       date: 'Just now',
-      status: 'success',
+      status: isPending ? 'waiting' : 'success',
       utr,
       refunded: false,
     };
@@ -1022,11 +1071,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       depositApi.submitManual(1, utr, amount).catch(() => {});
     }
 
-    addToast(
-      `🎉 Deposit Verified! +₹${amount.toLocaleString('en-IN')} added to your Main Balance.`,
-      'success',
-      'Balance Credited'
-    );
+    if (isPending) {
+      addToast(
+        `Deposit request for ₹${amount.toLocaleString('en-IN')} submitted. Pending review.`,
+        'info',
+        'Verification Pending'
+      );
+    } else {
+      addToast(
+        `🎉 Deposit Verified! +₹${amount.toLocaleString('en-IN')} added to your Main Balance.`,
+        'success',
+        'Balance Credited'
+      );
+    }
     return true;
   };
 

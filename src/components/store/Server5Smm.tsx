@@ -1,17 +1,39 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { server5Catalog } from '../../data/mockData';
-import { SmmPlatform } from '../../types';
+import { SmmPlatform, SmmServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
-import { Rocket, Link as LinkIcon, ShieldCheck, Zap, Info, Check, Clock } from 'lucide-react';
+import { Modal } from '../common/Modal';
+import {
+  Rocket,
+  Link as LinkIcon,
+  ShieldCheck,
+  Zap,
+  Clock,
+  ShoppingBag,
+  Plus,
+  Minus,
+  CheckCircle2,
+  ArrowRight,
+} from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
-  const { formatPrice, submitSmmOrder, server5Items, backendConnected } = useApp();
+  const { formatPrice, submitSmmOrder, server5Items, backendConnected, user, setActiveTab } = useApp();
 
   const [activePlatform, setActivePlatform] = useState<SmmPlatform>('telegram');
-  const [selectedServiceId, setSelectedServiceId] = useState<string>(server5Catalog[0]?.id || '');
-  const [targetLink, setTargetLink] = useState('');
-  const [quantity, setQuantity] = useState(1000);
+  const [modalService, setModalService] = useState<SmmServiceItem | null>(null);
+  const [modalTargetLink, setModalTargetLink] = useState('');
+  const [modalQuantity, setModalQuantity] = useState(1000);
+
+  // Post-purchase confirmation modal state
+  const [placedOrder, setPlacedOrder] = useState<{
+    orderId: string;
+    serviceName: string;
+    platform: SmmPlatform;
+    link: string;
+    quantity: number;
+    cost: number;
+  } | null>(null);
 
   const platforms: {
     id: SmmPlatform;
@@ -25,48 +47,62 @@ export const Server5Smm: React.FC = () => {
     { id: 'twitter', label: 'Twitter (X)' },
   ];
 
-  // Available services for chosen platform (consuming live inventory from AppContext with mock fallback when disconnected)
+  // Available services for chosen platform (consuming live inventory from AppContext with fallback)
   const allServices = backendConnected
     ? server5Items
     : (server5Items && server5Items.length > 0 ? server5Items : server5Catalog);
   const platformServices = allServices.filter((s) => s.platform === activePlatform);
-  const currentService = platformServices.find((s) => s.id === selectedServiceId) || platformServices[0];
-
-  // Total Price: (ratePer1000 * quantity) / 1000
-  const totalPriceInr = currentService
-    ? Math.round((currentService.ratePer1000 * quantity) / 1000)
-    : 0;
-
-  const handlePlatformChange = (p: SmmPlatform) => {
-    setActivePlatform(p);
-    const firstService = allServices.find((s) => s.platform === p);
-    if (firstService) {
-      setSelectedServiceId(firstService.id);
-      setQuantity(firstService.minQuantity);
-    }
-  };
-
-  const handleSelectService = (serviceId: string) => {
-    setSelectedServiceId(serviceId);
-    const svc = platformServices.find((s) => s.id === serviceId);
-    if (svc && (quantity < svc.minQuantity || quantity > svc.maxQuantity)) {
-      setQuantity(svc.minQuantity);
-    }
-  };
-
-  const handleSubmitOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentService) return;
-    const ok = submitSmmOrder(currentService, targetLink, quantity);
-    if (ok) {
-      setTargetLink('');
-    }
-  };
 
   const presetIncrements = [500, 1000, 2500, 5000];
 
-  const getUrlPlaceholder = () => {
-    switch (activePlatform) {
+  const handleOpenBuyModal = (service: SmmServiceItem) => {
+    setModalService(service);
+    setModalTargetLink('');
+    setModalQuantity(service.minQuantity || 1000);
+  };
+
+  const handleModalQuantityChange = (val: number) => {
+    if (!modalService) return;
+    const min = modalService.minQuantity || 100;
+    const max = modalService.maxQuantity || 50000;
+    setModalQuantity(Math.min(max, Math.max(min, val)));
+  };
+
+  const handleModalIncrement = (inc: number) => {
+    if (!modalService) return;
+    handleModalQuantityChange(modalQuantity + inc);
+  };
+
+  const handleModalDecrement = (dec: number) => {
+    if (!modalService) return;
+    handleModalQuantityChange(modalQuantity - dec);
+  };
+
+  const modalTotalCost = modalService
+    ? Math.round((modalService.ratePer1000 * modalQuantity) / 1000)
+    : 0;
+
+  const handleModalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalService) return;
+
+    const ok = submitSmmOrder(modalService, modalTargetLink, modalQuantity);
+    if (ok) {
+      const captured = {
+        orderId: `SMM_${Date.now().toString().slice(-6)}`,
+        serviceName: modalService.name,
+        platform: modalService.platform,
+        link: modalTargetLink,
+        quantity: modalQuantity,
+        cost: modalTotalCost,
+      };
+      setModalService(null);
+      setPlacedOrder(captured);
+    }
+  };
+
+  const getUrlPlaceholder = (platform: SmmPlatform) => {
+    switch (platform) {
       case 'telegram':
         return 'https://t.me/channel_name or @username';
       case 'instagram':
@@ -112,7 +148,7 @@ export const Server5Smm: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Social Media Platform SVG Selector Tabs */}
+          {/* Social Media Platform Selector Tabs */}
           <div className="mb-3.5">
             <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider">
               Select Platform
@@ -124,7 +160,7 @@ export const Server5Smm: React.FC = () => {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => handlePlatformChange(p.id)}
+                    onClick={() => setActivePlatform(p.id)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 active:scale-95 ${
                       isActive
                         ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
@@ -152,206 +188,310 @@ export const Server5Smm: React.FC = () => {
             </div>
           </div>
 
-          {/* Service Packages (Visual Cards Selection) */}
+          {/* Service Packages List */}
           <div className="mb-3">
-        <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider flex items-center justify-between">
-          <span>Choose Package</span>
-          <span className="text-[10px] text-[#8b5cf6] font-normal">
-            {platformServices.length} options available
-          </span>
-        </div>
+            <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider flex items-center justify-between">
+              <span>Choose Package</span>
+              <span className="text-[10px] text-[#8b5cf6] font-normal">
+                {platformServices.length} options available
+              </span>
+            </div>
 
-        <div className="grid grid-cols-1 gap-2">
-          {platformServices.map((service) => {
-            const isSelected = selectedServiceId === service.id;
-            return (
-              <div
-                key={service.id}
-                onClick={() => handleSelectService(service.id)}
-                className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                  isSelected
-                    ? 'bg-[#7c3aed]/15 border-[#8b5cf6] shadow-violet-glow-sm'
-                    : 'bg-[#181820] border-[#262630] hover:border-[#383848]'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2.5 min-w-0">
-                    <div className="mt-0.5 p-1 rounded-lg bg-[#0b0b0e] border border-[#262630] shrink-0">
-                      <PlatformIcon platform={service.platform} className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-bold text-white leading-tight">
-                          {service.name}
-                        </span>
-                        {service.refillDays > 0 && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-[#22c55e] border border-emerald-500/30 flex items-center gap-1">
-                            <ShieldCheck className="w-2.5 h-2.5" />
-                            {service.refillDays}d Auto-Refill
-                          </span>
-                        )}
+            <div className="grid grid-cols-1 gap-2.5">
+              {platformServices.map((service) => (
+                <div
+                  key={service.id}
+                  onClick={() => handleOpenBuyModal(service)}
+                  className="p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#8b5cf6]/60 cursor-pointer transition-all active:scale-[0.99] shadow-sm hover:shadow-violet-glow-sm/20 flex flex-col gap-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div className="mt-0.5 p-1.5 rounded-xl bg-[#0b0b0e] border border-[#262630] shrink-0">
+                        <PlatformIcon platform={service.platform} className="w-5 h-5" />
                       </div>
-                      <span className="text-[10px] text-[#a1a1aa] mt-0.5 line-clamp-1">
-                        {service.description}
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-white leading-tight">
+                            {service.name}
+                          </span>
+                          {service.refillDays > 0 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-[#22c55e] border border-emerald-500/30 flex items-center gap-1">
+                              <ShieldCheck className="w-2.5 h-2.5" />
+                              {service.refillDays}d Auto-Refill
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-[#a1a1aa] mt-0.5 line-clamp-1">
+                          {service.description}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Rate & Buy Button */}
+                    <div className="flex flex-col items-end shrink-0 pl-1 gap-1">
+                      <span className="text-sm font-extrabold text-[#22c55e] font-mono">
+                        {formatPrice(service.ratePer1000)}
                       </span>
+                      <span className="text-[9px] text-[#a1a1aa]">per 1,000</span>
                     </div>
                   </div>
 
-                  {/* Rate Badge */}
-                  <div className="flex flex-col items-end shrink-0 pl-1">
-                    <span className="text-xs font-extrabold text-[#22c55e] font-mono">
-                      {formatPrice(service.ratePer1000)}
-                    </span>
-                    <span className="text-[9px] text-[#a1a1aa]">per 1,000</span>
+                  {/* Sub-info bar + Direct Action Button */}
+                  <div className="flex items-center justify-between pt-2 border-t border-[#262630]/60 text-[10px] text-[#a1a1aa]">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-[#8b5cf6]" />
+                        {service.avgSpeed}
+                      </span>
+                      <span>•</span>
+                      <span>Min: {service.minQuantity.toLocaleString()}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenBuyModal(service);
+                      }}
+                      className="flex items-center gap-1 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold px-3 py-1 rounded-xl shadow-violet-glow-sm transition-all active:scale-95"
+                    >
+                      <ShoppingBag className="w-3 h-3" />
+                      <span>Buy / Configure</span>
+                    </button>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
-                {/* Sub-info bar */}
-                <div className="flex items-center gap-3 mt-2 pt-2 border-t border-[#262630]/60 text-[10px] text-[#a1a1aa]">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-[#8b5cf6]" />
-                    Speed: {service.avgSpeed}
-                  </span>
-                  <span>•</span>
-                  <span>Min: {service.minQuantity.toLocaleString()}</span>
-                  <span>•</span>
-                  <span>Max: {service.maxQuantity.toLocaleString()}</span>
-                  {isSelected && (
-                    <span className="ml-auto text-[10px] text-[#8b5cf6] font-bold flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Selected
-                    </span>
-                  )}
+      {/* Configure & Buy SMM Modal */}
+      <Modal
+        isOpen={!!modalService}
+        onClose={() => setModalService(null)}
+        title="Configure SMM Order"
+        subtitle={modalService?.name}
+      >
+        {modalService && (
+          <form onSubmit={handleModalSubmit} className="flex flex-col gap-3.5 pt-1">
+            {/* Service Summary Header Card */}
+            <div className="p-3 rounded-xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#181820] border border-[#262630]">
+                  <PlatformIcon platform={modalService.platform} className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-white">{modalService.name}</span>
+                  <div className="flex items-center gap-2 text-[10px] text-[#a1a1aa] mt-0.5">
+                    <span className="text-[#8b5cf6] font-medium">{modalService.avgSpeed}</span>
+                    {modalService.refillDays > 0 && (
+                      <>
+                        <span>•</span>
+                        <span className="text-[#22c55e]">{modalService.refillDays}d Warranty</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-extrabold text-[#22c55e] font-mono">
+                  {formatPrice(modalService.ratePer1000)}
+                </span>
+                <span className="text-[9px] text-[#a1a1aa]">per 1,000</span>
+              </div>
+            </div>
 
-      {/* SMM Order Form */}
-      <form onSubmit={handleSubmitOrder} className="flex flex-col gap-3">
-        {/* Target Link Input */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-white flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <PlatformIcon platform={activePlatform} className="w-3.5 h-3.5" />
-              Target URL or Public Username
-            </span>
-            <span className="text-[10px] font-normal text-[#a1a1aa]">Must be public</span>
-          </label>
-          <div className="relative">
-            <LinkIcon className="w-4 h-4 text-[#a1a1aa] absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={targetLink}
-              onChange={(e) => setTargetLink(e.target.value)}
-              placeholder={getUrlPlaceholder()}
-              className="w-full bg-[#181820] border border-[#262630] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none focus:border-[#7c3aed] transition-colors"
-              required
-            />
-          </div>
-          <span className="text-[10px] text-[#a1a1aa]">
-            Ensure the channel, page, or account has no geographic restrictions and is fully public.
-          </span>
-        </div>
+            {/* Target Link Input */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-white flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <LinkIcon className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                  Target URL or Public Username
+                </span>
+                <span className="text-[10px] font-normal text-[#a1a1aa]">Must be public</span>
+              </label>
+              <input
+                type="text"
+                value={modalTargetLink}
+                onChange={(e) => setModalTargetLink(e.target.value)}
+                placeholder={getUrlPlaceholder(modalService.platform)}
+                className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none focus:border-[#7c3aed] transition-colors"
+                required
+              />
+              <span className="text-[10px] text-[#a1a1aa]">
+                Ensure your channel, page, or account is public with zero privacy restrictions.
+              </span>
+            </div>
 
-        {/* Quantity Stepper & Chips */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-white">Quantity</span>
-            <span className="text-[#a1a1aa] text-[10px]">
-              Min: {currentService?.minQuantity.toLocaleString()} | Max: {currentService?.maxQuantity.toLocaleString()}
-            </span>
-          </div>
+            {/* Quantity Stepper & Chips */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-white">Order Quantity</span>
+                <span className="text-[#a1a1aa] text-[10px]">
+                  Min: {modalService.minQuantity.toLocaleString()} | Max: {modalService.maxQuantity.toLocaleString()}
+                </span>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
-              min={currentService?.minQuantity || 100}
-              max={currentService?.maxQuantity || 50000}
-              step={100}
-              className="w-full bg-[#181820] border border-[#262630] rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#7c3aed] transition-colors"
-            />
-          </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleModalDecrement(500)}
+                  className="p-2.5 rounded-xl bg-[#181820] border border-[#262630] text-[#a1a1aa] hover:text-white active:scale-95 transition-all"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <input
+                  type="number"
+                  value={modalQuantity}
+                  onChange={(e) => handleModalQuantityChange(Number(e.target.value))}
+                  min={modalService.minQuantity}
+                  max={modalService.maxQuantity}
+                  step={100}
+                  className="flex-1 bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2 text-xs text-center font-mono font-bold text-white focus:outline-none focus:border-[#7c3aed]"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleModalIncrement(500)}
+                  className="p-2.5 rounded-xl bg-[#181820] border border-[#262630] text-[#a1a1aa] hover:text-white active:scale-95 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
 
-          {/* Quick preset increments */}
-          <div className="grid grid-cols-4 gap-1.5 mt-1">
-            {presetIncrements.map((inc) => (
+              {/* Quick preset chips */}
+              <div className="grid grid-cols-4 gap-1.5 mt-1">
+                {presetIncrements.map((inc) => (
+                  <button
+                    type="button"
+                    key={inc}
+                    onClick={() => handleModalQuantityChange(inc)}
+                    className={`py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      modalQuantity === inc
+                        ? 'bg-[#7c3aed]/30 border-[#7c3aed] text-white'
+                        : 'bg-[#0b0b0e] border-[#262630] text-[#a1a1aa] hover:text-white'
+                    }`}
+                  >
+                    +{inc.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Total Cost & Wallet Verification Card */}
+            <div className="p-3 rounded-xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-[#a1a1aa] uppercase font-bold tracking-wider">
+                  Total Order Amount
+                </span>
+                <span className="text-[11px] text-[#a1a1aa] mt-0.5">
+                  Wallet Balance: <span className="text-white font-mono">{formatPrice(user.balance)}</span>
+                </span>
+              </div>
+              <div className="text-xl font-extrabold text-[#22c55e] font-mono">
+                {formatPrice(modalTotalCost)}
+              </div>
+            </div>
+
+            {user.balance < modalTotalCost && (
+              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-400 flex items-center justify-between">
+                <span>Insufficient balance for this order.</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalService(null);
+                    setActiveTab('deposit');
+                  }}
+                  className="font-bold underline text-white"
+                >
+                  Top Up
+                </button>
+              </div>
+            )}
+
+            {/* Submit & Cancel Buttons */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 type="button"
-                key={inc}
-                onClick={() => setQuantity(inc)}
-                className={`py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                  quantity === inc
-                    ? 'bg-[#7c3aed]/30 border-[#7c3aed] text-white'
-                    : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
-                }`}
+                onClick={() => setModalService(null)}
+                className="py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
               >
-                +{inc.toLocaleString()}
+                Cancel
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Live Price Estimation Box */}
-        <div className="p-3.5 rounded-2xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between mt-1">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#181820] border border-[#262630]">
-              <PlatformIcon platform={activePlatform} className="w-5 h-5" />
+              <button
+                type="submit"
+                disabled={user.balance < modalTotalCost}
+                className="py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <Rocket className="w-3.5 h-3.5" />
+                <span>Confirm & Pay</span>
+              </button>
             </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-[#a1a1aa] uppercase font-bold tracking-wider">
-                Estimated Cost
-              </span>
-              <span className="text-[11px] text-[#8b5cf6]">
-                Rate: {formatPrice(currentService?.ratePer1000 || 0)} per 1,000
-              </span>
+          </form>
+        )}
+      </Modal>
+
+      {/* Post-Purchase SMM Confirmation Modal */}
+      <Modal
+        isOpen={!!placedOrder}
+        onClose={() => setPlacedOrder(null)}
+        title="🎉 SMM Order Dispatched!"
+        subtitle={placedOrder?.orderId}
+      >
+        {placedOrder && (
+          <div className="flex flex-col gap-3.5 pt-1">
+            <div className="p-3 bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-xl flex items-center gap-2.5 text-xs text-[#22c55e] font-semibold">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span>Order has been queued and sent to high-speed delivery node!</span>
+            </div>
+
+            <div className="p-3 bg-[#0b0b0e] border border-[#262630] rounded-xl flex flex-col gap-2 text-xs">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#262630]">
+                <span className="text-[#a1a1aa]">Package</span>
+                <span className="font-bold text-white">{placedOrder.serviceName}</span>
+              </div>
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#262630]">
+                <span className="text-[#a1a1aa]">Target Destination</span>
+                <span className="font-mono text-white truncate max-w-[180px]">{placedOrder.link}</span>
+              </div>
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#262630]">
+                <span className="text-[#a1a1aa]">Quantity</span>
+                <span className="font-mono font-bold text-white">{placedOrder.quantity.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#a1a1aa]">Amount Deducted</span>
+                <span className="font-mono font-bold text-[#22c55e]">{formatPrice(placedOrder.cost)}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl text-[11px] text-[#a1a1aa] flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#8b5cf6] shrink-0" />
+              <span>Status: <strong className="text-white">In Progress</strong> · Live tracking available in Order History.</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setPlacedOrder(null)}
+                className="py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+              >
+                Continue
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlacedOrder(null);
+                  setActiveTab('history');
+                }}
+                className="py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>View History</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
-          <div className="text-xl font-extrabold text-[#22c55e] font-mono">
-            {formatPrice(totalPriceInr)}
-          </div>
-        </div>
-
-        {/* Order Submit Button */}
-        <button
-          type="submit"
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold text-xs shadow-violet-glow transition-all active:scale-95 mt-2"
-        >
-          <Rocket className="w-4 h-4" />
-          <span>Place SMM Order ({formatPrice(totalPriceInr)})</span>
-        </button>
-      </form>
-
-      {/* Service description card */}
-      {currentService && (
-        <div className="mt-4 p-3 bg-[#181820]/60 border border-[#262630] rounded-xl flex flex-col gap-2 text-xs text-[#a1a1aa]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-white font-semibold">
-              <PlatformIcon platform={currentService.platform} className="w-4 h-4" />
-              <span>Delivery & Quality Guarantees</span>
-            </div>
-            {currentService.refillDays > 0 ? (
-              <span className="text-[10px] font-bold text-[#22c55e] flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> {currentService.refillDays} Days Warranty
-              </span>
-            ) : (
-              <span className="text-[10px] text-[#a1a1aa] flex items-center gap-1">
-                <Info className="w-3 h-3" /> Standard Delivery
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] leading-relaxed">{currentService.description}</p>
-          <div className="flex items-center gap-2 text-[10px] text-[#8b5cf6] font-medium pt-1 border-t border-[#262630]/60">
-            <Clock className="w-3 h-3" />
-            <span>Average Dispatch Speed: {currentService.avgSpeed}</span>
-          </div>
-        </div>
-      )}
-    </>
-  )}
-</div>
+        )}
+      </Modal>
+    </div>
   );
 };

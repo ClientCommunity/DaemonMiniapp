@@ -18,8 +18,29 @@ const AppContent: React.FC = () => {
     isInitialLoading,
     initialLoadingStep,
     initialLoadingMessage,
+    backendConnected,
+    refreshUser,
+    refreshStore,
+    refreshHistory,
+    refreshReseller,
   } = useApp();
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+
+  // Stale-While-Revalidate (SWR): Refresh active tab data seamlessly in background
+  useEffect(() => {
+    if (!backendConnected) return;
+
+    // Refresh wallet balance on every tab transition
+    refreshUser().catch(() => {});
+
+    if (activeTab === 'store') {
+      refreshStore().catch(() => {});
+    } else if (activeTab === 'history') {
+      refreshHistory().catch(() => {});
+    } else if (activeTab === 'profile') {
+      refreshReseller().catch(() => {});
+    }
+  }, [activeTab, backendConnected, refreshUser, refreshStore, refreshHistory, refreshReseller]);
 
   // Initialize Telegram WebApp SDK
   useEffect(() => {
