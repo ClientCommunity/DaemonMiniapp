@@ -189,6 +189,25 @@ export const Server1Lzt: React.FC = () => {
         onClose={() => setSelectedForPurchase(null)}
         title="Confirm Account Purchase"
         subtitle="Review account details before balance deduction"
+        footer={
+          selectedForPurchase ? (
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                onClick={() => setSelectedForPurchase(null)}
+                className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmBuy}
+                className="py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Buy ({formatPrice(selectedForPurchase.priceInr)})</span>
+              </button>
+            </div>
+          ) : undefined
+        }
       >
         {selectedForPurchase && (
           <div className="flex flex-col gap-4">
@@ -218,21 +237,6 @@ export const Server1Lzt: React.FC = () => {
                 Credentials and session files will be delivered immediately on screen and saved in your Order History.
               </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-2.5 pt-2">
-              <button
-                onClick={() => setSelectedForPurchase(null)}
-                className="py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmBuy}
-                className="py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all"
-              >
-                Confirm & Pay
-              </button>
-            </div>
           </div>
         )}
       </Modal>
@@ -243,6 +247,14 @@ export const Server1Lzt: React.FC = () => {
         onClose={closeCredentialsModal}
         title="🎉 Account Delivered!"
         subtitle={`Order ID: ${purchasedCredentialsModal?.orderId || 'S1_000000'}`}
+        footer={
+          <button
+            onClick={closeCredentialsModal}
+            className="w-full py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630] active:scale-95 transition-all"
+          >
+            Done / Close
+          </button>
+        }
       >
         {purchasedCredentialsModal?.account && (
           <div className="flex flex-col gap-3.5">
@@ -389,22 +401,12 @@ export const Server1Lzt: React.FC = () => {
                   );
                   addToast('Downloading session file...', 'info');
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630]"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630]"
               >
                 <Download className="w-4 h-4 text-[#22c55e]" />
                 <span>Download .Session File</span>
               </button>
             )}
-
-            {/* Action Buttons */}
-            <div className="pt-1">
-              <button
-                onClick={closeCredentialsModal}
-                className="w-full py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630]"
-              >
-                Done / Close
-              </button>
-            </div>
           </div>
         )}
       </Modal>

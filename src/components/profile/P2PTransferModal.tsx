@@ -66,6 +66,24 @@ export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onCl
       }}
       title="P2P Balance Transfer"
       subtitle="Instantly send transferable balance to any Telegram user"
+      footer={
+        showConfirmation ? (
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={() => setShowConfirmation(false)}
+              className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleConfirmTransfer}
+              className="py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-95"
+            >
+              Confirm & Dispatch
+            </button>
+          </div>
+        ) : undefined
+      }
     >
       {!showConfirmation ? (
         <form onSubmit={handleProceedClick} className="flex flex-col gap-3.5">
@@ -187,21 +205,6 @@ export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onCl
               <span>Remaining Balance:</span>
               <span className="text-white font-mono">{formatPrice(user.balance - numAmount)}</span>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
-            <button
-              onClick={() => setShowConfirmation(false)}
-              className="py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleConfirmTransfer}
-              className="py-2.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-95"
-            >
-              Confirm & Dispatch
-            </button>
           </div>
         </div>
       )}

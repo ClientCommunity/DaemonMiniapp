@@ -82,7 +82,16 @@ export interface AppContextType {
     downloadUrl?: string;
     otpCode?: string;
   } | null;
+  purchasedServer2Modal: {
+    isOpen: boolean;
+    stockItem?: Server2StockItem;
+    orderId?: string;
+    quantity?: number;
+    format?: Server2DeliveryFormat;
+    downloadUrl?: string;
+  } | null;
   selectedReceiptItem: HistoryItem | null;
+  closeServer2Modal: () => void;
 
   // Actions
   setActiveTab: (tab: 'home' | 'store' | 'deposit' | 'history' | 'profile') => void;
@@ -176,6 +185,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     orderId?: string;
     downloadUrl?: string;
     otpCode?: string;
+  } | null>(null);
+
+  const [purchasedServer2Modal, setPurchasedServer2Modal] = useState<{
+    isOpen: boolean;
+    stockItem?: Server2StockItem;
+    orderId?: string;
+    quantity?: number;
+    format?: Server2DeliveryFormat;
+    downloadUrl?: string;
   } | null>(null);
 
   const [selectedReceiptItem, setSelectedReceiptItem] = useState<HistoryItem | null>(null);
@@ -627,6 +645,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setHistory((prev) => [newHistoryItem, ...prev]);
 
+    // Open delivery fulfillment modal immediately so user sees their credentials / files!
+    setPurchasedServer2Modal({
+      isOpen: true,
+      stockItem,
+      orderId,
+      quantity,
+      format: requestedFormat,
+      downloadUrl: isBulk ? downloadZipUrl : (requestedFormat === 'session' ? downloadSingleUrl : stockItem.sampleSessionUrl),
+    });
+
     // Dispatch asynchronous backend order call
     orderApi
       .buy({
@@ -661,6 +689,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     }
                   : item
               )
+            );
+            setPurchasedServer2Modal((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    orderId: String(res.order_id || prev.orderId),
+                    downloadUrl: res.download_url,
+                  }
+                : null
             );
             if (isBulk || requestedFormat === 'session') {
               downloadApi.triggerDownload(
@@ -1278,6 +1315,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPurchasedCredentialsModal(null);
   };
 
+  const closeServer2Modal = () => {
+    setPurchasedServer2Modal(null);
+  };
+
   const openReceiptDrawer = (item: HistoryItem) => {
     setSelectedReceiptItem(item);
   };
@@ -1304,6 +1345,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         server5Items,
         isLoadingStore,
         purchasedCredentialsModal,
+        purchasedServer2Modal,
         selectedReceiptItem,
         setActiveTab,
         setSelectedServer,
@@ -1324,6 +1366,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateResellerMargin,
         resetDemoData,
         closeCredentialsModal,
+        closeServer2Modal,
         openReceiptDrawer,
         closeReceiptDrawer,
         refreshStore,

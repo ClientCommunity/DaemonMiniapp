@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { downloadApi } from '../../api/endpoints';
 import { server2Catalog } from '../../data/mockData';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
-import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download } from 'lucide-react';
+import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
 export const Server2Sessions: React.FC = () => {
-  const { formatPrice, purchaseServer2Session, server2Items, backendConnected } = useApp();
+  const {
+    formatPrice,
+    purchaseServer2Session,
+    server2Items,
+    backendConnected,
+    purchasedServer2Modal,
+    closeServer2Modal,
+    addToast
+  } = useApp();
 
   const [qualityTier, setQualityTier] = useState<Server2QualityTier>('good');
   const [deliveryFormat, setDeliveryFormat] = useState<Server2DeliveryFormat>('account');
@@ -189,6 +198,25 @@ export const Server2Sessions: React.FC = () => {
         onClose={() => setItemForPurchase(null)}
         title="Purchase Local Sessions"
         subtitle={itemForPurchase ? `${itemForPurchase.country} (${itemForPurchase.accountYear})` : ''}
+        footer={
+          itemForPurchase ? (
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                onClick={() => setItemForPurchase(null)}
+                className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmPurchase}
+                className="py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Buy ({formatPrice(itemForPurchase.priceInr * quantity)})</span>
+              </button>
+            </div>
+          ) : undefined
+        }
       >
         {itemForPurchase && (
           <div className="flex flex-col gap-4">
@@ -263,20 +291,86 @@ export const Server2Sessions: React.FC = () => {
                 {formatPrice(itemForPurchase.priceInr * quantity)}
               </span>
             </div>
+          </div>
+        )}
+      </Modal>
 
-            <div className="grid grid-cols-2 gap-2.5 pt-2">
+      {/* Server 2 Session Delivery / Fulfillment Modal */}
+      <Modal
+        isOpen={!!purchasedServer2Modal?.isOpen}
+        onClose={closeServer2Modal}
+        title="🎉 Sessions Delivered!"
+        subtitle={`Order ID: ${purchasedServer2Modal?.orderId || 'S2_000000'}`}
+        footer={
+          <button
+            onClick={closeServer2Modal}
+            className="w-full py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630] active:scale-95 transition-all"
+          >
+            Done / Close
+          </button>
+        }
+      >
+        {purchasedServer2Modal?.stockItem && (
+          <div className="flex flex-col gap-3.5">
+            <div className="p-3 bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-xl flex items-center gap-2 text-xs text-[#22c55e] font-semibold">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-[#22c55e]" />
+              <span>
+                {purchasedServer2Modal.quantity && purchasedServer2Modal.quantity > 1
+                  ? `${purchasedServer2Modal.quantity} sessions bundled and verified!`
+                  : 'Session authenticated and ready for download!'}
+              </span>
+            </div>
+
+            {/* Summary details */}
+            <div className="p-3 bg-[#0b0b0e] border border-[#262630] rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{purchasedServer2Modal.stockItem.icon}</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-white">
+                    {purchasedServer2Modal.stockItem.country} Telegram
+                  </span>
+                  <span className="text-[11px] text-[#a1a1aa]">
+                    Vintage: {purchasedServer2Modal.stockItem.accountYear} · {purchasedServer2Modal.format === 'session' ? 'Session File (.session)' : 'Account (OTP)'}
+                  </span>
+                </div>
+              </div>
+              <span className="text-xs px-2 py-1 rounded bg-[#7c3aed]/20 text-[#8b5cf6] font-bold border border-[#7c3aed]/30">
+                Qty: {purchasedServer2Modal.quantity || 1}
+              </span>
+            </div>
+
+            {/* Instant Download Action */}
+            {purchasedServer2Modal.downloadUrl && (
               <button
-                onClick={() => setItemForPurchase(null)}
-                className="py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+                onClick={() => {
+                  const isBulk = (purchasedServer2Modal.quantity || 1) > 1;
+                  downloadApi.triggerDownload(
+                    purchasedServer2Modal.downloadUrl!,
+                    isBulk
+                      ? `accounts_${purchasedServer2Modal.orderId}.zip`
+                      : `session_${purchasedServer2Modal.orderId}.session`
+                  );
+                  addToast('Downloading session package...', 'info');
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-md transition-all active:scale-95"
               >
-                Cancel
+                <Download className="w-4 h-4" />
+                <span>
+                  {(purchasedServer2Modal.quantity || 1) > 1
+                    ? '⬇️ Download Bulk Sessions (.ZIP Archive)'
+                    : '⬇️ Download .Session File'}
+                </span>
               </button>
-              <button
-                onClick={handleConfirmPurchase}
-                className="py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all"
-              >
-                Confirm & Pay
-              </button>
+            )}
+
+            {/* How to use sessions instructions */}
+            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl text-xs text-[#a1a1aa]">
+              <span className="font-semibold text-white block mb-1">How to Use Your Sessions:</span>
+              <ol className="list-decimal list-inside space-y-1 text-[11px]">
+                <li>Download your <strong className="text-white">.session</strong> or <strong className="text-white">.zip</strong> file above.</li>
+                <li>Import the .session file directly into your Telethon, Pyrogram, or Telegram client.</li>
+                <li>You can re-download this session anytime from the <strong className="text-white">History</strong> tab.</li>
+              </ol>
             </div>
           </div>
         )}

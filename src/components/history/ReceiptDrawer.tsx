@@ -59,6 +59,25 @@ export const ReceiptDrawer: React.FC = () => {
       onClose={closeReceiptDrawer}
       title="Transaction Receipt"
       subtitle={`Ref: ${item.id}`}
+      footer={
+        <div className="flex flex-col gap-2">
+          {item.sessionDownloadUrl && (
+            <button
+              onClick={handleDownloadSession}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-95"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download .Session File</span>
+            </button>
+          )}
+          <button
+            onClick={closeReceiptDrawer}
+            className="w-full py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630]"
+          >
+            Close Receipt
+          </button>
+        </div>
+      }
     >
       <div className="flex flex-col gap-3.5">
         {/* Top Status & Amount Card */}
@@ -200,24 +219,6 @@ export const ReceiptDrawer: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* Action Buttons */}
-        {item.sessionDownloadUrl && (
-          <button
-            onClick={handleDownloadSession}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold text-xs shadow-green-glow transition-all active:scale-95"
-          >
-            <Download className="w-4 h-4" />
-            <span>Download .Session File</span>
-          </button>
-        )}
-
-        <button
-          onClick={closeReceiptDrawer}
-          className="w-full py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630]"
-        >
-          Close Receipt
-        </button>
       </div>
     </Modal>
   );

@@ -410,18 +410,18 @@ export const Server5Smm: React.FC = () => {
             )}
 
             {/* Submit & Cancel Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-2">
+            <div className="sticky bottom-0 bg-[#15151c] pt-3 pb-1 border-t border-[#262630]/80 -mx-4 px-4 mt-2 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setModalService(null)}
-                className="py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+                className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={user.balance < modalTotalCost}
-                className="py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 <Rocket className="w-3.5 h-3.5" />
                 <span>Confirm & Pay</span>
@@ -437,6 +437,28 @@ export const Server5Smm: React.FC = () => {
         onClose={() => setPlacedOrder(null)}
         title="🎉 SMM Order Dispatched!"
         subtitle={placedOrder?.orderId}
+        footer={
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPlacedOrder(null)}
+              className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+            >
+              Continue
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPlacedOrder(null);
+                setActiveTab('history');
+              }}
+              className="py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>View History</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        }
       >
         {placedOrder && (
           <div className="flex flex-col gap-3.5 pt-1">
@@ -467,27 +489,6 @@ export const Server5Smm: React.FC = () => {
             <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl text-[11px] text-[#a1a1aa] flex items-center gap-2">
               <Clock className="w-4 h-4 text-[#8b5cf6] shrink-0" />
               <span>Status: <strong className="text-white">In Progress</strong> · Live tracking available in Order History.</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setPlacedOrder(null)}
-                className="py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
-              >
-                Continue
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPlacedOrder(null);
-                  setActiveTab('history');
-                }}
-                className="py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
-              >
-                <span>View History</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
             </div>
           </div>
         )}
