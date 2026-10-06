@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { server34Catalog } from '../../data/mockData';
 import { OtpAppCode } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
 import { Search, Zap, ShoppingBag, ShieldCheck, Radio } from 'lucide-react';
@@ -11,7 +10,7 @@ interface Server34OtpProps {
 }
 
 export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
-  const { formatPrice, requestVirtualOtp, server34Items, backendConnected } = useApp();
+  const { formatPrice, requestVirtualOtp, server34Items } = useApp();
 
   const [activeCategory, setActiveCategory] = useState<OtpAppCode>('all');
   const [search, setSearch] = useState('');
@@ -25,10 +24,8 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     { code: 'spam', label: 'SpamChat' },
   ];
 
-  // Strict real data: when connected to backend, only display real live stock
-  const allItems = backendConnected
-    ? server34Items
-    : (server34Items && server34Items.length > 0 ? server34Items : server34Catalog);
+  // Strict real data: live stock loaded from backend /api/store/servers
+  const allItems = server34Items;
   const serverItems = allItems.filter((item) => item.server === serverId);
   const filtered = serverItems.filter((item) => {
     if (activeCategory !== 'all' && item.category !== activeCategory) return false;

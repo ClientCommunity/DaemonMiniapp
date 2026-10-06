@@ -138,6 +138,19 @@ export interface ManualDepositSubmitResponse {
   error?: string;
 }
 
+export interface ManualMethodItem {
+  id: number;
+  name: string;
+  caption: string;
+  qr_url?: string;
+}
+
+export interface ManualMethodsResponse {
+  success: boolean;
+  methods: ManualMethodItem[];
+  merchant_upi?: string;
+}
+
 export interface ResellerSetMarginResponse {
   success: boolean;
   margin?: number;
@@ -231,6 +244,8 @@ export const depositApi = {
     api.post<FamPayDepositResponse>('/api/deposit/fampay', { amount }),
   checkFamPay: (ref: string) =>
     api.get<FamPayCheckResponse>('/api/deposit/fampay/check', { ref }),
+  getManualMethods: () =>
+    api.get<ManualMethodsResponse>('/api/deposit/manual/methods'),
   submitManual: (methodId: number, utr: string, amount: number) =>
     api.post<ManualDepositSubmitResponse>('/api/deposit/manual/submit', {
       method_id: methodId,

@@ -132,20 +132,20 @@ export function adaptBackendUser(
     // browser mode fallback
   }
 
-  const userId = backendData.id ?? tgUser?.id ?? current?.id ?? 7507183871;
-  const username = tgUser?.username ?? current?.username ?? 'krish_vip';
-  const firstName = tgUser?.first_name ?? current?.firstName ?? 'Krish';
+  const userId = backendData.id ?? tgUser?.id ?? current?.id ?? 0;
+  const username = tgUser?.username ?? current?.username ?? '';
+  const firstName = tgUser?.first_name ?? current?.firstName ?? 'User';
   const avatarUrl = tgUser?.photo_url || current?.avatarUrl || '';
 
   const prefCurrency = backendData.pref_curr === 'USDT' ? 'USDT' : (current?.prefCurrency || 'INR');
   const exchangeRateUsdt = current?.exchangeRateUsdt || 94.0;
 
-  const balance = Number(backendData.balance ?? current?.balance ?? 650);
-  const promoBalance = Number(backendData.promo_balance ?? current?.promoBalance ?? 150);
+  const balance = Number(backendData.balance ?? current?.balance ?? 0);
+  const promoBalance = Number(backendData.promo_balance ?? current?.promoBalance ?? 0);
   const salesBalance = Number(backendData.sales_balance ?? current?.salesBalance ?? 0);
   const totalDeposited = Number(backendData.total_deposited ?? current?.totalDeposited ?? 0);
   const totalSaved = current?.totalSaved ?? 0;
-  const joinedDate = current?.joinedDate || 'October 2024';
+  const joinedDate = current?.joinedDate || 'Recently';
 
   return {
     id: userId,
@@ -169,9 +169,9 @@ export function adaptBackendUser(
  */
 export function adaptServer1Item(item: BackendServer1Item, index: number): Server1AccountItem {
   const country = item.country || item.name || 'Global';
-  const price = Number(item.price || 85);
+  const price = Number(item.price || 0);
   const code = item.code || 'GL';
-  const stock = Number(item.stock ?? 10);
+  const stock = Number(item.stock ?? 0);
   const icon = item.flag || item.icon || '🌐';
 
   return {
@@ -186,10 +186,10 @@ export function adaptServer1Item(item: BackendServer1Item, index: number): Serve
     format: 'Session + 2FA',
     subtitle: item.subtitle || 'Global Market 2FA',
     credentialsSample: {
-      phone: item.phone || `+${code === 'IN' ? '91' : code === 'US' ? '1' : '44'} 98234 19283`,
-      twoFa: item.twofa === false ? 'None' : 'tgPass@2024',
-      sessionFile: `session_${country.toLowerCase()}_2fa.session`,
-      loginInstruction: 'Instant login delivered. Use session or 2FA credentials.',
+      phone: item.phone || '',
+      twoFa: item.twofa ? String(item.twofa) : '',
+      sessionFile: '',
+      loginInstruction: 'Login code and credentials delivered upon purchase.',
     },
   };
 }
@@ -203,15 +203,15 @@ export function adaptServer2Item(
 ): Server2StockItem {
   const tier: Server2QualityTier = item.tier === 'cheap' ? 'cheap' : defaultTier;
   const year = Number(item.year || 2024);
-  const country = item.country || item.name || 'India';
-  const price = Number(item.price || (tier === 'good' ? 70 : 45));
-  const stock = Number(item.stock ?? 10);
+  const country = item.country || item.name || 'Global';
+  const price = Number(item.price || 0);
+  const stock = Number(item.stock ?? 0);
   const icon = item.flag || item.icon || (tier === 'good' ? '🟢' : '🟡');
 
   return {
     id: String(item.id || `s2_${country.toLowerCase()}_${year}_${tier}`),
     country,
-    countryCode: item.code || (country === 'India' ? 'IN' : 'US'),
+    countryCode: item.code || 'GL',
     icon,
     qualityTier: tier,
     accountYear: year,
@@ -220,7 +220,7 @@ export function adaptServer2Item(
     deliveryFormat: 'session',
     subtitle: item.subtitle || (tier === 'good' ? '🟢 Good Quality Session' : '🟡 Cheap Quality Session'),
     twoFaRequired: false,
-    sampleSessionUrl: `/api/session/download/s2_${country.toLowerCase()}`,
+    sampleSessionUrl: '',
   };
 }
 

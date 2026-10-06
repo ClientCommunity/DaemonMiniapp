@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { otpApi, downloadApi } from '../../api/endpoints';
-import { server1Catalog } from '../../data/mockData';
 import { Server1AccountItem } from '../../types';
 import {
   Search,
@@ -29,16 +28,13 @@ export const Server1Lzt: React.FC = () => {
     closeCredentialsModal,
     addToast,
     server1Items,
-    backendConnected,
   } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedForPurchase, setSelectedForPurchase] = useState<Server1AccountItem | null>(null);
 
-  // Strict real data: when connected to backend, only display real live stock
-  const items = backendConnected
-    ? server1Items
-    : (server1Items && server1Items.length > 0 ? server1Items : server1Catalog);
+  // Strict real data: display live stock from server1Items
+  const items = server1Items;
   const filtered = items.filter((item) =>
     item.country.toLowerCase().includes(search.toLowerCase())
   );

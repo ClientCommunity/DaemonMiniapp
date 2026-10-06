@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { server5Catalog } from '../../data/mockData';
 import { SmmPlatform, SmmServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
 import { Modal } from '../common/Modal';
@@ -18,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
-  const { formatPrice, submitSmmOrder, server5Items, backendConnected, user, setActiveTab } = useApp();
+  const { formatPrice, submitSmmOrder, server5Items, user, setActiveTab } = useApp();
 
   const [activePlatform, setActivePlatform] = useState<SmmPlatform>('telegram');
   const [modalService, setModalService] = useState<SmmServiceItem | null>(null);
@@ -47,10 +46,8 @@ export const Server5Smm: React.FC = () => {
     { id: 'twitter', label: 'Twitter (X)' },
   ];
 
-  // Available services for chosen platform (consuming live inventory from AppContext with fallback)
-  const allServices = backendConnected
-    ? server5Items
-    : (server5Items && server5Items.length > 0 ? server5Items : server5Catalog);
+  // Available services for chosen platform (consuming live inventory from AppContext)
+  const allServices = server5Items;
   const platformServices = allServices.filter((s) => s.platform === activePlatform);
 
   const presetIncrements = [500, 1000, 2500, 5000];

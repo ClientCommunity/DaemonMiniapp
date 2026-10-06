@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { downloadApi } from '../../api/endpoints';
-import { server2Catalog } from '../../data/mockData';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
 import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check } from 'lucide-react';
 import { Modal } from '../common/Modal';
@@ -13,7 +12,6 @@ export const Server2Sessions: React.FC = () => {
     formatPrice,
     purchaseServer2Session,
     server2Items,
-    backendConnected,
     purchasedServer2Modal,
     closeServer2Modal,
     addToast
@@ -28,10 +26,8 @@ export const Server2Sessions: React.FC = () => {
 
   const years: (number | 'all')[] = ['all', 2021, 2022, 2023, 2024, 2025];
 
-  // Strict real data: when connected to backend, only display real live stock
-  const items = backendConnected
-    ? server2Items
-    : (server2Items && server2Items.length > 0 ? server2Items : server2Catalog);
+  // Strict real data: live stock from server2Items
+  const items = server2Items;
   const filtered = items.filter((item) => {
     if (item.qualityTier !== qualityTier) return false;
     if (selectedYear !== 'all' && item.accountYear !== selectedYear) return false;

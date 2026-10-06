@@ -4,6 +4,7 @@ import { Header } from './components/common/Header';
 import { BottomNav } from './components/common/BottomNav';
 import { ToastContainer } from './components/common/Toast';
 import { InitialLoadingScreen } from './components/common/InitialLoadingScreen';
+import { MaintenanceScreen } from './components/common/MaintenanceScreen';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { StorefrontView } from './components/store/StorefrontView';
 import { DepositHub } from './components/deposit/DepositHub';
@@ -19,6 +20,8 @@ const AppContent: React.FC = () => {
     initialLoadingStep,
     initialLoadingMessage,
     backendConnected,
+    isCheckingBackend,
+    recheckConnection,
     refreshUser,
     refreshStore,
     refreshHistory,
@@ -84,6 +87,15 @@ const AppContent: React.FC = () => {
       <InitialLoadingScreen
         step={initialLoadingStep}
         statusMessage={initialLoadingMessage}
+      />
+    );
+  }
+
+  if (backendConnected === false) {
+    return (
+      <MaintenanceScreen
+        onRetry={() => recheckConnection(true)}
+        isRetrying={isCheckingBackend}
       />
     );
   }

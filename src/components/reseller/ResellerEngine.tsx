@@ -22,7 +22,7 @@ interface ServerProductOption {
 }
 
 export const ResellerEngine: React.FC = () => {
-  const { resellerConfig, updateResellerMargin, formatPrice, addToast } = useApp();
+  const { user, resellerConfig, updateResellerMargin, formatPrice, addToast } = useApp();
 
   const serverProducts: ServerProductOption[] = [
     {
@@ -75,10 +75,14 @@ export const ResellerEngine: React.FC = () => {
   const selectedServer = serverProducts.find((s) => s.id === selectedServerId) || serverProducts[0];
   const finalPriceInr = selectedServer.basePriceInr + marginInput;
 
-  const standardRefLink = `https://t.me/DeamonOTPbot?start=ref_7507183871`;
+  const standardRefLink = user.telegramId
+    ? `https://t.me/DeamonOTPbot?start=ref_${user.telegramId}`
+    : `https://t.me/DeamonOTPbot?start=ref`;
+
+  const effectiveResellerLink = resellerConfig.resellerLink || standardRefLink;
 
   const handleCopyResellerLink = () => {
-    navigator.clipboard?.writeText(resellerConfig.resellerLink);
+    navigator.clipboard?.writeText(effectiveResellerLink);
     setCopiedLink(true);
     addToast('Unique Reseller link copied to clipboard!', 'success', 'Copied');
     setTimeout(() => setCopiedLink(false), 2000);

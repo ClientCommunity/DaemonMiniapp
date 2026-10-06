@@ -45,7 +45,7 @@ import {
   adaptServer5Item,
 } from '../api/adapters';
 
-const LOCAL_STORAGE_KEY = 'krish_telebot_miniapp_state_v1';
+const LOCAL_STORAGE_KEY = 'krish_telebot_miniapp_state_v2';
 
 export interface AppContextType {
   // State
@@ -119,7 +119,6 @@ export interface AppContextType {
     format?: string
   ) => Promise<boolean>;
   updateResellerMargin: (newMargin: number) => { success: boolean; message: string };
-  resetDemoData: () => void;
   closeCredentialsModal: () => void;
   openReceiptDrawer: (item: HistoryItem) => void;
   closeReceiptDrawer: () => void;
@@ -516,8 +515,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       date: 'Just now',
       status: 'success',
       server: 'Server 1 (Global 2FA)',
-      phone: account.credentialsSample?.phone || '+91 98234 19283',
-      twoFa: account.credentialsSample?.twoFa || 'tgPass@2024',
+      phone: account.credentialsSample?.phone || '',
+      twoFa: account.credentialsSample?.twoFa || '',
       refunded: false,
     };
 
@@ -639,7 +638,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       status: 'success',
       server: 'Server 2 (Aged Sessions)',
       quantity,
-      sessionDownloadUrl: isBulk ? downloadZipUrl : (requestedFormat === 'session' ? downloadSingleUrl : stockItem.sampleSessionUrl),
+      sessionDownloadUrl: isBulk ? downloadZipUrl : downloadSingleUrl,
       refunded: false,
     };
 
@@ -652,7 +651,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       orderId,
       quantity,
       format: requestedFormat,
-      downloadUrl: isBulk ? downloadZipUrl : (requestedFormat === 'session' ? downloadSingleUrl : stockItem.sampleSessionUrl),
+      downloadUrl: isBulk ? downloadZipUrl : downloadSingleUrl,
     });
 
     // Dispatch asynchronous backend order call
@@ -737,23 +736,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!deduction.success) return false;
 
     const orderId = `ACT_${Date.now().toString().slice(-6)}`;
-    const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
-    const countryPrefix =
-      service.countryCode === 'IN'
-        ? '+91 '
-        : service.countryCode === 'US'
-        ? '+1 '
-        : service.countryCode === 'RU'
-        ? '+7 '
-        : '+44 ';
-    const generatedPhone = `${countryPrefix}${randomDigits}`;
+    const pendingPhone = 'Allocating number...';
 
     const newSession: ActiveOtpSession = {
       orderId,
       server: service.server,
       serviceName: service.serviceName,
       country: service.country,
-      phone: generatedPhone,
+      phone: pendingPhone,
       priceInr: service.priceInr,
       promoUsed: deduction.promoUsed,
       mainUsed: deduction.mainUsed,
@@ -775,7 +765,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       date: 'Just now',
       status: 'waiting',
       server: `Server ${service.server}`,
-      phone: generatedPhone,
+      phone: pendingPhone,
       refunded: false,
     };
 
@@ -803,11 +793,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }));
           }
           if (res.phone) {
+            const realPhone = res.phone;
+            const realOrderId = String(res.order_id || orderId);
             setActiveOtpSession((prev) =>
               prev
-                ? { ...prev, phone: res.phone!, orderId: String(res.order_id || prev.orderId) }
+                ? { ...prev, phone: realPhone, orderId: realOrderId }
                 : null
             );
+            setHistory((hPrev) =>
+              hPrev.map((item) =>
+                item.id === orderId
+                  ? { ...item, phone: realPhone, id: realOrderId }
+                  : item
+              )
+            );
+            addToast(`Number allocated: ${realPhone}. Waiting for SMS code...`, 'info', 'Number Ready');
           }
         }
       })
@@ -816,9 +816,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
     addToast(
-      `Number assigned: ${generatedPhone}. Waiting for SMS code...`,
+      `Request dispatched. Allocating virtual number for ${service.serviceName}...`,
       'info',
-      'Number Activated'
+      'Activating Number'
     );
     return true;
   };
@@ -1293,24 +1293,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: 'Reseller margin updated.' };
   };
 
-  // Reset Demo Data
-  const resetDemoData = () => {
-    localStorage.removeItem(`${LOCAL_STORAGE_KEY}_user`);
-    localStorage.removeItem(`${LOCAL_STORAGE_KEY}_currency`);
-    localStorage.removeItem(`${LOCAL_STORAGE_KEY}_activeOtp`);
-    localStorage.removeItem(`${LOCAL_STORAGE_KEY}_history`);
-    localStorage.removeItem(`${LOCAL_STORAGE_KEY}_reseller`);
-
-    setUser(initialUserProfile);
-    setCurrency('INR');
-    setActiveOtpSession(null);
-    setHistory(initialHistoryItems);
-    setResellerConfig(initialResellerConfig);
-    setActiveTab('home');
-
-    addToast('Demo data restored to initial state!', 'info', 'Data Reset');
-  };
-
   const closeCredentialsModal = () => {
     setPurchasedCredentialsModal(null);
   };
@@ -1364,7 +1346,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         transferBalance,
         buyItem,
         updateResellerMargin,
-        resetDemoData,
         closeCredentialsModal,
         closeServer2Modal,
         openReceiptDrawer,

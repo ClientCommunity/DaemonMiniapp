@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PaymentMethodType } from '../../types';
-import { depositApi } from '../../api/endpoints';
+import { depositApi, ManualMethodItem } from '../../api/endpoints';
 import {
   Copy,
   Check,
@@ -13,7 +13,8 @@ import {
   Clock,
   FileText,
   RotateCcw,
-  Receipt
+  Receipt,
+  QrCode
 } from 'lucide-react';
 
 interface ActiveInvoice {
@@ -34,7 +35,13 @@ export const DepositHub: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
-  const [copiedCrypto, setCopiedCrypto] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
+
+  // Dynamic live payment gateways
+  const [merchantUpi, setMerchantUpi] = useState<string>('');
+  const [manualMethods, setManualMethods] = useState<ManualMethodItem[]>([]);
+  const [selectedManualId, setSelectedManualId] = useState<number | null>(null);
+  const [isLoadingManual, setIsLoadingManual] = useState<boolean>(false);
 
   // Active invoice state: only set when the user explicitly clicks "Make your invoice"
   const [activeInvoice, setActiveInvoice] = useState<ActiveInvoice | null>(null);
@@ -42,8 +49,37 @@ export const DepositHub: React.FC = () => {
 
   const quickAmounts = [100, 250, 500, 1000, 2500];
 
-  const [upiId, setUpiId] = useState('krishpay@fam');
-  const cryptoAddress = '0x71C8F79d03223f66D60C8D6a72eBE8F990177B29';
+  // Load live manual payment methods & merchant UPI on mount
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingManual(true);
+    depositApi
+      .getManualMethods()
+      .then((res) => {
+        if (isMounted && res && res.success) {
+          if (res.merchant_upi) {
+            setMerchantUpi(res.merchant_upi);
+          }
+          if (res.methods && res.methods.length > 0) {
+            setManualMethods(res.methods);
+            setSelectedManualId(res.methods[0].id);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load live manual methods:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingManual(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const activeManualMethod =
+    manualMethods.find((m) => m.id === selectedManualId) || manualMethods[0] || null;
 
   // 15-minute countdown timer for active invoice
   useEffect(() => {
@@ -66,18 +102,20 @@ export const DepositHub: React.FC = () => {
   };
 
   const handleCopyUpi = () => {
-    const targetUpi = activeInvoice ? activeInvoice.upiId : upiId;
+    const targetUpi = activeInvoice ? activeInvoice.upiId : merchantUpi;
+    if (!targetUpi) return;
     navigator.clipboard?.writeText(targetUpi);
     setCopiedUpi(true);
     addToast(`UPI ID ${targetUpi} copied to clipboard!`, 'info', 'Copied');
     setTimeout(() => setCopiedUpi(false), 2000);
   };
 
-  const handleCopyCrypto = () => {
-    navigator.clipboard?.writeText(cryptoAddress);
-    setCopiedCrypto(true);
-    addToast(`BEP20 Address copied!`, 'info', 'Copied');
-    setTimeout(() => setCopiedCrypto(false), 2000);
+  const handleCopyCustom = (textToCopy: string) => {
+    if (!textToCopy) return;
+    navigator.clipboard?.writeText(textToCopy);
+    setCopiedText(true);
+    addToast('Details copied to clipboard!', 'info', 'Copied');
+    setTimeout(() => setCopiedText(false), 2000);
   };
 
   // Explicit user trigger: Generates the dynamic QR invoice only when requested
@@ -92,12 +130,10 @@ export const DepositHub: React.FC = () => {
 
     try {
       const res = await depositApi.createFamPay(amount);
-      if (res && res.success) {
-        const genUpiId = res.upi_id || 'krishpay@fam';
-        const genRef = res.reference || `FAM_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      if (res && res.success && res.reference) {
+        const genUpiId = res.upi_id || merchantUpi || '';
+        const genRef = res.reference;
         const genQr = res.qr_url || '';
-
-        setUpiId(genUpiId);
 
         setActiveInvoice({
           reference: genRef,
@@ -110,28 +146,18 @@ export const DepositHub: React.FC = () => {
         setTimeLeft(900);
         addToast(`Invoice ${genRef} ready! Scan QR to complete payment.`, 'success', 'Invoice Ready');
       } else {
-        const fallbackRef = `FAM_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-        setActiveInvoice({
-          reference: fallbackRef,
-          amount: amount,
-          upiId: 'krishpay@fam',
-          qrUrl: '',
-          expiresAt: Date.now() + 15 * 60 * 1000,
-        });
-        setTimeLeft(900);
-        addToast('Invoice created. Please transfer or submit UTR below.', 'info', 'Invoice Ready');
+        addToast(
+          res?.error || 'UPI Gateway is temporarily unconfigured or offline. Please use UPI Direct (UTR) or Crypto below.',
+          'error',
+          'Gateway Offline'
+        );
       }
     } catch {
-      const fallbackRef = `FAM_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      setActiveInvoice({
-        reference: fallbackRef,
-        amount: amount,
-        upiId: 'krishpay@fam',
-        qrUrl: '',
-        expiresAt: Date.now() + 15 * 60 * 1000,
-      });
-      setTimeLeft(900);
-      addToast('Invoice created. Please transfer or submit UTR below.', 'info', 'Invoice Ready');
+      addToast(
+        'Unable to connect to UPI payment gateway. Please check connection or use manual deposit.',
+        'error',
+        'Connection Error'
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -142,7 +168,7 @@ export const DepositHub: React.FC = () => {
     addToast('Invoice cancelled. You can select another amount.', 'info', 'Invoice Cancelled');
   };
 
-  const handleSimulatePayment = async () => {
+  const handleCheckPaymentStatus = async () => {
     const payAmount = activeInvoice ? activeInvoice.amount : amount;
     const refCode = activeInvoice?.reference;
 
@@ -164,7 +190,11 @@ export const DepositHub: React.FC = () => {
           addToast(`Payment of ₹${payAmount} confirmed and credited!`, 'success', 'Deposit Completed');
           return;
         } else {
-          addToast('Payment not yet detected by bank gateway. If paid, please wait a moment or submit UTR below.', 'info', 'Awaiting Bank Update');
+          addToast(
+            'Payment not yet detected by bank gateway. If paid, please wait a moment or submit UTR below.',
+            'info',
+            'Awaiting Bank Update'
+          );
           setIsVerifying(false);
           return;
         }
@@ -176,30 +206,51 @@ export const DepositHub: React.FC = () => {
     }
 
     setIsVerifying(false);
-    addToast('Please use UPI App or Manual UTR to complete your deposit.', 'info', 'Payment Notice');
+    addToast('Please use UPI Direct or submit your UTR reference below.', 'info', 'Payment Notice');
   };
 
   const handleUtrSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!utrNumber || utrNumber.trim().length < 6) {
-      addToast('Please enter a valid 12-digit UTR transaction reference number.', 'error', 'Invalid UTR');
+    const cleanUtr = utrNumber.trim();
+    if (!cleanUtr || cleanUtr.length < 6) {
+      addToast('Please enter a valid transaction reference or 12-digit UTR.', 'error', 'Invalid Reference');
       return;
     }
 
     const payAmount = activeInvoice ? activeInvoice.amount : amount;
 
     setIsVerifying(true);
-    addToast('Submitting UTR transaction for verification...', 'info', 'Verifying');
+    addToast('Submitting payment reference for verification...', 'info', 'Verifying');
 
     try {
-      await depositApi.submitManual(1, utrNumber.trim(), payAmount);
+      const methodId =
+        selectedMethod === 'usdt_bep20' && activeManualMethod ? activeManualMethod.id : 1;
+      const res = await depositApi.submitManual(methodId, cleanUtr, payAmount);
+
+      if (res && res.success) {
+        addToast(
+          res.message || 'Deposit submitted successfully! Balance will be credited upon verification.',
+          'success',
+          'Submitted'
+        );
+        submitDeposit(selectedMethod, payAmount, cleanUtr);
+        setUtrNumber('');
+        setActiveInvoice(null);
+      } else {
+        addToast(
+          res?.error || 'Failed to submit reference. Please try again.',
+          'error',
+          'Submission Failed'
+        );
+      }
     } catch {
-      // offline fallback
+      addToast(
+        'Network error while submitting reference. Please verify your connection.',
+        'error',
+        'Submission Error'
+      );
     } finally {
       setIsVerifying(false);
-      submitDeposit('upi_direct', payAmount, utrNumber.trim());
-      setUtrNumber('');
-      setActiveInvoice(null);
     }
   };
 
@@ -234,7 +285,7 @@ export const DepositHub: React.FC = () => {
             <Zap className="w-4 h-4 text-[#8b5cf6]" />
           </div>
           <span className="text-xs font-bold leading-tight">FamPay QR</span>
-          <span className="text-[9px] text-[#22c55e] mt-0.5 font-medium">Instant</span>
+          <span className="text-[9px] text-[#22c55e] mt-0.5 font-medium">Auto QR</span>
         </button>
 
         {/* UPI Direct */}
@@ -253,7 +304,7 @@ export const DepositHub: React.FC = () => {
           <span className="text-[9px] text-[#a1a1aa] mt-0.5 font-medium">Any UPI App</span>
         </button>
 
-        {/* USDT BEP20 */}
+        {/* Crypto / Manual */}
         <button
           onClick={() => setSelectedMethod('usdt_bep20')}
           className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
@@ -265,8 +316,8 @@ export const DepositHub: React.FC = () => {
           <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center mb-1.5">
             <Coins className="w-4 h-4 text-amber-400" />
           </div>
-          <span className="text-xs font-bold leading-tight">USDT BEP20</span>
-          <span className="text-[9px] text-[#a1a1aa] mt-0.5 font-medium">Crypto</span>
+          <span className="text-xs font-bold leading-tight">Crypto & Custom</span>
+          <span className="text-[9px] text-[#a1a1aa] mt-0.5 font-medium">Cwallet / USDT</span>
         </button>
       </div>
 
@@ -426,7 +477,7 @@ export const DepositHub: React.FC = () => {
                       alt={`FamPay ₹${activeInvoice.amount}`}
                       className="w-36 h-36 object-contain"
                       onError={() => {
-                        setActiveInvoice((prev) => prev ? { ...prev, qrUrl: '' } : null);
+                        setActiveInvoice((prev) => (prev ? { ...prev, qrUrl: '' } : null));
                       }}
                     />
                   </div>
@@ -438,7 +489,7 @@ export const DepositHub: React.FC = () => {
                   </div>
                   <span className="text-sm font-bold text-white">QR Code Not Available Yet</span>
                   <span className="text-xs text-[#a1a1aa] mt-1 max-w-xs">
-                    Automated FamPay QR gateway is currently unconfigured. Please use UPI ID or manual deposit below.
+                    Automated QR gateway is awaiting configuration. Please use UPI ID or manual deposit below.
                   </span>
                 </div>
               )}
@@ -451,25 +502,27 @@ export const DepositHub: React.FC = () => {
               </span>
 
               {/* UPI ID Copy Box */}
-              <div className="w-full flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 my-3">
-                <div className="flex flex-col text-left">
-                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">UPI VPA</span>
-                  <span className="text-xs font-mono font-bold text-white">{activeInvoice.upiId}</span>
+              {activeInvoice.upiId ? (
+                <div className="w-full flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 my-3">
+                  <div className="flex flex-col text-left">
+                    <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">UPI VPA</span>
+                    <span className="text-xs font-mono font-bold text-white">{activeInvoice.upiId}</span>
+                  </div>
+                  <button
+                    onClick={handleCopyUpi}
+                    className="flex items-center gap-1.5 bg-[#1f1f2a] hover:bg-[#262630] text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-[#262630] text-white transition-colors"
+                  >
+                    {copiedUpi ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
+                    <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
+                  </button>
                 </div>
-                <button
-                  onClick={handleCopyUpi}
-                  className="flex items-center gap-1.5 bg-[#1f1f2a] hover:bg-[#262630] text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-[#262630] text-white transition-colors"
-                >
-                  {copiedUpi ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
-                  <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
+              ) : null}
 
               {/* Action Buttons: Status Check & Cancel */}
               <div className="w-full flex flex-col gap-2 mt-1">
                 {timeLeft > 0 ? (
                   <button
-                    onClick={handleSimulatePayment}
+                    onClick={handleCheckPaymentStatus}
                     disabled={isVerifying}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-95 disabled:opacity-50"
                   >
@@ -562,15 +615,19 @@ export const DepositHub: React.FC = () => {
             <div className="w-full flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 mb-3">
               <div className="flex flex-col">
                 <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Merchant UPI</span>
-                <span className="text-xs font-mono font-bold text-white">{upiId}</span>
+                <span className="text-xs font-mono font-bold text-white">
+                  {merchantUpi || 'Contact @patelkrish_99bot for UPI'}
+                </span>
               </div>
-              <button
-                onClick={handleCopyUpi}
-                className="flex items-center gap-1.5 bg-[#1f1f2a] text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-[#262630] text-white"
-              >
-                {copiedUpi ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
-                <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
-              </button>
+              {merchantUpi ? (
+                <button
+                  onClick={handleCopyUpi}
+                  className="flex items-center gap-1.5 bg-[#1f1f2a] text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-[#262630] text-white hover:bg-[#262630]"
+                >
+                  {copiedUpi ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
+                  <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
+                </button>
+              ) : null}
             </div>
 
             <span className="text-xs font-bold text-white mb-1">
@@ -598,7 +655,7 @@ export const DepositHub: React.FC = () => {
         </div>
       )}
 
-      {/* METHOD 3: USDT BEP20 CRYPTO */}
+      {/* METHOD 3: LIVE CRYPTO & MANUAL CUSTOM METHODS */}
       {selectedMethod === 'usdt_bep20' && (
         <div className="flex flex-col gap-4">
           {/* Amount Selector Card */}
@@ -635,36 +692,115 @@ export const DepositHub: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col text-left">
-            <div className="p-3 bg-[#7c3aed]/15 border border-[#7c3aed]/30 rounded-xl mb-3 flex items-center justify-between">
-              <span className="text-xs text-white">Fixed Exchange Rate:</span>
-              <span className="text-xs font-bold text-[#22c55e] font-mono">$1.00 USDT = ₹94.00</span>
+          {isLoadingManual ? (
+            <div className="p-8 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col items-center justify-center">
+              <div className="w-6 h-6 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin mb-2" />
+              <span className="text-xs text-[#a1a1aa]">Loading payment methods...</span>
             </div>
-
-            <span className="text-xs font-bold text-white mb-1">
-              USDT (BEP20 / BSC) Deposit Address:
-            </span>
-            <div className="w-full flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2.5 mb-3">
-              <span className="text-[11px] font-mono text-[#8b5cf6] break-all mr-2">
-                {cryptoAddress}
-              </span>
-              <button
-                onClick={handleCopyCrypto}
-                className="shrink-0 p-2 bg-[#1f1f2a] rounded-lg border border-[#262630] text-white hover:bg-[#262630]"
-              >
-                {copiedCrypto ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
+          ) : manualMethods.length === 0 ? (
+            <div className="p-6 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3">
+                <AlertTriangle className="w-6 h-6 text-amber-400" />
+              </div>
+              <span className="text-sm font-bold text-white">No Crypto Gateways Active</span>
+              <p className="text-xs text-[#a1a1aa] mt-1 max-w-xs">
+                Custom crypto payment methods (Cwallet / USDT) are currently not configured. Please use FamPay QR or contact support @patelkrish_99bot.
+              </p>
             </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {/* Selector Pills if multiple methods exist */}
+              {manualMethods.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {manualMethods.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedManualId(m.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                        (selectedManualId === m.id || (!selectedManualId && manualMethods[0].id === m.id))
+                          ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
+                          : 'bg-[#181820] text-[#a1a1aa] border border-[#262630]'
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-            <button
-              onClick={handleSimulatePayment}
-              disabled={isVerifying}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#f59e0b] hover:bg-amber-600 text-black font-bold text-xs shadow-amber-glow transition-all active:scale-95 disabled:opacity-50"
-            >
-              <Coins className="w-4 h-4" />
-              <span>{isVerifying ? 'Detecting on Blockchain...' : `Verify Crypto Transfer ($${(amount / 94).toFixed(2)})`}</span>
-            </button>
-          </div>
+              {activeManualMethod && (
+                <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col text-left">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-bold text-white flex items-center gap-2">
+                      <Coins className="w-4 h-4 text-amber-400" />
+                      {activeManualMethod.name}
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e] font-semibold">
+                      Manual Verification
+                    </span>
+                  </div>
+
+                  {/* Instructions / Caption */}
+                  {activeManualMethod.caption && (
+                    <div className="p-3 bg-[#121217] border border-[#262630] rounded-xl mb-3 flex items-start justify-between gap-2">
+                      <span className="text-xs text-[#e4e4e7] leading-relaxed break-words whitespace-pre-wrap">
+                        {activeManualMethod.caption.replace(/<[^>]+>/g, ' ')}
+                      </span>
+                      <button
+                        onClick={() => handleCopyCustom(activeManualMethod.caption.replace(/<[^>]+>/g, ' '))}
+                        className="p-1.5 bg-[#1f1f2a] rounded-lg border border-[#262630] text-white hover:bg-[#262630] shrink-0"
+                        title="Copy instructions"
+                      >
+                        {copiedText ? (
+                          <Check className="w-3.5 h-3.5 text-[#22c55e]" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* QR Code image if exists */}
+                  {activeManualMethod.qr_url ? (
+                    <div className="flex flex-col items-center justify-center my-2 p-3 bg-[#121217] rounded-xl border border-[#262630]">
+                      <img
+                        src={activeManualMethod.qr_url}
+                        alt={activeManualMethod.name}
+                        className="w-44 h-44 object-contain rounded-xl bg-white p-2"
+                      />
+                      <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
+                        <QrCode className="w-3 h-3 text-[#8b5cf6]" />
+                        Scan QR code with your {activeManualMethod.name} app
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {/* Step 2: Submit Reference */}
+                  <span className="text-xs font-bold text-white mb-1 mt-2">
+                    Submit Transaction ID / Reference
+                  </span>
+                  <form onSubmit={handleUtrSubmit} className="flex flex-col gap-2.5">
+                    <input
+                      type="text"
+                      value={utrNumber}
+                      onChange={(e) => setUtrNumber(e.target.value)}
+                      placeholder="Enter Transaction ID / Hash / Reference"
+                      className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed]"
+                      required
+                    />
+                    <button
+                      type="submit"
+                      disabled={isVerifying}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold text-xs shadow-violet-glow transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{isVerifying ? 'Submitting Reference...' : `Submit Reference for ₹${amount}`}</span>
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
