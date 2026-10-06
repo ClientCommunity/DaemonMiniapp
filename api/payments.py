@@ -49,8 +49,12 @@ def check_fampay_status():
 @payments_bp.route("/api/deposit/manual/methods", methods=["GET"])
 def list_manual_methods():
     """Return available manual deposit payment methods."""
-    methods = get_manual_methods()
-    return jsonify({"success": True, "methods": methods})
+    data = get_manual_methods()
+    return jsonify({
+        "success": True,
+        "methods": data.get("methods", []),
+        "merchant_upi": data.get("merchant_upi", "")
+    })
 
 
 @payments_bp.route("/api/deposit/manual/submit", methods=["POST"])

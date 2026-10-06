@@ -107,12 +107,31 @@ def check_fampay_order(reference: str) -> dict[str, Any]:
     }
 
 
-def get_manual_methods() -> list[dict[str, Any]]:
-    """Return enabled manual deposit methods."""
+def get_manual_methods() -> dict[str, Any]:
+    """Return enabled manual deposit methods and active merchant UPI."""
     with connect() as conn:
-        rows = conn.execute("SELECT id, name, caption FROM custom_payments ORDER BY id ASC").fetchall()
+        rows = conn.execute("SELECT id, name, caption, qr_file_id FROM custom_payments ORDER BY id ASC").fetchall()
+        gw = conn.execute("SELECT upi_id FROM fampay_gateways WHERE enabled = 1 LIMIT 1").fetchone()
+        setting_upi = conn.execute("SELECT value FROM settings WHERE key = 'fampay_upi_id'").fetchone()
 
-    return [{"id": r["id"], "name": r["name"], "caption": r["caption"]} for r in rows]
+    merchant_upi = ""
+    if gw and gw["upi_id"]:
+        merchant_upi = str(gw["upi_id"]).strip()
+    elif setting_upi and setting_upi["value"]:
+        merchant_upi = str(setting_upi["value"]).strip()
+
+    return {
+        "methods": [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "caption": r["caption"],
+                "qr_url": r["qr_file_id"] or ""
+            }
+            for r in rows
+        ],
+        "merchant_upi": merchant_upi,
+    }
 
 
 def submit_manual_deposit(user_id: int, method_id: int | str, utr: str, amount: int = 0) -> dict[str, Any]:
