@@ -18,6 +18,7 @@ import string
 import unicodedata
 import secrets
 import io
+import qrcode
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify
 import threading
@@ -2865,6 +2866,27 @@ def fampay_setting(key, default=""):
     row = cur.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
     return str(row[0]) if row and row[0] is not None else str(default)
 
+def _generate_qr_sync(text: str, filename: str) -> io.BytesIO:
+    """CPU-bound QR matrix computation & PNG compression in RAM."""
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(text)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    buf.name = filename
+    return buf
+
+async def generate_qr_image_async(text_or_url: str, filename: str = "qr.png") -> io.BytesIO:
+    """Non-blocking async QR generator for Telethon. Runs in a thread to keep the event loop fast."""
+    return await asyncio.to_thread(_generate_qr_sync, text_or_url, filename)
+
 async def create_fampay_checkout(uid, amount, old_reference=None, gateway_id=None):
     if gateway_id:
         gateway = cur.execute("SELECT id,name,upi_id,payment_name FROM fampay_gateways WHERE id=? AND enabled=1", (gateway_id,)).fetchone()
@@ -2887,21 +2909,12 @@ async def create_fampay_checkout(uid, amount, old_reference=None, gateway_id=Non
     db.commit()
     upi_query = urllib.parse.urlencode({"pa": upi_id, "pn": payment_name, "am": str(amount), "tn": reference})
     upi_uri = f"upi://pay?{upi_query}"
-    qr_url = "https://quickchart.io/qr?" + urllib.parse.urlencode({"text": upi_uri, "size": "700"})
     caption = (f"📥 <b>Automatic Deposit Request</b>\n\n"
                f"Amount: <b>₹{amount}</b>\nReference: <code>{reference}</code>\n"
                f"Gateway: <b>{html.escape(gateway[1]) if gateway else 'FamPay'}</b>\nUPI: <code>{html.escape(upi_id)}</code>\n\n"
                f"Pay the exact amount within {FAMPAY_ORDER_TTL // 60} minutes. Verification runs automatically, or press Check Payment.")
     try:
-        timeout=aiohttp.ClientTimeout(total=15)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(qr_url) as response:
-                if response.status!=200 or not response.headers.get("Content-Type","").casefold().startswith("image/"):
-                    raise FamPayError(f"QR service returned HTTP {response.status} or non-image content")
-                image_data=await response.read()
-        if not image_data or len(image_data)>5*1024*1024:
-            raise FamPayError("QR image is empty or too large")
-        qr_image=io.BytesIO(image_data);qr_image.name=f"fampay-{reference}.png"
+        qr_image = await generate_qr_image_async(upi_uri, filename=f"fampay-{reference}.png")
         sent = await bot.send_file(uid, qr_image, caption=caption, parse_mode="html", force_document=False, buttons=[
             [p_btn("✅ Check Payment", f"fampay_check|{reference}", style="success")],
             [p_btn("♻️ Regenerate QR", f"fampay_regen|{reference}", style="primary")],
