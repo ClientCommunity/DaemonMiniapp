@@ -497,8 +497,10 @@ def get_service_server_config(server_no: int) -> dict[str, Any]:
     with connect() as conn:
         r = conn.execute("SELECT * FROM service_servers WHERE server_no = ?", (server_no,)).fetchone()
     if not r:
-        return {"server_no": server_no, "service_enabled": 0, "api_enabled": 0}
-    return dict(r)
+        return {"server_no": server_no, "service_enabled": 0, "api_enabled": 0, "has_api_key": False}
+    d = dict(r)
+    d["has_api_key"] = bool(d.get("api_key"))
+    return d
 
 
 def update_service_server_config(server_no: int, updates: dict[str, Any]) -> dict[str, Any]:
@@ -508,6 +510,18 @@ def update_service_server_config(server_no: int, updates: dict[str, Any]) -> dic
         "percent_markup", "fixed_markup", "priority", "minimum_price", "maximum_price",
         "retry_count", "timeout_seconds"
     }
+    # Auto-encrypt api_key if provided as plain text
+    if "api_key" in updates and updates["api_key"]:
+        raw_key = str(updates["api_key"]).strip()
+        if raw_key and not raw_key.startswith("enc:"):
+            try:
+                from secrets_manager import encrypt_secret
+                updates["api_key"] = f"enc:{encrypt_secret(raw_key)}"
+            except Exception:
+                updates["api_key"] = raw_key
+        elif not raw_key:
+            updates["api_key"] = ""
+
     cols = []
     vals = []
     for k, v in updates.items():
