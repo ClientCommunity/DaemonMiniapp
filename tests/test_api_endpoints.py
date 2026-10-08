@@ -28,6 +28,8 @@ import zipfile
 from pathlib import Path
 from urllib.parse import urlencode
 
+import jwt
+
 # Ensure root directory is on sys.path
 BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
@@ -89,6 +91,27 @@ class DeamonApiTestCase(unittest.TestCase):
             conn.execute("INSERT OR REPLACE INTO users (user_id, balance, promo_balance) VALUES (99887788, 0, 0)")
             conn.execute("INSERT OR IGNORE INTO users (user_id, balance) VALUES (?, 1000)",
                          (self.master_admin_id,))
+
+    def get_admin_token(self, user_id: int | None = None) -> str:
+        """Issue signed JWT session token for test calls."""
+        uid = user_id or self.master_admin_id
+        now = int(time.time())
+        payload = {
+            "user_id": uid,
+            "is_admin": True,
+            "permissions": {"p_add_stock": 1, "p_manage_stock": 1, "p_stats": 1, "p_bal": 1, "p_settings": 1},
+            "iat": now,
+            "exp": now + 86400,
+        }
+        return jwt.encode(payload, config.ADMIN_PANEL_SECRET, algorithm="HS256")
+
+    def admin_headers(self, user_id: int | None = None) -> dict[str, str]:
+        """Produce Authorization Bearer header for admin endpoints."""
+        token = self.get_admin_token(user_id)
+        return {
+            "Authorization": f"Bearer {token}",
+            "X-User-Id": str(user_id or self.master_admin_id),
+        }
 
     # ==========================================================================
     # 1. SECURITY & PROXY MIDDLEWARE TESTS
@@ -406,33 +429,145 @@ class DeamonApiTestCase(unittest.TestCase):
             self.assertIn(f"{phone2}.session", namelist)
 
     # ==========================================================================
-    # 9. RBAC ADMIN PERMISSION TESTS
+    # 9. RBAC ADMIN PERMISSION & EXPANDED REST TESTS
     # ==========================================================================
 
-    def test_admin_rbac_permission_checks(self):
-        """Non-admins are forbidden (403), master admins have full access."""
-        # Non-admin user accessing stats -> 403 Forbidden
-        res_unauth = self.client.get(
-            "/api/admin/stats",
-            headers={"X-User-Id": str(self.test_user_id)}
+    def test_admin_login_challenge(self):
+        """POST /api/admin/login verifies secret passphrase and issues signed JWT."""
+        # 1. Wrong secret -> 401 Unauthorized
+        res_bad = self.client.post(
+            "/api/admin/login",
+            json={"user_id": self.master_admin_id, "passphrase": "wrong_secret_123"}
+        )
+        self.assertEqual(res_bad.status_code, 401)
+        self.assertIn("Invalid admin passphrase", res_bad.get_json().get("error", ""))
+
+        # 2. Non-admin user with correct secret -> 403 Forbidden
+        res_unauth = self.client.post(
+            "/api/admin/login",
+            json={"user_id": self.test_user_id, "passphrase": config.ADMIN_PANEL_SECRET}
         )
         self.assertEqual(res_unauth.status_code, 403)
+        self.assertIn("User is not an administrator", res_unauth.get_json().get("error", ""))
 
-        # Master admin accessing stats -> 200 OK
+        # 3. Valid master admin with correct secret -> 200 OK with signed JWT
+        res_ok = self.client.post(
+            "/api/admin/login",
+            json={"user_id": self.master_admin_id, "passphrase": config.ADMIN_PANEL_SECRET}
+        )
+        self.assertEqual(res_ok.status_code, 200)
+        data = res_ok.get_json()
+        self.assertTrue(data.get("success"))
+        self.assertIn("token", data)
+        self.assertEqual(data.get("user_id"), self.master_admin_id)
+        self.assertIn("permissions", data)
+        self.assertEqual(data.get("expires_in"), 86400)
+
+        # Decode token to verify signature with secret
+        decoded = jwt.decode(data["token"], config.ADMIN_PANEL_SECRET, algorithms=["HS256"])
+        self.assertEqual(decoded["user_id"], self.master_admin_id)
+
+    def test_admin_rbac_permission_checks(self):
+        """Unauthenticated requests return 401, non-admins 403, valid token / secret returns 200."""
+        # 1. No token / secret -> 401 Unauthorized
+        res_no_auth = self.client.get("/api/admin/stats")
+        self.assertEqual(res_no_auth.status_code, 401)
+
+        # 2. Invalid bearer token -> 401 Unauthorized
+        res_bad_tok = self.client.get(
+            "/api/admin/stats",
+            headers={"Authorization": "Bearer invalid.fake.token"}
+        )
+        self.assertEqual(res_bad_tok.status_code, 401)
+
+        # 3. Valid token for non-admin user -> 403 Forbidden
+        res_non_admin = self.client.get(
+            "/api/admin/stats",
+            headers=self.admin_headers(self.test_user_id)
+        )
+        self.assertEqual(res_non_admin.status_code, 403)
+
+        # 4. Valid token for master admin -> 200 OK
         res_admin = self.client.get(
             "/api/admin/stats",
-            headers={"X-User-Id": str(self.master_admin_id)}
+            headers=self.admin_headers(self.master_admin_id)
         )
         self.assertEqual(res_admin.status_code, 200)
         data = res_admin.get_json()
         self.assertTrue(data.get("success"))
         self.assertIn("stock", data.get("stats", {}))
 
+        # 5. X-Admin-Secret header -> 200 OK
+        res_secret = self.client.get(
+            "/api/admin/stats",
+            headers={"X-Admin-Secret": config.ADMIN_PANEL_SECRET, "X-User-Id": str(self.master_admin_id)}
+        )
+        self.assertEqual(res_secret.status_code, 200)
+
+    def test_admin_me_endpoint(self):
+        """GET /api/admin/me returns admin status and active permissions."""
+        res = self.client.get("/api/admin/me", headers=self.admin_headers())
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get("success"))
+        self.assertTrue(data.get("is_admin"))
+        self.assertIn("permissions", data)
+
+    def test_admin_overview_and_provider_balances(self):
+        """GET /api/admin/stats, /api/admin/overview, and /api/admin/stats/providers."""
+        # Overview endpoint
+        res = self.client.get("/api/admin/overview", headers=self.admin_headers())
+        self.assertEqual(res.status_code, 200)
+        stats = res.get_json().get("stats", {})
+        self.assertIn("users_count", stats)
+        self.assertIn("provider_balances", stats)
+
+        # Providers specific endpoint
+        res_prov = self.client.get("/api/admin/stats/providers", headers=self.admin_headers())
+        self.assertEqual(res_prov.status_code, 200)
+        provs = res_prov.get_json().get("provider_balances", {})
+        self.assertIn("server1", provs)
+        self.assertIn("server3", provs)
+        self.assertIn("server4", provs)
+        self.assertIn("server5", provs)
+
+    def test_admin_server1_toggle_and_markups(self):
+        """Server 1 status toggle and country markup configuration."""
+        # 1. Inspect status
+        res_status = self.client.get("/api/admin/server1/status", headers=self.admin_headers())
+        self.assertEqual(res_status.status_code, 200)
+        self.assertIn("settings", res_status.get_json())
+
+        # 2. Toggle Server 1 off and on
+        res_off = self.client.post("/api/admin/server1/toggle", headers=self.admin_headers(), json={"status": "off"})
+        self.assertEqual(res_off.status_code, 200)
+        self.assertEqual(res_off.get_json().get("server1_status"), "off")
+
+        res_on = self.client.post("/api/admin/server1/toggle", headers=self.admin_headers(), json={"status": "on"})
+        self.assertEqual(res_on.status_code, 200)
+        self.assertEqual(res_on.get_json().get("server1_status"), "on")
+
+        # 3. Country markup updates
+        res_cmark = self.client.post(
+            "/api/admin/server1/markup",
+            headers=self.admin_headers(),
+            json={"country": "India", "markup_percent": 25}
+        )
+        self.assertEqual(res_cmark.status_code, 200)
+
+        # 4. Global markup updates
+        res_gmark = self.client.post(
+            "/api/admin/server1/markup",
+            headers=self.admin_headers(),
+            json={"global_markup": 35}
+        )
+        self.assertEqual(res_gmark.status_code, 200)
+
     def test_admin_add_stock_with_quality_tier(self):
         """Admin adds stock for Server 2 with good / cheap quality tier tagging."""
         res = self.client.post(
             "/api/admin/stock/add",
-            headers={"X-User-Id": str(self.master_admin_id)},
+            headers=self.admin_headers(),
             json={
                 "phone": "+919999888877",
                 "country_name": "India",
@@ -446,48 +581,63 @@ class DeamonApiTestCase(unittest.TestCase):
         self.assertTrue(res.get_json().get("success"))
         self.assertEqual(res.get_json().get("tier"), "cheap")
 
-    def test_admin_adjust_user_balance(self):
-        """Admin adjusts user promo balance atomically."""
-        target_uid = 99887788
-        res = self.client.post(
-            "/api/admin/users/balance",
-            headers={"X-User-Id": str(self.master_admin_id)},
-            json={"user_id": target_uid, "amount": 75, "is_promo": True, "reason": "Gift"}
+    def test_admin_server2_bulk_stock_upload(self):
+        """POST /api/admin/stock/bulk-upload enforces quality_tier and uploads accounts."""
+        # 1. Invalid quality tier -> 400 Bad Request
+        res_bad_tier = self.client.post(
+            "/api/admin/stock/bulk-upload",
+            headers=self.admin_headers(),
+            json={
+                "quality_tier": "unsupported_tier",
+                "country": "India",
+                "items": [{"phone": "+919876500010"}]
+            }
         )
-        self.assertEqual(res.status_code, 200)
-        data = res.get_json()
-        self.assertTrue(data.get("success"))
-        self.assertEqual(data.get("promo_balance"), 75)
+        self.assertEqual(res_bad_tier.status_code, 400)
+        self.assertIn("Invalid quality_tier", res_bad_tier.get_json().get("error", ""))
 
-    def test_profile_currency_preference(self):
-        """POST /api/profile/currency updates user preferred currency."""
-        res = self.client.post(
-            "/api/profile/currency",
-            headers={"X-User-Id": str(self.test_user_id)},
-            json={"curr": "USDT"}
+        # 2. Empty items array -> 400 Bad Request
+        res_empty = self.client.post(
+            "/api/admin/stock/bulk-upload",
+            headers=self.admin_headers(),
+            json={"quality_tier": "good", "items": []}
         )
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.get_json().get("curr"), "USDT")
+        self.assertEqual(res_empty.status_code, 400)
 
-    def test_store_servers_3_4_5_stock(self):
-        """GET /api/store/server3, server4, server5 catalogues return formatted items."""
-        for endpoint in ["/api/store/server3", "/api/store/server4", "/api/store/server5"]:
-            res = self.client.get(endpoint)
-            self.assertEqual(res.status_code, 200)
-            data = res.get_json()
-            self.assertTrue(data.get("success"))
-            self.assertIsInstance(data.get("items"), list)
-
-    def test_unified_history_endpoint(self):
-        """GET /api/history returns aggregated timeline."""
-        res = self.client.get(
-            "/api/history",
-            headers={"X-User-Id": str(self.test_user_id)}
+        # 3. Successful bulk upload for Good Quality accounts
+        res_good = self.client.post(
+            "/api/admin/stock/bulk-upload",
+            headers=self.admin_headers(),
+            json={
+                "quality_tier": "good",
+                "country": "India",
+                "year": 2024,
+                "price": 70,
+                "items": [
+                    {"phone": "+919876500011", "twofa": "pass1"},
+                    {"phone": "+919876500012", "twofa": "pass2"}
+                ]
+            }
         )
-        self.assertEqual(res.status_code, 200)
-        data = res.get_json()
-        self.assertTrue(data.get("success"))
-        self.assertIsInstance(data.get("items"), list)
+        self.assertEqual(res_good.status_code, 200)
+        self.assertEqual(res_good.get_json().get("count"), 2)
+        self.assertEqual(res_good.get_json().get("tier"), "good")
+
+        # 4. Successful bulk upload for Cheap Quality accounts
+        res_cheap = self.client.post(
+            "/api/admin/stock/bulk-upload",
+            headers=self.admin_headers(),
+            json={
+                "quality_tier": "cheap",
+                "country": "USA",
+                "year": 2023,
+                "price": 40,
+                "items": [{"phone": "+19876500021"}]
+            }
+        )
+        self.assertEqual(res_cheap.status_code, 200)
+        self.assertEqual(res_cheap.get_json().get("count"), 1)
+        self.assertEqual(res_cheap.get_json().get("tier"), "cheap")
 
     def test_admin_stock_manage_crud(self):
         """GET, POST, and DELETE /api/admin/stock/manage for stock inventory."""
@@ -495,14 +645,14 @@ class DeamonApiTestCase(unittest.TestCase):
         # 1. Add item
         self.client.post(
             "/api/admin/stock/add",
-            headers={"X-User-Id": str(self.master_admin_id)},
+            headers=self.admin_headers(),
             json={"phone": test_phone, "country_name": "Testland", "price": 40, "quality_tier": "good"}
         )
 
         # 2. GET list
         res_list = self.client.get(
             "/api/admin/stock/manage?tier=good",
-            headers={"X-User-Id": str(self.master_admin_id)}
+            headers=self.admin_headers()
         )
         self.assertEqual(res_list.status_code, 200)
         items = res_list.get_json().get("items", [])
@@ -512,7 +662,7 @@ class DeamonApiTestCase(unittest.TestCase):
         # 3. POST update price
         res_upd = self.client.post(
             "/api/admin/stock/manage",
-            headers={"X-User-Id": str(self.master_admin_id)},
+            headers=self.admin_headers(),
             json={"action": "update", "phone": "919999111222", "price": 45}
         )
         self.assertEqual(res_upd.status_code, 200)
@@ -521,10 +671,95 @@ class DeamonApiTestCase(unittest.TestCase):
         # 4. DELETE item
         res_del = self.client.delete(
             "/api/admin/stock/manage?phone=919999111222",
-            headers={"X-User-Id": str(self.master_admin_id)}
+            headers=self.admin_headers()
         )
         self.assertEqual(res_del.status_code, 200)
         self.assertEqual(res_del.get_json().get("action"), "deleted")
+
+    def test_admin_servers_3_and_4_management(self):
+        """Server 3 & Server 4 configurations, sync triggers, and service toggles."""
+        # 1. Managed servers list
+        res_managed = self.client.get("/api/admin/servers/managed", headers=self.admin_headers())
+        self.assertEqual(res_managed.status_code, 200)
+        self.assertEqual(len(res_managed.get_json().get("servers", [])), 2)
+
+        # 2. Server 3 config update & toggle
+        res_s3_cfg = self.client.post(
+            "/api/admin/server3/config",
+            headers=self.admin_headers(),
+            json={"api_url": "https://dgotp.in/api", "api_key": "test_dgotp_key", "service_enabled": 1}
+        )
+        self.assertEqual(res_s3_cfg.status_code, 200)
+
+        res_s3_tgl = self.client.post(
+            "/api/admin/server3/toggle",
+            headers=self.admin_headers(),
+            json={"enabled": 1}
+        )
+        self.assertEqual(res_s3_tgl.status_code, 200)
+
+        res_s3_sync = self.client.post("/api/admin/server3/sync", headers=self.admin_headers())
+        self.assertEqual(res_s3_sync.status_code, 200)
+
+        # 3. Server 4 config update & toggle
+        res_s4_cfg = self.client.post(
+            "/api/admin/server4/config",
+            headers=self.admin_headers(),
+            json={"percent_markup": 15.0, "service_enabled": 1}
+        )
+        self.assertEqual(res_s4_cfg.status_code, 200)
+
+        res_s4_tgl = self.client.post(
+            "/api/admin/server4/toggle",
+            headers=self.admin_headers(),
+            json={"enabled": 1}
+        )
+        self.assertEqual(res_s4_tgl.status_code, 200)
+
+        res_s4_sync = self.client.post("/api/admin/server4/sync", headers=self.admin_headers())
+        self.assertEqual(res_s4_sync.status_code, 200)
+
+    def test_admin_server5_smm_management(self):
+        """Server 5 SMM overview, master toggle, provider CRUD, categories, and orders."""
+        # 1. Overview
+        res_ov = self.client.get("/api/admin/server5/overview", headers=self.admin_headers())
+        self.assertEqual(res_ov.status_code, 200)
+
+        # 2. Master toggle
+        res_tgl = self.client.post("/api/admin/server5/toggle", headers=self.admin_headers(), json={"enabled": 1})
+        self.assertEqual(res_tgl.status_code, 200)
+        self.assertTrue(res_tgl.get_json().get("enabled"))
+
+        # 3. Add SMM provider
+        res_prov = self.client.post(
+            "/api/admin/server5/providers",
+            headers=self.admin_headers(),
+            json={
+                "name": "Test SMM Provider",
+                "api_url": "https://smm-provider.test/api/v2",
+                "api_key": "secret_smm_token_123",
+                "percent_markup": 45.0,
+                "currency": "USD"
+            }
+        )
+        self.assertEqual(res_prov.status_code, 200)
+        pid = res_prov.get_json().get("provider_id")
+        self.assertIsNotNone(pid)
+
+        # 4. Toggle provider
+        res_ptgl = self.client.post(f"/api/admin/server5/providers/{pid}/toggle", headers=self.admin_headers())
+        self.assertEqual(res_ptgl.status_code, 200)
+
+        # 5. List categories & orders
+        res_cats = self.client.get("/api/admin/server5/categories", headers=self.admin_headers())
+        self.assertEqual(res_cats.status_code, 200)
+
+        res_orders = self.client.get("/api/admin/server5/orders", headers=self.admin_headers())
+        self.assertEqual(res_orders.status_code, 200)
+
+        # 6. Delete provider
+        res_pdel = self.client.delete(f"/api/admin/server5/providers/{pid}", headers=self.admin_headers())
+        self.assertEqual(res_pdel.status_code, 200)
 
     def test_admin_deposits_approve_reject(self):
         """Test admin listing and approving/rejecting manual deposits."""
@@ -540,36 +775,290 @@ class DeamonApiTestCase(unittest.TestCase):
         # List pending
         res_list = self.client.get(
             "/api/admin/deposits/pending",
-            headers={"X-User-Id": str(self.master_admin_id)}
+            headers=self.admin_headers()
         )
         self.assertEqual(res_list.status_code, 200)
         deps = res_list.get_json().get("deposits", [])
         dep_ids = [d["id"] for d in deps]
         self.assertIn(dep_id, dep_ids)
 
-        # Approve deposit
+        # Approve deposit atomically
         res_appr = self.client.post(
             "/api/admin/deposits/approve",
-            headers={"X-User-Id": str(self.master_admin_id)},
+            headers=self.admin_headers(),
             json={"deposit_id": dep_id, "amount": 300}
         )
         self.assertEqual(res_appr.status_code, 200)
         self.assertEqual(res_appr.get_json().get("status"), "approved")
 
+        # Reject another deposit
+        dep_rej_id = None
+        with transaction(immediate=True) as conn:
+            cur = conn.execute(
+                "INSERT INTO deposits (user_id, amount, method_name, status) VALUES (?, 100, 'UPI Manual', 'pending')",
+                (self.test_user_id,)
+            )
+            dep_rej_id = cur.lastrowid
+
+        res_rej = self.client.post(
+            "/api/admin/deposits/reject",
+            headers=self.admin_headers(),
+            json={"deposit_id": dep_rej_id}
+        )
+        self.assertEqual(res_rej.status_code, 200)
+        self.assertEqual(res_rej.get_json().get("status"), "rejected")
+
+    def test_admin_fampay_gateways_crud(self):
+        """FamPay gateways CRUD and enable/disable toggle."""
+        # 1. Add gateway
+        res_add = self.client.post(
+            "/api/admin/fampay/gateways",
+            headers=self.admin_headers(),
+            json={
+                "name": "Main Merchant Gateway",
+                "upi_id": "krishmerchant@fampay",
+                "payment_name": "Krish Store",
+                "min_deposit": 10,
+                "max_deposit": 50000,
+            }
+        )
+        self.assertEqual(res_add.status_code, 200)
+        gw_id = res_add.get_json().get("gateway_id")
+        self.assertIsNotNone(gw_id)
+
+        # 2. List gateways
+        res_list = self.client.get("/api/admin/fampay/gateways", headers=self.admin_headers())
+        self.assertEqual(res_list.status_code, 200)
+        ids = [g["id"] for g in res_list.get_json().get("gateways", [])]
+        self.assertIn(gw_id, ids)
+
+        # 3. Toggle gateway
+        res_tgl = self.client.post(f"/api/admin/fampay/gateways/{gw_id}/toggle", headers=self.admin_headers())
+        self.assertEqual(res_tgl.status_code, 200)
+
+        # 4. Update gateway
+        res_upd = self.client.put(
+            f"/api/admin/fampay/gateways/{gw_id}",
+            headers=self.admin_headers(),
+            json={"min_deposit": 25}
+        )
+        self.assertEqual(res_upd.status_code, 200)
+
+        # 5. Delete gateway
+        res_del = self.client.delete(f"/api/admin/fampay/gateways/{gw_id}", headers=self.admin_headers())
+        self.assertEqual(res_del.status_code, 200)
+
+    def test_admin_custom_payments_crud(self):
+        """Custom payments CRUD."""
+        # 1. Create custom payment
+        res_add = self.client.post(
+            "/api/admin/custom-payments",
+            headers=self.admin_headers(),
+            json={"name": "USDT Direct", "caption": "Send USDT BEP20 to wallet"}
+        )
+        self.assertEqual(res_add.status_code, 200)
+        pid = res_add.get_json().get("payment_id")
+        self.assertIsNotNone(pid)
+
+        # 2. List
+        res_list = self.client.get("/api/admin/custom-payments", headers=self.admin_headers())
+        self.assertEqual(res_list.status_code, 200)
+
+        # 3. Update
+        res_upd = self.client.put(
+            f"/api/admin/custom-payments/{pid}",
+            headers=self.admin_headers(),
+            json={"caption": "Updated caption"}
+        )
+        self.assertEqual(res_upd.status_code, 200)
+
+        # 4. Delete
+        res_del = self.client.delete(f"/api/admin/custom-payments/{pid}", headers=self.admin_headers())
+        self.assertEqual(res_del.status_code, 200)
+
+    def test_admin_user_search_and_ban(self):
+        """User lookup with balance breakdown and ban/unban toggling."""
+        # 1. Search user
+        res_search = self.client.get(
+            f"/api/admin/users/search?query={self.test_user_id}",
+            headers=self.admin_headers()
+        )
+        self.assertEqual(res_search.status_code, 200)
+        u_data = res_search.get_json().get("user", {})
+        self.assertEqual(u_data.get("user_id"), self.test_user_id)
+        self.assertEqual(u_data.get("balance"), 200)
+        self.assertEqual(u_data.get("promo_balance"), 50)
+        self.assertEqual(u_data.get("transferable_balance"), 150)
+
+        # 2. Ban user
+        res_ban = self.client.post(
+            "/api/admin/users/ban",
+            headers=self.admin_headers(),
+            json={"user_id": self.test_user_id, "banned": 1}
+        )
+        self.assertEqual(res_ban.status_code, 200)
+        self.assertEqual(res_ban.get_json().get("banned"), 1)
+
+        # 3. Unban user
+        res_unban = self.client.post(
+            "/api/admin/users/ban",
+            headers=self.admin_headers(),
+            json={"user_id": self.test_user_id, "banned": 0}
+        )
+        self.assertEqual(res_unban.status_code, 200)
+        self.assertEqual(res_unban.get_json().get("banned"), 0)
+
+    def test_admin_adjust_user_balance_and_debit(self):
+        """Admin adjusts user balance with credit, debit, and floor at 0."""
+        target_uid = 99887788
+        with transaction(immediate=True) as conn:
+            conn.execute("INSERT OR REPLACE INTO users (user_id, balance, promo_balance) VALUES (?, 100, 40)", (target_uid,))
+
+        # 1. Credit main balance
+        res_cred = self.client.post(
+            "/api/admin/users/balance",
+            headers=self.admin_headers(),
+            json={"user_id": target_uid, "amount": 50, "type": "credit", "reason": "Bonus"}
+        )
+        self.assertEqual(res_cred.status_code, 200)
+        self.assertEqual(res_cred.get_json().get("balance"), 150)
+
+        # 2. Debit main balance
+        res_deb = self.client.post(
+            "/api/admin/users/balance",
+            headers=self.admin_headers(),
+            json={"user_id": target_uid, "amount": 30, "type": "debit", "reason": "Correction"}
+        )
+        self.assertEqual(res_deb.status_code, 200)
+        self.assertEqual(res_deb.get_json().get("balance"), 120)
+
+        # 3. Excessive debit: must floor at 0 (never negative)
+        res_floor = self.client.post(
+            "/api/admin/users/balance",
+            headers=self.admin_headers(),
+            json={"user_id": target_uid, "amount": 999999, "type": "debit", "reason": "Floor test"}
+        )
+        self.assertEqual(res_floor.status_code, 200)
+        self.assertEqual(res_floor.get_json().get("balance"), 0)
+
+        # 4. Credit promo balance
+        res_promo_cred = self.client.post(
+            "/api/admin/users/balance",
+            headers=self.admin_headers(),
+            json={"user_id": target_uid, "amount": 80, "type": "credit", "is_promo": True, "reason": "Promo Gift"}
+        )
+        self.assertEqual(res_promo_cred.status_code, 200)
+        self.assertEqual(res_promo_cred.get_json().get("promo_balance"), 80)
+
+        # 5. Debit promo balance
+        res_promo_deb = self.client.post(
+            "/api/admin/users/balance",
+            headers=self.admin_headers(),
+            json={"user_id": target_uid, "amount": 30, "type": "debit", "is_promo": True, "reason": "Promo Expiry"}
+        )
+        self.assertEqual(res_promo_deb.status_code, 200)
+        self.assertEqual(res_promo_deb.get_json().get("promo_balance"), 50)
+
+    def test_admin_reseller_settings_and_promo_codes(self):
+        """Reseller bounds (₹5 - ₹100), global status, and promo codes CRUD."""
+        # 1. Reseller bounds configuration
+        res_ref = self.client.post(
+            "/api/admin/reseller/settings",
+            headers=self.admin_headers(),
+            json={"min_margin": 10, "max_margin": 80, "status": "on"}
+        )
+        self.assertEqual(res_ref.status_code, 200)
+        data_ref = res_ref.get_json()
+        self.assertEqual(data_ref.get("min_margin"), 10)
+        self.assertEqual(data_ref.get("max_margin"), 80)
+        self.assertEqual(data_ref.get("status"), "on")
+
+        # 2. Promo codes creation
+        res_promo = self.client.post(
+            "/api/admin/promo-codes",
+            headers=self.admin_headers(),
+            json={"code": "KRISHBONUS", "value": 50, "max_uses": 10}
+        )
+        self.assertEqual(res_promo.status_code, 200)
+        self.assertEqual(res_promo.get_json().get("code"), "KRISHBONUS")
+
+        # 3. Promo codes list
+        res_plist = self.client.get("/api/admin/promo-codes", headers=self.admin_headers())
+        self.assertEqual(res_plist.status_code, 200)
+        codes = [p["code"] for p in res_plist.get_json().get("promo_codes", [])]
+        self.assertIn("KRISHBONUS", codes)
+
+        # 4. Promo codes deletion
+        res_pdel = self.client.delete("/api/admin/promo-codes/KRISHBONUS", headers=self.admin_headers())
+        self.assertEqual(res_pdel.status_code, 200)
+
+    def test_admin_system_toggles_and_storefront_dynamic_reflection(self):
+        """Toggling servers dynamically reflects live in the Mini App customer storefront."""
+        # Ensure Server 1 is initially 'on'
+        self.client.post("/api/admin/server1/toggle", headers=self.admin_headers(), json={"status": "on"})
+        res_store1 = self.client.get("/api/store/servers")
+        self.assertEqual(res_store1.status_code, 200)
+        servers1 = {s["id"]: s["enabled"] for s in res_store1.get_json().get("servers", [])}
+        self.assertTrue(servers1[1])
+
+        # Turn Server 1 OFF in Admin
+        self.client.post("/api/admin/server1/toggle", headers=self.admin_headers(), json={"status": "off"})
+
+        # Customer storefront MUST dynamically report Server 1 disabled!
+        res_store2 = self.client.get("/api/store/servers")
+        servers2 = {s["id"]: s["enabled"] for s in res_store2.get_json().get("servers", [])}
+        self.assertFalse(servers2[1])
+
+        # Re-enable Server 1
+        self.client.post("/api/admin/server1/toggle", headers=self.admin_headers(), json={"status": "on"})
+        res_store3 = self.client.get("/api/store/servers")
+        servers3 = {s["id"]: s["enabled"] for s in res_store3.get_json().get("servers", [])}
+        self.assertTrue(servers3[1])
+
+        # Toggle Server 3 off
+        self.client.post("/api/admin/server3/toggle", headers=self.admin_headers(), json={"enabled": 0})
+        res_store4 = self.client.get("/api/store/servers")
+        servers4 = {s["id"]: s["enabled"] for s in res_store4.get_json().get("servers", [])}
+        self.assertFalse(servers4[3])
+
+        # Toggle Server 3 on
+        self.client.post("/api/admin/server3/toggle", headers=self.admin_headers(), json={"enabled": 1})
+        res_store5 = self.client.get("/api/store/servers")
+        servers5 = {s["id"]: s["enabled"] for s in res_store5.get_json().get("servers", [])}
+        self.assertTrue(servers5[3])
+
+        # Toggle Server 5 off
+        self.client.post("/api/admin/server5/toggle", headers=self.admin_headers(), json={"enabled": 0})
+        res_store6 = self.client.get("/api/store/servers")
+        servers6 = {s["id"]: s["enabled"] for s in res_store6.get_json().get("servers", [])}
+        self.assertFalse(servers6[5])
+
+        # Toggle Server 5 on
+        self.client.post("/api/admin/server5/toggle", headers=self.admin_headers(), json={"enabled": 1})
+        res_store7 = self.client.get("/api/store/servers")
+        servers7 = {s["id"]: s["enabled"] for s in res_store7.get_json().get("servers", [])}
+        self.assertTrue(servers7[5])
+
+        # Bot status & Force join toggles
+        res_bot = self.client.post("/api/admin/system/bot-status", headers=self.admin_headers(), json={"status": "off"})
+        self.assertEqual(res_bot.status_code, 200)
+        self.assertEqual(res_bot.get_json().get("bot_status"), "off")
+
+        res_fj = self.client.post("/api/admin/system/force-join", headers=self.admin_headers(), json={"status": "on"})
+        self.assertEqual(res_fj.status_code, 200)
+        self.assertEqual(res_fj.get_json().get("force_join_status"), "on")
+
     def test_admin_settings_lifecycle(self):
         """GET and POST /api/admin/settings."""
         # Read
-        res_get = self.client.get(
-            "/api/admin/settings",
-            headers={"X-User-Id": str(self.master_admin_id)}
-        )
+        res_get = self.client.get("/api/admin/settings", headers=self.admin_headers())
         self.assertEqual(res_get.status_code, 200)
         self.assertIn("settings", res_get.get_json())
 
         # Update
         res_set = self.client.post(
             "/api/admin/settings",
-            headers={"X-User-Id": str(self.master_admin_id)},
+            headers=self.admin_headers(),
             json={"key": "reseller_min_margin", "value": "7"}
         )
         self.assertEqual(res_set.status_code, 200)

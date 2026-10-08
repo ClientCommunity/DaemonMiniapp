@@ -56,6 +56,9 @@ _raw_admin_ids = os.getenv("TELEGRAM_ADMIN_ID", "7507183871,1928631932")
 ADMIN_IDS = {int(x.strip()) for x in _raw_admin_ids.split(",") if x.strip().isdigit()}
 MASTER_ADMIN_IDS = {7507183871, 1928631932} | ADMIN_IDS
 
+# Admin Panel Secret Passphrase & Token Signing Key
+ADMIN_PANEL_SECRET = os.getenv("ADMIN_PANEL_SECRET", "krish_admin_secret_2026").strip()
+
 # Database
 _env_db = os.getenv("BOT_DATABASE")
 DB_PATH = Path(_env_db) if _env_db else (BASE_DIR / "otp_bot_final.db")

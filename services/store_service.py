@@ -15,7 +15,48 @@ logger = logging.getLogger("services.store")
 
 
 def get_all_servers_overview() -> list[dict[str, Any]]:
-    """Return overview metadata for Servers 1 through 5 with zero vendor leaks."""
+    """Return overview metadata for Servers 1 through 5 with zero vendor leaks,
+    dynamically reflecting live status from the database.
+    """
+    server_statuses = {1: True, 2: True, 3: True, 4: True, 5: True}
+    try:
+        with connect() as conn:
+            # Server 1: settings table key 'server1_status' ('on' / 'off')
+            s1_row = conn.execute("SELECT value FROM settings WHERE key = 'server1_status'").fetchone()
+            if s1_row and s1_row["value"]:
+                server_statuses[1] = (s1_row["value"].strip().lower() != "off")
+
+            # Server 2: settings table key 'server2_status' ('on' / 'off')
+            s2_row = conn.execute("SELECT value FROM settings WHERE key = 'server2_status'").fetchone()
+            if s2_row and s2_row["value"]:
+                server_statuses[2] = (s2_row["value"].strip().lower() != "off")
+
+            # Server 3: service_servers table server_no = 3 (service_enabled 1/0) or settings key 'server3_status'
+            s3_setting = conn.execute("SELECT value FROM settings WHERE key = 'server3_status'").fetchone()
+            s3_row = conn.execute("SELECT service_enabled FROM service_servers WHERE server_no = 3").fetchone()
+            if s3_setting and s3_setting["value"]:
+                server_statuses[3] = (s3_setting["value"].strip().lower() != "off")
+            elif s3_row:
+                server_statuses[3] = bool(s3_row["service_enabled"])
+
+            # Server 4: service_servers table server_no = 4 (service_enabled 1/0) or settings key 'server4_status'
+            s4_setting = conn.execute("SELECT value FROM settings WHERE key = 'server4_status'").fetchone()
+            s4_row = conn.execute("SELECT service_enabled FROM service_servers WHERE server_no = 4").fetchone()
+            if s4_setting and s4_setting["value"]:
+                server_statuses[4] = (s4_setting["value"].strip().lower() != "off")
+            elif s4_row:
+                server_statuses[4] = bool(s4_row["service_enabled"])
+
+            # Server 5: smm_settings table key 'enabled' ('1' / '0') or settings key 'server5_status'
+            s5_setting = conn.execute("SELECT value FROM settings WHERE key = 'server5_status'").fetchone()
+            s5_smm = conn.execute("SELECT value FROM smm_settings WHERE key = 'enabled'").fetchone()
+            if s5_setting and s5_setting["value"]:
+                server_statuses[5] = (s5_setting["value"].strip().lower() != "off")
+            elif s5_smm and s5_smm["value"]:
+                server_statuses[5] = (s5_smm["value"].strip().lower() in ("1", "true", "on"))
+    except Exception as exc:
+        logger.warning("Error fetching live server statuses from DB: %s", exc)
+
     servers = []
     for s_no in range(1, 6):
         meta = SERVER_NAMES.get(s_no, {})
@@ -24,7 +65,7 @@ def get_all_servers_overview() -> list[dict[str, Any]]:
             "name": meta.get("name", f"Server {s_no}"),
             "subtitle": meta.get("subtitle", "Online Store"),
             "icon": meta.get("icon", "⚡"),
-            "enabled": True,
+            "enabled": server_statuses.get(s_no, True),
         })
     return servers
 
