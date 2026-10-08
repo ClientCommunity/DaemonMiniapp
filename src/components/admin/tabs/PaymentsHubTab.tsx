@@ -100,6 +100,7 @@ export const PaymentsHubTab: React.FC = () => {
   const [newFpMin, setNewFpMin] = useState('10');
   const [newFpMax, setNewFpMax] = useState('10000');
   const [newFpGmail, setNewFpGmail] = useState('');
+  const [newFpAppPass, setNewFpAppPass] = useState('');
 
   const loadFampayGateways = useCallback(async () => {
     try {
@@ -153,6 +154,7 @@ export const PaymentsHubTab: React.FC = () => {
         min_deposit: parseFloat(newFpMin) || 10,
         max_deposit: parseFloat(newFpMax) || 10000,
         gmail: newFpGmail.trim() || undefined,
+        app_password: newFpAppPass.trim() || undefined,
       });
       if (res?.success) {
         addToast(`FamPay Gateway "${newFpName}" created`, 'success');
@@ -160,6 +162,7 @@ export const PaymentsHubTab: React.FC = () => {
         setNewFpUpi('');
         setNewFpPayName('');
         setNewFpGmail('');
+        setNewFpAppPass('');
         loadFampayGateways();
       }
     } catch {
@@ -527,6 +530,13 @@ export const PaymentsHubTab: React.FC = () => {
                 value={newFpGmail}
                 onChange={(e) => setNewFpGmail(e.target.value)}
                 className="bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
+              />
+              <input
+                type="password"
+                placeholder="Gmail 16-char App Password (Optional)"
+                value={newFpAppPass}
+                onChange={(e) => setNewFpAppPass(e.target.value)}
+                className="bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none font-mono"
               />
             </div>
             <button

@@ -115,6 +115,7 @@ export interface ManagedServerConfig {
   enabled: boolean;
   api_url?: string;
   api_key?: string;
+  has_api_key?: boolean;
   percent_markup?: number;
   fixed_markup?: number;
   [key: string]: unknown;
@@ -182,6 +183,7 @@ export interface FampayGateway {
   min_deposit: number;
   max_deposit: number;
   gmail?: string;
+  app_password?: string;
   enabled: number;
 }
 

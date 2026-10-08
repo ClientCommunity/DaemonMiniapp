@@ -1054,6 +1054,45 @@ export const ServerManagementTab: React.FC = () => {
                     </button>
                   </div>
 
+                  {/* API Credentials */}
+                  <div className="space-y-2 bg-[#121217] p-3 rounded-xl border border-[#262630]">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] text-[#a1a1aa] font-semibold flex items-center gap-1">
+                          <Key className="w-3 h-3 text-[#a78bfa]" />
+                          <span>Provider API Key</span>
+                        </label>
+                        {config.has_api_key ? (
+                          <span className="text-[9px] text-[#22c55e] font-medium bg-[#22c55e]/10 px-1.5 py-0.5 rounded">
+                            ● Configured (Encrypted)
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-[#ef4444] font-medium bg-[#ef4444]/10 px-1.5 py-0.5 rounded">
+                            ● Key Missing
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="password"
+                        placeholder={config.has_api_key ? "•••••••••••• (Enter new key to update)" : "Enter Provider API Key"}
+                        id={`s${serverNo}_api_key`}
+                        className="w-full bg-[#181820] border border-[#262630] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-[#a1a1aa] block mb-1 font-semibold">
+                        API Endpoint URL
+                      </label>
+                      <input
+                        type="text"
+                        defaultValue={config.api_url || (serverNo === 3 ? "https://dgotp.in/stubs/handler_api.php" : "https://api.temporasms.com/stubs/handler_api.php")}
+                        id={`s${serverNo}_api_url`}
+                        className="w-full bg-[#181820] border border-[#262630] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+
                   {/* Pricing Markups */}
                   <div className="grid grid-cols-2 gap-2 bg-[#121217] p-3 rounded-xl border border-[#262630]">
                     <div>
@@ -1080,21 +1119,26 @@ export const ServerManagementTab: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Actions: Save Markups & Sync Catalogue */}
+                  {/* Actions: Save Config & Sync Catalogue */}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
                         const pEl = document.getElementById(`s${serverNo}_percent`) as HTMLInputElement;
                         const fEl = document.getElementById(`s${serverNo}_fixed`) as HTMLInputElement;
+                        const uEl = document.getElementById(`s${serverNo}_api_url`) as HTMLInputElement;
+                        const kEl = document.getElementById(`s${serverNo}_api_key`) as HTMLInputElement;
                         handleUpdateManagedServerConfig(
                           serverNo,
                           parseFloat(pEl?.value || '20'),
-                          parseFloat(fEl?.value || '5')
+                          parseFloat(fEl?.value || '5'),
+                          uEl?.value?.trim() || undefined,
+                          kEl?.value?.trim() || undefined
                         );
+                        if (kEl) kEl.value = '';
                       }}
                       className="flex-1 bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold py-2 rounded-xl text-xs transition-all shadow-sm"
                     >
-                      Save Markups
+                      Save API & Markups
                     </button>
 
                     <button
