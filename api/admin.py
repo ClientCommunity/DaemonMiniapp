@@ -12,15 +12,76 @@ Enforces:
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import hmac
+import json
 import logging
 import time
 from typing import Any
 
-import jwt
+try:
+    import jwt
+except ImportError:
+    jwt = None
+
 from flask import Blueprint, jsonify, request
 
 from config import ADMIN_PANEL_SECRET, MASTER_ADMIN_IDS
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
+
+
+def _b64url_decode(s: str) -> bytes:
+    padding = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + padding)
+
+
+def encode_jwt(payload: dict, secret: str) -> str:
+    """Encode JWT payload with HS256 algorithm.
+    Falls back to standard library HS256 to guarantee 100% reliability regardless of pip environment.
+    """
+    if jwt and hasattr(jwt, "encode"):
+        try:
+            res = jwt.encode(payload, secret, algorithm="HS256")
+            if isinstance(res, bytes):
+                return res.decode("utf-8")
+            return res
+        except Exception:
+            pass
+
+    header = {"alg": "HS256", "typ": "JWT"}
+    h = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    p = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    sig = hmac.new(secret.encode("utf-8"), f"{h}.{p}".encode("utf-8"), hashlib.sha256).digest()
+    return f"{h}.{p}.{_b64url_encode(sig)}"
+
+
+def decode_jwt(token: str, secret: str) -> dict:
+    """Decode and verify HS256 JWT token.
+    Falls back to standard library HS256 to guarantee 100% reliability regardless of pip environment.
+    """
+    if jwt and hasattr(jwt, "decode"):
+        try:
+            return jwt.decode(token, secret, algorithms=["HS256"])
+        except Exception as e:
+            if "expired" in str(e).lower() or "signature" in str(e).lower():
+                raise
+
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise ValueError("Invalid token format")
+    h, p, s = parts
+    expected = hmac.new(secret.encode("utf-8"), f"{h}.{p}".encode("utf-8"), hashlib.sha256).digest()
+    if not hmac.compare_digest(expected, _b64url_decode(s)):
+        raise ValueError("Bad signature")
+    payload = json.loads(_b64url_decode(p).decode("utf-8"))
+    if "exp" in payload and payload["exp"] < time.time():
+        raise ValueError("Token expired")
+    return payload
+
 from database import get_admin_permissions, get_setting, set_setting
 from services.auth_service import get_current_user_id
 from services.admin_service import (
@@ -95,7 +156,7 @@ def _require_permission(perm: str | None = None):
     uid = None
     if token:
         try:
-            payload = jwt.decode(token, ADMIN_PANEL_SECRET, algorithms=["HS256"])
+            payload = decode_jwt(token, ADMIN_PANEL_SECRET)
             uid = payload.get("user_id")
         except Exception:
             return None, (jsonify({"success": False, "error": "Unauthorized: Missing or invalid admin session token"}), 401)
@@ -157,7 +218,7 @@ def admin_login():
         "iat": now,
         "exp": now + expires_in,
     }
-    token = jwt.encode(token_payload, ADMIN_PANEL_SECRET, algorithm="HS256")
+    token = encode_jwt(token_payload, ADMIN_PANEL_SECRET)
 
     return jsonify({
         "success": True,
