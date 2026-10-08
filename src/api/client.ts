@@ -1,12 +1,57 @@
 /**
  * REST API HTTP Client for Telegram Mini App.
- * Handles authentication headers (Telegram initData or development fallback),
+ * Handles authentication headers (Telegram initData, admin Bearer tokens, or development fallback),
  * base URL routing, error normalization, and JSON parsing.
  */
 
 const BASE_URL =
   (import.meta as unknown as { env?: Record<string, string | undefined> })?.env
     ?.VITE_API_BASE_URL || 'https://daemonproxy-7m1m.onrender.com';
+
+const ADMIN_TOKEN_KEY = 'krish_telebot_admin_token';
+let adminSessionToken: string | null = null;
+
+try {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    adminSessionToken = window.sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  }
+} catch {
+  // Session storage access in sandboxed environment
+}
+
+/**
+ * Stores or clears the admin JWT session token in memory and sessionStorage.
+ */
+export function setAdminToken(token: string | null): void {
+  adminSessionToken = token;
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      if (token) {
+        window.sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+      } else {
+        window.sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+      }
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Retrieves the current admin JWT session token from memory or sessionStorage.
+ */
+export function getAdminToken(): string | null {
+  if (!adminSessionToken) {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        adminSessionToken = window.sessionStorage.getItem(ADMIN_TOKEN_KEY);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
+  return adminSessionToken;
+}
 
 /**
  * Extracts raw Telegram WebApp initData string if available in current window.
@@ -78,6 +123,12 @@ export async function apiRequest<T>(
     headers.set('X-User-Id', '7507183871');
   }
 
+  // Inject Bearer Authorization header for admin endpoints if admin token exists
+  const adminToken = getAdminToken();
+  if (adminToken && (endpoint.startsWith('/api/admin') || endpoint.includes('/admin/'))) {
+    headers.set('Authorization', `Bearer ${adminToken}`);
+  }
+
   let response: Response;
   try {
     response = await fetch(url, {
@@ -127,6 +178,17 @@ export const api = {
   post: <T>(endpoint: string, body?: unknown) =>
     apiRequest<T>(endpoint, {
       method: 'POST',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
+  put: <T>(endpoint: string, body?: unknown) =>
+    apiRequest<T>(endpoint, {
+      method: 'PUT',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
+  delete: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>, body?: unknown) =>
+    apiRequest<T>(endpoint, {
+      method: 'DELETE',
+      params,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }),
 };

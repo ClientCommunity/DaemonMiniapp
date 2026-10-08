@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
-import { Header } from './components/common/Header';
+import { AdminProvider, useAdmin } from './context/AdminContext';
+import { Header } from './components/Header';
 import { BottomNav } from './components/common/BottomNav';
 import { ToastContainer } from './components/common/Toast';
 import { InitialLoadingScreen } from './components/common/InitialLoadingScreen';
@@ -11,6 +12,9 @@ import { DepositHub } from './components/deposit/DepositHub';
 import { HistoryView } from './components/history/HistoryView';
 import { ProfileView } from './components/profile/ProfileView';
 import { P2PTransferModal } from './components/profile/P2PTransferModal';
+import { AdminDashboard } from './components/admin/AdminDashboard';
+import { AdminEntryChoiceModal } from './components/admin/AdminEntryChoiceModal';
+import { AdminPassphraseModal } from './components/admin/AdminPassphraseModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -27,6 +31,8 @@ const AppContent: React.FC = () => {
     refreshHistory,
     refreshReseller,
   } = useApp();
+
+  const { isAdminMode } = useAdmin();
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
   // Stale-While-Revalidate (SWR): Refresh active tab data seamlessly in background
@@ -66,7 +72,7 @@ const AppContent: React.FC = () => {
     try {
       const backButton = window.Telegram?.WebApp?.BackButton;
       if (backButton) {
-        if (activeTab !== 'home') {
+        if (activeTab !== 'home' && !isAdminMode) {
           backButton.show();
           const handleBack = () => setActiveTab('home');
           backButton.onClick(handleBack);
@@ -80,7 +86,7 @@ const AppContent: React.FC = () => {
     } catch {
       // not in telegram webview
     }
-  }, [activeTab, setActiveTab]);
+  }, [activeTab, setActiveTab, isAdminMode]);
 
   if (isInitialLoading) {
     return (
@@ -100,12 +106,23 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // When Admin Mode is active, render the comprehensive 5-tab Admin Dashboard UI
+  if (isAdminMode) {
+    return (
+      <div className="relative w-full min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl">
+        <ToastContainer />
+        <AdminDashboard />
+      </div>
+    );
+  }
+
+  // Normal Customer Storefront workspace (strictly preserved with zero regressions)
   return (
     <div className="relative w-full max-w-[430px] mx-auto min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl border-x border-[#181820]/40">
       {/* Toast Notifications */}
       <ToastContainer />
 
-      {/* Persistent Sticky Header */}
+      {/* Persistent Sticky Header with Telegram profile & testing switcher for admins */}
       <Header />
 
       {/* Main View Container */}
@@ -133,10 +150,13 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AdminProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AdminProvider>
   );
 };
 
+export { AdminEntryChoiceModal, AdminPassphraseModal };
 export default App;
