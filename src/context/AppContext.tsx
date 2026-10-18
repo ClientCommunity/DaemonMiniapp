@@ -323,10 +323,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const s34Combined: VirtualOtpServiceItem[] = [];
       if (s3.status === 'fulfilled' && s3.value.success && Array.isArray(s3.value.items)) {
-        s34Combined.push(...s3.value.items.map((item) => adaptServer34Item(item, 3)));
+        s34Combined.push(...s3.value.items.map((item, idx) => adaptServer34Item(item, 3, idx)));
       }
       if (s4.status === 'fulfilled' && s4.value.success && Array.isArray(s4.value.items)) {
-        s34Combined.push(...s4.value.items.map((item) => adaptServer34Item(item, 4)));
+        s34Combined.push(...s4.value.items.map((item, idx) => adaptServer34Item(item, 4, idx)));
       }
       if (s3.status === 'fulfilled' || s4.status === 'fulfilled') {
         setServer34Items(s34Combined);

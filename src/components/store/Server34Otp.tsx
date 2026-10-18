@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { OtpAppCode } from '../../types';
+import { OtpAppCode, VirtualOtpServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
-import { Search, Zap, ShoppingBag, ShieldCheck, Radio } from 'lucide-react';
+import { Search, Zap, ShoppingBag, ShieldCheck, Radio, X, Globe, Sparkles } from 'lucide-react';
 import { ActiveOtpCard } from '../dashboard/ActiveOtpCard';
 
 interface Server34OtpProps {
@@ -24,19 +24,78 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     { code: 'spam', label: 'SpamChat' },
   ];
 
-  // Strict real data: live stock loaded from backend /api/store/servers
-  const allItems = server34Items;
-  const serverItems = allItems.filter((item) => item.server === serverId);
-  const filtered = serverItems.filter((item) => {
-    if (activeCategory !== 'all' && item.category !== activeCategory) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const matchName = item.serviceName.toLowerCase().includes(q);
-      const matchCountry = item.country.toLowerCase().includes(q);
-      if (!matchName && !matchCountry) return false;
-    }
-    return true;
-  });
+  // Quick filter shortcuts for high-frequency queries (regions & numbers)
+  const quickSearches = [
+    { label: '🇮🇳 India (+91)', query: 'India' },
+    { label: '🇺🇸 USA (+1)', query: 'USA' },
+    { label: '🇬🇧 UK (+44)', query: 'UK' },
+    { label: '🇮🇩 Indonesia (+62)', query: 'Indonesia' },
+    { label: '🇨🇴 Colombia (+57)', query: 'Colombia' },
+    { label: 'WhatsApp', query: 'WhatsApp' },
+    { label: 'Facebook', query: 'Facebook' },
+    { label: '1688', query: '1688' },
+  ];
+
+  // Live stock loaded from backend /api/store/servers for this server
+  const serverItems = useMemo(
+    () => server34Items.filter((item) => item.server === serverId),
+    [server34Items, serverId]
+  );
+
+  // Multi-attribute search matching: region, country, dial code, number, operator, service name
+  const filtered = useMemo(() => {
+    const trimmed = search.trim().toLowerCase();
+    const cleanNumber = trimmed.replace(/^\+/, ''); // "+91" -> "91"
+
+    return serverItems.filter((item: VirtualOtpServiceItem) => {
+      // 1. Search Query Evaluation
+      if (trimmed) {
+        const matchName = item.serviceName.toLowerCase().includes(trimmed);
+        const matchRawName = item.rawName ? item.rawName.toLowerCase().includes(trimmed) : false;
+        const matchCountry = item.country.toLowerCase().includes(trimmed);
+        const matchCountryCode = item.countryCode ? item.countryCode.toLowerCase() === trimmed : false;
+        const matchServiceCode = item.serviceCode.toLowerCase().includes(trimmed);
+
+        // Match calling codes (e.g. "+91" or "91")
+        const itemDial = (item.callingCode || '').replace(/^\+/, '').toLowerCase();
+        const matchCallingCode =
+          Boolean(item.callingCode && item.callingCode.toLowerCase().includes(trimmed)) ||
+          (cleanNumber.length > 0 && itemDial === cleanNumber);
+
+        // Match server / operator numbers (e.g. "105" in "Server 105")
+        const matchOperatorNumber = cleanNumber.length > 0 && item.country.toLowerCase().includes(cleanNumber);
+
+        const isMatch =
+          matchName ||
+          matchRawName ||
+          matchCountry ||
+          matchCountryCode ||
+          matchServiceCode ||
+          matchCallingCode ||
+          matchOperatorNumber;
+
+        if (!isMatch) return false;
+
+        // When searching, if user clicked a specific category chip, prioritize category
+        // but don't choke the search if the user searched across other apps
+        if (activeCategory !== 'all') {
+          // If the search explicitly matches the category, filter it. Otherwise allow global search!
+          if (item.category !== activeCategory && (item.category === 'wa' || item.category === 'tg' || item.category === 'go' || item.category === 'ig')) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      // 2. If no search query, filter by category chip
+      if (activeCategory !== 'all' && item.category !== activeCategory) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [serverItems, search, activeCategory]);
 
   const isServer3 = serverId === 3;
 
@@ -64,12 +123,66 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
       {/* Active OTP session widget if present */}
       <ActiveOtpCard />
 
+      {/* Multi-Attribute Search Bar */}
+      <div className="relative mb-2.5">
+        <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by country, dial code (+91, +1, +44), region, or app (WhatsApp, Telegram)..."
+          className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none transition-all shadow-inner"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#262632] hover:bg-[#323244] text-[#a1a1aa] hover:text-white flex items-center justify-center transition-colors"
+            title="Clear search"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
+      {/* Quick Region & Number Shortcut Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-2 text-[11px]">
+        <span className="text-[#71717a] font-medium shrink-0 flex items-center gap-1 pl-0.5">
+          <Sparkles className="w-3 h-3 text-[#f59e0b]" />
+          <span>Quick:</span>
+        </span>
+        {quickSearches.map((qs) => {
+          const isSelected = search.toLowerCase() === qs.query.toLowerCase();
+          return (
+            <button
+              key={qs.query}
+              type="button"
+              onClick={() => {
+                if (isSelected) {
+                  setSearch('');
+                } else {
+                  setSearch(qs.query);
+                  setActiveCategory('all');
+                }
+              }}
+              className={`px-2.5 py-1 rounded-lg shrink-0 border transition-all duration-150 active:scale-95 ${
+                isSelected
+                  ? 'bg-[#7c3aed] border-[#8b5cf6] text-white font-bold shadow-sm'
+                  : 'bg-[#15151c] hover:bg-[#1e1e28] border-[#262630] text-[#a1a1aa] hover:text-white'
+              }`}
+            >
+              {qs.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Quick-Filter App Chips with SVG Icons */}
       <div className="mb-3">
         <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider flex items-center justify-between">
           <span>Supported Platforms</span>
           <span className="text-[10px] text-[#8b5cf6] font-normal">
-            {filtered.length} pools available
+            {filtered.length} {filtered.length === 1 ? 'number' : 'numbers'} available
           </span>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1.5 -mx-4 px-4">
@@ -79,7 +192,12 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
               <button
                 key={chip.code}
                 type="button"
-                onClick={() => setActiveCategory(chip.code)}
+                onClick={() => {
+                  setActiveCategory(chip.code);
+                  if (search && chip.code !== 'all') {
+                    // Keep search intact or refine
+                  }
+                }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 active:scale-95 ${
                   isActive
                     ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
@@ -107,18 +225,6 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
         </div>
       </div>
 
-      {/* Search Input */}
-      <div className="relative mb-3">
-        <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by platform name or country (e.g. India, USA, WhatsApp)..."
-          className="w-full bg-[#181820] border border-[#262630] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none focus:border-[#7c3aed] transition-colors"
-        />
-      </div>
-
       {/* Virtual Numbers List */}
       <div className="grid grid-cols-1 gap-2.5">
         {serverItems.length === 0 ? (
@@ -132,8 +238,25 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
-            No virtual numbers available matching your search or category.
+          <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
+            <Globe className="w-8 h-8 text-[#71717a]" />
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-white">No virtual numbers found</span>
+              <span className="text-[11px] text-[#a1a1aa]">
+                No numbers matching &quot;{search}&quot;
+                {activeCategory !== 'all' ? ` in ${activeCategory.toUpperCase()}` : ''}.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setActiveCategory('all');
+              }}
+              className="mt-1 px-3 py-1.5 rounded-lg bg-[#262632] hover:bg-[#323244] text-xs font-medium text-white transition-colors"
+            >
+              Reset Filters &amp; View All
+            </button>
           </div>
         ) : (
           filtered.map((service) => (
@@ -146,14 +269,20 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                 <div className="w-10 h-10 rounded-xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-center p-2 shrink-0 shadow-inner">
                   <PlatformIcon platform={service.category || service.serviceCode} className="w-6 h-6" />
                 </div>
-                
+
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-xs font-bold text-white truncate">
                       {service.serviceName}
                     </span>
-                    <span className="text-[10px] text-[#a1a1aa] px-1.5 py-0.5 rounded bg-[#0b0b0e] border border-[#262630]">
-                      {service.country}
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#d4d4d8] px-2 py-0.5 rounded-md bg-[#0b0b0e] border border-[#2a2a38]">
+                      {service.flag && <span className="text-xs leading-none">{service.flag}</span>}
+                      <span>{service.country}</span>
+                      {service.callingCode && (
+                        <span className="text-[#38bdf8] font-mono font-bold ml-0.5">
+                          {service.callingCode}
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-[#a1a1aa] mt-1">
@@ -163,6 +292,8 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                     </span>
                     <span>•</span>
                     <span>{service.successRate}% Success</span>
+                    <span>•</span>
+                    <span className="font-mono text-[#a1a1aa]">{service.availableCount} stock</span>
                   </div>
                 </div>
               </div>

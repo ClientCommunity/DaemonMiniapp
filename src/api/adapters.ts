@@ -244,30 +244,109 @@ export function mapAppCode(code: string | undefined): OtpAppCode {
   return 'all';
 }
 
+interface CountryMeta {
+  code: string;
+  dial: string;
+  flag: string;
+}
+
+const COUNTRY_META_MAP: Record<string, CountryMeta> = {
+  india: { code: 'IN', dial: '+91', flag: '🇮🇳' },
+  usa: { code: 'US', dial: '+1', flag: '🇺🇸' },
+  'united states': { code: 'US', dial: '+1', flag: '🇺🇸' },
+  uk: { code: 'GB', dial: '+44', flag: '🇬🇧' },
+  'united kingdom': { code: 'GB', dial: '+44', flag: '🇬🇧' },
+  indonesia: { code: 'ID', dial: '+62', flag: '🇮🇩' },
+  russia: { code: 'RU', dial: '+7', flag: '🇷🇺' },
+  kazakhstan: { code: 'KZ', dial: '+7', flag: '🇰🇿' },
+  brazil: { code: 'BR', dial: '+55', flag: '🇧🇷' },
+  colombia: { code: 'CO', dial: '+57', flag: '🇨🇴' },
+  egypt: { code: 'EG', dial: '+20', flag: '🇪🇬' },
+  germany: { code: 'DE', dial: '+49', flag: '🇩🇪' },
+  netherlands: { code: 'NL', dial: '+31', flag: '🇳🇱' },
+  'south africa': { code: 'ZA', dial: '+27', flag: '🇿🇦' },
+  spain: { code: 'ES', dial: '+34', flag: '🇪🇸' },
+  sweden: { code: 'SE', dial: '+46', flag: '🇸🇪' },
+  turkey: { code: 'TR', dial: '+90', flag: '🇹🇷' },
+  vietnam: { code: 'VN', dial: '+84', flag: '🇻🇳' },
+  philippines: { code: 'PH', dial: '+63', flag: '🇵🇭' },
+  poland: { code: 'PL', dial: '+48', flag: '🇵🇱' },
+  malaysia: { code: 'MY', dial: '+60', flag: '🇲🇾' },
+  morocco: { code: 'MA', dial: '+212', flag: '🇲🇦' },
+  israel: { code: 'IL', dial: '+972', flag: '🇮🇱' },
+  ireland: { code: 'IE', dial: '+353', flag: '🇮🇪' },
+  'hong kong': { code: 'HK', dial: '+852', flag: '🇭🇰' },
+  china: { code: 'CN', dial: '+86', flag: '🇨🇳' },
+  canada: { code: 'CA', dial: '+1', flag: '🇨🇦' },
+  latvia: { code: 'LV', dial: '+371', flag: '🇱🇻' },
+  madagascar: { code: 'MG', dial: '+261', flag: '🇲🇬' },
+  thailand: { code: 'TH', dial: '+66', flag: '🇹🇭' },
+  singapore: { code: 'SG', dial: '+65', flag: '🇸🇬' },
+  uae: { code: 'AE', dial: '+971', flag: '🇦🇪' },
+  france: { code: 'FR', dial: '+33', flag: '🇫🇷' },
+  italy: { code: 'IT', dial: '+39', flag: '🇮🇹' },
+  ukraine: { code: 'UA', dial: '+380', flag: '🇺🇦' },
+};
+
+export function parseCountryMeta(rawCountry: string): CountryMeta {
+  const clean = rawCountry.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+  for (const [key, meta] of Object.entries(COUNTRY_META_MAP)) {
+    if (clean.includes(key)) {
+      return meta;
+    }
+  }
+  const serverMatch = rawCountry.match(/server\s*(\d+)/i);
+  if (serverMatch) {
+    return { code: `S${serverMatch[1]}`, dial: `#${serverMatch[1]}`, flag: '📶' };
+  }
+  return { code: 'GL', dial: '', flag: '🌐' };
+}
+
 /**
  * Adapt Server 3 & 4 Virtual OTP service items.
  */
 export function adaptServer34Item(
   item: BackendServer34Item,
-  serverId: 3 | 4
+  serverId: 3 | 4,
+  index: number = 0
 ): VirtualOtpServiceItem {
   const serviceCode = item.id || 'all';
-  const serviceName = item.name || item.country || 'Virtual Service';
+  const rawName = item.name || item.country || 'Virtual Service';
   const price = Number(item.price || (serverId === 3 ? 45 : 55));
   const stock = Number(item.stock ?? 999);
   const icon = item.icon || (serverId === 3 ? '⚡' : '📶');
 
+  // Extract clean service name and country
+  let cleanServiceName = rawName;
+  let cleanCountry = item.country || 'Global';
+
+  const parenMatch = rawName.match(/^(.*?)\s*\((.*?)\)$/);
+  if (parenMatch) {
+    cleanServiceName = parenMatch[1].trim();
+    cleanCountry = parenMatch[2].trim();
+  } else if (cleanCountry.includes('(')) {
+    const cpMatch = cleanCountry.match(/\((.*?)\)/);
+    if (cpMatch) {
+      cleanCountry = cpMatch[1].trim();
+    }
+  }
+
+  const meta = parseCountryMeta(cleanCountry);
+
   return {
-    id: `s${serverId}_${serviceCode}`,
+    id: `s${serverId}_${serviceCode}_${cleanCountry.replace(/[^a-zA-Z0-9]/g, '_')}_${price}_${index}`,
     server: serverId,
     serviceCode,
-    serviceName,
-    country: item.country || 'Global',
-    countryCode: item.country_code || 'GL',
+    serviceName: cleanServiceName,
+    rawName,
+    country: cleanCountry,
+    countryCode: item.country_code || meta.code,
+    callingCode: meta.dial,
+    flag: meta.flag,
     icon,
     priceInr: price,
     availableCount: stock,
-    category: mapAppCode(serviceCode),
+    category: mapAppCode(serviceCode || cleanServiceName),
     speed: serverId === 3 ? '1-3s Instant' : '10-30s Carrier',
     successRate: serverId === 3 ? 99 : 96,
   };

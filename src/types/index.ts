@@ -69,6 +69,9 @@ export interface VirtualOtpServiceItem {
   serviceName: string;
   country: string;
   countryCode: string;
+  callingCode?: string;
+  flag?: string;
+  rawName?: string;
   icon: string;
   priceInr: number;
   availableCount: number;
