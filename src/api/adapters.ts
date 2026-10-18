@@ -283,13 +283,14 @@ const COUNTRY_META_MAP: Record<string, CountryMeta> = {
   thailand: { code: 'TH', dial: '+66', flag: '🇹🇭' },
   singapore: { code: 'SG', dial: '+65', flag: '🇸🇬' },
   uae: { code: 'AE', dial: '+971', flag: '🇦🇪' },
+  nigeria: { code: 'NG', dial: '+234', flag: '🇳🇬' },
   france: { code: 'FR', dial: '+33', flag: '🇫🇷' },
   italy: { code: 'IT', dial: '+39', flag: '🇮🇹' },
   ukraine: { code: 'UA', dial: '+380', flag: '🇺🇦' },
 };
 
 export function parseCountryMeta(rawCountry: string): CountryMeta {
-  const clean = rawCountry.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+  const clean = rawCountry.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   for (const [key, meta] of Object.entries(COUNTRY_META_MAP)) {
     if (clean.includes(key)) {
       return meta;
@@ -297,7 +298,7 @@ export function parseCountryMeta(rawCountry: string): CountryMeta {
   }
   const serverMatch = rawCountry.match(/server\s*(\d+)/i);
   if (serverMatch) {
-    return { code: `S${serverMatch[1]}`, dial: `#${serverMatch[1]}`, flag: '📶' };
+    return { code: `S${serverMatch[1]}`, dial: serverMatch[1], flag: '📶' };
   }
   return { code: 'GL', dial: '', flag: '🌐' };
 }
@@ -316,18 +317,18 @@ export function adaptServer34Item(
   const stock = Number(item.stock ?? 999);
   const icon = item.icon || (serverId === 3 ? '⚡' : '📶');
 
-  // Extract clean service name and country
+  // Extract clean service name and country (handling nested parentheses like WhatsApp (USA (Virtual)))
   let cleanServiceName = rawName;
   let cleanCountry = item.country || 'Global';
 
-  const parenMatch = rawName.match(/^(.*?)\s*\((.*?)\)$/);
+  const parenMatch = rawName.match(/^(.*?)\s*\((.+)\)\s*$/);
   if (parenMatch) {
     cleanServiceName = parenMatch[1].trim();
-    cleanCountry = parenMatch[2].trim();
+    cleanCountry = parenMatch[2].replace(/[()]/g, '').trim();
   } else if (cleanCountry.includes('(')) {
-    const cpMatch = cleanCountry.match(/\((.*?)\)/);
+    const cpMatch = cleanCountry.match(/\((.+)\)/);
     if (cpMatch) {
-      cleanCountry = cpMatch[1].trim();
+      cleanCountry = cpMatch[1].replace(/[()]/g, '').trim();
     }
   }
 

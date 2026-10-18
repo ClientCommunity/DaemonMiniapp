@@ -29,10 +29,11 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     { label: '🇮🇳 India (+91)', query: 'India' },
     { label: '🇺🇸 USA (+1)', query: 'USA' },
     { label: '🇬🇧 UK (+44)', query: 'UK' },
+    { label: '🇳🇬 Nigeria (+234)', query: 'Nigeria' },
     { label: '🇮🇩 Indonesia (+62)', query: 'Indonesia' },
-    { label: '🇨🇴 Colombia (+57)', query: 'Colombia' },
+    { label: '🖥️ Server 105', query: '105' },
     { label: 'WhatsApp', query: 'WhatsApp' },
-    { label: 'Facebook', query: 'Facebook' },
+    { label: 'Telegram', query: 'Telegram' },
     { label: '1688', query: '1688' },
   ];
 
@@ -46,9 +47,10 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
   const filtered = useMemo(() => {
     const trimmed = search.trim().toLowerCase();
     const cleanNumber = trimmed.replace(/^\+/, ''); // "+91" -> "91"
+    const isExplicitPlus = trimmed.startsWith('+');
 
     return serverItems.filter((item: VirtualOtpServiceItem) => {
-      // 1. Search Query Evaluation
+      // 1. Search Query Evaluation: When user types in search, search across entire inventory
       if (trimmed) {
         const matchName = item.serviceName.toLowerCase().includes(trimmed);
         const matchRawName = item.rawName ? item.rawName.toLowerCase().includes(trimmed) : false;
@@ -58,12 +60,17 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
         // Match calling codes (e.g. "+91" or "91")
         const itemDial = (item.callingCode || '').replace(/^\+/, '').toLowerCase();
-        const matchCallingCode =
-          Boolean(item.callingCode && item.callingCode.toLowerCase().includes(trimmed)) ||
-          (cleanNumber.length > 0 && itemDial === cleanNumber);
+        let matchCallingCode = false;
+        if (isExplicitPlus) {
+          matchCallingCode = Boolean(item.callingCode && item.callingCode.toLowerCase().startsWith(trimmed));
+        } else if (cleanNumber.length > 0) {
+          matchCallingCode = itemDial === cleanNumber || (cleanNumber.length >= 2 && itemDial.startsWith(cleanNumber));
+        }
 
-        // Match server / operator numbers (e.g. "105" in "Server 105")
-        const matchOperatorNumber = cleanNumber.length > 0 && item.country.toLowerCase().includes(cleanNumber);
+        // Match server / operator numbers (e.g. "105" in "Server 105", or "server 105")
+        const matchOperatorNumber =
+          (cleanNumber.length >= 2 && item.country.toLowerCase().includes(cleanNumber)) ||
+          item.country.toLowerCase().includes('server ' + cleanNumber);
 
         const isMatch =
           matchName ||
@@ -74,18 +81,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
           matchCallingCode ||
           matchOperatorNumber;
 
-        if (!isMatch) return false;
-
-        // When searching, if user clicked a specific category chip, prioritize category
-        // but don't choke the search if the user searched across other apps
-        if (activeCategory !== 'all') {
-          // If the search explicitly matches the category, filter it. Otherwise allow global search!
-          if (item.category !== activeCategory && (item.category === 'wa' || item.category === 'tg' || item.category === 'go' || item.category === 'ig')) {
-            return false;
-          }
-        }
-
-        return true;
+        return isMatch;
       }
 
       // 2. If no search query, filter by category chip
