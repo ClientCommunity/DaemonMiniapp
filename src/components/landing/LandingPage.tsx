@@ -109,7 +109,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               size: 'large',
               text: 'continue_with',
               shape: 'pill',
-              width: 280,
+              width: 320,
               logo_alignment: 'left',
             });
           }
@@ -121,7 +121,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               size: 'large',
               text: 'signin_with',
               shape: 'pill',
-              width: 280,
+              width: 320,
               logo_alignment: 'left',
             });
           }
@@ -319,19 +319,53 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     </div>
                   )}
 
-                  <div className="flex flex-col items-center gap-4 py-2 relative">
-                    {isLoading && (
-                      <div className="absolute inset-0 bg-[#121217]/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-2 rounded-2xl">
-                        <div className="w-7 h-7 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs text-[#c4b5fd] font-medium">
-                          Verifying Google credential &amp; loading wallet...
-                        </span>
+                  {/* Primary Custom Dark Google Login Button */}
+                  <div className="py-2 flex flex-col items-center w-full">
+                    <div className="relative w-full max-w-[320px] h-[50px] mx-auto select-none">
+                      {/* Visual Custom Dark Mode Button */}
+                      <div
+                        className={`w-full h-full rounded-full flex items-center justify-center gap-3 px-5 transition-all duration-200 border ${
+                          isLoading
+                            ? 'bg-[#181824] border-[#7c3aed]/60 shadow-lg shadow-[#7c3aed]/20 cursor-wait'
+                            : 'bg-[#151520] hover:bg-[#1d1d2c] border-[#2e2e42] hover:border-[#7c3aed]/60 shadow-lg shadow-black/40 hover:shadow-[#7c3aed]/15 cursor-pointer active:scale-[0.98]'
+                        }`}
+                      >
+                        {isLoading ? (
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-4 h-4 border-2 border-[#a78bfa] border-t-transparent rounded-full animate-spin" />
+                            <span className="text-xs font-semibold text-[#c4b5fd]">
+                              Signing in with Google...
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                            </svg>
+                            <span className="text-sm font-semibold text-white tracking-[-0.01em]">
+                              Continue with Google
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
 
-                    <div className="w-full flex justify-center min-h-[44px] overflow-hidden rounded-full" ref={heroGoogleBtnRef} />
+                      {/* Invisible Google GSI Overlay that triggers native Google OAuth popup */}
+                      <div
+                        ref={heroGoogleBtnRef}
+                        className={`absolute inset-0 overflow-hidden rounded-full cursor-pointer z-10 ${
+                          isLoading ? 'pointer-events-none opacity-0' : 'opacity-[0.0001]'
+                        }`}
+                        style={{
+                          transform: 'scale(1.04)',
+                          transformOrigin: 'center',
+                        }}
+                      />
+                    </div>
 
-                    <p className="text-[11px] text-[#71717a] text-center mt-1">
+                    <p className="text-[11px] text-[#71717a] text-center mt-3">
                       By continuing, you agree to secure account allocation with instant INR/USDT wallet access.
                     </p>
                   </div>
@@ -562,7 +596,47 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-4">
-              <div ref={ctaGoogleBtnRef} className="min-h-[46px]" />
+              <div className="relative w-full max-w-[320px] h-[50px] mx-auto select-none">
+                <div
+                  className={`w-full h-full rounded-full flex items-center justify-center gap-3 px-5 transition-all duration-200 border ${
+                    isLoading
+                      ? 'bg-[#181824] border-[#7c3aed]/60 shadow-lg shadow-[#7c3aed]/20 cursor-wait'
+                      : 'bg-[#151520] hover:bg-[#1d1d2c] border-[#2e2e42] hover:border-[#7c3aed]/60 shadow-lg shadow-black/40 hover:shadow-[#7c3aed]/15 cursor-pointer active:scale-[0.98]'
+                  }`}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-4 h-4 border-2 border-[#a78bfa] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-semibold text-[#c4b5fd]">
+                        Signing in with Google...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                      </svg>
+                      <span className="text-sm font-semibold text-white tracking-[-0.01em]">
+                        Sign In with Google
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  ref={ctaGoogleBtnRef}
+                  className={`absolute inset-0 overflow-hidden rounded-full cursor-pointer z-10 ${
+                    isLoading ? 'pointer-events-none opacity-0' : 'opacity-[0.0001]'
+                  }`}
+                  style={{
+                    transform: 'scale(1.04)',
+                    transformOrigin: 'center',
+                  }}
+                />
+              </div>
 
               <a
                 href="https://t.me/DeamonOTPbot"
