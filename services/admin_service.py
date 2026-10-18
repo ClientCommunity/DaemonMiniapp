@@ -873,3 +873,65 @@ def set_reseller_settings(min_margin: int, max_margin: int, status: str = "on") 
     set_setting("reseller_status", clean_st)
     return {"success": True, "min_margin": min_val, "max_margin": max_val, "status": clean_st}
 
+
+def get_auto_prices() -> list[dict[str, Any]]:
+    """Retrieve all default auto prices configured for Server 2 stock."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT country, year, price FROM auto_prices ORDER BY country ASC, year ASC"
+        ).fetchall()
+    return [{"country": r["country"], "year": r["year"], "price": int(r["price"])} for r in rows]
+
+
+def set_auto_price(
+    country: str,
+    year: str | int = "Common",
+    price: int = 0,
+    update_existing: bool = True,
+) -> dict[str, Any]:
+    """Set or remove default price for Server 2 stock, optionally updating existing stock items."""
+    clean_country = str(country).strip()
+    clean_year = str(year).strip() if year is not None else "Common"
+    price_val = int(price)
+
+    if not clean_country:
+        return {"success": False, "error": "Country name cannot be empty."}
+
+    updated_stock_count = 0
+    with transaction(immediate=True) as conn:
+        if price_val <= 0:
+            conn.execute(
+                "DELETE FROM auto_prices WHERE country = ? AND year = ?",
+                (clean_country, clean_year),
+            )
+            action = "removed"
+        else:
+            conn.execute(
+                "INSERT OR REPLACE INTO auto_prices (country, year, price) VALUES (?, ?, ?)",
+                (clean_country, clean_year, price_val),
+            )
+            action = "saved"
+
+            if update_existing:
+                if str(clean_year).lower() == "common":
+                    cursor = conn.execute(
+                        "UPDATE stock SET price = ? WHERE country_name = ?",
+                        (price_val, clean_country),
+                    )
+                else:
+                    cursor = conn.execute(
+                        "UPDATE stock SET price = ? WHERE country_name = ? AND account_year = ?",
+                        (price_val, clean_country, clean_year),
+                    )
+                updated_stock_count = cursor.rowcount
+
+    return {
+        "success": True,
+        "action": action,
+        "country": clean_country,
+        "year": clean_year,
+        "price": price_val,
+        "updated_stock_items": updated_stock_count,
+    }
+
+

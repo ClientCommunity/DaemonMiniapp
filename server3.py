@@ -66,6 +66,17 @@ class Activation:
     phone: str
 
 
+DGOTP_COUNTRIES = {
+    "0": "Russia", "1": "Ukraine", "2": "Kazakhstan", "3": "China", "4": "Philippines",
+    "5": "Myanmar", "6": "Indonesia", "7": "Malaysia", "8": "Vietnam", "10": "Ukraine",
+    "12": "USA", "13": "Israel", "14": "Hong Kong", "15": "Poland", "16": "UK",
+    "17": "Madagascar", "18": "Congo", "19": "Nigeria", "21": "Egypt", "22": "India",
+    "23": "Ireland", "24": "Cambodia", "25": "Colombia", "27": "Morocco", "29": "Germany",
+    "31": "South Africa", "33": "Brazil", "35": "Netherlands", "36": "Latvia", "37": "Canada",
+    "41": "Sweden", "47": "Spain", "64": "Turkey", "73": "Hong Kong", "187": "USA (Virtual)",
+}
+
+
 class Server3Client:
     def _config(self):
         with connect() as conn:
@@ -170,7 +181,14 @@ class Server3Client:
         return clean
 
     async def get_number(self, service: str, server: str) -> Activation:
-        body = await self.request("getNumber", service=service, server=server)
+        # Standard SMS-Activate protocol uses action=getNum and country=<id>
+        try:
+            body = await self.request("getNum", service=service, country=server)
+        except DGOTPError as exc:
+            if exc.code == "BAD_ACTION":
+                body = await self.request("getNumber", service=service, server=server)
+            else:
+                raise
         match = re.fullmatch(r"ACCESS_NUMBER:([^:]+):(.+)", body)
         if not match:
             raise DGOTPError("INVALID_NUMBER_RESPONSE")
@@ -199,9 +217,51 @@ class Server3Client:
             raise
 
     async def sync_catalogue(self) -> tuple[int, int]:
-        servers, services = await asyncio.gather(self.get_servers(), self.get_services())
+        servers = {}
+        services = []
+
+        # 1. Try SMS-Activate getPrices across common services (DGOTP modern endpoint)
+        try:
+            for svc_code, (svc_name, keywords) in SERVICE_CATALOG.items():
+                try:
+                    body = await self.request("getPrices", service=svc_code, country=0)
+                    data = json.loads(body)
+                    if isinstance(data, dict):
+                        for srv_code, sdata in data.items():
+                            if isinstance(sdata, dict) and svc_code in sdata:
+                                item = sdata[svc_code]
+                                cost = float(item.get("cost", 0))
+                                count = int(item.get("count", 0))
+                                if cost > 0:
+                                    country_name = DGOTP_COUNTRIES.get(str(srv_code), f"Server {srv_code}")
+                                    servers[str(srv_code)] = country_name
+                                    services.append({
+                                        "service_code": svc_code,
+                                        "server_code": str(srv_code),
+                                        "name": f"{svc_name} ({country_name})",
+                                        "keywords": f"{keywords} {country_name}".casefold(),
+                                        "price": cost,
+                                        "in_stock": int(count > 0)
+                                    })
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # 2. Fallback to legacy getServers / getServices if getPrices yielded no data
+        if not services:
+            try:
+                raw_servers, raw_services = await asyncio.gather(self.get_servers(), self.get_services())
+                servers = raw_servers
+                services = raw_services
+            except Exception:
+                pass
+
+        if not services and not servers:
+            return 0, 0
+
         stamp = utcnow()
-        stocked_servers = {item["server_code"] for item in services}
+        stocked_servers = {item["server_code"] for item in services if item.get("in_stock", 1)}
         with transaction(immediate=True) as conn:
             conn.execute("UPDATE server3_servers SET in_stock=0")
             conn.execute("UPDATE server3_services SET in_stock=0")
@@ -210,11 +270,12 @@ class Server3Client:
                   ON CONFLICT(code) DO UPDATE SET name=excluded.name,in_stock=excluded.in_stock,updated_at=excluded.updated_at""",
                   (code, name, int(code in stocked_servers), stamp))
             for item in services:
+                in_stock_val = item.get("in_stock", 1)
                 conn.execute("""INSERT INTO server3_services(service_code,server_code,name,keywords,provider_price,in_stock,updated_at)
-                  VALUES(?,?,?,?,?,1,?) ON CONFLICT(service_code,server_code) DO UPDATE SET
+                  VALUES(?,?,?,?,?,?,?) ON CONFLICT(service_code,server_code) DO UPDATE SET
                   name=excluded.name,keywords=excluded.keywords,provider_price=excluded.provider_price,
-                  in_stock=1,updated_at=excluded.updated_at""",
-                  (item["service_code"], item["server_code"], item["name"], item["keywords"], item["price"], stamp))
+                  in_stock=excluded.in_stock,updated_at=excluded.updated_at""",
+                  (item["service_code"], item["server_code"], item["name"], item["keywords"], item["price"], in_stock_val, stamp))
         return len(servers), len(services)
 
     async def catalogue_loop(self, interval: float = 60) -> None:

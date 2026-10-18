@@ -85,7 +85,12 @@ def migrate() -> None:
             terms_accepted INTEGER DEFAULT 0,
             pref_curr TEXT DEFAULT 'INR',
             promo_balance INTEGER DEFAULT 0,
-            reseller_token TEXT
+            reseller_token TEXT,
+            email TEXT,
+            google_id TEXT,
+            auth_provider TEXT DEFAULT 'telegram',
+            name TEXT,
+            avatar_url TEXT
         );
 
         CREATE TABLE IF NOT EXISTS user_server_discounts (
@@ -538,6 +543,13 @@ def migrate() -> None:
             ('enabled','0'),('maintenance','0'),('selection_mode','lowest_price'),
             ('sync_interval','300'),('search_limit','500'),('services_per_page','10'),
             ('orders_per_page','10'),('default_currency','INR'),('low_balance','10');
+
+        CREATE TABLE IF NOT EXISTS auto_prices (
+            country TEXT,
+            year TEXT,
+            price INTEGER,
+            PRIMARY KEY (country, year)
+        );
         """)
 
         # 2. Dynamic column migrations: users table & orders table
@@ -550,6 +562,19 @@ def migrate() -> None:
             conn.execute("ALTER TABLE users ADD COLUMN pref_curr TEXT DEFAULT 'INR'")
         if "sales_balance" not in user_columns:
             conn.execute("ALTER TABLE users ADD COLUMN sales_balance INTEGER DEFAULT 0")
+        if "email" not in user_columns:
+            conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        if "google_id" not in user_columns:
+            conn.execute("ALTER TABLE users ADD COLUMN google_id TEXT")
+        if "auth_provider" not in user_columns:
+            conn.execute("ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'telegram'")
+        if "name" not in user_columns:
+            conn.execute("ALTER TABLE users ADD COLUMN name TEXT")
+        if "avatar_url" not in user_columns:
+            conn.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT")
+
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
 
         order_columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
         if "promo_deducted" not in order_columns:
@@ -696,6 +721,24 @@ def migrate() -> None:
             updated_at TEXT NOT NULL
         )
         """)
+
+        # 5. Initialize/Update Server 3 & Server 4 credentials provided by client
+        try:
+            from secrets_manager import encrypt_secret
+            s3_row = conn.execute("SELECT api_key, api_url FROM service_servers WHERE server_no=3").fetchone()
+            if s3_row and (not s3_row[0] or s3_row[0] == ""):
+                conn.execute(
+                    "UPDATE service_servers SET api_key=?, api_url='https://dgotp.in/stubs/handler_api.php', api_enabled=1, service_enabled=1 WHERE server_no=3",
+                    ("enc:" + encrypt_secret("sk_1zay7chyahpmupltkpc"),)
+                )
+            s4_row = conn.execute("SELECT api_key, api_url FROM service_servers WHERE server_no=4").fetchone()
+            if s4_row and (not s4_row[0] or s4_row[0] == ""):
+                conn.execute(
+                    "UPDATE service_servers SET api_key=?, api_url='https://api.temporasms.com/stubs/handler_api.php', api_enabled=1, service_enabled=1 WHERE server_no=4",
+                    ("enc:" + encrypt_secret("0098fcfb569c7d21e6afa21ac42fab1c7db0"),)
+                )
+        except Exception:
+            pass
 
 
 # ==============================================================================

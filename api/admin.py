@@ -92,6 +92,8 @@ from services.admin_service import (
     bulk_add_stock_items,
     list_stock_items,
     manage_stock_item,
+    get_auto_prices,
+    set_auto_price,
     adjust_user_balance,
     list_pending_deposits,
     process_deposit_decision,
@@ -441,6 +443,51 @@ def admin_manage_stock():
         )
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
+
+
+@admin_bp.route("/api/admin/stock/auto-prices", methods=["GET", "POST"])
+def admin_stock_auto_prices():
+    """Retrieve or configure default auto prices for Server 2 stock."""
+    uid, err = _require_permission("p_manage_stock")
+    if err:
+        return err
+
+    if request.method == "GET":
+        prices = get_auto_prices()
+        return jsonify({"success": True, "auto_prices": prices})
+
+    data = request.get_json(silent=True) or {}
+    country = data.get("country", "")
+    year = data.get("year", "Common")
+    price = data.get("price", 0)
+    update_existing = bool(data.get("update_existing", True))
+
+    result = set_auto_price(country=country, year=year, price=price, update_existing=update_existing)
+    status_code = 200 if result.get("success") else 400
+    return jsonify(result), status_code
+
+
+@admin_bp.route("/api/admin/stock/price", methods=["POST"])
+def admin_update_stock_price():
+    """Convenience endpoint to update default price and/or existing stock prices."""
+    uid, err = _require_permission("p_manage_stock")
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    if "phone" in data:
+        result = manage_stock_item(phone=data["phone"], action="update", price=data.get("price"))
+        status_code = 200 if result.get("success") else 400
+        return jsonify(result), status_code
+
+    country = data.get("country", "")
+    year = data.get("year", "Common")
+    price = data.get("price", 0)
+    update_existing = bool(data.get("update_existing", True))
+
+    result = set_auto_price(country=country, year=year, price=price, update_existing=update_existing)
+    status_code = 200 if result.get("success") else 400
+    return jsonify(result), status_code
 
 
 # --- Server 3 & Server 4 Management (Virtual Numbers) ---

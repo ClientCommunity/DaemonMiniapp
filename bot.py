@@ -27,13 +27,16 @@ from api_cooldown import check_cooldown, is_cooling_down, record_rate_limit, get
 
 from telethon import TelegramClient, events, Button
 from telethon.errors import (
-    SessionPasswordNeededError, MessageNotModifiedError, UserNotParticipantError
+    SessionPasswordNeededError, MessageNotModifiedError, UserNotParticipantError,
+    FreshResetAuthorisationForbiddenError
 )
 from telethon.errors.rpcerrorlist import QueryIdInvalidError
 from telethon.tl import types as tl_types
 from telethon.tl.types import KeyboardButtonCallback, KeyboardButtonUrl
 from telethon.tl.functions.channels import GetParticipantRequest
-from telethon.tl.functions.account import GetPasswordRequest, UpdatePasswordSettingsRequest, GetAuthorizationsRequest
+from telethon.tl.functions.account import (
+    GetPasswordRequest, UpdatePasswordSettingsRequest, GetAuthorizationsRequest, ResetAuthorizationRequest
+)
 
 from database import connect as managed_connect, migrate as migrate_managed_services
 from server import server3, server4
@@ -2559,7 +2562,7 @@ async def auto_otp_task(phone):
                     twofa_text = f"{P_SHIELD} <b>2FA:</b> <code>{order['twofa']}</code>" if order['twofa'] != "None" else f"🔓 <b>2FA:</b> <code>Disabled</code>"
                     display_phone = f"+{phone.lstrip('+')}"
                     msg_text = f"{P_YES} <b>Latest OTP Fetched!</b>\n\n{P_PHONE} <b>Phone:</b> <code>{display_phone}</code>\n{P_FLAG} <b>Country:</b> {order['c_icon']} {order['country']}\n{P_TIME} <b>OTP:</b> <code>{code}</code>\n{twofa_text}"
-                    try: await bot.edit_message(uid, msg_id, msg_text, buttons=[[p_btn("🔄 Get OTP Again", f"get_otp_again|{phone}")], [p_btn("🚪 Finish & Logout", f"logout_bot|{phone}")]])
+                    try: await bot.edit_message(uid, msg_id, msg_text, buttons=[[p_btn("🔄 Get OTP Again", f"get_otp_again|{phone}")], [p_btn("📱 Manage Active Devices", f"s2_devs|{phone}")], [p_btn("🚪 Finish & Logout", f"logout_bot|{phone}")]])
                     except: pass
                     return
             except: pass
@@ -3550,7 +3553,10 @@ async def handle_callbacks(e):
             try:
                 entity=await e.get_sender();oid,porder,q=await smm_place_order(uid,getattr(entity,'username',None),int(sid),int(qty),state['link'],request_id or state.get('request_id'),user_server_discount(uid,5))
             except SMMError as exc:
-                await send_admin_error(f"Server 5 order failed for user {uid}",exc.detail);return await e.edit("❌ Order could not be placed. No successful order was charged. Support has been notified.",buttons=[[p_btn("Services","smm_page|1|price_low")]])
+                if exc.code == "RATE_LIMIT":
+                    return await e.edit("⏳ <b>Provider Busy (Rate Limit)</b>\n\nThe upstream SMM provider is currently processing a high volume of requests. Please wait a moment and try placing your order again.", buttons=[[p_btn("Try Again", f"smm_buy|{sid}")], [p_btn("Services", "smm_page|1|price_low")]])
+                await send_admin_error(f"Server 5 order failed for user {uid}", exc.detail)
+                return await e.edit("❌ Order could not be placed. No successful order was charged. Support has been notified.", buttons=[[p_btn("Services", "smm_page|1|price_low")]])
             with managed_connect() as conn:service_row=conn.execute("SELECT name FROM smm_services WHERE id=?",(int(sid),)).fetchone()
             await log_smm_purchase(uid,state['link'],q.charge,service_row['name'] if service_row else sid,oid)
             await e.edit(f"✅ <b>Order Placed</b>\n\nOrder: <code>#{oid}</code>\nQuantity: {qty}\nCharge: ₹{format_smm_money(q.charge)}\nStatus: Pending",buttons=[[p_btn("📦 View Order",f"smm_order|{oid}",style="success")],[p_btn("Services","smm_page|1|price_low")]])
@@ -4770,11 +4776,17 @@ async def handle_callbacks(e):
             await log_primary_purchase(uid, country, final_price, final_price, actual_year, 1, phone, "Server 2",phone)
 
             display_phone = f"+{phone.lstrip('+')}"
-            msg = (f"{P_YES} <b>Account Purchased (Server 2)!</b>\n\n{P_PHONE} <b>Phone:</b> <code>{display_phone}</code>\n🏳️ <b>Country:</b> {c_icon} {country}\n\n"
+            twofa_hint = f"\n{P_SHIELD} <b>2FA Password:</b> <code>{twofa_pass}</code>" if twofa_pass and twofa_pass != "None" else ""
+            msg = (f"{P_YES} <b>Account Purchased (Server 2)!</b>\n\n{P_PHONE} <b>Phone:</b> <code>{display_phone}</code>\n🏳️ <b>Country:</b> {c_icon} {country}{twofa_hint}\n\n"
                    f"🔻 <b>INSTRUCTIONS:</b>\n1. Add Account in Telegram\n2. Enter number\n3. {P_TIME} Listening for OTP automatically...\n\n"
                    f"<i>Note: Auto-cancels in 10 mins if no OTP arrives.</i>")
 
-            sent_msg = await e.edit(msg)
+            btns = [
+                [p_btn("📱 Manage Active Devices", f"s2_devs|{phone}")],
+                [p_btn("🔄 Get OTP Again", f"get_otp_again|{phone}")],
+                [p_btn("🚪 Finish & Logout", f"logout_bot|{phone}")],
+            ]
+            sent_msg = await e.edit(msg, buttons=btns)
             active_orders[phone] = {'uid': uid, 'client': client, 'sess': sess, 'start_time': time.time(), 'paid': False, 'price': final_price, 'country': country, 'year': actual_year, 'c_icon': c_icon, 'twofa': twofa_pass, 'seller_id': seller_id, 'msg_id': sent_msg.id}
             asyncio.create_task(auto_otp_task(phone))
 
@@ -4801,6 +4813,7 @@ async def handle_callbacks(e):
                            f"{twofa_text}")
                     btns = [
                         [p_btn("🔄 Get OTP Again", f"get_otp_again|{phone}")],
+                        [p_btn("📱 Manage Active Devices", f"s2_devs|{phone}")],
                         [p_btn("🚪 Finish & Logout", f"logout_bot|{phone}")],
                         [p_btn("Buy Another", f"s2_yr|{order['country']}")]
                     ]
@@ -4823,6 +4836,222 @@ async def handle_callbacks(e):
                 await e.edit(f"{P_YES} <b>Session Finished & Logged out successfully.</b>", buttons=[[p_btn("Back to Menu", "menu_main")]])
             else:
                 await e.answer("⚠️ No active order found or already logged out.", alert=True)
+
+        elif data.startswith("s2_devs|"):
+            phone = data.split("|")[1]
+            await safe_answer_cb(e, "🔍 Checking active devices...", alert=False)
+
+            client = None
+            should_disconnect = False
+            try:
+                if phone in active_orders and active_orders[phone].get('client'):
+                    client = active_orders[phone]['client']
+                    if not client.is_connected():
+                        await client.connect()
+                else:
+                    sess_path = f"sessions/{phone}"
+                    if os.path.exists(sess_path + ".session"):
+                        dyn_id, dyn_hash = get_api_credentials()
+                        client = TelegramClient(sess_path, dyn_id, dyn_hash)
+                        await client.connect()
+                        should_disconnect = True
+                    else:
+                        return await safe_answer_cb(e, "⚠️ Session not found or already logged out.", alert=True)
+
+                if not await client.is_user_authorized():
+                    return await safe_answer_cb(e, "❌ Session is no longer authorized.", alert=True)
+
+                res = await client(GetAuthorizationsRequest())
+                authorizations = getattr(res, "authorizations", []) or []
+                other_devs = [a for a in authorizations if not getattr(a, "current", False)]
+                display_phone = f"+{phone.lstrip('+')}"
+
+                if not other_devs:
+                    msg = (
+                        f"📱 <b>Active Devices & Sessions</b>\n\n"
+                        f"📞 Phone: <code>{display_phone}</code>\n\n"
+                        f"✅ <b>No other active devices found!</b>\n"
+                        f"Only this bot session is currently connected to the account."
+                    )
+                    btns = [
+                        [p_btn("🔄 Refresh Devices", f"s2_devs|{phone}")],
+                        [p_btn("🔙 Back to Order", f"s2_back_ord|{phone}")],
+                    ]
+                else:
+                    msg = (
+                        f"📱 <b>Active Devices & Sessions</b>\n\n"
+                        f"📞 Phone: <code>{display_phone}</code>\n"
+                        f"Found <b>{len(other_devs)}</b> other active login session(s):\n\n"
+                    )
+                    btns = []
+                    for idx, dev in enumerate(other_devs, 1):
+                        dev_model = getattr(dev, "device_model", "Unknown Device") or "Unknown Device"
+                        platform = getattr(dev, "platform", "") or ""
+                        app_name = getattr(dev, "app_name", "") or ""
+                        app_version = getattr(dev, "app_version", "") or ""
+                        ip = getattr(dev, "ip", "Unknown") or "Unknown"
+                        country_loc = getattr(dev, "country", "") or ""
+                        region = getattr(dev, "region", "") or ""
+                        loc_str = f"{country_loc} ({region})" if region else (country_loc or "Unknown")
+
+                        msg += (
+                            f"<b>{idx}. {html.escape(str(dev_model))}</b>"
+                            f"{f' ({html.escape(str(platform))})' if platform else ''}\n"
+                            f"   • App: {html.escape(str(app_name))} {html.escape(str(app_version))}\n"
+                            f"   • Location: {html.escape(str(loc_str))} [<code>{html.escape(str(ip))}</code>]\n\n"
+                        )
+                        btn_label = f"❌ Logout: {str(dev_model)[:18]}"
+                        btns.append([p_btn(btn_label, f"s2_kick|{phone}|{dev.hash}")])
+
+                    btns.append([p_btn("🔄 Refresh Devices", f"s2_devs|{phone}")])
+                    btns.append([p_btn("🔙 Back to Order", f"s2_back_ord|{phone}")])
+
+                try:
+                    await e.edit(msg, buttons=btns)
+                except MessageNotModifiedError:
+                    pass
+            except Exception as ex:
+                await send_admin_error("Server 2 GetAuthorizations failed", f"Phone: {phone}\nError: {ex}")
+                await safe_answer_cb(e, f"❌ Failed to fetch devices: {str(ex)[:100]}", alert=True)
+            finally:
+                if should_disconnect and client:
+                    try:
+                        await client.disconnect()
+                    except:
+                        pass
+
+        elif data.startswith("s2_kick|"):
+            parts = data.split("|")
+            phone = parts[1]
+            auth_hash = int(parts[2])
+            await safe_answer_cb(e, "⏳ Logging out device...", alert=False)
+
+            client = None
+            should_disconnect = False
+            try:
+                if phone in active_orders and active_orders[phone].get('client'):
+                    client = active_orders[phone]['client']
+                    if not client.is_connected():
+                        await client.connect()
+                else:
+                    sess_path = f"sessions/{phone}"
+                    if os.path.exists(sess_path + ".session"):
+                        dyn_id, dyn_hash = get_api_credentials()
+                        client = TelegramClient(sess_path, dyn_id, dyn_hash)
+                        await client.connect()
+                        should_disconnect = True
+                    else:
+                        return await safe_answer_cb(e, "⚠️ Session not found or already logged out.", alert=True)
+
+                if not await client.is_user_authorized():
+                    return await safe_answer_cb(e, "❌ Session is no longer authorized.", alert=True)
+
+                try:
+                    await client(ResetAuthorizationRequest(hash=auth_hash))
+                    await safe_answer_cb(e, "✅ Device logged out successfully!", alert=True)
+                except FreshResetAuthorisationForbiddenError:
+                    await safe_answer_cb(
+                        e,
+                        "⚠️ Telegram Security: This session was logged in recently. Telegram requires a session to be active before it can terminate others. You can terminate it from your official app.",
+                        alert=True
+                    )
+                except Exception as kick_err:
+                    err_msg = str(kick_err)
+                    if "FRESH_RESET_AUTHORISATION_FORBIDDEN" in err_msg.upper():
+                        await safe_answer_cb(
+                            e,
+                            "⚠️ Telegram Security: This session was logged in recently. Telegram requires a session to be active before it can terminate others. You can terminate it from your official app.",
+                            alert=True
+                        )
+                    else:
+                        await safe_answer_cb(e, f"❌ Could not terminate device: {err_msg[:80]}", alert=True)
+
+                res = await client(GetAuthorizationsRequest())
+                authorizations = getattr(res, "authorizations", []) or []
+                other_devs = [a for a in authorizations if not getattr(a, "current", False)]
+                display_phone = f"+{phone.lstrip('+')}"
+
+                if not other_devs:
+                    msg = (
+                        f"📱 <b>Active Devices & Sessions</b>\n\n"
+                        f"📞 Phone: <code>{display_phone}</code>\n\n"
+                        f"✅ <b>No other active devices found!</b>\n"
+                        f"Only this bot session is currently connected to the account."
+                    )
+                    btns = [
+                        [p_btn("🔄 Refresh Devices", f"s2_devs|{phone}")],
+                        [p_btn("🔙 Back to Order", f"s2_back_ord|{phone}")],
+                    ]
+                else:
+                    msg = (
+                        f"📱 <b>Active Devices & Sessions</b>\n\n"
+                        f"📞 Phone: <code>{display_phone}</code>\n"
+                        f"Found <b>{len(other_devs)}</b> other active login session(s):\n\n"
+                    )
+                    btns = []
+                    for idx, dev in enumerate(other_devs, 1):
+                        dev_model = getattr(dev, "device_model", "Unknown Device") or "Unknown Device"
+                        platform = getattr(dev, "platform", "") or ""
+                        app_name = getattr(dev, "app_name", "") or ""
+                        app_version = getattr(dev, "app_version", "") or ""
+                        ip = getattr(dev, "ip", "Unknown") or "Unknown"
+                        country_loc = getattr(dev, "country", "") or ""
+                        region = getattr(dev, "region", "") or ""
+                        loc_str = f"{country_loc} ({region})" if region else (country_loc or "Unknown")
+
+                        msg += (
+                            f"<b>{idx}. {html.escape(str(dev_model))}</b>"
+                            f"{f' ({html.escape(str(platform))})' if platform else ''}\n"
+                            f"   • App: {html.escape(str(app_name))} {html.escape(str(app_version))}\n"
+                            f"   • Location: {html.escape(str(loc_str))} [<code>{html.escape(str(ip))}</code>]\n\n"
+                        )
+                        btn_label = f"❌ Logout: {str(dev_model)[:18]}"
+                        btns.append([p_btn(btn_label, f"s2_kick|{phone}|{dev.hash}")])
+
+                    btns.append([p_btn("🔄 Refresh Devices", f"s2_devs|{phone}")])
+                    btns.append([p_btn("🔙 Back to Order", f"s2_back_ord|{phone}")])
+
+                try:
+                    await e.edit(msg, buttons=btns)
+                except MessageNotModifiedError:
+                    pass
+            except Exception as ex:
+                await safe_answer_cb(e, f"❌ Error: {str(ex)[:100]}", alert=True)
+            finally:
+                if should_disconnect and client:
+                    try:
+                        await client.disconnect()
+                    except:
+                        pass
+
+        elif data.startswith("s2_back_ord|"):
+            phone = data.split("|")[1]
+            display_phone = f"+{phone.lstrip('+')}"
+            if phone in active_orders:
+                order = active_orders[phone]
+                twofa_text = f"{P_SHIELD} <b>2FA:</b> <code>{order['twofa']}</code>" if order.get('twofa') and order['twofa'] != "None" else f"🔓 <b>2FA:</b> <code>Disabled</code>"
+                msg = (
+                    f"{P_YES} <b>Account Order (Server 2)</b>\n\n"
+                    f"{P_PHONE} <b>Phone:</b> <code>{display_phone}</code>\n"
+                    f"🏳️ <b>Country:</b> {order.get('c_icon', '🌍')} {order.get('country', '')}\n"
+                    f"{twofa_text}\n\n"
+                    f"🔻 <b>INSTRUCTIONS:</b>\n1. Add Account in Telegram\n2. Enter number\n3. Tap 'Get OTP' when code is sent\n"
+                )
+                btns = [
+                    [p_btn("🔄 Get OTP Again", f"get_otp_again|{phone}")],
+                    [p_btn("📱 Manage Active Devices", f"s2_devs|{phone}")],
+                    [p_btn("🚪 Finish & Logout", f"logout_bot|{phone}")],
+                    [p_btn("Buy Another", f"s2_yr|{order.get('country', '')}")]
+                ]
+                try:
+                    await e.edit(msg, buttons=btns)
+                except MessageNotModifiedError:
+                    pass
+            else:
+                await e.edit(
+                    f"{P_STORE} <b>Server 2 Session</b>\nPhone: <code>{display_phone}</code>\n\nSession finished or logged out.",
+                    buttons=[[p_btn("Back to Menu", "menu_main")]]
+                )
 
         # --- MENU EXTRAS ---
         elif data == "menu_account":
@@ -5917,7 +6146,7 @@ async def handle_callbacks(e):
                     (c_name, year, limit, offset),
                 ).fetchall()
                 msg = f"📦 <b>{html.escape(c_name)} — {html.escape(str(year))}</b>\nTotal stock: <b>{total}</b>\n\n"
-                btns = []
+                btns = [[p_btn(f"💰 Change Price for {year}", f"adm_msedit|yprice|{c_name}|{year}")]]
                 for phone, price, available in rows:
                     status = "Available" if available else "Reserved"
                     msg += f"<code>+{str(phone).lstrip('+')}</code> — ₹{price} — {status}\n"
@@ -6189,14 +6418,16 @@ async def handle_callbacks(e):
                         elif m_act == "cprice":
                             new_p = int((await get_reply(f"💰 <b>Enter NEW Common Price for all {c_name} accounts:</b>")).text)
                             cur.execute("UPDATE stock SET price=? WHERE country_name=?", (new_p, c_name))
+                            cur.execute("INSERT OR REPLACE INTO auto_prices (country, year, price) VALUES (?, 'Common', ?)", (c_name, new_p))
                             db.commit()
-                            await bot.send_message(uid, f"✅ All existing '{c_name}' accounts updated to ₹{new_p}!")
+                            await bot.send_message(uid, f"✅ All existing '{c_name}' accounts updated to ₹{new_p}!\nDefault price for new accounts also updated to ₹{new_p}.")
                         elif m_act == "yprice":
                             year = parts[3]
                             new_p = int((await get_reply(f"💰 <b>Enter NEW Price for {c_name} ({year}):</b>")).text)
                             cur.execute("UPDATE stock SET price=? WHERE country_name=? AND account_year=?", (new_p, c_name, year))
+                            cur.execute("INSERT OR REPLACE INTO auto_prices (country, year, price) VALUES (?,?,?)", (c_name, str(year), new_p))
                             db.commit()
-                            await bot.send_message(uid, f"✅ All existing '{c_name}' ({year}) accounts updated to ₹{new_p}!")
+                            await bot.send_message(uid, f"✅ All existing '{c_name}' ({year}) accounts updated to ₹{new_p}!\nDefault price for new accounts also updated to ₹{new_p}.")
 
                     elif action.startswith("apset|") and has_perm(uid, 'p_manage_stock'):
                         parts = action.split("|")

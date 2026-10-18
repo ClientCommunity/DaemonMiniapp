@@ -10,8 +10,16 @@ from __future__ import annotations
 import logging
 from flask import Blueprint, jsonify, request
 
-from services.auth_service import get_current_user_id, get_or_create_user
+import time
+from services.auth_service import (
+    get_current_user_id,
+    get_or_create_user,
+    verify_google_id_token,
+    get_or_create_google_user,
+)
 from services.wallet_service import set_user_currency
+from api.admin import encode_jwt
+from config import ADMIN_PANEL_SECRET
 
 logger = logging.getLogger("api.auth")
 auth_bp = Blueprint("auth", __name__)
@@ -19,18 +27,48 @@ auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/api/auth", methods=["POST"])
 def auth_session():
-    """Authenticate Telegram WebApp session and return user profile & balances."""
+    """Authenticate Telegram WebApp session or Web Bearer session and return user profile & balances."""
     uid = get_current_user_id(request)
     if not uid:
-        # Check if first user in db can serve as dev fallback when not in strict mode
-        from database import connect
-        with connect() as conn:
-            row = conn.execute("SELECT user_id FROM users LIMIT 1").fetchone()
-            uid = row[0] if row else 7507183871
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
 
     user_info = get_or_create_user(uid)
     return jsonify({
         "success": True,
+        "user": user_info,
+    })
+
+
+@auth_bp.route("/api/auth/google", methods=["POST"])
+def auth_google():
+    """Authenticate web user using Google OAuth ID token.
+    Issues signed JWT session token with user_id.
+    """
+    data = request.get_json(silent=True) or {}
+    id_token = data.get("credential") or data.get("id_token")
+    if not id_token:
+        return jsonify({"success": False, "error": "Missing Google credential"}), 400
+
+    google_info = verify_google_id_token(id_token)
+    if not google_info:
+        return jsonify({"success": False, "error": "Invalid or expired Google token"}), 401
+
+    user_info = get_or_create_google_user(google_info)
+    user_id = user_info["id"]
+
+    # Issue JWT token valid for 30 days
+    payload = {
+        "user_id": user_id,
+        "auth_provider": "google",
+        "email": user_info.get("email"),
+        "name": user_info.get("name"),
+        "exp": int(time.time()) + (30 * 86400),
+    }
+    token = encode_jwt(payload, ADMIN_PANEL_SECRET)
+
+    return jsonify({
+        "success": True,
+        "token": token,
         "user": user_info,
     })
 

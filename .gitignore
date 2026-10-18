@@ -9,6 +9,7 @@ __pycache__/
 *.db-journal
 
 # Sessions & sensitive key files
+.env
 .payment_encryption.key
 sessions/
 *.session

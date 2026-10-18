@@ -62,31 +62,60 @@ class Client:
         if not r:raise SMMError("PROVIDER_NOT_FOUND")
         return r
     async def request(self, action, **params):
-        p=self.config()
-        if not p["enabled"]:raise SMMError("PROVIDER_DISABLED")
+        p = self.config()
+        if not p["enabled"]:
+            raise SMMError("PROVIDER_DISABLED")
         target_url = p["api_url"]
         if is_cooling_down(target_url):
             rem = get_cooldown_remaining(target_url)
             raise SMMError("RATE_LIMIT", f"Provider {target_url} is cooling down ({rem:.1f}s remaining).")
-        key=p["api_key"]; key=decrypt_secret(key[4:]) if key.startswith("enc:") else key
-        try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
-                async with session.post(target_url,data={"key":key,"action":action,**params}) as response:
-                    raw=await response.text()
-                    if response.status == 429 or (response.status >= 400 and "rate limit" in raw.lower()):
-                        record_rate_limit(target_url, 10.0, reason=f"HTTP {response.status}")
-                        raise SMMError("RATE_LIMIT", f"HTTP {response.status}: {raw}")
-                    if response.status>=400:raise SMMError("HTTP_ERROR",f"HTTP {response.status}: {raw}")
-        except (aiohttp.ClientError,asyncio.TimeoutError) as exc:raise SMMError("NETWORK_ERROR",repr(exc)) from exc
-        try:value=json.loads(raw)
-        except json.JSONDecodeError as exc:raise SMMError("INVALID_JSON",raw) from exc
-        if isinstance(value,dict) and value.get("error"):
-            err_str = str(value["error"]).lower()
-            if "rate limit" in err_str or "too many requests" in err_str:
-                record_rate_limit(target_url, 10.0, reason=str(value["error"]))
-                raise SMMError("RATE_LIMIT", value["error"])
-            raise SMMError("PROVIDER_ERROR",value["error"])
-        return value
+        key = p["api_key"]
+        key = decrypt_secret(key[4:]) if key.startswith("enc:") else key
+
+        max_retries = 2 if action == "add" else 0
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            if attempt > 0:
+                await asyncio.sleep(2.0 * attempt)
+
+            try:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+                    async with session.post(target_url, data={"key": key, "action": action, **params}) as response:
+                        raw = await response.text()
+                        if response.status == 429 or (response.status >= 400 and ("rate limit" in raw.lower() or "slow down" in raw.lower())):
+                            record_rate_limit(target_url, 10.0, reason=f"HTTP {response.status}")
+                            last_error = SMMError("RATE_LIMIT", f"Rate limit exceeded: {raw[:200]}")
+                            if attempt < max_retries:
+                                continue
+                            raise last_error
+                        if response.status >= 400:
+                            raise SMMError("HTTP_ERROR", f"HTTP {response.status}: {raw}")
+            except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                last_error = SMMError("NETWORK_ERROR", repr(exc))
+                if attempt < max_retries:
+                    continue
+                raise last_error from exc
+
+            try:
+                value = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise SMMError("INVALID_JSON", raw) from exc
+
+            if isinstance(value, dict) and value.get("error"):
+                err_str = str(value["error"]).lower()
+                if "rate limit" in err_str or "too many requests" in err_str or "slow down" in err_str:
+                    record_rate_limit(target_url, 10.0, reason=str(value["error"]))
+                    last_error = SMMError("RATE_LIMIT", str(value["error"]))
+                    if attempt < max_retries:
+                        continue
+                    raise last_error
+                raise SMMError("PROVIDER_ERROR", value["error"])
+            return value
+
+        if last_error:
+            raise last_error
+        raise SMMError("UNKNOWN_ERROR", "Request failed without explicit response.")
     async def balance(self):
         value=await self.request("balance")
         try:return float(value["balance"]),str(value.get("currency") or self.config()["currency"])
@@ -289,12 +318,19 @@ async def sync_loop():
         for pid in ids:
             try:await sync_provider(pid)
             except Exception:pass
+            await asyncio.sleep(2.0)
         await asyncio.sleep(max(60,interval))
 
 async def order_loop():
     while True:
         with connect() as db:ids=[r[0] for r in db.execute("SELECT id FROM smm_orders WHERE status IN ('pending','processing') LIMIT 100")]
         for oid in ids:
-            try:await refresh_order(oid)
-            except Exception:pass
+            try:
+                await refresh_order(oid)
+            except SMMError as exc:
+                if exc.code == "RATE_LIMIT":
+                    await asyncio.sleep(5.0)
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
         await asyncio.sleep(30)
