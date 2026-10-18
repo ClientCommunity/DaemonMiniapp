@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OtpAppCode, VirtualOtpServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
@@ -14,6 +14,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
   const [activeCategory, setActiveCategory] = useState<OtpAppCode>('all');
   const [search, setSearch] = useState('');
+  const [displayCount, setDisplayCount] = useState(50);
 
   const appChips: { code: OtpAppCode; label: string; badge?: string }[] = [
     { code: 'all', label: 'All Services' },
@@ -92,6 +93,16 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
       return true;
     });
   }, [serverItems, search, activeCategory]);
+
+  // Reset pagination window when search query, category, or active server changes
+  useEffect(() => {
+    setDisplayCount(50);
+  }, [search, activeCategory, serverId]);
+
+  // Virtual slice: Render only top items to maintain 60fps and avoid DOM overload
+  const visibleItems = useMemo(() => {
+    return filtered.slice(0, displayCount);
+  }, [filtered, displayCount]);
 
   const isServer3 = serverId === 3;
 
@@ -255,7 +266,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
             </button>
           </div>
         ) : (
-          filtered.map((service) => (
+          visibleItems.map((service) => (
             <div
               key={service.id}
               className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#383848] transition-all"
@@ -311,6 +322,23 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
           ))
         )}
       </div>
+
+      {/* Pagination Load More Control */}
+      {filtered.length > displayCount && (
+        <div className="flex flex-col items-center justify-center py-4 px-2 gap-2">
+          <span className="text-[11px] text-[#a1a1aa]">
+            Showing {displayCount} of {filtered.length.toLocaleString()} available numbers
+          </span>
+          <button
+            type="button"
+            onClick={() => setDisplayCount((prev) => prev + 50)}
+            className="px-5 py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold shadow-violet-glow-sm transition-all active:scale-95 flex items-center gap-1.5"
+          >
+            <span>Load More Numbers</span>
+            <span className="text-[10px] opacity-80">(+{Math.min(50, filtered.length - displayCount)})</span>
+          </button>
+        </div>
+      )}
 
       {/* Notice info */}
       <div className="mt-4 p-3 bg-[#181820]/60 border border-[#262630] rounded-xl flex items-center gap-2 text-xs text-[#a1a1aa]">

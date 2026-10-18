@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import {
   UserProfile,
   CurrencyPreference,
@@ -180,7 +180,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [initialLoadingStep, setInitialLoadingStep] = useState<number>(1);
   const [initialLoadingMessage, setInitialLoadingMessage] = useState<string>('Establishing secure connection...');
 
-  // Modals
+  // Concurrency & Cache Refs
+  const isRefreshingStoreRef = useRef(false);
+  const server4LoadedRef = useRef(false);
   const [purchasedCredentialsModal, setPurchasedCredentialsModal] = useState<{
     isOpen: boolean;
     account?: Server1AccountItem;
@@ -293,16 +295,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Refresh all store catalogues
-  const refreshStore = useCallback(async () => {
+  // Refresh store catalogues with fast-path for Servers 1, 2, 3, 5 (< 500ms) and background async streaming for Server 4
+  const refreshStore = useCallback(async (forceServer4: boolean = false) => {
+    if (isRefreshingStoreRef.current) return;
+    isRefreshingStoreRef.current = true;
     setIsLoadingStore(true);
+
     try {
-      const [s1, s2Good, s2Cheap, s3, s4, s5] = await Promise.allSettled([
+      // 1. Fetch Fast Catalogues (Servers 1, 2, 3, 5 - completes in < 500ms)
+      const [s1, s2Good, s2Cheap, s3, s5] = await Promise.allSettled([
         storeApi.getServer1(),
         storeApi.getServer2('good'),
         storeApi.getServer2('cheap'),
         storeApi.getServer3(),
-        storeApi.getServer4(),
         storeApi.getServer5(),
       ]);
 
@@ -321,24 +326,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setServer2Items(s2Combined);
       }
 
-      const s34Combined: VirtualOtpServiceItem[] = [];
       if (s3.status === 'fulfilled' && s3.value.success && Array.isArray(s3.value.items)) {
-        s34Combined.push(...s3.value.items.map((item, idx) => adaptServer34Item(item, 3, idx)));
-      }
-      if (s4.status === 'fulfilled' && s4.value.success && Array.isArray(s4.value.items)) {
-        s34Combined.push(...s4.value.items.map((item, idx) => adaptServer34Item(item, 4, idx)));
-      }
-      if (s3.status === 'fulfilled' || s4.status === 'fulfilled') {
-        setServer34Items(s34Combined);
+        const s3Adapted = s3.value.items.map((item, idx) => adaptServer34Item(item, 3, idx));
+        setServer34Items((prev) => {
+          const existingS4 = prev.filter((item) => item.server === 4);
+          return [...s3Adapted, ...existingS4];
+        });
       }
 
       if (s5.status === 'fulfilled' && s5.value.success && Array.isArray(s5.value.items)) {
         setServer5Items(s5.value.items.map((item) => adaptServer5Item(item)));
       }
+
+      // Fast catalogues ready! Immediately clear loading state so UI is interactive
+      setIsLoadingStore(false);
+
+      // 2. Load Server 4 in background only if not yet loaded
+      if (!server4LoadedRef.current || forceServer4) {
+        storeApi
+          .getServer4()
+          .then((s4) => {
+            if (s4?.success && Array.isArray(s4.items)) {
+              server4LoadedRef.current = true;
+              const s4Adapted = s4.items.map((item, idx) => adaptServer34Item(item, 4, idx));
+              setServer34Items((prev) => {
+                const existingS3 = prev.filter((item) => item.server === 3);
+                return [...existingS3, ...s4Adapted];
+              });
+            }
+          })
+          .catch(() => {
+            // silent background failover
+          });
+      }
     } catch {
       // offline fallback to default mock items
     } finally {
       setIsLoadingStore(false);
+      isRefreshingStoreRef.current = false;
     }
   }, []);
 

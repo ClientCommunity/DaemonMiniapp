@@ -317,7 +317,29 @@ export function adaptServer34Item(
   const stock = Number(item.stock ?? 999);
   const icon = item.icon || (serverId === 3 ? '⚡' : '📶');
 
-  // Extract clean service name and country (handling nested parentheses like WhatsApp (USA (Virtual)))
+  // Fast path for Server 4: Carrier pool has 21,000+ app names without parentheses
+  if (serverId === 4) {
+    const cleanServiceName = rawName.trim();
+    return {
+      id: `s4_${serviceCode}_${index}`,
+      server: 4,
+      serviceCode,
+      serviceName: cleanServiceName,
+      rawName,
+      country: 'Global Carrier',
+      countryCode: item.country_code || 'GL',
+      callingCode: '',
+      flag: '📶',
+      icon,
+      priceInr: price,
+      availableCount: stock,
+      category: mapAppCode(serviceCode || cleanServiceName),
+      speed: '10-30s Carrier',
+      successRate: 96,
+    };
+  }
+
+  // Server 3 path: Parse service name and country from parentheses
   let cleanServiceName = rawName;
   let cleanCountry = item.country || 'Global';
 
@@ -335,8 +357,8 @@ export function adaptServer34Item(
   const meta = parseCountryMeta(cleanCountry);
 
   return {
-    id: `s${serverId}_${serviceCode}_${cleanCountry.replace(/[^a-zA-Z0-9]/g, '_')}_${price}_${index}`,
-    server: serverId,
+    id: `s3_${serviceCode}_${cleanCountry.replace(/[^a-zA-Z0-9]/g, '_')}_${price}_${index}`,
+    server: 3,
     serviceCode,
     serviceName: cleanServiceName,
     rawName,
@@ -348,8 +370,8 @@ export function adaptServer34Item(
     priceInr: price,
     availableCount: stock,
     category: mapAppCode(serviceCode || cleanServiceName),
-    speed: serverId === 3 ? '1-3s Instant' : '10-30s Carrier',
-    successRate: serverId === 3 ? 99 : 96,
+    speed: '1-3s Instant',
+    successRate: 99,
   };
 }
 
