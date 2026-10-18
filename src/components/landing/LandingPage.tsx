@@ -55,8 +55,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         setErrorMessage(res.error || 'Failed to authenticate with Google. Please try again.');
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Network connection failed';
-      setErrorMessage(`Authentication error: ${msg}`);
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      if (rawMsg.includes('Endpoint not found') || rawMsg.includes('404')) {
+        setErrorMessage(
+          'Backend server has updated files waiting on disk. Please click Restart in your Endercloud panel (nova.endercloud.in) so Python loads the new Google authentication route.'
+        );
+      } else {
+        setErrorMessage(`Authentication error: ${rawMsg}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -64,8 +70,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
   useEffect(() => {
     let checkInterval: ReturnType<typeof setInterval> | null = null;
+    let initialized = false;
 
     const initGoogleGsi = () => {
+      if (initialized) return;
+
       const google = (window as unknown as {
         google?: {
           accounts?: {
@@ -78,53 +87,57 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         };
       })?.google;
 
-      if (google?.accounts?.id) {
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-
-        if (heroGoogleBtnRef.current) {
-          heroGoogleBtnRef.current.innerHTML = '';
-          google.accounts.id.renderButton(heroGoogleBtnRef.current, {
-            theme: 'filled_black',
-            size: 'large',
-            text: 'continue_with',
-            shape: 'pill',
-            width: 300,
-            logo_alignment: 'left',
-          });
-        }
-
-        if (ctaGoogleBtnRef.current) {
-          ctaGoogleBtnRef.current.innerHTML = '';
-          google.accounts.id.renderButton(ctaGoogleBtnRef.current, {
-            theme: 'filled_black',
-            size: 'large',
-            text: 'signin_with',
-            shape: 'pill',
-            width: 300,
-            logo_alignment: 'left',
-          });
-        }
-
+      if (google?.accounts?.id && heroGoogleBtnRef.current) {
+        initialized = true;
         if (checkInterval) {
           clearInterval(checkInterval);
           checkInterval = null;
+        }
+
+        try {
+          google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          if (heroGoogleBtnRef.current) {
+            heroGoogleBtnRef.current.innerHTML = '';
+            google.accounts.id.renderButton(heroGoogleBtnRef.current, {
+              theme: 'filled_black',
+              size: 'large',
+              text: 'continue_with',
+              shape: 'pill',
+              width: 280,
+              logo_alignment: 'left',
+            });
+          }
+
+          if (ctaGoogleBtnRef.current) {
+            ctaGoogleBtnRef.current.innerHTML = '';
+            google.accounts.id.renderButton(ctaGoogleBtnRef.current, {
+              theme: 'filled_black',
+              size: 'large',
+              text: 'signin_with',
+              shape: 'pill',
+              width: 280,
+              logo_alignment: 'left',
+            });
+          }
+        } catch (e) {
+          console.error('Failed to initialize Google GSI button:', e);
         }
       }
     };
 
     initGoogleGsi();
 
-    checkInterval = setInterval(() => {
-      const google = (window as unknown as { google?: { accounts?: { id?: unknown } } })?.google;
-      if (google?.accounts?.id && (heroGoogleBtnRef.current || ctaGoogleBtnRef.current)) {
+    if (!initialized) {
+      checkInterval = setInterval(() => {
         initGoogleGsi();
-      }
-    }, 300);
+      }, 250);
+    }
 
     return () => {
       if (checkInterval) clearInterval(checkInterval);
@@ -306,22 +319,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     </div>
                   )}
 
-                  {isLoading ? (
-                    <div className="py-8 flex flex-col items-center justify-center gap-3">
-                      <div className="w-8 h-8 border-3 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs text-[#a1a1aa] font-medium">
-                        Verifying Google credential &amp; loading wallet...
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-4 py-2">
-                      <div className="w-full flex justify-center min-h-[46px]" ref={heroGoogleBtnRef} />
+                  <div className="flex flex-col items-center gap-4 py-2 relative">
+                    {isLoading && (
+                      <div className="absolute inset-0 bg-[#121217]/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-2 rounded-2xl">
+                        <div className="w-7 h-7 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs text-[#c4b5fd] font-medium">
+                          Verifying Google credential &amp; loading wallet...
+                        </span>
+                      </div>
+                    )}
 
-                      <p className="text-[11px] text-[#71717a] text-center mt-1">
-                        By continuing, you agree to secure account allocation with instant INR/USDT wallet access.
-                      </p>
-                    </div>
-                  )}
+                    <div className="w-full flex justify-center min-h-[44px] overflow-hidden rounded-full" ref={heroGoogleBtnRef} />
+
+                    <p className="text-[11px] text-[#71717a] text-center mt-1">
+                      By continuing, you agree to secure account allocation with instant INR/USDT wallet access.
+                    </p>
+                  </div>
 
                   {/* Highlights inside card */}
                   <div className="mt-6 pt-5 border-t border-[#262630] space-y-2.5">
