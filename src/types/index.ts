@@ -14,6 +14,8 @@ export interface UserProfile {
   salesBalance: number;     // Earned reseller margin / affiliate profit in INR
   totalDeposited: number;   // Cumulative lifetime deposits
   totalSaved: number;       // Lifetime promo discounts
+  email?: string;
+  authProvider?: 'telegram' | 'google';
 }
 
 export type ServerId = 1 | 2 | 3 | 4 | 5;

@@ -24,6 +24,7 @@ import {
   Search,
   Radio,
   TrendingUp,
+  Edit2,
 } from 'lucide-react';
 
 type ServerSubTab = 'server1' | 'server2' | 'server3_4' | 'server5';
@@ -262,6 +263,27 @@ export const ServerManagementTab: React.FC = () => {
       }
     } catch {
       addToast('Failed to delete account', 'error');
+    }
+  };
+
+  const handleUpdateStockPrice = async (item: { phone: string; price: number; country_name?: string; account_year?: number }) => {
+    const newPriceStr = window.prompt(`Enter new price (₹) for +${item.phone.replace(/^\+/, '')} (${item.country_name || 'Global'} ${item.account_year || ''}):`, item.price.toString());
+    if (!newPriceStr) return;
+    const newPrice = parseInt(newPriceStr, 10);
+    if (isNaN(newPrice) || newPrice <= 0) {
+      addToast('Invalid price entered', 'error');
+      return;
+    }
+    try {
+      const res = await adminApi.updateStockPrice({ phone: item.phone, price: newPrice });
+      if (res?.success) {
+        setS2Stock((prev) => prev.map((s) => (s.phone === item.phone ? { ...s, price: newPrice } : s)));
+        addToast(`Updated price for +${item.phone.replace(/^\+/, '')} to ₹${newPrice}`, 'success');
+      } else {
+        addToast(res?.error || 'Failed to update price', 'error');
+      }
+    } catch {
+      addToast('Failed to update price', 'error');
     }
   };
 
@@ -989,13 +1011,22 @@ export const ServerManagementTab: React.FC = () => {
                           {item.twofa ? <span className="text-[#a78bfa]">Yes</span> : 'None'}
                         </td>
                         <td className="py-2 px-3 text-right">
-                          <button
-                            onClick={() => handleDeleteStockItem(item.phone)}
-                            className="text-[#ef4444] hover:text-[#dc2626] p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
-                            title="Delete Account"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleUpdateStockPrice(item)}
+                              className="text-[#a78bfa] hover:text-[#c4b5fd] p-1 rounded-lg hover:bg-[#a78bfa]/10 transition-colors"
+                              title="Edit Price"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStockItem(item.phone)}
+                              className="text-[#ef4444] hover:text-[#dc2626] p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
+                              title="Delete Account"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

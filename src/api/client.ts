@@ -9,14 +9,19 @@ const BASE_URL =
     ?.VITE_API_BASE_URL || 'https://daemonproxy-7m1m.onrender.com';
 
 const ADMIN_TOKEN_KEY = 'krish_telebot_admin_token';
+const WEB_USER_TOKEN_KEY = 'krish_web_user_token';
 let adminSessionToken: string | null = null;
+let webUserSessionToken: string | null = null;
 
 try {
   if (typeof window !== 'undefined' && window.sessionStorage) {
     adminSessionToken = window.sessionStorage.getItem(ADMIN_TOKEN_KEY);
   }
+  if (typeof window !== 'undefined' && window.localStorage) {
+    webUserSessionToken = window.localStorage.getItem(WEB_USER_TOKEN_KEY);
+  }
 } catch {
-  // Session storage access in sandboxed environment
+  // Storage access in sandboxed environment
 }
 
 /**
@@ -54,17 +59,76 @@ export function getAdminToken(): string | null {
 }
 
 /**
- * Extracts raw Telegram WebApp initData string if available in current window.
+ * Stores or clears the website Google user JWT session token in localStorage.
+ */
+export function setWebUserToken(token: string | null): void {
+  webUserSessionToken = token;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (token) {
+        window.localStorage.setItem(WEB_USER_TOKEN_KEY, token);
+      } else {
+        window.localStorage.removeItem(WEB_USER_TOKEN_KEY);
+      }
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Retrieves the website Google user JWT session token from memory or localStorage.
+ */
+export function getWebUserToken(): string | null {
+  if (!webUserSessionToken) {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        webUserSessionToken = window.localStorage.getItem(WEB_USER_TOKEN_KEY);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
+  return webUserSessionToken;
+}
+
+/**
+ * Extracts raw Telegram WebApp initData string if available in current window or URL params.
  */
 export function getTelegramInitData(): string {
   try {
-    return (
+    const direct = (
       (window as unknown as { Telegram?: { WebApp?: { initData?: string } } })?.Telegram
         ?.WebApp?.initData || ''
     );
+    if (direct) return direct;
+
+    // Check URL hash for tgWebAppData
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const tgData = params.get('tgWebAppData');
+      if (tgData) return tgData;
+    }
+
+    // Check query parameter for initData
+    if (typeof window !== 'undefined' && window.location.search) {
+      const params = new URLSearchParams(window.location.search);
+      const qData = params.get('initData') || params.get('tgWebAppData');
+      if (qData) return qData;
+    }
+
+    return '';
   } catch {
     return '';
   }
+}
+
+/**
+ * Returns true if current execution context is inside native Telegram Mini App.
+ */
+export function isTelegramWebApp(): boolean {
+  return Boolean(getTelegramInitData());
 }
 
 /**
@@ -116,17 +180,20 @@ export async function apiRequest<T>(
   }
 
   const initData = getTelegramInitData();
-  if (initData) {
-    headers.set('X-Telegram-Init-Data', initData);
-  } else {
-    // Development fallback when launched outside native Telegram client
-    headers.set('X-User-Id', '7507183871');
-  }
-
-  // Inject Bearer Authorization header for admin endpoints if admin token exists
+  const webUserToken = getWebUserToken();
   const adminToken = getAdminToken();
-  if (adminToken && (endpoint.startsWith('/api/admin') || endpoint.includes('/admin/'))) {
-    headers.set('Authorization', `Bearer ${adminToken}`);
+
+  if (initData) {
+    // 1. Inside Telegram Mini App: Always authenticate via cryptographic initData
+    headers.set('X-Telegram-Init-Data', initData);
+
+    // Inject Bearer Authorization header for admin endpoints if admin token exists
+    if (adminToken && (endpoint.startsWith('/api/admin') || endpoint.includes('/admin/'))) {
+      headers.set('Authorization', `Bearer ${adminToken}`);
+    }
+  } else if (webUserToken) {
+    // 2. Standalone Website: Authenticate via Google Session JWT
+    headers.set('Authorization', `Bearer ${webUserToken}`);
   }
 
   let response: Response;

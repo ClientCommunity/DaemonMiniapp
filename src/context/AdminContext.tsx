@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { adminApi, AdminPermissions } from '../api/adminApi';
-import { getAdminToken, setAdminToken, getTelegramInitData } from '../api/client';
+import { getAdminToken, setAdminToken, isTelegramWebApp } from '../api/client';
 import { AdminEntryChoiceModal } from '../components/admin/AdminEntryChoiceModal';
 import { AdminPassphraseModal } from '../components/admin/AdminPassphraseModal';
 
@@ -92,6 +92,19 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     let isMounted = true;
 
     async function checkAdminStatus() {
+      // STRICT REQUIREMENT:
+      // Admin Panel is strictly exclusive to the Telegram Mini App opened by verified admins.
+      // When accessed as a website via standard browsers, admin recognition is completely disabled.
+      if (!isTelegramWebApp()) {
+        if (isMounted) {
+          setIsAdmin(false);
+          setIsAdminMode(false);
+          setShowEntryChoiceModal(false);
+          setShowPassphraseModal(false);
+        }
+        return;
+      }
+
       const existingToken = getAdminToken();
       let recognizedAdmin = false;
 
@@ -114,12 +127,8 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // 2. Check Telegram ID against known master administrator list
       const tgId = extractTelegramUserId();
-      const hasInitData = !!getTelegramInitData();
 
       if (tgId && KNOWN_MASTER_ADMIN_IDS.includes(tgId)) {
-        recognizedAdmin = true;
-      } else if (!tgId && !hasInitData) {
-        // External browser / local preview development fallback defaults to master admin
         recognizedAdmin = true;
       }
 
@@ -276,8 +285,8 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <AdminContext.Provider value={value}>
       {children}
-      {showEntryChoiceModal && <AdminEntryChoiceModal />}
-      {showPassphraseModal && <AdminPassphraseModal />}
+      {isTelegramWebApp() && showEntryChoiceModal && <AdminEntryChoiceModal />}
+      {isTelegramWebApp() && showPassphraseModal && <AdminPassphraseModal />}
     </AdminContext.Provider>
   );
 };

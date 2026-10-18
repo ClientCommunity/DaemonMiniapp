@@ -23,6 +23,10 @@ export interface BackendUserPayload {
   referred_by?: string | null;
   total_deposited?: number;
   reseller_token?: string;
+  email?: string;
+  name?: string;
+  avatar_url?: string;
+  auth_provider?: string;
 }
 
 export interface BackendServer1Item {
@@ -133,9 +137,9 @@ export function adaptBackendUser(
   }
 
   const userId = backendData.id ?? tgUser?.id ?? current?.id ?? 0;
-  const username = tgUser?.username ?? current?.username ?? '';
-  const firstName = tgUser?.first_name ?? current?.firstName ?? 'User';
-  const avatarUrl = tgUser?.photo_url || current?.avatarUrl || '';
+  const username = tgUser?.username || (backendData.email ? backendData.email.split('@')[0] : '') || current?.username || `user_${userId}`;
+  const firstName = backendData.name || tgUser?.first_name || current?.firstName || 'User';
+  const avatarUrl = backendData.avatar_url || tgUser?.photo_url || current?.avatarUrl || '';
 
   const prefCurrency = backendData.pref_curr === 'USDT' ? 'USDT' : (current?.prefCurrency || 'INR');
   const exchangeRateUsdt = current?.exchangeRateUsdt || 94.0;
@@ -161,6 +165,8 @@ export function adaptBackendUser(
     salesBalance,
     totalDeposited,
     totalSaved,
+    email: backendData.email || current?.email,
+    authProvider: (backendData.auth_provider as 'telegram' | 'google') || (backendData.email ? 'google' : (current?.authProvider || 'telegram')),
   };
 }
 

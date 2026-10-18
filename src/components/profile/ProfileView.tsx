@@ -8,8 +8,11 @@ import {
   Lock,
   Check,
   Copy,
-  ArrowRight
+  ArrowRight,
+  LogOut,
+  Mail,
 } from 'lucide-react';
+import { isTelegramWebApp, setWebUserToken } from '../../api/client';
 
 export const ProfileView: React.FC = () => {
   const { user, transferableBalance, formatPrice, addToast } = useApp();
@@ -20,8 +23,13 @@ export const ProfileView: React.FC = () => {
   const handleCopyId = () => {
     navigator.clipboard?.writeText(user.telegramId);
     setCopiedId(true);
-    addToast(`Telegram ID ${user.telegramId} copied!`, 'info', 'Copied');
+    addToast(`Account ID ${user.telegramId} copied!`, 'info', 'Copied');
     setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  const handleWebLogout = () => {
+    setWebUserToken(null);
+    window.location.reload();
   };
 
   return (
@@ -48,6 +56,12 @@ export const ProfileView: React.FC = () => {
               <BadgeCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
             </div>
             <span className="text-xs text-[#8b5cf6] font-mono">@{user.username}</span>
+            {user.email && (
+              <div className="flex items-center gap-1 text-[11px] text-[#38bdf8] mt-0.5 truncate">
+                <Mail className="w-3 h-3 shrink-0" />
+                <span className="truncate">{user.email}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa] mt-1">
               <span>Member since {user.joinedDate}</span>
             </div>
@@ -137,6 +151,17 @@ export const ProfileView: React.FC = () => {
           LIVE
         </span>
       </div>
+
+      {/* Sign Out Button for Web Users */}
+      {!isTelegramWebApp() && (
+        <button
+          onClick={handleWebLogout}
+          className="mt-3 w-full py-3 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 active:scale-[0.98] border border-red-500/30 text-red-400 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out of Account</span>
+        </button>
+      )}
 
       {/* Modal */}
       <P2PTransferModal

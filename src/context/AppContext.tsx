@@ -34,7 +34,7 @@ import {
   resellerApi,
   historyApi,
 } from '../api/endpoints';
-import { api } from '../api/client';
+import { api, isTelegramWebApp, getWebUserToken, setWebUserToken } from '../api/client';
 import {
   adaptBackendUser,
   adaptHistoryItem,
@@ -173,7 +173,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isLoadingStore, setIsLoadingStore] = useState<boolean>(false);
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
   const [isCheckingBackend, setIsCheckingBackend] = useState<boolean>(false);
-  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(() => {
+    if (isTelegramWebApp()) return true;
+    return Boolean(getWebUserToken());
+  });
   const [initialLoadingStep, setInitialLoadingStep] = useState<number>(1);
   const [initialLoadingMessage, setInitialLoadingMessage] = useState<string>('Establishing secure connection...');
 
@@ -259,7 +262,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setUser((prev) => adaptBackendUser(authRes.user, prev));
       }
     } catch {
-      // offline preview mode fallback
+      if (!isTelegramWebApp()) {
+        setWebUserToken(null);
+      }
     }
   }, []);
 
@@ -385,6 +390,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let isMounted = true;
 
     async function initializeSession() {
+      // For web visitors without a saved session: bypass initial spinner directly to Google Login screen
+      if (!isTelegramWebApp() && !getWebUserToken()) {
+        if (isMounted) {
+          setIsInitialLoading(false);
+          setIsCheckingBackend(false);
+          setBackendConnected(true);
+        }
+        return;
+      }
+
       setIsCheckingBackend(true);
       setIsInitialLoading(true);
       setInitialLoadingStep(1);
@@ -411,7 +426,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (isOnline) {
         if (isMounted) {
           setInitialLoadingStep(2);
-          setInitialLoadingMessage('Authenticating Telegram profile & wallet...');
+          setInitialLoadingMessage(
+            isTelegramWebApp()
+              ? 'Authenticating Telegram profile & wallet...'
+              : 'Authenticating web profile & wallet...'
+          );
         }
 
         try {
@@ -420,7 +439,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setUser((prev) => adaptBackendUser(authRes.user, prev));
           }
         } catch {
-          // browser mode fallback
+          if (!isTelegramWebApp()) {
+            setWebUserToken(null);
+          }
         }
 
         try {

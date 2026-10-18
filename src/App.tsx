@@ -15,6 +15,8 @@ import { P2PTransferModal } from './components/profile/P2PTransferModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminEntryChoiceModal } from './components/admin/AdminEntryChoiceModal';
 import { AdminPassphraseModal } from './components/admin/AdminPassphraseModal';
+import { LandingPage } from './components/landing/LandingPage';
+import { isTelegramWebApp, getWebUserToken } from './api/client';
 
 const AppContent: React.FC = () => {
   const {
@@ -34,6 +36,15 @@ const AppContent: React.FC = () => {
 
   const { isAdminMode } = useAdmin();
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+
+  const isTg = isTelegramWebApp();
+  const [webToken, setWebToken] = useState<string | null>(getWebUserToken());
+
+  const handleGoogleLoginSuccess = async (token: string) => {
+    setWebToken(token);
+    await refreshUser();
+    await refreshStore();
+  };
 
   // Stale-While-Revalidate (SWR): Refresh active tab data seamlessly in background
   useEffect(() => {
@@ -88,6 +99,17 @@ const AppContent: React.FC = () => {
     }
   }, [activeTab, setActiveTab, isAdminMode]);
 
+  // 1. When accessed via website without an authenticated Google session, present full responsive Landing Page
+  if (!isTg && !webToken) {
+    return (
+      <div className="relative w-full min-h-screen bg-[#0b0b0e] text-white flex flex-col">
+        <ToastContainer />
+        <LandingPage onLoginSuccess={handleGoogleLoginSuccess} />
+      </div>
+    );
+  }
+
+  // 2. Initial synchronization loading screen (for Telegram WebApp or returning web users)
   if (isInitialLoading) {
     return (
       <InitialLoadingScreen
@@ -116,9 +138,15 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Normal Customer Storefront workspace (strictly preserved with zero regressions)
+  // Normal Customer Storefront workspace (responsive on web, native phone width on Telegram)
   return (
-    <div className="relative w-full max-w-[430px] mx-auto min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl border-x border-[#181820]/40">
+    <div
+      className={`relative w-full ${
+        isTg
+          ? 'max-w-[430px] mx-auto border-x border-[#181820]/40'
+          : 'max-w-4xl mx-auto px-2 sm:px-4 md:border-x md:border-[#181820]/40'
+      } min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl`}
+    >
       {/* Toast Notifications */}
       <ToastContainer />
 

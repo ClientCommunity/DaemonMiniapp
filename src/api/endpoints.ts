@@ -164,11 +164,20 @@ export interface HistoryResponse {
   items: BackendHistoryItem[];
 }
 
+export interface GoogleAuthResponse {
+  success: boolean;
+  token?: string;
+  user?: BackendUserPayload;
+  error?: string;
+}
+
 /**
  * Authentication Endpoints
  */
 export const authApi = {
   authenticate: () => api.post<AuthResponse>('/api/auth', {}),
+  loginWithGoogle: (credential: string) =>
+    api.post<GoogleAuthResponse>('/api/auth/google', { credential }),
   getMe: () => api.get<AuthResponse>('/api/auth/me'),
   updateCurrency: (curr: 'INR' | 'USDT') =>
     api.post<{ success: boolean; curr: string }>('/api/profile/currency', { curr }),

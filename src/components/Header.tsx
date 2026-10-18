@@ -27,7 +27,7 @@ export const Header: React.FC = () => {
 
   const handleCopyId = () => {
     navigator.clipboard?.writeText(user.telegramId);
-    addToast(`Telegram ID ${user.telegramId} copied to clipboard!`, 'info', 'Copied');
+    addToast(`Account ID ${user.telegramId} copied to clipboard!`, 'info', 'Copied');
   };
 
   return (

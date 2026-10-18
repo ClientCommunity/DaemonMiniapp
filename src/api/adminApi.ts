@@ -352,6 +352,12 @@ export const adminApi = {
     return api.delete('/api/admin/stock/manage', { phone }, { phone });
   },
 
+  updateStockPrice: async (
+    payload: { phone?: string; country?: string; year?: string | number; price: number; update_existing?: boolean }
+  ): Promise<{ success: boolean; error?: string }> => {
+    return api.post('/api/admin/stock/price', payload);
+  },
+
   // --- Tab 2: Servers 3 & 4 Management (Virtual OTP Numbers) ---
 
   getServersConfig: async (): Promise<{ success: boolean; servers: ManagedServerConfig[] }> => {
