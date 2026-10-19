@@ -300,11 +300,12 @@ class DeamonApiTestCase(unittest.TestCase):
         buyer_uid = 99887744
         with transaction(immediate=True) as conn:
             conn.execute("INSERT OR REPLACE INTO users (user_id, balance, promo_balance) VALUES (?, 500, 0)", (buyer_uid,))
+            conn.execute("INSERT OR REPLACE INTO stock (phone, session_file, country_name, account_year, price, available, quality_tier) VALUES ('+919988776655', 'dummy.session', 'India', 2024, 85, 1, 'good')")
 
         res_buy = self.client.post(
             "/api/buy",
             headers={"X-User-Id": str(buyer_uid)},
-            json={"server": 1, "item": {"country": "India", "price": 85}, "qty": 1}
+            json={"server": 2, "item": {"country": "India", "price": 85}, "qty": 1}
         )
         self.assertEqual(res_buy.status_code, 200)
         buy_data = res_buy.get_json()

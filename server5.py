@@ -80,7 +80,8 @@ class Client:
                 await asyncio.sleep(2.0 * attempt)
 
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30), headers=headers) as session:
                     async with session.post(target_url, data={"key": key, "action": action, **params}) as response:
                         raw = await response.text()
                         if response.status == 429 or (response.status >= 400 and ("rate limit" in raw.lower() or "slow down" in raw.lower())):
@@ -140,7 +141,8 @@ async def test_provider(url,key):
     if is_cooling_down(url):
         rem = get_cooldown_remaining(url)
         raise SMMError("RATE_LIMIT", f"Provider {url} is currently cooling down ({rem:.1f}s remaining).")
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30), headers=headers) as session:
         async with session.post(url,data={"key":key,"action":"balance"}) as response:
             raw=await response.text()
             if response.status == 429 or (response.status >= 400 and "rate limit" in raw.lower()):
