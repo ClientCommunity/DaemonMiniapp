@@ -29,3 +29,18 @@ try {
 }
 
 console.log('✅ Deployed successfully to gh-pages branch!');
+
+// Trigger Render Deploy Hook for instant Render update
+console.log('⚡ Triggering Render Web Service deploy...');
+try {
+  const RENDER_DEPLOY_HOOK = 'https://api.render.com/deploy/srv-db0v70favr4c739gbve0?key=fTN1MniVTdE';
+  const renderRes = await fetch(RENDER_DEPLOY_HOOK, { method: 'POST' });
+  if (renderRes.ok) {
+    const data = await renderRes.json();
+    console.log(`✅ Render deploy triggered successfully! Deploy ID: ${data?.deploy?.id}`);
+  } else {
+    console.warn(`⚠️ Render deploy responded with status: ${renderRes.status}`);
+  }
+} catch (err) {
+  console.warn(`⚠️ Could not trigger Render deploy: ${err.message}`);
+}
