@@ -546,6 +546,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, promoUsed, mainUsed };
   };
 
+  // Rollback deduction if backend purchase fails
+  const rollbackPurchaseDeduction = (
+    totalCost: number,
+    promoUsed: number
+  ) => {
+    setUser((prev) => ({
+      ...prev,
+      balance: prev.balance + totalCost,
+      promoBalance: prev.promoBalance + promoUsed,
+      totalSaved: Math.max(0, prev.totalSaved - (promoUsed > 0 ? promoUsed : 0)),
+    }));
+  };
+
   // Server 1: Purchase Account
   const purchaseServer1Account = (account: Server1AccountItem): boolean => {
     const deduction = deductPurchaseAmount(account.priceInr);
@@ -631,17 +644,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 : item
             )
           );
+
+          addToast(
+            `Purchased ${account.country} Telegram Account! Credentials ready.`,
+            'success',
+            'Account Delivered'
+          );
+        } else {
+          // Backend reported purchase failure: rollback balance and close modal
+          rollbackPurchaseDeduction(account.priceInr, deduction.promoUsed);
+          setPurchasedCredentialsModal(null);
+          setHistory((prev) => prev.filter((item) => item.id !== orderId));
+          addToast(
+            res?.error || 'Purchase could not be completed. Your balance was refunded.',
+            'error',
+            'Purchase Failed'
+          );
         }
       })
-      .catch(() => {
-        // retain local state on network error
+      .catch((err: any) => {
+        // Network or HTTP error: rollback balance and close modal
+        rollbackPurchaseDeduction(account.priceInr, deduction.promoUsed);
+        setPurchasedCredentialsModal(null);
+        setHistory((prev) => prev.filter((item) => item.id !== orderId));
+        addToast(
+          err?.message || 'Server purchase failed. Your balance was refunded.',
+          'error',
+          'Purchase Failed'
+        );
       });
 
-    addToast(
-      `Purchased ${account.country} Telegram Account! Credentials ready.`,
-      'success',
-      'Account Delivered'
-    );
     return true;
   };
 
@@ -751,19 +783,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               );
             }
           }
+
+          addToast(
+            isBulk
+              ? `Delivered ${quantity} sessions ZIP package successfully!`
+              : `Purchased ${stockItem.country} account! ${requestedFormat === 'session' ? 'Session file downloading.' : 'Credentials ready.'}`,
+            'success',
+            'Purchase Complete'
+          );
+        } else {
+          // Failure returned from API: rollback balance, close modal, remove history
+          rollbackPurchaseDeduction(totalCost, deduction.promoUsed);
+          setPurchasedServer2Modal(null);
+          setHistory((prev) => prev.filter((item) => item.id !== orderId));
+          addToast(
+            res?.error || 'Server 2 purchase could not be completed. Your balance was refunded.',
+            'error',
+            'Purchase Failed'
+          );
         }
       })
-      .catch(() => {
-        // retain local state on network error
+      .catch((err: any) => {
+        // Network or HTTP error: rollback balance, close modal, remove history
+        rollbackPurchaseDeduction(totalCost, deduction.promoUsed);
+        setPurchasedServer2Modal(null);
+        setHistory((prev) => prev.filter((item) => item.id !== orderId));
+        addToast(
+          err?.message || 'Server 2 order failed. Your balance was refunded.',
+          'error',
+          'Purchase Failed'
+        );
       });
 
-    addToast(
-      isBulk
-        ? `Delivered ${quantity} sessions ZIP package successfully!`
-        : `Purchased ${stockItem.country} account! ${requestedFormat === 'session' ? 'Session file downloading.' : 'Credentials ready.'}`,
-      'success',
-      'Purchase Complete'
-    );
     return true;
   };
 
@@ -855,10 +906,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             );
             addToast(`Number allocated: ${realPhone}. Waiting for SMS code...`, 'info', 'Number Ready');
           }
+        } else {
+          // Failure returned from API: rollback balance, cancel session, remove history
+          rollbackPurchaseDeduction(service.priceInr, deduction.promoUsed);
+          setActiveOtpSession(null);
+          setHistory((prev) => prev.filter((item) => item.id !== orderId));
+          addToast(
+            res?.error || 'Virtual number could not be allocated. Your balance was refunded.',
+            'error',
+            'Allocation Failed'
+          );
         }
       })
-      .catch(() => {
-        // retain local state on network error
+      .catch((err: any) => {
+        // Network or HTTP error: rollback balance, cancel session, remove history
+        rollbackPurchaseDeduction(service.priceInr, deduction.promoUsed);
+        setActiveOtpSession(null);
+        setHistory((prev) => prev.filter((item) => item.id !== orderId));
+        addToast(
+          err?.message || 'Virtual number allocation failed. Your balance was refunded.',
+          'error',
+          'Allocation Failed'
+        );
       });
 
     addToast(
@@ -1087,24 +1156,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         qty: quantity,
       })
       .then((res) => {
-        if (res && res.success && res.new_balance !== undefined) {
-          setUser((prev) => ({
-            ...prev,
-            balance: res.new_balance!,
-            promoBalance:
-              res.new_promo_balance !== undefined ? res.new_promo_balance : prev.promoBalance,
-          }));
+        if (res && res.success) {
+          if (res.new_balance !== undefined) {
+            setUser((prev) => ({
+              ...prev,
+              balance: res.new_balance!,
+              promoBalance:
+                res.new_promo_balance !== undefined ? res.new_promo_balance : prev.promoBalance,
+            }));
+          }
+          addToast(
+            `SMM Order submitted for ${quantity.toLocaleString()} units! Starting shortly.`,
+            'success',
+            'SMM Boost Activated'
+          );
+        } else {
+          // Backend returned failure
+          rollbackPurchaseDeduction(totalCost, deduction.promoUsed);
+          setHistory((prev) => prev.filter((item) => item.id !== orderId));
+          addToast(
+            res?.error || 'SMM order failed. Your balance was refunded.',
+            'error',
+            'Order Failed'
+          );
         }
       })
-      .catch(() => {
-        // retain local state on network error
+      .catch((err: any) => {
+        // Rollback on network or HTTP 400 error
+        rollbackPurchaseDeduction(totalCost, deduction.promoUsed);
+        setHistory((prev) => prev.filter((item) => item.id !== orderId));
+        addToast(
+          err?.message || 'SMM order failed. Your balance was refunded.',
+          'error',
+          'Order Failed'
+        );
       });
 
-    addToast(
-      `SMM Order submitted for ${quantity.toLocaleString()} units! Starting shortly.`,
-      'success',
-      'SMM Boost Activated'
-    );
     return true;
   };
 
