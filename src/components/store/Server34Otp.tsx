@@ -27,35 +27,18 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     { code: 'spam', label: 'SpamChat' },
   ];
 
-  // Server-specific quick filter shortcuts:
-  // Server 3 is country/region partitioned (+91, +1, +44, Server 105, etc.)
-  // Server 4 is app/carrier partitioned (WhatsApp, Telegram, Google, etc.)
-  const quickSearches = useMemo(() => {
-    if (isServer3) {
-      return [
-        { label: '🇮🇳 India (+91)', query: 'India' },
-        { label: '🇺🇸 USA (+1)', query: 'USA' },
-        { label: '🇬🇧 UK (+44)', query: 'UK' },
-        { label: '🇳🇬 Nigeria (+234)', query: 'Nigeria' },
-        { label: '🇮🇩 Indonesia (+62)', query: 'Indonesia' },
-        { label: '🖥️ Server 105', query: '105' },
-        { label: 'WhatsApp', query: 'WhatsApp' },
-        { label: 'Telegram', query: 'Telegram' },
-        { label: '1688', query: '1688' },
-      ];
-    }
-    return [
-      { label: 'WhatsApp', query: 'WhatsApp' },
-      { label: 'WhatsApp Business', query: 'WhatsApp Business' },
-      { label: 'Telegram', query: 'Telegram' },
-      { label: 'Google / Gmail', query: 'Google' },
-      { label: 'Instagram', query: 'Instagram' },
-      { label: 'Facebook', query: 'Facebook' },
-      { label: 'TikTok', query: 'TikTok' },
-      { label: 'Twitter / X', query: 'Twitter' },
-      { label: '1688', query: '1688' },
-    ];
-  }, [isServer3]);
+  // Quick country shortcuts for Server 3 (where country routes exist)
+  const countrySearches = [
+    { label: '🇮🇳 India (+91)', query: 'India' },
+    { label: '🇺🇸 USA (+1)', query: 'USA' },
+    { label: '🇬🇧 UK (+44)', query: 'UK' },
+    { label: '🇳🇬 Nigeria (+234)', query: 'Nigeria' },
+    { label: '🇮🇩 Indonesia (+62)', query: 'Indonesia' },
+    { label: '🇧🇷 Brazil (+55)', query: 'Brazil' },
+    { label: '🇨🇴 Colombia (+57)', query: 'Colombia' },
+    { label: '🇳🇱 Netherlands (+31)', query: 'Netherlands' },
+    { label: '🖥️ Server 105', query: '105' },
+  ];
 
   // Live stock loaded from backend /api/store/servers for this server
   const serverItems = useMemo(
@@ -161,7 +144,11 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by country, dial code (+91, +1, +44), region, or app (WhatsApp, Telegram)..."
+          placeholder={
+            isServer3
+              ? 'Search by country, dial code (+91, +1, +44), or app (WhatsApp, Telegram)...'
+              : 'Search 21,000+ carrier services (WhatsApp, Telegram, Steam, Tinder, Netflix)...'
+          }
           className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none transition-all shadow-inner"
         />
         {search && (
@@ -176,37 +163,38 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
         )}
       </div>
 
-      {/* Quick Region & Number Shortcut Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-2 text-[11px]">
-        <span className="text-[#71717a] font-medium shrink-0 flex items-center gap-1 pl-0.5">
-          <Sparkles className="w-3 h-3 text-[#f59e0b]" />
-          <span>Quick:</span>
-        </span>
-        {quickSearches.map((qs) => {
-          const isSelected = search.toLowerCase() === qs.query.toLowerCase();
-          return (
-            <button
-              key={qs.query}
-              type="button"
-              onClick={() => {
-                if (isSelected) {
-                  setSearch('');
-                } else {
-                  setSearch(qs.query);
-                  setActiveCategory('all');
-                }
-              }}
-              className={`px-2.5 py-1 rounded-lg shrink-0 border transition-all duration-150 active:scale-95 ${
-                isSelected
-                  ? 'bg-[#7c3aed] border-[#8b5cf6] text-white font-bold shadow-sm'
-                  : 'bg-[#15151c] hover:bg-[#1e1e28] border-[#262630] text-[#a1a1aa] hover:text-white'
-              }`}
-            >
-              {qs.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Quick Country Shortcut Pills (Displayed exclusively in Server 3 for country-dedicated routes) */}
+      {isServer3 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-2 text-[11px]">
+          <span className="text-[#71717a] font-medium shrink-0 flex items-center gap-1 pl-0.5">
+            <Sparkles className="w-3 h-3 text-[#f59e0b]" />
+            <span>Country:</span>
+          </span>
+          {countrySearches.map((qs) => {
+            const isSelected = search.toLowerCase() === qs.query.toLowerCase();
+            return (
+              <button
+                key={qs.query}
+                type="button"
+                onClick={() => {
+                  if (isSelected) {
+                    setSearch('');
+                  } else {
+                    setSearch(qs.query);
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg shrink-0 border transition-all duration-150 active:scale-95 ${
+                  isSelected
+                    ? 'bg-[#7c3aed] border-[#8b5cf6] text-white font-bold shadow-sm'
+                    : 'bg-[#15151c] hover:bg-[#1e1e28] border-[#262630] text-[#a1a1aa] hover:text-white'
+                }`}
+              >
+                {qs.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Quick-Filter App Chips with SVG Icons */}
       <div className="mb-3">
@@ -224,10 +212,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                 key={chip.code}
                 type="button"
                 onClick={() => {
-                  setActiveCategory(chip.code);
-                  if (search && chip.code !== 'all') {
-                    // Keep search intact or refine
-                  }
+                  setActiveCategory(isActive ? 'all' : chip.code);
                 }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 active:scale-95 ${
                   isActive

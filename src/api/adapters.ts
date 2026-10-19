@@ -235,12 +235,12 @@ export function adaptServer2Item(
  */
 export function mapAppCode(code: string | undefined): OtpAppCode {
   if (!code) return 'all';
-  const c = code.toLowerCase();
-  if (c.includes('wa') || c.includes('whatsapp')) return 'wa';
-  if (c.includes('tg') || c.includes('telegram')) return 'tg';
-  if (c.includes('ig') || c.includes('insta')) return 'ig';
-  if (c.includes('go') || c.includes('google') || c.includes('gmail')) return 'go';
-  if (c.includes('spam')) return 'spam';
+  const c = code.toLowerCase().trim();
+  if (c === 'wa' || c === 'whatsapp' || /\bwhatsapp\b/i.test(c)) return 'wa';
+  if (c === 'tg' || c === 'telegram' || /\btelegram\b/i.test(c)) return 'tg';
+  if (c === 'ig' || c === 'instagram' || /\binstagram\b/i.test(c) || /\binsta\b/i.test(c)) return 'ig';
+  if (c === 'go' || c === 'google' || c === 'gmail' || /\bgoogle\b/i.test(c) || /\bgmail\b/i.test(c)) return 'go';
+  if (c === 'spam' || /\bspam\b/i.test(c)) return 'spam';
   return 'all';
 }
 
