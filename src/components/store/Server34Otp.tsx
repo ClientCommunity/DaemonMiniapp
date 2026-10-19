@@ -10,11 +10,13 @@ interface Server34OtpProps {
 }
 
 export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
-  const { formatPrice, requestVirtualOtp, server34Items } = useApp();
+  const { formatPrice, requestVirtualOtp, server34Items, setSelectedServer } = useApp();
 
   const [activeCategory, setActiveCategory] = useState<OtpAppCode>('all');
   const [search, setSearch] = useState('');
   const [displayCount, setDisplayCount] = useState(50);
+
+  const isServer3 = serverId === 3;
 
   const appChips: { code: OtpAppCode; label: string; badge?: string }[] = [
     { code: 'all', label: 'All Services' },
@@ -25,18 +27,35 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     { code: 'spam', label: 'SpamChat' },
   ];
 
-  // Quick filter shortcuts for high-frequency queries (regions & numbers)
-  const quickSearches = [
-    { label: '🇮🇳 India (+91)', query: 'India' },
-    { label: '🇺🇸 USA (+1)', query: 'USA' },
-    { label: '🇬🇧 UK (+44)', query: 'UK' },
-    { label: '🇳🇬 Nigeria (+234)', query: 'Nigeria' },
-    { label: '🇮🇩 Indonesia (+62)', query: 'Indonesia' },
-    { label: '🖥️ Server 105', query: '105' },
-    { label: 'WhatsApp', query: 'WhatsApp' },
-    { label: 'Telegram', query: 'Telegram' },
-    { label: '1688', query: '1688' },
-  ];
+  // Server-specific quick filter shortcuts:
+  // Server 3 is country/region partitioned (+91, +1, +44, Server 105, etc.)
+  // Server 4 is app/carrier partitioned (WhatsApp, Telegram, Google, etc.)
+  const quickSearches = useMemo(() => {
+    if (isServer3) {
+      return [
+        { label: '🇮🇳 India (+91)', query: 'India' },
+        { label: '🇺🇸 USA (+1)', query: 'USA' },
+        { label: '🇬🇧 UK (+44)', query: 'UK' },
+        { label: '🇳🇬 Nigeria (+234)', query: 'Nigeria' },
+        { label: '🇮🇩 Indonesia (+62)', query: 'Indonesia' },
+        { label: '🖥️ Server 105', query: '105' },
+        { label: 'WhatsApp', query: 'WhatsApp' },
+        { label: 'Telegram', query: 'Telegram' },
+        { label: '1688', query: '1688' },
+      ];
+    }
+    return [
+      { label: 'WhatsApp', query: 'WhatsApp' },
+      { label: 'WhatsApp Business', query: 'WhatsApp Business' },
+      { label: 'Telegram', query: 'Telegram' },
+      { label: 'Google / Gmail', query: 'Google' },
+      { label: 'Instagram', query: 'Instagram' },
+      { label: 'Facebook', query: 'Facebook' },
+      { label: 'TikTok', query: 'TikTok' },
+      { label: 'Twitter / X', query: 'Twitter' },
+      { label: '1688', query: '1688' },
+    ];
+  }, [isServer3]);
 
   // Live stock loaded from backend /api/store/servers for this server
   const serverItems = useMemo(
@@ -47,47 +66,54 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
   // Multi-attribute search matching: region, country, dial code, number, operator, service name
   const filtered = useMemo(() => {
     const trimmed = search.trim().toLowerCase();
-    const cleanNumber = trimmed.replace(/^\+/, ''); // "+91" -> "91"
-    const isExplicitPlus = trimmed.startsWith('+');
+    const searchTokens = trimmed ? trimmed.split(/\s+/).filter(Boolean) : [];
 
     return serverItems.filter((item: VirtualOtpServiceItem) => {
-      // 1. Search Query Evaluation: When user types in search, search across entire inventory
-      if (trimmed) {
-        const matchName = item.serviceName.toLowerCase().includes(trimmed);
-        const matchRawName = item.rawName ? item.rawName.toLowerCase().includes(trimmed) : false;
-        const matchCountry = item.country.toLowerCase().includes(trimmed);
-        const matchCountryCode = item.countryCode ? item.countryCode.toLowerCase() === trimmed : false;
-        const matchServiceCode = item.serviceCode.toLowerCase().includes(trimmed);
-
-        // Match calling codes (e.g. "+91" or "91")
-        const itemDial = (item.callingCode || '').replace(/^\+/, '').toLowerCase();
-        let matchCallingCode = false;
-        if (isExplicitPlus) {
-          matchCallingCode = Boolean(item.callingCode && item.callingCode.toLowerCase().startsWith(trimmed));
-        } else if (cleanNumber.length > 0) {
-          matchCallingCode = itemDial === cleanNumber || (cleanNumber.length >= 2 && itemDial.startsWith(cleanNumber));
-        }
-
-        // Match server / operator numbers (e.g. "105" in "Server 105", or "server 105")
-        const matchOperatorNumber =
-          (cleanNumber.length >= 2 && item.country.toLowerCase().includes(cleanNumber)) ||
-          item.country.toLowerCase().includes('server ' + cleanNumber);
-
-        const isMatch =
-          matchName ||
-          matchRawName ||
-          matchCountry ||
-          matchCountryCode ||
-          matchServiceCode ||
-          matchCallingCode ||
-          matchOperatorNumber;
-
-        return isMatch;
-      }
-
-      // 2. If no search query, filter by category chip
+      // 1. Strict Category Chip enforcement:
+      // If a specific category chip is selected (e.g. WhatsApp), ONLY services matching that category can EVER be shown.
+      // This strictly prevents "Air India" or other unrelated services from leaking in.
       if (activeCategory !== 'all' && item.category !== activeCategory) {
         return false;
+      }
+
+      // 2. Multi-word search token matching (e.g. "India WhatsApp", "WhatsApp +91", "TG India")
+      if (searchTokens.length > 0) {
+        const allTokensMatch = searchTokens.every((token) => {
+          const cleanNumber = token.replace(/^\+/, ''); // "+91" -> "91"
+          const isExplicitPlus = token.startsWith('+');
+
+          const matchName = item.serviceName.toLowerCase().includes(token);
+          const matchRawName = item.rawName ? item.rawName.toLowerCase().includes(token) : false;
+          const matchCountry = item.country.toLowerCase().includes(token);
+          const matchCountryCode = item.countryCode ? item.countryCode.toLowerCase() === token : false;
+          const matchServiceCode = item.serviceCode.toLowerCase().includes(token);
+
+          // Match calling codes (e.g. "+91" or "91")
+          const itemDial = (item.callingCode || '').replace(/^\+/, '').toLowerCase();
+          let matchCallingCode = false;
+          if (isExplicitPlus) {
+            matchCallingCode = Boolean(item.callingCode && item.callingCode.toLowerCase().startsWith(token));
+          } else if (cleanNumber.length > 0) {
+            matchCallingCode = itemDial === cleanNumber || (cleanNumber.length >= 2 && itemDial.startsWith(cleanNumber));
+          }
+
+          // Match server / operator numbers (e.g. "105" in "Server 105", or "server 105")
+          const matchOperatorNumber =
+            (cleanNumber.length >= 2 && item.country.toLowerCase().includes(cleanNumber)) ||
+            item.country.toLowerCase().includes('server ' + cleanNumber);
+
+          return (
+            matchName ||
+            matchRawName ||
+            matchCountry ||
+            matchCountryCode ||
+            matchServiceCode ||
+            matchCallingCode ||
+            matchOperatorNumber
+          );
+        });
+
+        if (!allTokensMatch) return false;
       }
 
       return true;
@@ -103,8 +129,6 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
   const visibleItems = useMemo(() => {
     return filtered.slice(0, displayCount);
   }, [filtered, displayCount]);
-
-  const isServer3 = serverId === 3;
 
   return (
     <div className="w-full flex flex-col pt-2">
@@ -254,6 +278,16 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                 {activeCategory !== 'all' ? ` in ${activeCategory.toUpperCase()}` : ''}.
               </span>
             </div>
+            {serverId === 4 && (
+              <button
+                type="button"
+                onClick={() => setSelectedServer(3)}
+                className="mt-1 px-3.5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white transition-all shadow-violet-glow-sm flex items-center gap-1.5"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                <span>Looking for Country Numbers? Switch to Server 3 (India, USA...)</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
