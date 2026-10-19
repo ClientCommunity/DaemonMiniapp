@@ -134,6 +134,66 @@ def get_manual_methods() -> dict[str, Any]:
     }
 
 
+def notify_admins_manual_deposit(order_db_id: int, user_id: int, amount: int, method_id: int | str, utr: str) -> None:
+    """Send immediate notification to Telegram admins and log channel with inline Accept/Reject buttons."""
+    import html
+    import json
+    import os
+    import urllib.request
+    import config
+
+    bot_token = config.BOT_TOKEN
+    if not bot_token:
+        return
+
+    order_key = f"M{order_db_id}"
+    caption = (
+        f"📥 <b>NEW MANUAL PROOF RECEIVED (Mini App / Web)</b>\n\n"
+        f"User: <code>{user_id}</code>\n"
+        f"Amount Requested: <b>₹{amount}</b>\n"
+        f"UTR / Ref: <code>{html.escape(utr)}</code>\n"
+        f"Method: <b>Manual #{method_id}</b>\n"
+        f"Transaction Key: <code>{order_key}</code>"
+    )
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "✅ Accept", "callback_data": f"dep_act|man|app|{order_key}|{user_id}|{amount}"},
+                {"text": "❌ Reject", "callback_data": f"dep_act|man|rej|{order_key}|{user_id}|{amount}"}
+            ],
+            [
+                {"text": "✏️ Custom Amount", "callback_data": f"dep_act|man|custom|{order_key}|{user_id}|{amount}"}
+            ]
+        ]
+    }
+
+    target_chats = list(config.MASTER_ADMIN_IDS)
+    try:
+        admin_log_channel = int(os.getenv("ADMIN_LOG_CHANNEL_ID", "-1003970256704"))
+        target_chats.append(admin_log_channel)
+    except Exception:
+        pass
+
+    for chat_id in set(target_chats):
+        try:
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            payload = {
+                "chat_id": chat_id,
+                "text": caption,
+                "parse_mode": "HTML",
+                "reply_markup": reply_markup,
+            }
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            urllib.request.urlopen(req, timeout=5)
+        except Exception as exc:
+            logger.warning("Failed to notify Telegram admin %s: %s", chat_id, exc)
+
+
 def submit_manual_deposit(user_id: int, method_id: int | str, utr: str, amount: int = 0) -> dict[str, Any]:
     """Submit a manual deposit UTR for administrator review."""
     uid = int(user_id)
@@ -144,12 +204,18 @@ def submit_manual_deposit(user_id: int, method_id: int | str, utr: str, amount: 
     amt = max(0, int(amount))
     method_label = f"Manual #{method_id} (UTR: {clean_utr})"
 
+    order_db_id = 0
     with transaction(immediate=True) as conn:
         conn.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (uid,))
-        conn.execute("""
+        cur = conn.execute("""
             INSERT INTO deposits (user_id, amount, method_name, status, date)
             VALUES (?, ?, ?, 'pending', ?)
         """, (uid, amt, method_label, utcnow()))
+        order_db_id = cur.lastrowid
+
+    # Dispatch Telegram notification to admins and log channel
+    if order_db_id:
+        notify_admins_manual_deposit(order_db_id, uid, amt, method_id, clean_utr)
 
     return {
         "success": True,
