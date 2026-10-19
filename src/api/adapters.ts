@@ -233,15 +233,20 @@ export function adaptServer2Item(
 /**
  * Helper to map app identifiers to OtpAppCode chips.
  */
-export function mapAppCode(code: string | undefined): OtpAppCode {
-  if (!code) return 'all';
-  const c = code.toLowerCase().trim();
-  if (c === 'wa' || c === 'whatsapp' || /\bwhatsapp\b/i.test(c)) return 'wa';
-  if (c === 'tg' || c === 'telegram' || /\btelegram\b/i.test(c)) return 'tg';
-  if (c === 'ig' || c === 'instagram' || /\binstagram\b/i.test(c) || /\binsta\b/i.test(c)) return 'ig';
-  if (c === 'go' || c === 'google' || c === 'gmail' || /\bgoogle\b/i.test(c) || /\bgmail\b/i.test(c)) return 'go';
-  if (c === 'spam' || /\bspam\b/i.test(c)) return 'spam';
-  return 'all';
+export function mapAppCode(code: string | undefined, fallback?: string): OtpAppCode {
+  const check = (val: string | undefined): OtpAppCode => {
+    if (!val) return 'all';
+    const c = val.toLowerCase().trim();
+    if (c === 'wa' || c === 'whatsapp' || /\bwhatsapp\b/i.test(c)) return 'wa';
+    if (c === 'tg' || c === 'telegram' || /\btelegram\b/i.test(c)) return 'tg';
+    if (c === 'ig' || c === 'instagram' || /\binstagram\b/i.test(c) || /\binsta\b/i.test(c)) return 'ig';
+    if (c === 'go' || c === 'google' || c === 'gmail' || /\bgoogle\b/i.test(c) || /\bgmail\b/i.test(c)) return 'go';
+    if (c === 'spam' || /\bspam\b/i.test(c)) return 'spam';
+    return 'all';
+  };
+  const primary = check(code);
+  if (primary !== 'all') return primary;
+  return check(fallback);
 }
 
 interface CountryMeta {
@@ -333,7 +338,7 @@ export function adaptServer34Item(
       icon,
       priceInr: price,
       availableCount: stock,
-      category: mapAppCode(serviceCode || cleanServiceName),
+      category: mapAppCode(cleanServiceName, serviceCode),
       speed: '10-30s Carrier',
       successRate: 96,
     };
@@ -369,7 +374,7 @@ export function adaptServer34Item(
     icon,
     priceInr: price,
     availableCount: stock,
-    category: mapAppCode(serviceCode || cleanServiceName),
+    category: mapAppCode(cleanServiceName, serviceCode),
     speed: '1-3s Instant',
     successRate: 99,
   };

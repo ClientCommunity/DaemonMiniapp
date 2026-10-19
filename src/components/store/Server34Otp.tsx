@@ -163,38 +163,40 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
         )}
       </div>
 
-      {/* Quick Country Shortcut Pills (Displayed exclusively in Server 3 for country-dedicated routes) */}
-      {isServer3 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-2 text-[11px]">
-          <span className="text-[#71717a] font-medium shrink-0 flex items-center gap-1 pl-0.5">
-            <Sparkles className="w-3 h-3 text-[#f59e0b]" />
-            <span>Country:</span>
-          </span>
-          {countrySearches.map((qs) => {
-            const isSelected = search.toLowerCase() === qs.query.toLowerCase();
-            return (
-              <button
-                key={qs.query}
-                type="button"
-                onClick={() => {
-                  if (isSelected) {
-                    setSearch('');
-                  } else {
-                    setSearch(qs.query);
+      {/* Quick Country Shortcut Navigation Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-2 text-[11px]">
+        <span className="text-[#71717a] font-medium shrink-0 flex items-center gap-1 pl-0.5">
+          <Sparkles className="w-3 h-3 text-[#f59e0b]" />
+          <span>Country:</span>
+        </span>
+        {countrySearches.map((qs) => {
+          const isSelected = search.toLowerCase() === qs.query.toLowerCase();
+          return (
+            <button
+              key={qs.query}
+              type="button"
+              onClick={() => {
+                if (isSelected) {
+                  setSearch('');
+                } else {
+                  setSearch(qs.query);
+                  if (!isServer3) {
+                    // Switch to Server 3 where dedicated country routes (+91, +1, +44) reside
+                    setSelectedServer(3);
                   }
-                }}
-                className={`px-2.5 py-1 rounded-lg shrink-0 border transition-all duration-150 active:scale-95 ${
-                  isSelected
-                    ? 'bg-[#7c3aed] border-[#8b5cf6] text-white font-bold shadow-sm'
-                    : 'bg-[#15151c] hover:bg-[#1e1e28] border-[#262630] text-[#a1a1aa] hover:text-white'
-                }`}
-              >
-                {qs.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+                }
+              }}
+              className={`px-2.5 py-1 rounded-lg shrink-0 border transition-all duration-150 active:scale-95 ${
+                isSelected
+                  ? 'bg-[#7c3aed] border-[#8b5cf6] text-white font-bold shadow-sm'
+                  : 'bg-[#15151c] hover:bg-[#1e1e28] border-[#262630] text-[#a1a1aa] hover:text-white'
+              }`}
+            >
+              {qs.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Quick-Filter App Chips with SVG Icons */}
       <div className="mb-3">
