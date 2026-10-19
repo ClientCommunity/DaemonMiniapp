@@ -92,16 +92,19 @@ def check_fampay_order(reference: str) -> dict[str, Any]:
         if not row:
             return {"status": "not_found"}
 
-        status = row["status"]
+        raw_status = row["status"]
         amount = int(row["amount"])
         uid = int(row["user_id"])
 
         user_row = conn.execute("SELECT balance FROM users WHERE user_id = ?", (uid,)).fetchone()
         new_bal = int(user_row["balance"] or 0) if user_row else 0
 
+    is_verified = raw_status in ("success", "approved", "verified")
     return {
         "reference": ref,
-        "status": status,
+        "status": "approved" if raw_status == "success" else raw_status,
+        "raw_status": raw_status,
+        "verified": is_verified,
         "amount": amount,
         "new_balance": new_bal,
     }
