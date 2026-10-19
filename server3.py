@@ -17,7 +17,7 @@ from database import connect, transaction, utcnow
 from secrets_manager import decrypt_secret
 from api_cooldown import check_cooldown, is_cooling_down, record_rate_limit, get_cooldown_remaining
 
-DEFAULT_ENDPOINT = "https://dgotp.in/stubs/handler_api.php"
+DEFAULT_ENDPOINT = "https://www.dgotp.in/stubs/handler_api.php"
 
 # Human-friendly labels and search keywords for common provider codes. Unknown
 # codes remain available under their exact DGOTP service code.
@@ -180,39 +180,34 @@ class Server3Client:
                               "name": name, "keywords": keywords})
         return clean
 
-    async def get_number(self, service: str, server: str) -> Activation:
-        # Standard SMS-Activate protocol uses action=getNum and country=<id>
-        try:
-            body = await self.request("getNum", service=service, country=server)
-        except DGOTPError as exc:
-            if exc.code == "BAD_ACTION":
-                body = await self.request("getNumber", service=service, server=server)
-            else:
-                raise
-        match = re.fullmatch(r"ACCESS_NUMBER:([^:]+):(.+)", body)
+    async def get_number(self, service: str, server: str = "0") -> Activation:
+        # Standard SMS-Activate protocol: action=getNum&service=wa&country=0
+        country_id = str(server if server and server != "None" else "0").strip()
+        body = await self.request("getNum", service=service, country=country_id)
+        match = re.search(r"ACCESS_NUMBER:([^:\s]+):([^\s]+)", body)
         if not match:
-            raise DGOTPError("INVALID_NUMBER_RESPONSE")
+            raise DGOTPError(body if body else "INVALID_NUMBER_RESPONSE")
         return Activation(match.group(1), match.group(2))
 
     async def get_status(self, order_id: str) -> tuple[str, str | None]:
         body = await self.request("getStatus", id=order_id)
         if body.startswith("STATUS_OK:"):
-            return "completed", body.split(":", 1)[1]
+            return "completed", body.split(":", 1)[1].strip()
         if body in ("STATUS_WAIT_CODE", "STATUS_WAIT_RETRY", "STATUS_WAIT_RESEND"):
             return "waiting", None
-        if body == "STATUS_CANCEL":
+        if body in ("STATUS_CANCEL", "ACCESS_CANCEL"):
             return "cancelled", None
         raise DGOTPError(body)
 
-    async def set_status(self, order_id: str, status: int) -> str:
+    async def set_status(self, order_id: str, status: int = 8) -> str:
         if status not in (3, 8):
             raise ValueError("status must be 3 (next SMS) or 8 (cancel)")
         try:
             return await self.request("setStatus", status=status, id=order_id)
         except DGOTPError as exc:
             # Some deployments return STATUS_CANCEL as a terminal state rather
-            # than ACCESS_CANCEL.  It still confirms that refunding is safe.
-            if status == 8 and exc.code == "STATUS_CANCEL":
+            # than ACCESS_CANCEL. It still confirms that refunding is safe.
+            if status == 8 and exc.code in ("STATUS_CANCEL", "ACCESS_CANCEL"):
                 return "STATUS_CANCEL"
             raise
 
@@ -220,35 +215,70 @@ class Server3Client:
         servers = {}
         services = []
 
-        # 1. Try SMS-Activate getPrices across common services (DGOTP modern endpoint)
+        # 1. Primary: DGOTP modern REST JSON service catalog /api/v1/getServices
         try:
-            for svc_code, (svc_name, keywords) in SERVICE_CATALOG.items():
-                try:
-                    body = await self.request("getPrices", service=svc_code, country=0)
-                    data = json.loads(body)
-                    if isinstance(data, dict):
-                        for srv_code, sdata in data.items():
-                            if isinstance(sdata, dict) and svc_code in sdata:
-                                item = sdata[svc_code]
-                                cost = float(item.get("cost", 0))
-                                count = int(item.get("count", 0))
-                                if cost > 0:
-                                    country_name = DGOTP_COUNTRIES.get(str(srv_code), f"Server {srv_code}")
-                                    servers[str(srv_code)] = country_name
+            cfg = self._config()
+            stored_key = cfg["api_key"]
+            api_key = decrypt_secret(stored_key[4:]) if stored_key.startswith("enc:") else stored_key
+            rest_url = "https://www.dgotp.in/api/v1/getServices"
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+                async with session.get(rest_url, params={"api_key": api_key}, headers=headers) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if isinstance(data, list) and data:
+                            servers["0"] = "Global / India"
+                            for item in data:
+                                raw_p = str(item.get("service_price", "0")).replace("\xa0", "").strip()
+                                pm = re.search(r"([0-9]+(?:\.[0-9]+)?)", raw_p)
+                                price = float(pm.group(1)) if pm else 0.0
+                                code = str(item.get("service_id", "")).strip()
+                                s_name = str(item.get("service_name", "")).strip()
+                                country = str(item.get("country", "India")).strip()
+                                stock = int(item.get("stock", 0))
+                                if code and price > 0:
+                                    known_name, keywords = service_metadata(code, s_name)
                                     services.append({
-                                        "service_code": svc_code,
-                                        "server_code": str(srv_code),
-                                        "name": f"{svc_name} ({country_name})",
-                                        "keywords": f"{keywords} {country_name}".casefold(),
-                                        "price": cost,
-                                        "in_stock": int(count > 0)
+                                        "service_code": code,
+                                        "server_code": "0",
+                                        "name": f"{known_name} ({country})" if country else known_name,
+                                        "keywords": f"{keywords} {country}".casefold(),
+                                        "price": price,
+                                        "in_stock": int(stock > 0)
                                     })
-                except Exception:
-                    continue
-        except Exception:
+        except Exception as exc:
             pass
 
-        # 2. Fallback to legacy getServers / getServices if getPrices yielded no data
+        # 2. Secondary fallback: SMS-Activate getPrices across common services
+        if not services:
+            try:
+                for svc_code, (svc_name, keywords) in SERVICE_CATALOG.items():
+                    try:
+                        body = await self.request("getPrices", service=svc_code, country=0)
+                        data = json.loads(body)
+                        if isinstance(data, dict):
+                            for srv_code, sdata in data.items():
+                                if isinstance(sdata, dict) and svc_code in sdata:
+                                    item = sdata[svc_code]
+                                    cost = float(item.get("cost", 0))
+                                    count = int(item.get("count", 0))
+                                    if cost > 0:
+                                        country_name = DGOTP_COUNTRIES.get(str(srv_code), f"Server {srv_code}")
+                                        servers[str(srv_code)] = country_name
+                                        services.append({
+                                            "service_code": svc_code,
+                                            "server_code": str(srv_code),
+                                            "name": f"{svc_name} ({country_name})",
+                                            "keywords": f"{keywords} {country_name}".casefold(),
+                                            "price": cost,
+                                            "in_stock": int(count > 0)
+                                        })
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        # 3. Tertiary Fallback to legacy getServers / getServices if getPrices yielded no data
         if not services:
             try:
                 raw_servers, raw_services = await asyncio.gather(self.get_servers(), self.get_services())
