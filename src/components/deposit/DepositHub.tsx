@@ -183,7 +183,12 @@ export const DepositHub: React.FC = () => {
     if (selectedMethod === 'fampay' && refCode) {
       try {
         const checkRes = await depositApi.checkFamPay(refCode);
-        if (checkRes && (checkRes.status === 'approved' || checkRes.status === 'verified')) {
+        if (
+          checkRes &&
+          (checkRes.status === 'approved' ||
+            checkRes.status === 'verified' ||
+            checkRes.status === 'success')
+        ) {
           submitDeposit(selectedMethod, payAmount, refCode);
           setActiveInvoice(null);
           setIsVerifying(false);
