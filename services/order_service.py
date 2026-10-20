@@ -313,8 +313,16 @@ def execute_buy(
         # SERVER 3: Fast Virtual OTP (Live DGOTP API)
         # ======================================================================
         if server_num == 3:
-            service_code = str(item_data.get("service_code") or item_data.get("id") or "tg").strip()
-            server_code = str(item_data.get("server_code") or item_data.get("server") or "0").strip()
+            raw_service = str(item_data.get("service_code") or item_data.get("id") or "tg").strip()
+            if raw_service.startswith("s3_"):
+                parts = raw_service.split("_")
+                service_code = parts[1] if len(parts) >= 2 else raw_service
+                if len(parts) >= 3 and not item_data.get("country_code") and not item_data.get("server_code"):
+                    item_data["server_code"] = parts[2]
+            else:
+                service_code = raw_service
+
+            server_code = str(item_data.get("server_code") or item_data.get("country_code") or item_data.get("server") or item_data.get("country") or "0").strip()
             service_name = str(item_data.get("name") or service_code.upper())
 
             async def _buy_server3():
@@ -380,7 +388,15 @@ def execute_buy(
         # SERVER 4: Fresh Carrier Numbers (Live TemporaSMS API)
         # ======================================================================
         if server_num == 4:
-            service_code = str(item_data.get("service_code") or item_data.get("id") or "tg").strip()
+            raw_code = str(item_data.get("service_code") or item_data.get("id") or "tg").strip()
+            if raw_code.startswith("s4_"):
+                parts = raw_code.split("_")
+                service_code = parts[1] if len(parts) >= 2 else raw_code
+                if len(parts) >= 3 and not item_data.get("country_code"):
+                    item_data["country_code"] = parts[2]
+            else:
+                service_code = raw_code
+
             country_code = str(item_data.get("country_code") or item_data.get("country") or "0").strip()
             operator_code = str(item_data.get("operator_code") or item_data.get("operator") or "1").strip()
             service_name = str(item_data.get("name") or service_code.upper())

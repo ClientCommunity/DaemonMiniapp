@@ -89,6 +89,8 @@ class Server3Client:
         if not cfg["api_key"]:
             raise DGOTPError("BAD_KEY")
         target_url = cfg["api_url"] or DEFAULT_ENDPOINT
+        if "://dgotp.in" in target_url:
+            target_url = target_url.replace("://dgotp.in", "://www.dgotp.in")
         if is_cooling_down(target_url):
             raise DGOTPError("RATE_LIMIT_COOLDOWN")
         stored_key = cfg["api_key"]
@@ -107,6 +109,8 @@ class Server3Client:
                             record_rate_limit(target_url, 10.0, reason="HTTP 429")
                             raise DGOTPError("HTTP_429")
                         if response.status >= 400:
+                            if body in DGOTPError.FRIENDLY or body.startswith(("BAD_", "ERROR_", "NO_")):
+                                raise DGOTPError(body)
                             raise DGOTPError(f"HTTP_{response.status}")
                         if body in ("TOO_MANY_REQUESTS", "RATE_LIMIT") or "rate limit" in body.lower():
                             record_rate_limit(target_url, 10.0, reason=body)
@@ -313,6 +317,8 @@ class Server3Client:
         while True:
             cfg = self._config()
             target_url = cfg["api_url"] or DEFAULT_ENDPOINT
+        if "://dgotp.in" in target_url:
+            target_url = target_url.replace("://dgotp.in", "://www.dgotp.in")
             if cfg["service_enabled"] and cfg["api_enabled"] and cfg["api_key"] and not is_cooling_down(target_url):
                 try:
                     await self.sync_catalogue()

@@ -66,18 +66,31 @@ class TemporaClient:
                 async with aiohttp.ClientSession(timeout=timeout) as session:
                     async with session.get(target_url, params=query) as response:
                         body = (await response.text()).strip()
+                        err_code = None
+                        if body.startswith("{") and body.endswith("}"):
+                            try:
+                                data = json.loads(body)
+                                if not data.get("success", True):
+                                    err_code = data.get("errorCode") or data.get("message") or data.get("error")
+                            except Exception:
+                                pass
+                        elif body in TemporaError.MESSAGES or body.startswith(("BAD_", "NO_", "ERROR")):
+                            err_code = body
+
                         if response.status == 429:
                             record_rate_limit(target_url, 10.0, reason="HTTP 429")
-                            raise TemporaError("TOO_MANY_REQUESTS")
+                            raise TemporaError(err_code or "TOO_MANY_REQUESTS")
                         if response.status >= 400:
+                            if err_code:
+                                raise TemporaError(err_code)
                             raise TemporaError(f"HTTP_{response.status}")
-                        if body in TemporaError.MESSAGES:
-                            if body == "TOO_MANY_REQUESTS":
+                        if err_code:
+                            if err_code == "TOO_MANY_REQUESTS":
                                 record_rate_limit(target_url, 10.0, reason="body TOO_MANY_REQUESTS")
                                 if attempt < cfg["retry_count"]:
                                     await asyncio.sleep(10.0)
                                     continue
-                            raise TemporaError(body)
+                            raise TemporaError(err_code)
                         return body
             except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
                 last_error = exc
