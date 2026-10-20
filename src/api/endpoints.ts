@@ -1,4 +1,10 @@
-import { api, resolveApiUrl } from './client';
+import {
+  api,
+  resolveApiUrl,
+  getTelegramInitData,
+  getAdminToken,
+  getWebUserToken,
+} from './client';
 import {
   BackendUserPayload,
   BackendServer1Item,
@@ -12,6 +18,7 @@ import {
 export interface AuthResponse {
   success: boolean;
   user: BackendUserPayload;
+  token?: string;
   error?: string;
 }
 
@@ -228,13 +235,78 @@ export const downloadApi = {
     const cleanOrderId = encodeURIComponent(orderId);
     return resolveApiUrl(`/api/session/download_zip/${cleanOrderId}`);
   },
+  /**
+   * Universal session & bulk archive downloader.
+   * Works both in native Telegram Mini App (via Telegram.WebApp.openLink external browser handoff)
+   * and standalone web browsers (via window.open and fallback link download).
+   */
   triggerDownload: (url: string, filename: string) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (!url) return;
+
+    // 1. Resolve to full Render backend URL
+    let fullUrl = resolveApiUrl(url);
+
+    // 2. Attach authentication credentials (initData and/or token) as query params
+    try {
+      const urlObj = new URL(fullUrl, window.location.origin);
+      const initData = getTelegramInitData();
+      const token = getAdminToken() || getWebUserToken();
+
+      if (initData && !urlObj.searchParams.has('initData') && !urlObj.searchParams.has('tgWebAppData')) {
+        urlObj.searchParams.set('initData', initData);
+      }
+      if (token && !urlObj.searchParams.has('token')) {
+        urlObj.searchParams.set('token', token);
+      }
+      fullUrl = urlObj.toString();
+    } catch {
+      // Retain fullUrl on parsing issues
+    }
+
+    // 3. Telegram WebApp: Use official openLink SDK method
+    // In Telegram's embedded WebView, <a download> is suppressed. openLink opens Chrome/Safari
+    // which immediately downloads the session/.zip file cleanly to user device storage.
+    const tgWebApp = (window as unknown as {
+      Telegram?: {
+        WebApp?: {
+          openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+        };
+      };
+    })?.Telegram?.WebApp;
+
+    if (typeof tgWebApp?.openLink === 'function') {
+      try {
+        tgWebApp.openLink(fullUrl, { try_instant_view: false });
+        return;
+      } catch (err) {
+        console.warn('[downloadApi] Telegram openLink error, trying window fallback:', err);
+      }
+    }
+
+    // 4. Standalone Web: Try window.open first
+    try {
+      const popup = window.open(fullUrl, '_blank');
+      if (popup && !popup.closed && typeof popup.closed !== 'undefined') {
+        return;
+      }
+    } catch {
+      // Popup blocked or not supported
+    }
+
+    // 5. DOM anchor fallback
+    try {
+      const link = document.createElement('a');
+      link.href = fullUrl;
+      link.download = filename || 'download';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch {
+      // 6. Absolute browser location redirection fallback
+      window.location.href = fullUrl;
+    }
   },
 };
 

@@ -17,6 +17,7 @@ import { AdminEntryChoiceModal } from './components/admin/AdminEntryChoiceModal'
 import { AdminPassphraseModal } from './components/admin/AdminPassphraseModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { isTelegramWebApp, getWebUserToken } from './api/client';
+import { downloadApi } from './api/endpoints';
 
 const AppContent: React.FC = () => {
   const {
@@ -75,6 +76,27 @@ const AppContent: React.FC = () => {
       }
     } catch {
       // not in telegram webview
+    }
+  }, []);
+
+  // Handle frontend download query parameters (e.g. ?download=session&phone=... or ?download=zip&order_id=...)
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      const dlType = params.get('download');
+      const dlPhone = params.get('phone');
+      const dlOrder = params.get('order_id') || params.get('id');
+
+      if (dlType === 'session' && dlPhone) {
+        const url = downloadApi.getSessionDownloadUrl(dlPhone);
+        downloadApi.triggerDownload(url, `${dlPhone}.session`);
+      } else if ((dlType === 'zip' || dlType === 'bulk') && dlOrder) {
+        const url = downloadApi.getBulkZipDownloadUrl(dlOrder);
+        downloadApi.triggerDownload(url, `bulk_sessions_${dlOrder}.zip`);
+      }
+    } catch {
+      // Ignore URL parsing errors
     }
   }, []);
 

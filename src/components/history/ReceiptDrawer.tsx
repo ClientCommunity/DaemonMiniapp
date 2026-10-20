@@ -50,7 +50,7 @@ export const ReceiptDrawer: React.FC = () => {
     const isZip = item.sessionDownloadUrl.includes('_zip') || item.sessionDownloadUrl.endsWith('.zip');
     const filename = isZip ? `bulk_sessions_${item.id}.zip` : `session_${item.id}.session`;
     downloadApi.triggerDownload(item.sessionDownloadUrl, filename);
-    addToast('Downloading session file from secure server...', 'success', 'Saved');
+    addToast('Opening download link...', 'info', 'Saved');
   };
 
   return (
@@ -67,7 +67,7 @@ export const ReceiptDrawer: React.FC = () => {
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-95"
             >
               <Download className="w-4 h-4" />
-              <span>Download .Session File</span>
+              <span>{item.sessionDownloadUrl.includes('_zip') ? 'Download Bulk (.ZIP Archive)' : 'Download .Session File'}</span>
             </button>
           )}
           <button

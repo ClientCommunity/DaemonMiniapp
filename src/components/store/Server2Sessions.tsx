@@ -379,7 +379,7 @@ export const Server2Sessions: React.FC = () => {
                       ? `accounts_${purchasedServer2Modal.orderId}.zip`
                       : `session_${purchasedServer2Modal.orderId}.session`
                   );
-                  addToast('Downloading session package...', 'info');
+                  addToast('Opening download link...', 'info');
                 }}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-md transition-all active:scale-95"
               >

@@ -262,6 +262,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const authRes = await authApi.authenticate();
       if (authRes?.success && authRes.user) {
         setUser((prev) => adaptBackendUser(authRes.user, prev));
+        if (authRes.token) {
+          setWebUserToken(authRes.token);
+        }
       }
     } catch {
       if (!isTelegramWebApp()) {
@@ -462,6 +465,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const authRes = await authApi.authenticate();
           if (isMounted && authRes?.success && authRes.user) {
             setUser((prev) => adaptBackendUser(authRes.user, prev));
+            if (authRes.token) {
+              setWebUserToken(authRes.token);
+            }
           }
         } catch {
           if (!isTelegramWebApp()) {
@@ -703,8 +709,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ? `📦 Bulk ZIP (${quantity}x ${stockItem.country} Sessions)`
       : `${stockItem.icon} ${stockItem.country} Telegram (${stockItem.accountYear})`;
 
-    const downloadZipUrl = downloadApi.getBulkZipDownloadUrl(orderId);
-    const downloadSingleUrl = downloadApi.getSessionDownloadUrl(stockItem.country.toLowerCase());
+
+
 
     const newHistoryItem: HistoryItem = {
       id: orderId,
@@ -716,7 +722,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       status: 'success',
       server: 'Server 2 (Aged Sessions)',
       quantity,
-      sessionDownloadUrl: isBulk ? downloadZipUrl : downloadSingleUrl,
+      sessionDownloadUrl: undefined,
       refunded: false,
     };
 
@@ -729,7 +735,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       orderId,
       quantity,
       format: requestedFormat,
-      downloadUrl: isBulk ? downloadZipUrl : downloadSingleUrl,
+      downloadUrl: undefined,
     });
 
     // Dispatch asynchronous backend order call
