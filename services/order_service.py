@@ -84,7 +84,11 @@ def execute_buy(
     server_num = int(server)
     quantity = max(1, int(qty))
     unit_price = int(item_data.get("price", 50))
-    total_price = unit_price * quantity
+    if server_num == 5:
+        # In Server 5 (SMM), item_data["price"] is the total price for the requested order quantity (rates are quoted per 1,000)
+        total_price = max(1, unit_price)
+    else:
+        total_price = unit_price * quantity
 
     # 1. Atomic balance check and deduction (promo balance consumed first)
     with connect() as conn:
