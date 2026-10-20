@@ -33,9 +33,21 @@ def auth_session():
         return jsonify({"success": False, "error": "Unauthorized"}), 401
 
     user_info = get_or_create_user(uid)
+
+    # Issue JWT session token valid for 30 days for browser download authentications
+    now = int(time.time())
+    payload = {
+        "user_id": uid,
+        "role": "user",
+        "iat": now,
+        "exp": now + (30 * 86400),
+    }
+    session_token = encode_jwt(payload, ADMIN_PANEL_SECRET)
+
     return jsonify({
         "success": True,
         "user": user_info,
+        "token": session_token,
     })
 
 

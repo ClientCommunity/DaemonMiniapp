@@ -109,16 +109,18 @@ def verify_google_id_token(id_token: str) -> dict[str, Any] | None:
 
 
 def get_current_user_id(request_obj) -> int | None:
-    """Extract authenticated user_id from Telegram initData, Web JWT Bearer, or fallback."""
-    # 1. Primary: Telegram WebApp Init Data
+    """Extract authenticated user_id from Telegram initData, Web JWT Bearer, or query parameters."""
+    # 1. Primary: Telegram WebApp Init Data (Header, query param, or JSON body)
     init_data = (
         request_obj.headers.get("X-Telegram-Init-Data")
         or request_obj.args.get("initData")
+        or request_obj.args.get("init_data")
+        or request_obj.args.get("tgWebAppData")
     )
     if not init_data and request_obj.is_json:
         try:
             body = request_obj.get_json(silent=True) or {}
-            init_data = body.get("initData")
+            init_data = body.get("initData") or body.get("tgWebAppData")
         except Exception:
             pass
 
@@ -130,10 +132,17 @@ def get_current_user_id(request_obj) -> int | None:
             if isinstance(validated.get("user"), dict) and "id" in validated["user"]:
                 return int(validated["user"]["id"])
 
-    # 2. Web User Session JWT (Bearer Token for Website Users)
+    # 2. Web User Session JWT (Bearer Token for Website Users or URL query param)
     auth_header = request_obj.headers.get("Authorization", "").strip()
+    token = ""
     if auth_header.startswith("Bearer "):
         token = auth_header[7:].strip()
+    elif request_obj.args.get("token"):
+        token = request_obj.args.get("token", "").strip()
+    elif request_obj.args.get("auth"):
+        token = request_obj.args.get("auth", "").strip()
+
+    if token:
         try:
             from api.admin import decode_jwt
             payload = decode_jwt(token, ADMIN_PANEL_SECRET)
