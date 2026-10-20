@@ -189,7 +189,7 @@ export const DepositHub: React.FC = () => {
             checkRes.status === 'verified' ||
             checkRes.status === 'success')
         ) {
-          submitDeposit(selectedMethod, payAmount, refCode);
+          submitDeposit(selectedMethod, payAmount, refCode, true);
           setActiveInvoice(null);
           setIsVerifying(false);
           addToast(`Payment of ₹${payAmount} confirmed and credited!`, 'success', 'Deposit Completed');
@@ -238,7 +238,7 @@ export const DepositHub: React.FC = () => {
           'success',
           'Submitted'
         );
-        submitDeposit(selectedMethod, payAmount, cleanUtr);
+        submitDeposit(selectedMethod, payAmount, cleanUtr, true);
         setUtrNumber('');
         setActiveInvoice(null);
       } else {

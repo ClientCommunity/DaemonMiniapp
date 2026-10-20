@@ -108,7 +108,7 @@ export interface AppContextType {
   cancelActiveOtp: (orderId: string) => void;
   finishActiveOtp: (orderId: string) => void;
   submitSmmOrder: (service: SmmServiceItem, targetLink: string, quantity: number) => boolean;
-  submitDeposit: (method: PaymentMethodType, amount: number, utr?: string) => boolean;
+  submitDeposit: (method: PaymentMethodType, amount: number, utr?: string, skipApiCall?: boolean) => boolean;
   transferP2P: (recipient: string, amount: number) => { success: boolean; message: string };
   transferBalance: (recipient: string, amount: number) => { success: boolean; message: string };
   buyItem: (
@@ -1199,7 +1199,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Deposit Top-Up
-  const submitDeposit = (method: PaymentMethodType, amount: number, utr?: string): boolean => {
+  const submitDeposit = (
+    method: PaymentMethodType,
+    amount: number,
+    utr?: string,
+    skipApiCall: boolean = false
+  ): boolean => {
     if (amount <= 0) {
       addToast('Deposit amount must be greater than ₹0.', 'error', 'Invalid Amount');
       return false;
@@ -1237,25 +1242,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setHistory((prev) => [newHistoryItem, ...prev]);
 
-    // Dispatch backend deposit notification
-    if (method === 'fampay') {
-      depositApi.createFamPay(amount).catch(() => {});
-    } else if (utr) {
-      depositApi.submitManual(1, utr, amount).catch(() => {});
-    }
+    // Dispatch backend deposit notification only if caller hasn't already sent it
+    if (!skipApiCall) {
+      if (method === 'fampay') {
+        depositApi.createFamPay(amount).catch(() => {});
+      } else if (utr) {
+        depositApi.submitManual(1, utr, amount).catch(() => {});
+      }
 
-    if (isPending) {
-      addToast(
-        `Deposit request for ₹${amount.toLocaleString('en-IN')} submitted. Pending review.`,
-        'info',
-        'Verification Pending'
-      );
-    } else {
-      addToast(
-        `🎉 Deposit Verified! +₹${amount.toLocaleString('en-IN')} added to your Main Balance.`,
-        'success',
-        'Balance Credited'
-      );
+      if (isPending) {
+        addToast(
+          `Deposit request for ₹${amount.toLocaleString('en-IN')} submitted. Pending review.`,
+          'info',
+          'Verification Pending'
+        );
+      } else {
+        addToast(
+          `🎉 Deposit Verified! +₹${amount.toLocaleString('en-IN')} added to your Main Balance.`,
+          'success',
+          'Balance Credited'
+        );
+      }
     }
     return true;
   };
