@@ -440,7 +440,7 @@ def execute_buy(
                 INSERT INTO server4_orders (
                     provider_order_id, user_id, operator_code, country_code, service_code, phone,
                     provider_price, charged_price, status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?)
             """, (order_id, uid, operator_code, country_code, service_code, clean_phone, actual_cost, total_price, now, now))
 
             # Record in main orders table for Mini App UI & history
