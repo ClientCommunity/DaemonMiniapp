@@ -59,6 +59,8 @@ export interface BackendServer2Item {
 
 export interface BackendServer34Item {
   id?: string;
+  service_code?: string;
+  operator_code?: string;
   name?: string;
   country?: string;
   icon?: string;
@@ -316,7 +318,7 @@ export function adaptServer34Item(
   serverId: 3 | 4,
   index: number = 0
 ): VirtualOtpServiceItem {
-  const serviceCode = item.id || 'all';
+  const serviceCode = item.service_code || (item.id && !item.id.startsWith(`s${serverId}_`) ? item.id : 'all');
   const rawName = item.name || item.country || 'Virtual Service';
   const price = Number(item.price || (serverId === 3 ? 45 : 55));
   const stock = Number(item.stock ?? 999);
@@ -348,6 +350,7 @@ export function adaptServer34Item(
     rawName,
     country: cleanCountry,
     countryCode: item.country_code || meta.code,
+    operatorCode: item.operator_code || '1',
     callingCode: isGlobalFallback ? '' : meta.dial,
     flag: isGlobalFallback ? (serverId === 3 ? '⚡' : '📶') : (meta.flag !== '🌐' ? meta.flag : (serverId === 3 ? '⚡' : '📶')),
     icon,

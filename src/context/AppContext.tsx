@@ -883,6 +883,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           service_code: service.serviceCode,
           country: service.country,
           country_code: service.countryCode,
+          operator_code: service.operatorCode || '1',
           name: service.serviceName,
           price: service.priceInr,
         },
