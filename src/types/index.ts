@@ -99,7 +99,7 @@ export interface ActiveOtpSession {
 }
 
 // Server 5: SMM Services
-export type SmmPlatform = 'instagram' | 'telegram' | 'youtube' | 'tiktok' | 'twitter';
+export type SmmPlatform = 'instagram' | 'telegram' | 'youtube' | 'tiktok' | 'twitter' | 'facebook' | 'whatsapp' | 'other';
 
 export interface SmmServiceItem {
   id: string;

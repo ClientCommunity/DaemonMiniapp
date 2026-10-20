@@ -322,37 +322,15 @@ export function adaptServer34Item(
   const stock = Number(item.stock ?? 999);
   const icon = item.icon || (serverId === 3 ? '⚡' : '📶');
 
-  // Fast path for Server 4: Carrier pool has 21,000+ app names without parentheses
-  if (serverId === 4) {
-    const cleanServiceName = rawName.trim();
-    return {
-      id: `s4_${serviceCode}_${index}`,
-      server: 4,
-      serviceCode,
-      serviceName: cleanServiceName,
-      rawName,
-      country: 'Global Carrier',
-      countryCode: item.country_code || 'GL',
-      callingCode: '',
-      flag: '📶',
-      icon,
-      priceInr: price,
-      availableCount: stock,
-      category: mapAppCode(cleanServiceName, serviceCode),
-      speed: '10-30s Carrier',
-      successRate: 96,
-    };
-  }
-
-  // Server 3 path: Parse service name and country from parentheses
-  let cleanServiceName = rawName;
-  let cleanCountry = item.country || 'Global';
+  // Unified Server 3 & 4 path: Parse service name and country from parentheses or attributes
+  let cleanServiceName = rawName.trim();
+  let cleanCountry = item.country || (serverId === 3 ? 'Global' : 'Global Carrier');
 
   const parenMatch = rawName.match(/^(.*?)\s*\((.+)\)\s*$/);
   if (parenMatch) {
     cleanServiceName = parenMatch[1].trim();
     cleanCountry = parenMatch[2].replace(/[()]/g, '').trim();
-  } else if (cleanCountry.includes('(')) {
+  } else if (cleanCountry && cleanCountry.includes('(')) {
     const cpMatch = cleanCountry.match(/\((.+)\)/);
     if (cpMatch) {
       cleanCountry = cpMatch[1].replace(/[()]/g, '').trim();
@@ -360,23 +338,24 @@ export function adaptServer34Item(
   }
 
   const meta = parseCountryMeta(cleanCountry);
+  const isGlobalFallback = !cleanCountry || cleanCountry.toLowerCase().includes('global');
 
   return {
-    id: `s3_${serviceCode}_${cleanCountry.replace(/[^a-zA-Z0-9]/g, '_')}_${price}_${index}`,
-    server: 3,
+    id: `s${serverId}_${serviceCode}_${cleanCountry.replace(/[^a-zA-Z0-9]/g, '_')}_${price}_${index}`,
+    server: serverId,
     serviceCode,
     serviceName: cleanServiceName,
     rawName,
     country: cleanCountry,
     countryCode: item.country_code || meta.code,
-    callingCode: meta.dial,
-    flag: meta.flag,
+    callingCode: isGlobalFallback ? '' : meta.dial,
+    flag: isGlobalFallback ? (serverId === 3 ? '⚡' : '📶') : (meta.flag !== '🌐' ? meta.flag : (serverId === 3 ? '⚡' : '📶')),
     icon,
     priceInr: price,
     availableCount: stock,
     category: mapAppCode(cleanServiceName, serviceCode),
-    speed: '1-3s Instant',
-    successRate: 99,
+    speed: serverId === 3 ? '1-3s Instant' : '10-30s Carrier',
+    successRate: serverId === 3 ? 99 : 96,
   };
 }
 
@@ -391,7 +370,9 @@ export function mapSmmPlatform(cat: string | undefined): SmmPlatform {
   if (c.includes('you') || c.includes('yt')) return 'youtube';
   if (c.includes('tik')) return 'tiktok';
   if (c.includes('twit') || c.includes('x')) return 'twitter';
-  return 'telegram';
+  if (c.includes('face') || c.includes('fb')) return 'facebook';
+  if (c.includes('whats') || c.includes('wa')) return 'whatsapp';
+  return 'other';
 }
 
 /**

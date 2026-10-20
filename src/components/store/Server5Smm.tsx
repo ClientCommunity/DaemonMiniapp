@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SmmPlatform, SmmServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
 import { Modal } from '../common/Modal';
 import {
   Rocket,
+  Search,
+  X,
   Link as LinkIcon,
   ShieldCheck,
   Zap,
@@ -19,7 +21,8 @@ import {
 export const Server5Smm: React.FC = () => {
   const { formatPrice, submitSmmOrder, server5Items, user, setActiveTab } = useApp();
 
-  const [activePlatform, setActivePlatform] = useState<SmmPlatform>('telegram');
+  const [activePlatform, setActivePlatform] = useState<SmmPlatform | 'all'>('all');
+  const [search, setSearch] = useState('');
   const [modalService, setModalService] = useState<SmmServiceItem | null>(null);
   const [modalTargetLink, setModalTargetLink] = useState('');
   const [modalQuantity, setModalQuantity] = useState(1000);
@@ -35,20 +38,38 @@ export const Server5Smm: React.FC = () => {
   } | null>(null);
 
   const platforms: {
-    id: SmmPlatform;
+    id: SmmPlatform | 'all';
     label: string;
     badge?: string;
   }[] = [
+    { id: 'all', label: 'All Services', badge: 'All' },
     { id: 'telegram', label: 'Telegram', badge: 'Hot' },
     { id: 'instagram', label: 'Instagram', badge: 'Popular' },
     { id: 'youtube', label: 'YouTube' },
     { id: 'tiktok', label: 'TikTok' },
     { id: 'twitter', label: 'Twitter (X)' },
+    { id: 'facebook', label: 'Facebook' },
+    { id: 'whatsapp', label: 'WhatsApp' },
   ];
 
   // Available services for chosen platform (consuming live inventory from AppContext)
   const allServices = server5Items;
-  const platformServices = allServices.filter((s) => s.platform === activePlatform);
+  const platformServices = useMemo(() => {
+    let list = activePlatform === 'all'
+      ? allServices
+      : allServices.filter((s) => s.platform === activePlatform);
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      list = list.filter((s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.categoryName.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q) ||
+        s.platform.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allServices, activePlatform, search]);
 
   const presetIncrements = [500, 1000, 2500, 5000];
 
@@ -98,8 +119,12 @@ export const Server5Smm: React.FC = () => {
     }
   };
 
-  const getUrlPlaceholder = (platform: SmmPlatform) => {
+  const getUrlPlaceholder = (platform: SmmPlatform | 'all') => {
     switch (platform) {
+      case 'facebook':
+        return 'https://facebook.com/...';
+      case 'whatsapp':
+        return 'https://chat.whatsapp.com/... or channel link';
       case 'telegram':
         return 'https://t.me/channel_name or @username';
       case 'instagram':
@@ -145,6 +170,28 @@ export const Server5Smm: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* Search Bar */}
+          <div className="relative mb-3">
+            <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search all SMM services (Followers, Likes, Views, Members, Subscribers...)"
+              className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none transition-all shadow-inner"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#262632] hover:bg-[#323244] text-[#a1a1aa] hover:text-white flex items-center justify-center transition-colors"
+                title="Clear search"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
           {/* Social Media Platform Selector Tabs */}
           <div className="mb-3.5">
             <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider">
@@ -195,7 +242,27 @@ export const Server5Smm: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-2.5">
-              {platformServices.map((service) => (
+              {platformServices.length === 0 ? (
+                <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-2">
+                  <Rocket className="w-6 h-6 text-[#71717a]" />
+                  <span className="text-xs font-semibold text-white">No services found</span>
+                  <span className="text-[11px] text-[#a1a1aa]">
+                    No packages matching &quot;{search}&quot;
+                    {activePlatform !== 'all' ? ` in ${activePlatform.toUpperCase()}` : ''}.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setActivePlatform('all');
+                    }}
+                    className="mt-2 px-3 py-1.5 rounded-lg bg-[#262632] hover:bg-[#323244] text-xs font-medium text-white transition-colors"
+                  >
+                    Reset Filters &amp; View All
+                  </button>
+                </div>
+              ) : (
+                platformServices.map((service) => (
                 <div
                   key={service.id}
                   onClick={() => handleOpenBuyModal(service)}
@@ -257,7 +324,8 @@ export const Server5Smm: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
         </>

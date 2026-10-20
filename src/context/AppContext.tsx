@@ -874,6 +874,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         server: service.server,
         item: {
           id: service.serviceCode,
+          service_code: service.serviceCode,
+          country: service.country,
+          country_code: service.countryCode,
           name: service.serviceName,
           price: service.priceInr,
         },

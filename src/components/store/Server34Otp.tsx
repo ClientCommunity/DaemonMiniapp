@@ -10,7 +10,7 @@ interface Server34OtpProps {
 }
 
 export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
-  const { formatPrice, requestVirtualOtp, server34Items, setSelectedServer } = useApp();
+  const { formatPrice, requestVirtualOtp, server34Items } = useApp();
 
   const [activeCategory, setActiveCategory] = useState<OtpAppCode>('all');
   const [search, setSearch] = useState('');
@@ -180,10 +180,6 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                   setSearch('');
                 } else {
                   setSearch(qs.query);
-                  if (!isServer3) {
-                    // Switch to Server 3 where dedicated country routes (+91, +1, +44) reside
-                    setSelectedServer(3);
-                  }
                 }
               }}
               className={`px-2.5 py-1 rounded-lg shrink-0 border transition-all duration-150 active:scale-95 ${
@@ -265,16 +261,6 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                 {activeCategory !== 'all' ? ` in ${activeCategory.toUpperCase()}` : ''}.
               </span>
             </div>
-            {serverId === 4 && (
-              <button
-                type="button"
-                onClick={() => setSelectedServer(3)}
-                className="mt-1 px-3.5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white transition-all shadow-violet-glow-sm flex items-center gap-1.5"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-300" />
-                <span>Looking for Country Numbers? Switch to Server 3 (India, USA...)</span>
-              </button>
-            )}
             <button
               type="button"
               onClick={() => {
