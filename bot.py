@@ -1088,33 +1088,49 @@ async def get_user_log_label(uid):
         return f"<code>{uid}</code>"
 
 async def send_log_message(text, channel_id=PUBLIC_LOG_CHANNEL_ID, label="Log"):
+    if not channel_id:
+        return
     try:
         await bot.send_message(channel_id, text)
     except Exception as log_ex:
-        await send_admin_error(f"{label} channel send failed", str(log_ex))
+        logger.warning("%s channel send failed (channel %s): %s", label, channel_id, log_ex)
 
 async def send_dual_log(admin_text, public_text):
-    await send_log_message(admin_text, ADMIN_LOG_CHANNEL_ID, "Admin log")
-    await send_log_message(public_text, PUBLIC_LOG_CHANNEL_ID, "Public log")
+    try:
+        if ADMIN_LOG_CHANNEL_ID:
+            await send_log_message(admin_text, ADMIN_LOG_CHANNEL_ID, "Admin log")
+    except Exception as ex:
+        logger.warning("Admin log channel error: %s", ex)
+    try:
+        if PUBLIC_LOG_CHANNEL_ID:
+            await send_log_message(public_text, PUBLIC_LOG_CHANNEL_ID, "Public log")
+    except Exception as ex:
+        logger.warning("Public proof channel error: %s", ex)
 
 async def log_primary_deposit(uid, amount, method):
-    logger.info("Deposit credited: user=%s amount=%s method=%s", uid, amount, method)
-    user_label = await get_user_log_label(uid)
-    public_text = (
-        "🚀 <b>New Deposit Success</b>\n\n"
-        f"<b>Amount:</b> ₹{amount}\n"
-        f"<b>Payment Method:</b> {html.escape(str(method))}\n\n"
-        "Thanks For Deposit"
-    )
-    admin_text = (
-        "🚀 <b>New Deposit Success</b>\n\n"
-        f"<b>User:</b> {user_label}\n"
-        f"<b>Amount:</b> ₹{amount}\n"
-        f"<b>Payment Method:</b> {html.escape(str(method))}\n\n"
-        "Thanks For Deposit"
-    )
-    await send_dual_log(admin_text, public_text)
-    await process_referral_bonus(uid, int(amount))
+    try:
+        logger.info("Deposit credited: user=%s amount=%s method=%s", uid, amount, method)
+        user_label = await get_user_log_label(uid)
+        public_text = (
+            "🚀 <b>New Deposit Success</b>\n\n"
+            f"<b>Amount:</b> ₹{amount}\n"
+            f"<b>Payment Method:</b> {html.escape(str(method))}\n\n"
+            "Thanks For Deposit"
+        )
+        admin_text = (
+            "🚀 <b>New Deposit Success</b>\n\n"
+            f"<b>User:</b> {user_label}\n"
+            f"<b>Amount:</b> ₹{amount}\n"
+            f"<b>Payment Method:</b> {html.escape(str(method))}\n\n"
+            "Thanks For Deposit"
+        )
+        await send_dual_log(admin_text, public_text)
+    except Exception as ex:
+        logger.warning("Proof channel logging error in log_primary_deposit: %s", ex)
+    try:
+        await process_referral_bonus(uid, int(amount))
+    except Exception as ref_ex:
+        logger.warning("Referral bonus processing error: %s", ref_ex)
 
 async def bot_public_handle():
     try:
@@ -5543,12 +5559,23 @@ async def handle_callbacks(e):
                         method_label = method_row[0]
 
                 db.commit()
-                await log_primary_deposit(t_uid, final_amt, f"CONSOLE_{method_label}")
+                # 1. Send success message to user FIRST!
                 try:
                     await bot.send_message(t_uid, f"✅ Your {html.escape(method_label)} payment of ₹{final_amt} has been approved and credited.")
-                except:
+                except Exception as u_ex:
+                    logger.warning("Failed to message user on keypad deposit: %s", u_ex)
+
+                # 2. Update Admin UI
+                try:
+                    await e.edit(f"✅ Approved <b>{html.escape(method_label)}</b> and credited ₹{final_amt} to user <code>{t_uid}</code>!")
+                except Exception:
                     pass
-                await e.edit(f"✅ Approved <b>{html.escape(method_label)}</b> and credited ₹{final_amt} to user <code>{t_uid}</code>!")
+
+                # 3. Safely log to proof channel
+                try:
+                    await log_primary_deposit(t_uid, final_amt, f"CONSOLE_{method_label}")
+                except Exception as ch_ex:
+                    logger.warning("Proof channel logging failed: %s", ch_ex)
                 return
             else:
                 if len(cur_val) < 6:
@@ -6820,21 +6847,50 @@ async def handle_callbacks(e):
                 return
 
             if d_type == "man":
+                clean_id = str(order_id).replace("M", "").strip()
                 if action == "app":
-                    req_row = cur.execute("SELECT amount FROM deposits WHERE id=?", (order_id.replace("M", ""),)).fetchone()
-                    real_amt = req_row[0] if req_row else 0
+                    req_row = cur.execute("SELECT amount, status FROM deposits WHERE id=?", (clean_id,)).fetchone()
+                    if req_row and req_row[1] == "success":
+                        await e.edit(f"ℹ️ Deposit <code>{order_id}</code> was already approved!")
+                        return
+
+                    real_amt = int(req_row[0]) if (req_row and req_row[0]) else amt
                     update_balance(t_uid, real_amt)
                     cur.execute("UPDATE users SET total_deposited = total_deposited + ? WHERE user_id=?", (real_amt, t_uid))
-                    cur.execute("UPDATE deposits SET status='success' WHERE id=?", (order_id.replace("M", ""),))
+                    cur.execute("UPDATE deposits SET status='success', amount=? WHERE id=?", (real_amt, clean_id))
                     db.commit()
-                    await log_primary_deposit(t_uid, real_amt, "MANUAL (Approved)")
-                    await bot.send_message(t_uid, f"✅ Your manual payment of ₹{real_amt} has been approved and credited.")
-                    await e.edit(f"✅ Approved and credited ₹{real_amt} to user <code>{t_uid}</code>!")
+
+                    # 1. Immediately send success message to user!
+                    try:
+                        await bot.send_message(t_uid, f"✅ Your manual payment of ₹{real_amt} has been approved and credited.")
+                    except Exception as u_ex:
+                        logger.warning("Failed to message user %s on deposit approval: %s", t_uid, u_ex)
+
+                    # 2. Immediately update Admin UI so button shows approved
+                    try:
+                        await e.edit(f"✅ Approved and credited ₹{real_amt} to user <code>{t_uid}</code>!")
+                    except Exception:
+                        try:
+                            await e.answer(f"✅ Approved and credited ₹{real_amt} to user {t_uid}!", alert=True)
+                        except Exception:
+                            pass
+
+                    # 3. Safely log to proof channel without EVER interrupting the approval
+                    try:
+                        await log_primary_deposit(t_uid, real_amt, "MANUAL (Approved)")
+                    except Exception as ch_ex:
+                        logger.warning("Proof channel logging failed (approval succeeded): %s", ch_ex)
                 else:
-                    cur.execute("UPDATE deposits SET status='rejected' WHERE id=?", (order_id.replace("M", ""),))
+                    cur.execute("UPDATE deposits SET status='rejected' WHERE id=?", (clean_id,))
                     db.commit()
-                    await bot.send_message(t_uid, f"❌ Your deposit transaction was rejected by admin review.")
-                    await e.edit(f"❌ Rejected deposit proof for user <code>{t_uid}</code>.")
+                    try:
+                        await bot.send_message(t_uid, f"❌ Your deposit transaction was rejected by admin review.")
+                    except Exception as u_ex:
+                        logger.warning("Failed to message user %s on reject: %s", t_uid, u_ex)
+                    try:
+                        await e.edit(f"❌ Rejected deposit proof for user <code>{t_uid}</code>.")
+                    except Exception:
+                        pass
 
     except Exception as ex:
         await send_admin_error("Global Callback Handler Failure", f"User: {uid}\nData: {data}\n\n{ex}")

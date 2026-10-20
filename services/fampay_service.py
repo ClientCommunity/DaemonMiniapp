@@ -335,6 +335,22 @@ def submit_manual_deposit(user_id: int, method_id: int | str, utr: str, amount: 
                 "error": "This transaction reference / UTR has already been verified and credited."
             }
 
+        # Anti-Duplication: check if already submitted and pending review
+        already_pending = conn.execute("""
+            SELECT id FROM deposits
+            WHERE status = 'pending'
+              AND method_name LIKE ?
+        """, (f"%{clean_utr}%",)).fetchone()
+        if already_pending:
+            logger.info("Duplicate pending deposit submission suppressed for user %s: %s", uid, clean_utr)
+            return {
+                "success": True,
+                "auto_verified": False,
+                "status": "pending",
+                "message": "Deposit reference already received and pending admin review.",
+                "deposit_id": already_pending["id"]
+            }
+
     # 2. Check enabled UPI Gateway with Gmail credentials
     verified_via_imap = False
     with connect() as conn:

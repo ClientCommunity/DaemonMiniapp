@@ -259,6 +259,21 @@ def process_deposit_decision(deposit_id: int, approve: bool, approved_amount: in
             conn.execute("UPDATE deposits SET status = 'rejected' WHERE id = ?", (deposit_id,))
             status_result = "rejected"
 
+    # Send Telegram notification to user safely (never block response on failure)
+    try:
+        import config
+        import json
+        import urllib.request
+        bot_token = config.BOT_TOKEN
+        if bot_token:
+            msg = f"✅ Your payment of ₹{amt} has been approved and credited to your wallet balance." if approve else "❌ Your deposit transaction was rejected by admin review."
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            payload = {"chat_id": uid, "text": msg}
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=5)
+    except Exception as ex:
+        logger.warning("Failed to send deposit decision Telegram message to user %s: %s", uid, ex)
+
     return {"success": True, "deposit_id": deposit_id, "status": status_result, "user_id": uid, "amount": amt}
 
 
