@@ -198,33 +198,105 @@ def get_server3_stock() -> list[dict[str, Any]]:
     return items
 
 
+_SERVER4_CACHE: dict[str, Any] = {"timestamp": 0.0, "items": []}
+
 def get_server4_stock() -> list[dict[str, Any]]:
-    """Return Server 4 catalogue (Fresh Carrier Numbers)."""
+    """Return Server 4 catalogue (Fresh Carrier Numbers) with authentic country combinations."""
+    import time
+    now = time.time()
+    if _SERVER4_CACHE["items"] and (now - _SERVER4_CACHE["timestamp"]) < 60.0:
+        return _SERVER4_CACHE["items"]
+
     items = []
     try:
         with connect() as conn:
-            rows = conn.execute("""
+            # 1. Fetch Server 4 markup settings
+            s4_cfg = conn.execute("SELECT percent_markup, fixed_markup, minimum_price FROM service_servers WHERE server_no = 4").fetchone()
+            pct_markup = float(s4_cfg["percent_markup"] if s4_cfg and s4_cfg["percent_markup"] is not None else 15.0)
+            fixed_markup = float(s4_cfg["fixed_markup"] if s4_cfg and s4_cfg["fixed_markup"] is not None else 0.0)
+            min_price_floor = float(s4_cfg["minimum_price"] if s4_cfg and s4_cfg["minimum_price"] is not None else 15.0)
+
+            # 2. Query popular services across stocked countries from server4_stock
+            popular_rows = conn.execute("""
+                SELECT
+                    v.service_code,
+                    v.name as service_name,
+                    c.country_code,
+                    c.name as country_name,
+                    s.operator_code,
+                    MIN(s.min_price) as min_price,
+                    SUM(s.available_count) as total_stock
+                FROM server4_stock s
+                JOIN server4_countries c ON c.operator_code = s.operator_code AND c.country_code = s.country_code
+                JOIN server4_services v ON v.operator_code = s.operator_code AND v.service_code = s.service_code
+                WHERE s.available_count > 0 AND c.enabled = 1 AND v.enabled = 1
+                  AND (
+                    LOWER(v.name) LIKE '%whatsapp%' OR LOWER(v.name) LIKE '%telegram%' OR
+                    LOWER(v.name) LIKE '%instagram%' OR LOWER(v.name) LIKE '%google%' OR
+                    LOWER(v.name) LIKE '%gmail%' OR LOWER(v.name) LIKE '%facebook%' OR
+                    LOWER(v.name) LIKE '%twitter%' OR LOWER(v.name) LIKE '%tiktok%' OR
+                    LOWER(v.name) LIKE '%steam%' OR LOWER(v.name) LIKE '%netflix%' OR
+                    LOWER(v.name) LIKE '%tinder%' OR LOWER(v.name) LIKE '%amazon%'
+                  )
+                GROUP BY v.name, c.name
+                ORDER BY c.name, v.name
+            """).fetchall()
+
+            seen_keys = set()
+            for r in popular_rows:
+                s_name = r["service_name"]
+                c_name = r["country_name"]
+                raw_cost = float(r["min_price"] or 10.0)
+                final_price = int(round(max(min_price_floor, raw_cost * (1 + pct_markup / 100.0) + fixed_markup)))
+                final_price = max(15, final_price)
+                stock_count = int(r["total_stock"] or 999)
+                item_id = f"s4_{r['service_code']}_{r['country_code']}"
+                seen_keys.add(s_name.lower())
+
+                items.append({
+                    "id": item_id,
+                    "service_code": r["service_code"],
+                    "country_code": r["country_code"],
+                    "operator_code": r["operator_code"],
+                    "name": f"{s_name} ({c_name})",
+                    "country": c_name,
+                    "icon": "📶",
+                    "price": final_price,
+                    "stock": stock_count,
+                    "subtitle": f"Fresh Carrier · {c_name}",
+                })
+
+            # 3. Include general carrier services from server4_services for full catalogue coverage
+            gen_rows = conn.execute("""
                 SELECT service_code, name
                 FROM server4_services
                 WHERE enabled = 1
                 ORDER BY name ASC
             """).fetchall()
 
-        for r in rows:
-            s_name = r["name"] or r["service_code"].upper()
-            items.append({
-                "id": r["service_code"],
-                "name": s_name,
-                "country": s_name,
-                "icon": "📶",
-                "price": 50,
-                "stock": 999,
-                "subtitle": "Fresh Carrier Number",
-            })
+            for r in gen_rows:
+                s_name = r["name"] or r["service_code"].upper()
+                if s_name.lower() in seen_keys:
+                    continue
+                items.append({
+                    "id": r["service_code"],
+                    "service_code": r["service_code"],
+                    "country_code": "0",
+                    "operator_code": "1",
+                    "name": s_name,
+                    "country": "Global Carrier",
+                    "icon": "📶",
+                    "price": int(round(max(min_price_floor, 45.0 * (1 + pct_markup / 100.0) + fixed_markup))),
+                    "stock": 999,
+                    "subtitle": "Fresh Carrier Number",
+                })
+
+        _SERVER4_CACHE["timestamp"] = now
+        _SERVER4_CACHE["items"] = items
     except Exception as exc:
         logger.warning("Error querying server4_services: %s", exc)
 
-    return items
+    return items or _SERVER4_CACHE["items"]
 
 
 def get_server5_stock() -> list[dict[str, Any]]:
