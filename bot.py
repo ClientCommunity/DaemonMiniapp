@@ -269,234 +269,8 @@ PREMIUM_EMOJI_IDS = {
 OTP_REGEX = r'\b\d{5}\b'
 
 
-# ================= UI ICONS & COUNTRY CATALOG =================
-P_STORE = "<tg-emoji emoji-id='5920332557466997677'>🏪</tg-emoji>"
-P_DOC = "<tg-emoji emoji-id='6039630677182254664'>📂</tg-emoji>"
-P_ACC = "<tg-emoji emoji-id='5884366771913233289'>👤</tg-emoji>"
-P_CART = "🛍️"
-P_CASH = "<tg-emoji emoji-id='5904359114531675993'>💰</tg-emoji>"
-P_CARD = "💳"
-P_FLAG = "<tg-emoji emoji-id='6041923781696426657'>🏳️</tg-emoji>"
-P_CAL = "<tg-emoji emoji-id='5891100675042974129'>📅</tg-emoji>"
-P_WARN = "⚠️"
-P_OFF = "⛔"
-P_YES = "<tg-emoji emoji-id='5938252440926163756'>✅</tg-emoji>"
-P_NO = "❌"
-P_PHONE = "<tg-emoji emoji-id='6039605143601680423'>📞</tg-emoji>"
-P_TIME = "<tg-emoji emoji-id='5983150113483134607'>⏰️</tg-emoji>"
-P_GIFT = "<tg-emoji emoji-id='6032644646587338669'>🎁</tg-emoji>"
-P_SHIELD = "<tg-emoji emoji-id='6030537007350944596'>🛡</tg-emoji>"
-P_BANK = "🏦"
-P_ID = "🆔"
-P_TADA = "<tg-emoji emoji-id='6041731551845159060'>🎉</tg-emoji>"
-P_INR = "₹"
-P_SHOP = "<tg-emoji emoji-id='5920332557466997677'>🏪</tg-emoji>"
-P_HELP = "<tg-emoji emoji-id='6035305550625902723'>💬</tg-emoji>"
-
-
-# Country name -> (ISO-2 code, flag). Keep names stable because they are used in
-# callback payloads, markup settings, and cache keys.
-COUNTRY_CODES = {
-    "Argentina": ("AR", "🇦🇷"), "Australia": ("AU", "🇦🇺"), "Austria": ("AT", "🇦🇹"),
-    "Bangladesh": ("BD", "🇧🇩"), "Belgium": ("BE", "🇧🇪"), "Brazil": ("BR", "🇧🇷"),
-    "Canada": ("CA", "🇨🇦"), "Chile": ("CL", "🇨🇱"), "China": ("CN", "🇨🇳"),
-    "Colombia": ("CO", "🇨🇴"), "Egypt": ("EG", "🇪🇬"), "France": ("FR", "🇫🇷"),
-    "Germany": ("DE", "🇩🇪"), "Hong Kong": ("HK", "🇭🇰"), "India": ("IN", "🇮🇳"),
-    "Indonesia": ("ID", "🇮🇩"), "Iran": ("IR", "🇮🇷"), "Iraq": ("IQ", "🇮🇶"),
-    "Italy": ("IT", "🇮🇹"), "Japan": ("JP", "🇯🇵"), "Kazakhstan": ("KZ", "🇰🇿"),
-    "Kenya": ("KE", "🇰🇪"), "Malaysia": ("MY", "🇲🇾"), "Mexico": ("MX", "🇲🇽"),
-    "Morocco": ("MA", "🇲🇦"), "Nepal": ("NP", "🇳🇵"), "Netherlands": ("NL", "🇳🇱"),
-    "Nigeria": ("NG", "🇳🇬"), "Pakistan": ("PK", "🇵🇰"), "Peru": ("PE", "🇵🇪"),
-    "Philippines": ("PH", "🇵🇭"), "Poland": ("PL", "🇵🇱"), "Portugal": ("PT", "🇵🇹"),
-    "Romania": ("RO", "🇷🇴"), "Russia": ("RU", "🇷🇺"), "Saudi Arabia": ("SA", "🇸🇦"),
-    "Singapore": ("SG", "🇸🇬"), "South Africa": ("ZA", "🇿🇦"), "South Korea": ("KR", "🇰🇷"),
-    "Spain": ("ES", "🇪🇸"), "Sri Lanka": ("LK", "🇱🇰"), "Thailand": ("TH", "🇹🇭"),
-    "Turkey": ("TR", "🇹🇷"), "Ukraine": ("UA", "🇺🇦"), "United Arab Emirates": ("AE", "🇦🇪"),
-    "United Kingdom": ("GB", "🇬🇧"), "United States": ("US", "🇺🇸"), "Uzbekistan": ("UZ", "🇺🇿"),
-    "Vietnam": ("VN", "🇻🇳"),
-}
-
-CALLING_CODES = {
-    "Argentina": "54", "Australia": "61", "Austria": "43", "Bangladesh": "880", "Belgium": "32",
-    "Brazil": "55", "Canada": "1", "Chile": "56", "China": "86", "Colombia": "57", "Egypt": "20",
-    "France": "33", "Germany": "49", "Hong Kong": "852", "India": "91", "Indonesia": "62",
-    "Iran": "98", "Iraq": "964", "Italy": "39", "Japan": "81", "Kazakhstan": "7", "Kenya": "254",
-    "Malaysia": "60", "Mexico": "52", "Morocco": "212", "Nepal": "977", "Netherlands": "31",
-    "Nigeria": "234", "Pakistan": "92", "Peru": "51", "Philippines": "63", "Poland": "48",
-    "Portugal": "351", "Romania": "40", "Russia": "7", "Saudi Arabia": "966", "Singapore": "65",
-    "South Africa": "27", "South Korea": "82", "Spain": "34", "Sri Lanka": "94", "Thailand": "66",
-    "Turkey": "90", "Ukraine": "380", "United Arab Emirates": "971", "United Kingdom": "44",
-    "United States": "1", "Uzbekistan": "998", "Vietnam": "84",
-}
-
-ADDITIONAL_COUNTRY_DATA = {
-    "Afghanistan": ("AF", "🇦🇫", "93"), "Albania": ("AL", "🇦🇱", "355"),
-    "Algeria": ("DZ", "🇩🇿", "213"), "Angola": ("AO", "🇦🇴", "244"),
-    "Armenia": ("AM", "🇦🇲", "374"), "Azerbaijan": ("AZ", "🇦🇿", "994"),
-    "Bahamas": ("BS", "🇧🇸", "1"), "Bahrain": ("BH", "🇧🇭", "973"),
-    "Belize": ("BZ", "🇧🇿", "501"), "Botswana": ("BW", "🇧🇼", "267"),
-    "Cape Verde": ("CV", "🇨🇻", "238"), "Central African Republic": ("CF", "🇨🇫", "236"),
-    "Chad": ("TD", "🇹🇩", "235"), "Comoros": ("KM", "🇰🇲", "269"),
-    "Congo": ("CG", "🇨🇬", "242"), "Costa Rica": ("CR", "🇨🇷", "506"),
-    "Cuba": ("CU", "🇨🇺", "53"), "Czech Republic": ("CZ", "🇨🇿", "420"),
-    "Denmark": ("DK", "🇩🇰", "45"), "Djibouti": ("DJ", "🇩🇯", "253"),
-    "Dominica": ("DM", "🇩🇲", "1"), "Dominican Republic": ("DO", "🇩🇴", "1"),
-    "Ecuador": ("EC", "🇪🇨", "593"), "El Salvador": ("SV", "🇸🇻", "503"),
-    "Estonia": ("EE", "🇪🇪", "372"), "Fiji": ("FJ", "🇫🇯", "679"),
-    "Finland": ("FI", "🇫🇮", "358"), "Gabon": ("GA", "🇬🇦", "241"),
-    "Georgia": ("GE", "🇬🇪", "995"), "Ghana": ("GH", "🇬🇭", "233"),
-    "Greece": ("GR", "🇬🇷", "30"), "Greenland": ("GL", "🇬🇱", "299"),
-    "Grenada": ("GD", "🇬🇩", "1"), "Guadeloupe": ("GP", "🇬🇵", "590"),
-    "Guam": ("GU", "🇬🇺", "1"), "Guatemala": ("GT", "🇬🇹", "502"),
-    "Guyana": ("GY", "🇬🇾", "592"), "Haiti": ("HT", "🇭🇹", "509"),
-    "Honduras": ("HN", "🇭🇳", "504"), "Hungary": ("HU", "🇭🇺", "36"),
-    "Iceland": ("IS", "🇮🇸", "354"), "Ireland": ("IE", "🇮🇪", "353"),
-    "Israel": ("IL", "🇮🇱", "972"), "Ivory Coast": ("CI", "🇨🇮", "225"),
-    "Jamaica": ("JM", "🇯🇲", "1"), "Jordan": ("JO", "🇯🇴", "962"),
-    "Kiribati": ("KI", "🇰🇮", "686"), "Kuwait": ("KW", "🇰🇼", "965"),
-    "Kyrgyzstan": ("KG", "🇰🇬", "996"), "Laos": ("LA", "🇱🇦", "856"),
-    "Latvia": ("LV", "🇱🇻", "371"), "Lebanon": ("LB", "🇱🇧", "961"),
-    "Lesotho": ("LS", "🇱🇸", "266"), "Libya": ("LY", "🇱🇾", "218"),
-    "Lithuania": ("LT", "🇱🇹", "370"), "Luxembourg": ("LU", "🇱🇺", "352"),
-    "Macau": ("MO", "🇲🇴", "853"), "Madagascar": ("MG", "🇲🇬", "261"),
-    "Malawi": ("MW", "🇲🇼", "265"), "Maldives": ("MV", "🇲🇻", "960"),
-    "Malta": ("MT", "🇲🇹", "356"), "Mauritania": ("MR", "🇲🇷", "222"),
-    "Mauritius": ("MU", "🇲🇺", "230"), "Moldova": ("MD", "🇲🇩", "373"),
-    "Mozambique": ("MZ", "🇲🇿", "258"), "Myanmar": ("MM", "🇲🇲", "95"),
-    "New Zealand": ("NZ", "🇳🇿", "64"), "Nicaragua": ("NI", "🇳🇮", "505"),
-    "Niger": ("NE", "🇳🇪", "227"), "Norway": ("NO", "🇳🇴", "47"),
-    "Oman": ("OM", "🇴🇲", "968"), "Palau": ("PW", "🇵🇼", "680"),
-    "Palestine": ("PS", "🇵🇸", "970"), "Panama": ("PA", "🇵🇦", "507"),
-    "Papua New Guinea": ("PG", "🇵🇬", "675"), "Paraguay": ("PY", "🇵🇾", "595"),
-    "Puerto Rico": ("PR", "🇵🇷", "1787"), "Qatar": ("QA", "🇶🇦", "974"),
-    "Samoa": ("WS", "🇼🇸", "685"), "Senegal": ("SN", "🇸🇳", "221"),
-    "Serbia": ("RS", "🇷🇸", "381"), "Seychelles": ("SC", "🇸🇨", "248"),
-    "Sierra Leone": ("SL", "🇸🇱", "232"), "Slovenia": ("SI", "🇸🇮", "386"),
-    "Solomon Islands": ("SB", "🇸🇧", "677"), "Somalia": ("SO", "🇸🇴", "252"),
-    "South Sudan": ("SS", "🇸🇸", "211"), "Sudan": ("SD", "🇸🇩", "249"),
-    "Suriname": ("SR", "🇸🇷", "597"), "Swaziland": ("SZ", "🇸🇿", "268"),
-    "Sweden": ("SE", "🇸🇪", "46"), "Switzerland": ("CH", "🇨🇭", "41"),
-    "Syria": ("SY", "🇸🇾", "963"), "Taiwan": ("TW", "🇹🇼", "886"),
-    "Tajikistan": ("TJ", "🇹🇯", "992"), "Timor-Leste": ("TL", "🇹🇱", "670"),
-    "Togo": ("TG", "🇹🇬", "228"), "Tonga": ("TO", "🇹🇴", "676"),
-    "Trinidad and Tobago": ("TT", "🇹🇹", "1"), "Tunisia": ("TN", "🇹🇳", "216"),
-    "Turkmenistan": ("TM", "🇹🇲", "993"), "Uganda": ("UG", "🇺🇬", "256"),
-    "Uruguay": ("UY", "🇺🇾", "598"), "Vanuatu": ("VU", "🇻🇺", "678"),
-    "Yemen": ("YE", "🇾🇪", "967"), "Zambia": ("ZM", "🇿🇲", "260"),
-}
-for _country_name, (_iso, _flag, _calling) in ADDITIONAL_COUNTRY_DATA.items():
-    COUNTRY_CODES.setdefault(_country_name, (_iso, _flag))
-    CALLING_CODES.setdefault(_country_name, _calling)
-
-# Extra Server 1 country catalog entries. The third value is a stable button/API
-# code used by callbacks; if the market rejects it, lookups fall back to the
-# country name automatically.
-MORE_SERVER1_COUNTRIES = """
-Åland Islands|ALA|🇦🇽|358
-American Samoa|ASM|🇦🇸|1
-Andorra|AND|🇦🇩|376
-Anguilla|AIA|🇦🇮|1
-Antarctica|ATA|🇦🇶|672
-Antigua and Barbuda|ATG|🇦🇬|1
-Aruba|ABW|🇦🇼|297
-Bahamas|BHS|🇧🇸|1
-Barbados|BRB|🇧🇧|1
-Belarus|BLR|🇧🇾|375
-Benin|BEN|🇧🇯|229
-Bermuda|BMU|🇧🇲|1
-Bhutan|BTN|🇧🇹|975
-Bolivia|BOL|🇧🇴|591
-Bosnia and Herzegovina|BIH|🇧🇦|387
-Bouvet Island|BVT|🇧🇻|47
-British Indian Ocean Territory|IOT|🇮🇴|246
-British Virgin Islands|VGB|🇻🇬|1
-Brunei|BRN|🇧🇳|673
-Bulgaria|BGR|🇧🇬|359
-Burkina Faso|BFA|🇧🇫|226
-Burundi|BDI|🇧🇮|257
-Cambodia|KHM|🇰🇭|855
-Cameroon|CMR|🇨🇲|237
-Canary Islands|CNR|🇮🇨|34
-Caribbean Netherlands|BES|🇧🇶|599
-Cayman Islands|CYM|🇰🇾|1
-Congo (DRC)|COD|🇨🇩|243
-Cook Islands|COK|🇨🇰|682
-Côte d’Ivoire|CIV|🇨🇮|225
-Croatia|HRV|🇭🇷|385
-Curaçao|CUW|🇨🇼|599
-Cyprus|CYP|🇨🇾|357
-Czechia|CZE|🇨🇿|420
-Equatorial Guinea|GNQ|🇬🇶|240
-Eritrea|ERI|🇪🇷|291
-Eswatini|SWZ|🇸🇿|268
-Ethiopia|ETH|🇪🇹|251
-Falkland Islands|FLK|🇫🇰|500
-Faroe Islands|FRO|🇫🇴|298
-French Guiana|GUF|🇬🇫|594
-French Polynesia|PYF|🇵🇫|689
-French Southern Territories|ATF|🇹🇫|262
-Gambia|GMB|🇬🇲|220
-Gibraltar|GIB|🇬🇮|350
-Guernsey|GGY|🇬🇬|44
-Guinea|GIN|🇬🇳|224
-Guinea-Bissau|GNB|🇬🇼|245
-Heard Island and McDonald Islands|HMD|🇭🇲|672
-Isle of Man|IMN|🇮🇲|44
-Jersey|JEY|🇯🇪|44
-Kosovo|XKX|🇽🇰|383
-Liberia|LBR|🇱🇷|231
-Liechtenstein|LIE|🇱🇮|423
-Mali|MLI|🇲🇱|223
-Marshall Islands|MHL|🇲🇭|692
-Martinique|MTQ|🇲🇶|596
-Mayotte|MYT|🇾🇹|262
-Micronesia|FSM|🇫🇲|691
-Monaco|MCO|🇲🇨|377
-Mongolia|MNG|🇲🇳|976
-Montenegro|MNE|🇲🇪|382
-Montserrat|MSR|🇲🇸|1
-Namibia|NAM|🇳🇦|264
-Nauru|NRU|🇳🇷|674
-New Caledonia|NCL|🇳🇨|687
-Niue|NIU|🇳🇺|683
-Norfolk Island|NFK|🇳🇫|672
-North Korea|PRK|🇰🇵|850
-North Macedonia|MKD|🇲🇰|389
-Northern Mariana Islands|MNP|🇲🇵|1
-Pitcairn Islands|PCN|🇵🇳|64
-Réunion|REU|🇷🇪|262
-Rwanda|RWA|🇷🇼|250
-Saint Barthélemy|BLM|🇧🇱|590
-Saint Helena|SHN|🇸🇭|290
-Saint Kitts and Nevis|KNA|🇰🇳|1
-Saint Lucia|LCA|🇱🇨|1
-Saint Martin|MAF|🇲🇫|590
-Saint Pierre and Miquelon|SPM|🇵🇲|508
-Saint Vincent and the Grenadines|VCT|🇻🇨|1
-San Marino|SMR|🇸🇲|378
-São Tomé and Príncipe|STP|🇸🇹|239
-Sint Maarten|SXM|🇸🇽|1
-Slovakia|SVK|🇸🇰|421
-South Georgia and South Sandwich Islands|SGS|🇬🇸|500
-Svalbard and Jan Mayen|SJM|🇸🇯|47
-Tanzania|TZA|🇹🇿|255
-Tokelau|TKL|🇹🇰|690
-Turks and Caicos Islands|TCA|🇹🇨|1
-Tuvalu|TUV|🇹🇻|688
-Vatican City|VAT|🇻🇦|379
-Venezuela|VEN|🇻🇪|58
-U.S. Virgin Islands|VIR|🇻🇮|1
-Wallis and Futuna|WLF|🇼🇫|681
-Western Sahara|ESH|🇪🇭|212
-Zimbabwe|ZWE|🇿🇼|263
-"""
-for _line in MORE_SERVER1_COUNTRIES.strip().splitlines():
-    _name, _code, _flag, _calling = _line.split("|")
-    COUNTRY_CODES.setdefault(_name, (_code, _flag))
-    CALLING_CODES.setdefault(_name, _calling)
-
-class ConversationCancelled(Exception):
-    pass
+# ================= UI ICONS, COUNTRY CATALOG & REUSABLE HELPERS =================
+from bot_helpers import *
 
 # ================= TELETHON CLIENT & DB INSTANTIATION =================
 session_name = f"bot_session_{BOT_TOKEN.split(':')[0]}"
@@ -553,89 +327,6 @@ _lzt_rate_lock = asyncio.Lock()
 _lzt_last_request_at = 0.0
 _lzt_blocked_until = 0.0
 
-# ================= STABLE CORE HELPER FUNCTIONS =================
-def p_btn(text, data=None, url=None, style=None, icon_custom_emoji_id=None):
-    kwargs = {}
-    if style:
-        kwargs["style"] = style
-    if icon_custom_emoji_id:
-        kwargs["icon_custom_emoji_id"] = icon_custom_emoji_id
-    if url:
-        try:
-            return Button.url(text, url, **kwargs)
-        except TypeError:
-            return Button.url(text, url)
-    try:
-        return Button.inline(text, data, **kwargs)
-    except TypeError:
-        return Button.inline(text, data)
-
-async def bot_api_edit_text(event,text,keyboard):
-    """Use Telegram's HTML parser for expandable blockquotes."""
-    message_id=getattr(event,"message_id",None) or getattr(event,"id",None);chat_id=getattr(event,"chat_id",None)
-    if not message_id or not chat_id:return False
-    payload={"chat_id":chat_id,"message_id":message_id,"text":text,"parse_mode":"HTML",
-             "reply_markup":{"inline_keyboard":keyboard}}
-    tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText"
-    if is_cooling_down(tg_url):
-        return False
-    try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
-            async with session.post(tg_url,json=payload) as response:
-                if response.status == 429:
-                    record_rate_limit(tg_url, 10.0, reason="Telegram HTTP 429")
-                    return False
-                result=await response.json(content_type=None)
-                if isinstance(result, dict) and result.get("error_code") == 429:
-                    retry_sec = (result.get("parameters", {}).get("retry_after") if isinstance(result.get("parameters"), dict) else None) or 10.0
-                    record_rate_limit(tg_url, float(retry_sec), reason="Telegram error_code 429")
-                    return False
-        return bool(result.get("ok"))
-    except (aiohttp.ClientError,asyncio.TimeoutError,ValueError):
-        return False
-
-def p_copy_btn(text, value):
-    """Create a native Telegram copy button with a safe legacy fallback."""
-    clean = str(value or "").strip()
-    copy_type = getattr(tl_types, "KeyboardButtonCopy", None)
-    if copy_type:
-        try:
-            return copy_type(text=text, copy_text=clean)
-        except TypeError:
-            try:
-                return copy_type(text, clean)
-            except TypeError:
-                pass
-    # Older Telethon releases do not know Telegram's copy-text button. The
-    # callback still presents the exact value in a copyable alert.
-    return p_btn(text, f"copy_phone|{clean}", style="primary")
-
-def premium_emoji_id(name):
-    value = PREMIUM_EMOJI_IDS.get(name, "")
-    return int(value) if str(value).isdigit() else None
-
-def premium_button(text, data=None, url=None, style=None, emoji_name=None):
-    return p_btn(text, data=data, url=url, style=style, icon_custom_emoji_id=premium_emoji_id(emoji_name or ""))
-
-def apply_custom_emoji_entities(text, markers):
-    """Replace marker tokens with fallback emoji and return UTF-16 based entities."""
-    entities = []
-    rendered = text
-    custom_emoji_entity = getattr(tl_types, "MessageEntityCustomEmoji", None)
-    for marker, fallback, emoji_name in markers:
-        custom_id = premium_emoji_id(emoji_name)
-        search_from = 0
-        while marker in rendered[search_from:]:
-            idx = rendered.index(marker, search_from)
-            before = rendered[:idx]
-            rendered = rendered[:idx] + fallback + rendered[idx + len(marker):]
-            if custom_id and custom_emoji_entity:
-                offset = len(before.encode("utf-16-le")) // 2
-                length = len(fallback.encode("utf-16-le")) // 2
-                entities.append(custom_emoji_entity(offset=offset, length=length, document_id=custom_id))
-            search_from = idx + len(fallback)
-    return rendered, entities
-
 async def safe_show_rich_message(e, text, buttons=None, entities=None, link_preview=False):
     if not entities:
         return await safe_show_message(e, text, buttons=buttons, link_preview=link_preview)
@@ -668,70 +359,6 @@ def get_user_filters(uid):
 def get_filter_key(flt):
     return "_".join(str(flt.get(k, "any")) for k in ("spam", "geoblock", "offline", "login_mail", "premium"))
 
-def as_boolish(value):
-    if isinstance(value, bool):
-        return value
-    if value is None:
-        return False
-    if isinstance(value, (int, float)):
-        return value not in (0, -1)
-    return str(value).strip().lower() in ("1", "true", "yes", "y", "on")
-
-def lzt_item_matches_filters(item, flt):
-    spam_pref = flt.get("spam", "any")
-    if spam_pref != "any":
-        spam_value = item.get("telegram_spam_block", item.get("spam", -1))
-        has_spam = str(spam_value) not in ("-1", "0", "False", "false", "None", "")
-        if spam_pref == "no" and has_spam:
-            return False
-        if spam_pref == "yes" and not has_spam:
-            return False
-
-    premium_pref = flt.get("premium", "any")
-    if premium_pref != "any":
-        has_premium = as_boolish(item.get("telegram_premium", item.get("premium")))
-        if premium_pref == "yes" and not has_premium:
-            return False
-        if premium_pref == "no" and has_premium:
-            return False
-
-    geo_pref = flt.get("geoblock", "any")
-    if geo_pref != "any":
-        geo_value = item.get("telegram_geo_block", item.get("geo_block", item.get("geoblock")))
-        has_geo = as_boolish(geo_value)
-        if geo_pref == "no" and has_geo:
-            return False
-        if geo_pref == "yes" and not has_geo:
-            return False
-
-    mail_pref = flt.get("login_mail", "any")
-    if mail_pref != "any":
-        mail_value = item.get("login_mail", item.get("email", item.get("has_email", item.get("telegram_email"))))
-        has_mail = as_boolish(mail_value)
-        if mail_pref == "yes" and not has_mail:
-            return False
-        if mail_pref == "no" and has_mail:
-            return False
-
-    return True
-
-def filter_lzt_items(items, flt):
-    return [item for item in items if lzt_item_matches_filters(item, flt)]
-
-def lzt_price_currency(item):
-    if isinstance(item, dict):
-        for key in ("currency", "price_currency", "priceCurrency", "currency_code", "currencyCode"):
-            value = item.get(key)
-            if value:
-                return str(value).strip().lower()
-        price_data = item.get("price_data") or item.get("priceData")
-        if isinstance(price_data, dict):
-            for key in ("currency", "currency_code", "currencyCode"):
-                value = price_data.get(key)
-                if value:
-                    return str(value).strip().lower()
-    return LZT_PRICE_CURRENCY
-
 def lzt_currency_to_inr_rate(currency):
     currency = str(currency or LZT_PRICE_CURRENCY).strip().lower()
     if currency == "usd":
@@ -749,11 +376,6 @@ def lzt_currency_to_inr_rate(currency):
         "brl": 17.0,
     }
     return get_rate(f"{currency}_inr_rate", rate_defaults.get(currency, 1.05))
-
-def lzt_currency_params(extra=None):
-    params = dict(extra or {})
-    params.setdefault("currency", LZT_PRICE_CURRENCY)
-    return params
 
 def lzt_price_breakdown(item, markup_percent):
     raw_price = item.get("price_with_fee") or item.get("priceWithSellerFee") or item.get("price") or 0
@@ -826,82 +448,6 @@ def build_country_markup_buttons(page=1, per_page=20):
     buttons.append([p_btn("Back", "adm_lztset")])
     return buttons, page, total_pages
 
-def lzt_candidate_timestamp(container):
-    if not isinstance(container, dict):
-        return 0
-    for key in ("date", "time", "created_at", "createdDate", "timestamp"):
-        value = container.get(key)
-        try:
-            return int(float(value))
-        except (TypeError, ValueError):
-            continue
-    return 0
-
-def collect_lzt_otp_candidates(value, parent_key="", candidates=None, depth=0):
-    """Collect OTP candidates from LZT response without matching phones/dates.
-
-    LZT can return codes as top-level fields, nested data/result dictionaries, or
-    as a `codes` list like: {"codes": [{"code": "48492", "date": ...}]}.
-    This walker only scans trusted OTP/message fields, so large item payloads do
-    not accidentally turn phone numbers, Telegram IDs, or dates into OTPs.
-    """
-    if candidates is None:
-        candidates = []
-    if value is None or depth > 8:
-        return candidates
-
-    trusted_keys = {"code", "otp", "login_code", "telegram_login_code", "telegramLoginCode"}
-    text_keys = {"message", "text", "sms", "telegram_message"}
-    container_keys = {"data", "item", "telegram", "response", "result", "codes"}
-    key_name = str(parent_key or "")
-
-    if isinstance(value, dict):
-        ts = lzt_candidate_timestamp(value)
-        for key, nested in value.items():
-            key_str = str(key)
-            if key_str in trusted_keys or key_str in text_keys:
-                before = len(candidates)
-                collect_lzt_otp_candidates(nested, key_str, candidates, depth + 1)
-                if ts:
-                    for pos in range(before, len(candidates)):
-                        code_ts, priority, code = candidates[pos]
-                        if code_ts == 0:
-                            candidates[pos] = (ts, priority, code)
-            elif key_str in container_keys:
-                collect_lzt_otp_candidates(nested, key_str, candidates, depth + 1)
-        return candidates
-
-    if isinstance(value, (list, tuple)):
-        if key_name in container_keys or key_name in trusted_keys or key_name in text_keys:
-            for index, item in enumerate(value):
-                before = len(candidates)
-                collect_lzt_otp_candidates(item, key_name, candidates, depth + 1)
-                # Preserve API order as a weak freshness signal if no date exists.
-                for pos in range(before, len(candidates)):
-                    ts, priority, code = candidates[pos]
-                    if ts == 0:
-                        candidates[pos] = (index + 1, priority, code)
-        return candidates
-
-    if key_name not in trusted_keys and key_name not in text_keys and key_name != "codes":
-        return candidates
-
-    text_val = str(value)
-    if "login detected" in text_val.lower():
-        return candidates
-    match = re.search(OTP_REGEX, text_val)
-    if match:
-        priority = 100 if key_name in trusted_keys else 50
-        candidates.append((0, priority, match.group(0)))
-    return candidates
-
-def extract_lzt_otp(res):
-    candidates = collect_lzt_otp_candidates(res)
-    if not candidates:
-        return None
-    candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    return candidates[0][2]
-
 async def get_verified_lzt_otp(item_id, attempts=3, delay=1.5):
     """Fetch Server 1 OTP more than once and always return a found code.
 
@@ -923,34 +469,6 @@ async def get_verified_lzt_otp(item_id, attempts=3, delay=1.5):
     return (seen[-1], False, last_response) if seen else (None, False, last_response)
 
 
-def lzt_purchase_has_error(res):
-    if not res:
-        return True
-    if not isinstance(res, dict):
-        return False
-    for key in ("error", "errors", "error_description"):
-        value = res.get(key)
-        if value:
-            return True
-    return False
-
-def lzt_purchase_item_id(res, fallback_item_id):
-    if isinstance(res, dict):
-        item = res.get("item") or res.get("account") or res.get("telegram")
-        if isinstance(item, dict):
-            return str(item.get("item_id") or item.get("id") or fallback_item_id)
-        for key in ("item_id", "id"):
-            if res.get(key):
-                return str(res.get(key))
-    return str(fallback_item_id)
-
-def normalize_lzt_phone(raw_phone, fallback_item_id):
-    phone = str(raw_phone or "").strip()
-    if not phone or phone.startswith("LZT_"):
-        return f"Hidden-{fallback_item_id}"
-    compact = phone.replace(" ", "")
-    return f"+{compact.lstrip('+')}" if compact.lstrip("+").isdigit() else phone
-
 async def try_lzt_reset_authorizations(item_id):
     try:
         res = await lzt_request('POST', f"/{item_id}/telegram-reset-authorizations")
@@ -961,30 +479,6 @@ async def try_lzt_reset_authorizations(item_id):
     except Exception as ex:
         logger.info("Server 1 authorization reset failed for item %s: %s", item_id, ex)
         return False
-
-def lzt_market_price(item):
-    if not isinstance(item, dict):
-        return None
-    raw_price = item.get("price_with_fee") or item.get("priceWithSellerFee") or item.get("price")
-    try:
-        price = float(raw_price)
-    except (TypeError, ValueError):
-        return None
-    return price if price > 0 else None
-
-def lzt_item_requires_password(item):
-    if not isinstance(item, dict):
-        return False
-    password_keys = (
-        "password", "login_password", "telegram_password", "telegram_login_password",
-        "has_password", "hasPassword", "twofa", "two_fa", "2fa"
-    )
-    for key in password_keys:
-        value = item.get(key)
-        if value in (None, "", 0, "0", False, "None", "none", "no", "NO"):
-            continue
-        return True
-    return False
 
 def lzt_item_country_name(item, fallback=None):
     if isinstance(item, dict):
@@ -1002,30 +496,6 @@ def lzt_item_country_name(item, fallback=None):
         if phone:
             return get_country_info(str(phone))[0]
     return fallback or "Unknown"
-
-def lzt_updated_market_price_from_error(res):
-    text = lzt_error_text(res)
-    match = re.search(r"costs now\s+([0-9]+(?:\.[0-9]+)?)", text, re.IGNORECASE)
-    if match:
-        try:
-            return float(match.group(1))
-        except (TypeError, ValueError):
-            return None
-    return None
-
-def lzt_error_text(res):
-    if not isinstance(res, dict):
-        return str(res or "")
-    parts = []
-    for key in ("error", "errors", "error_description", "message", "detail"):
-        value = res.get(key)
-        if value:
-            parts.append(str(value))
-    return " | ".join(parts)
-
-def lzt_should_retry_purchase(res):
-    text = lzt_error_text(res).lower()
-    return "retry_request" in text or "retry request" in text
 
 async def lzt_fast_buy_item(item_id, market_price):
     current_price = market_price
@@ -1047,36 +517,11 @@ async def lzt_fast_buy_item(item_id, market_price):
         await asyncio.sleep(min(3, 0.5 + (attempt * 0.1)))
     return last_res
 
-def is_private_event(e):
-    chat_id = getattr(e, "chat_id", None)
-    sender_id = getattr(e, "sender_id", None)
-    if chat_id is None or sender_id is None:
-        return True
-    return int(chat_id) == int(sender_id)
-
-def is_admin_callback_data(data):
-    admin_prefixes = (
-        "dep_act|", "kp_adm|", "wd_act|", "adm_", "adm",
-        "apset|", "sp|", "price|", "pay_", "toggle_"
-    )
-    return str(data or "").startswith(admin_prefixes)
-
 def callback_allowed_in_chat(uid, data, e):
     if is_private_event(e):
         return True
     # Administrators may operate every bot menu from configured groups/channels.
     return is_admin(uid)
-
-def mask_phone_number(phone):
-    raw = str(phone or "").strip()
-    digits = re.sub(r"\D", "", raw)
-    if not digits:
-        return "Hidden"
-    if len(digits) <= 4:
-        return "+" + "*" * len(digits)
-    if len(digits) <= 8:
-        return "+" + digits[:2] + "**" + digits[-2:]
-    return "+" + digits[:4] + "**" + digits[-3:]
 
 async def get_user_log_label(uid):
     try:
@@ -1223,49 +668,6 @@ async def send_terms_or_main_menu(e, uid):
     return await send_main_menu(e, uid)
 
 
-def country_slug(name):
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-
-def find_country_by_slug(slug):
-    normalized = slug.strip().lower().replace("_", "-")
-    for name in COUNTRY_CODES:
-        if country_slug(name) == normalized:
-            return name
-    matches = find_country_matches(normalized.replace("-", " "))
-    return matches[0] if matches else None
-
-def get_country_button_code(name):
-    special = {"India": "IND"}
-    if name in special:
-        return special[name]
-    return COUNTRY_CODES.get(name, ("", ""))[0] or name[:3].upper()
-
-def country_button_label(name, price_text=None, include_phone=True):
-    iso_code, flag = COUNTRY_CODES.get(name, ("", "🌍"))
-    short_name = get_country_button_code(name)
-    calling = CALLING_CODES.get(name, "")
-    parts = [flag, short_name]
-    if include_phone and calling:
-        parts.append(f"+{calling}")
-    label = " ".join(parts)
-    if price_text is not None:
-        label = f"{label} | {price_text}"
-    return label
-
-def find_country_matches(query):
-    q = query.strip().lower().replace("+", "")
-    if not q:
-        return []
-    exact, partial = [], []
-    for name, (iso, flag) in COUNTRY_CODES.items():
-        calling = CALLING_CODES.get(name, "")
-        tokens = {name.lower(), iso.lower(), calling.lower()}
-        if q in tokens or (q.isdigit() and calling.startswith(q)):
-            exact.append(name)
-        elif q in name.lower() or iso.lower().startswith(q) or (q.isdigit() and q in calling):
-            partial.append(name)
-    return sorted(dict.fromkeys(exact + partial))
-
 async def render_server1_country_page(e, uid, page):
     if not resolve_lzt_token():
         if is_admin(uid):
@@ -1385,13 +787,6 @@ def get_currency_pref(uid):
         pref = "USDT"
     return pref if pref in ("INR", "USDT") else "INR"
 
-def format_inr_amount(inr_amt):
-    try:
-        amount = float(inr_amt)
-    except (TypeError, ValueError):
-        amount = 0.0
-    return f"₹{amount:.0f}" if amount.is_integer() else f"₹{amount:.2f}"
-
 def format_usdt_amount(inr_amt, suffix=" USDT"):
     try:
         usdt = float(inr_amt) / get_usdt_rate()
@@ -1421,27 +816,6 @@ def format_price(uid, inr_amt):
         return format_compact_usdt(inr_amt)
     return format_inr_amount(inr_amt)
 
-def parse_db_datetime(value):
-    if not value:
-        return None
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
-        try:
-            return datetime.strptime(str(value), fmt)
-        except (TypeError, ValueError):
-            continue
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
-    except (TypeError, ValueError):
-        return None
-
-def format_purchase_datetime(value):
-    parsed = parse_db_datetime(value)
-    if not parsed:
-        return str(value)
-    if parsed.date() == datetime.now(timezone.utc).date():
-        return f"Today {parsed.strftime('%H:%M:%S')} UTC"
-    return parsed.strftime("%a %b %d %H:%M:%S %Y")
-
 def update_balance(uid, amount, bal_type="balance"):
     cur.execute(f"UPDATE users SET {bal_type} = {bal_type} + ? WHERE user_id=?", (amount, uid))
     db.commit()
@@ -1458,9 +832,6 @@ def get_support_url():
         else:
             url = "https://t.me/" + url
     return url
-
-def generate_random_password(length=12):
-    return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 def delete_session_files(session_path):
     base = session_path if not session_path.endswith('.session') else session_path[:-8]
@@ -1887,26 +1258,6 @@ async def wait_lzt_rate_limit():
             await asyncio.sleep(wait_for)
         _lzt_last_request_at = time.monotonic()
 
-def parse_lzt_retry_after(headers):
-    if not headers:
-        return None
-    raw_value = None
-    try:
-        raw_value = headers.get("Retry-After")
-    except Exception:
-        raw_value = None
-    if not raw_value:
-        return None
-    try:
-        return max(0.0, float(raw_value))
-    except (TypeError, ValueError):
-        pass
-    try:
-        retry_at = datetime.strptime(str(raw_value), "%a, %d %b %Y %H:%M:%S GMT").replace(tzinfo=timezone.utc)
-        return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
-    except Exception:
-        return None
-
 async def apply_lzt_rate_limit_cooldown(retry_after=None):
     global _lzt_blocked_until
     wait_for = max(float(retry_after or 0), LZT_RATE_LIMIT_COOLDOWN)
@@ -1939,40 +1290,6 @@ async def close_lzt_session():
     if _lzt_session is not None and not _lzt_session.closed:
         await _lzt_session.close()
     _lzt_session = None
-
-def clean_lzt_params(params):
-    if not params:
-        return None
-    clean_params = {}
-    for key, value in params.items():
-        if key is None or value is None:
-            continue
-        if isinstance(value, (list, tuple)):
-            clean_list = [str(item) for item in value if item is not None]
-            if clean_list:
-                clean_params[str(key)] = clean_list
-        else:
-            clean_params[str(key)] = str(value)
-    return clean_params or None
-
-def lzt_masked_url(endpoint, params=None):
-    query = urllib.parse.urlencode(params or {}, doseq=True)
-    return f"{endpoint}?{query}" if query else endpoint
-
-def lzt_response_summary(res):
-    if not isinstance(res, dict):
-        return type(res).__name__
-    parts = []
-    if "items" in res and isinstance(res.get("items"), list):
-        parts.append(f"items={len(res.get('items') or [])}")
-    for key in ("totalItems", "total", "count", "item_id", "id", "http_status"):
-        if key in res:
-            parts.append(f"{key}={res.get(key)}")
-    if not parts and "item" in res:
-        parts.append("item=yes")
-    if not parts and any(k in res for k in ("error", "errors", "message")):
-        parts.append("error=yes")
-    return ", ".join(parts) if parts else "ok"
 
 def lzt_sync_request(method, url, headers, params=None, data=None, timeout_total=None, return_error=False, proxy=None):
     method = str(method or "GET").upper()
@@ -2503,12 +1820,6 @@ async def send_all_countries_list(uid):
         text = f"{title}\n<blockquote expandable>{chunk}</blockquote>"
         await bot.send_message(uid, text, link_preview=False)
 
-
-def extract_otp_from_message_text(message_text):
-    if not message_text or "Login detected" in message_text:
-        return None
-    match = re.search(OTP_REGEX, message_text)
-    return match.group(0) if match else None
 
 async def get_latest_telegram_login_otp(client, start_time, limit=12):
     msgs = await client.get_messages(777000, limit=limit)
