@@ -7,6 +7,7 @@ from bot_handlers.server5_callbacks import handle_server5_callback
 from bot_handlers.deposit_callbacks import handle_deposit_callback
 from bot_handlers.admin_callbacks import handle_admin_callback
 from bot_handlers.user_callbacks import handle_user_callbacks
+from bot_handlers.text_handlers import handle_text_input
 
 
 async def handle_server_callbacks(e, uid: int, data: str) -> bool:
