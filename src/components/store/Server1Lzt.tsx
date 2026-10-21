@@ -30,8 +30,32 @@ export const Server1Lzt: React.FC = () => {
     server1Items,
   } = useApp();
 
-  const [search, setSearch] = useState('');
-  const [selectedForPurchase, setSelectedForPurchase] = useState<Server1AccountItem | null>(null);
+  const [search, setSearch] = useState<string>(() => {
+    try {
+      return localStorage.getItem('krish_s1_search') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [selectedForPurchase, setSelectedForPurchase] = useState<Server1AccountItem | null>(() => {
+    try {
+      const saved = localStorage.getItem('krish_s1_modal_item');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('krish_s1_search', search);
+      if (selectedForPurchase) {
+        localStorage.setItem('krish_s1_modal_item', JSON.stringify(selectedForPurchase));
+      } else {
+        localStorage.removeItem('krish_s1_modal_item');
+      }
+    } catch {}
+  }, [search, selectedForPurchase]);
 
   // Strict real data: display live stock from server1Items
   const items = server1Items;

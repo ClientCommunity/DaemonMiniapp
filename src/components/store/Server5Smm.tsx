@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SmmPlatform, SmmServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
@@ -21,11 +21,60 @@ import {
 export const Server5Smm: React.FC = () => {
   const { formatPrice, submitSmmOrder, server5Items, user, setActiveTab } = useApp();
 
-  const [activePlatform, setActivePlatform] = useState<SmmPlatform | 'all'>('all');
-  const [search, setSearch] = useState('');
-  const [modalService, setModalService] = useState<SmmServiceItem | null>(null);
-  const [modalTargetLink, setModalTargetLink] = useState('');
-  const [modalQuantity, setModalQuantity] = useState(1000);
+  const [activePlatform, setActivePlatform] = useState<SmmPlatform | 'all'>(() => {
+    try {
+      return (localStorage.getItem('krish_smm_platform') as SmmPlatform | 'all') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [search, setSearch] = useState<string>(() => {
+    try {
+      return localStorage.getItem('krish_smm_search') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [modalService, setModalService] = useState<SmmServiceItem | null>(() => {
+    try {
+      const saved = localStorage.getItem('krish_smm_modal_service');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [modalTargetLink, setModalTargetLink] = useState<string>(() => {
+    try {
+      return localStorage.getItem('krish_smm_modal_link') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [modalQuantity, setModalQuantity] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('krish_smm_modal_qty');
+      return saved && Number(saved) > 0 ? Number(saved) : 1000;
+    } catch {
+      return 1000;
+    }
+  });
+
+  // Persist filter and modal inputs across app reloads / tab switches
+  useEffect(() => {
+    try {
+      localStorage.setItem('krish_smm_platform', activePlatform);
+      localStorage.setItem('krish_smm_search', search);
+      if (modalService) {
+        localStorage.setItem('krish_smm_modal_service', JSON.stringify(modalService));
+        localStorage.setItem('krish_smm_modal_link', modalTargetLink);
+        localStorage.setItem('krish_smm_modal_qty', String(modalQuantity));
+      } else {
+        localStorage.removeItem('krish_smm_modal_service');
+        localStorage.removeItem('krish_smm_modal_link');
+        localStorage.removeItem('krish_smm_modal_qty');
+      }
+    } catch {}
+  }, [activePlatform, search, modalService, modalTargetLink, modalQuantity]);
 
   // Post-purchase confirmation modal state
   const [placedOrder, setPlacedOrder] = useState<{

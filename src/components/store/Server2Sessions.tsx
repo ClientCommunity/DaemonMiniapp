@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { downloadApi } from '../../api/endpoints';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
@@ -17,12 +17,69 @@ export const Server2Sessions: React.FC = () => {
     addToast
   } = useApp();
 
-  const [qualityTier, setQualityTier] = useState<Server2QualityTier>('good');
-  const [deliveryFormat, setDeliveryFormat] = useState<Server2DeliveryFormat>('account');
-  const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
-  const [search, setSearch] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [itemForPurchase, setItemForPurchase] = useState<Server2StockItem | null>(null);
+  const [qualityTier, setQualityTier] = useState<Server2QualityTier>(() => {
+    try {
+      const saved = localStorage.getItem('krish_s2_tier');
+      return saved === 'good' || saved === 'cheap' ? saved : 'good';
+    } catch {
+      return 'good';
+    }
+  });
+  const [deliveryFormat, setDeliveryFormat] = useState<Server2DeliveryFormat>(() => {
+    try {
+      const saved = localStorage.getItem('krish_s2_format');
+      return saved === 'account' || saved === 'session' ? saved : 'account';
+    } catch {
+      return 'account';
+    }
+  });
+  const [selectedYear, setSelectedYear] = useState<number | 'all'>(() => {
+    try {
+      const saved = localStorage.getItem('krish_s2_year');
+      return saved && saved !== 'all' ? Number(saved) : 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [search, setSearch] = useState<string>(() => {
+    try {
+      return localStorage.getItem('krish_s2_search') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [quantity, setQuantity] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('krish_s2_qty');
+      return saved && Number(saved) > 0 ? Number(saved) : 1;
+    } catch {
+      return 1;
+    }
+  });
+  const [itemForPurchase, setItemForPurchase] = useState<Server2StockItem | null>(() => {
+    try {
+      const saved = localStorage.getItem('krish_s2_modal_item');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Persist Server 2 selections across mini app reloads
+  useEffect(() => {
+    try {
+      localStorage.setItem('krish_s2_tier', qualityTier);
+      localStorage.setItem('krish_s2_format', deliveryFormat);
+      localStorage.setItem('krish_s2_year', String(selectedYear));
+      localStorage.setItem('krish_s2_search', search);
+      localStorage.setItem('krish_s2_qty', String(quantity));
+      if (itemForPurchase) {
+        localStorage.setItem('krish_s2_modal_item', JSON.stringify(itemForPurchase));
+      } else {
+        localStorage.removeItem('krish_s2_modal_item');
+      }
+    } catch {}
+  }, [qualityTier, deliveryFormat, selectedYear, search, quantity, itemForPurchase]);
 
   const years: (number | 'all')[] = ['all', 2021, 2022, 2023, 2024, 2025];
 

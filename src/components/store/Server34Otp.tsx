@@ -12,9 +12,29 @@ interface Server34OtpProps {
 export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
   const { formatPrice, requestVirtualOtp, server34Items } = useApp();
 
-  const [activeCategory, setActiveCategory] = useState<OtpAppCode>('all');
-  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState<OtpAppCode>(() => {
+    try {
+      const saved = localStorage.getItem(`krish_otp_cat_s${serverId}`);
+      return (saved as OtpAppCode) || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [search, setSearch] = useState<string>(() => {
+    try {
+      return localStorage.getItem(`krish_otp_search_s${serverId}`) || '';
+    } catch {
+      return '';
+    }
+  });
   const [displayCount, setDisplayCount] = useState(50);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`krish_otp_cat_s${serverId}`, activeCategory);
+      localStorage.setItem(`krish_otp_search_s${serverId}`, search);
+    } catch {}
+  }, [activeCategory, search, serverId]);
 
   const isServer3 = serverId === 3;
 
