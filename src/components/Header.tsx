@@ -11,12 +11,28 @@ export const Header: React.FC = () => {
   const {
     user,
     currency,
+    formatPrice,
+    refreshUser,
     toggleCurrency,
     addToast,
     backendConnected,
     isCheckingBackend,
     recheckConnection,
   } = useApp();
+
+  const [isSyncingBalance, setIsSyncingBalance] = React.useState(false);
+
+  const handleSyncBalance = async () => {
+    try {
+      setIsSyncingBalance(true);
+      await refreshUser();
+      addToast('Wallet balance synchronized!', 'success', 'Synced');
+    } catch {
+      addToast('Failed to sync balance.', 'error', 'Error');
+    } finally {
+      setIsSyncingBalance(false);
+    }
+  };
 
   const {
     isAdmin,
@@ -137,6 +153,21 @@ export const Header: React.FC = () => {
                 : 'Connecting...'}
             </span>
             {isCheckingBackend && <RefreshCw className="w-2.5 h-2.5 animate-spin ml-0.5" />}
+          </button>
+
+          {/* Assets / Balance Pill with Sync */}
+          <button
+            onClick={handleSyncBalance}
+            disabled={isSyncingBalance}
+            className="flex items-center gap-1.5 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-2.5 py-1 transition-all shadow-sm cursor-pointer"
+            title="Click to sync wallet balance"
+            aria-label="Assets and Balance"
+          >
+            <span className="text-[10px] text-[#a1a1aa] font-medium hidden sm:inline">Assets:</span>
+            <span className="text-[11px] font-bold font-mono text-[#22c55e]">
+              {formatPrice(user.balance)}
+            </span>
+            <RefreshCw className={`w-2.5 h-2.5 text-[#a1a1aa] ${isSyncingBalance ? 'animate-spin text-[#8b5cf6]' : ''}`} />
           </button>
 
           {/* Currency Switcher */}
