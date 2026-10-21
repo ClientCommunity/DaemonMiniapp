@@ -22,7 +22,6 @@ from bot_helpers import (
     P_TIME,
     P_YES,
     delete_session_files,
-    format_price,
     p_btn,
 )
 
@@ -58,6 +57,7 @@ async def handle_server2_callback(e, uid: int, data: str) -> bool:
     get_latest_telegram_login_otp = bot.get_latest_telegram_login_otp
     safe_answer_cb = bot.safe_answer_cb
     send_admin_error = bot.send_admin_error
+    format_price = bot.format_price
 
     if data.startswith("srv_2_pg|"):
         total_bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]

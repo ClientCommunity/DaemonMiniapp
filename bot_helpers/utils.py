@@ -1,6 +1,7 @@
 """Pure utility functions: currency formatters, date parsers, slug generators, and phone masking."""
 from __future__ import annotations
 
+import os
 import re
 import secrets
 import string
@@ -151,3 +152,15 @@ def extract_otp_from_message_text(message_text: str) -> str | None:
         return None
     match = re.search(r"\b\d{5}\b", message_text)
     return match.group(0) if match else None
+
+
+def delete_session_files(session_path: str) -> None:
+    """Safely remove SQLite and WAL files associated with a Telethon session."""
+    base = session_path if not session_path.endswith(".session") else session_path[:-8]
+    for ext in [".session", ".session-wal", ".session-shm", ".session-journal"]:
+        try:
+            full_path = base + ext
+            if os.path.exists(full_path):
+                os.remove(full_path)
+        except Exception:
+            pass
