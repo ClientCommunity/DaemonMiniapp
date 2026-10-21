@@ -5,6 +5,7 @@ from bot_handlers.server3_callbacks import handle_server3_callback
 from bot_handlers.server4_callbacks import handle_server4_callback
 from bot_handlers.server5_callbacks import handle_server5_callback
 from bot_handlers.deposit_callbacks import handle_deposit_callback
+from bot_handlers.admin_callbacks import handle_admin_callback
 
 
 async def handle_server_callbacks(e, uid: int, data: str) -> bool:
