@@ -7,6 +7,7 @@ import {
   Server2DeliveryFormat,
   VirtualOtpServiceItem,
   ActiveOtpSession,
+  ActiveInvoice,
   SmmServiceItem,
   PaymentMethodType,
   HistoryItem,
@@ -55,6 +56,8 @@ export interface AppContextType {
   activeTab: 'home' | 'store' | 'deposit' | 'history' | 'profile';
   selectedServer: 1 | 2 | 3 | 4 | 5;
   activeOtpSession: ActiveOtpSession | null;
+  activeInvoice: ActiveInvoice | null;
+  setActiveInvoice: React.Dispatch<React.SetStateAction<ActiveInvoice | null>>;
   history: HistoryItem[];
   resellerConfig: ResellerConfig;
   toasts: ToastMessage[];
@@ -152,11 +155,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [user, setUser] = useState<UserProfile>(() => getSavedState('user', initialUserProfile));
   const [currency, setCurrency] = useState<CurrencyPreference>(() => getSavedState('currency', 'INR'));
-  const [activeTab, setActiveTab] = useState<'home' | 'store' | 'deposit' | 'history' | 'profile'>('home');
-  const [selectedServer, setSelectedServer] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [activeOtpSession, setActiveOtpSession] = useState<ActiveOtpSession | null>(() =>
-    getSavedState('activeOtp', null)
+  const [activeTab, setActiveTab] = useState<'home' | 'store' | 'deposit' | 'history' | 'profile'>(() =>
+    getSavedState('activeTab', 'home')
   );
+  const [selectedServer, setSelectedServer] = useState<1 | 2 | 3 | 4 | 5>(() =>
+    getSavedState('selectedServer', 1)
+  );
+  const [activeOtpSession, setActiveOtpSession] = useState<ActiveOtpSession | null>(() => {
+    const saved = getSavedState<ActiveOtpSession | null>('activeOtp', null);
+    if (!saved) return null;
+    if (saved.status === 'waiting' && saved.startTime && saved.totalDurationSeconds) {
+      const elapsed = Math.floor((Date.now() - saved.startTime) / 1000);
+      const remaining = Math.max(0, saved.totalDurationSeconds - elapsed);
+      if (remaining <= 0) {
+        return { ...saved, status: 'expired', remainingSeconds: 0 };
+      }
+      return { ...saved, remainingSeconds: remaining };
+    }
+    return saved;
+  });
+  const [activeInvoice, setActiveInvoice] = useState<ActiveInvoice | null>(() => {
+    const saved = getSavedState<ActiveInvoice | null>('activeInvoice', null);
+    if (!saved || !saved.expiresAt) return null;
+    if (saved.expiresAt <= Date.now()) return null;
+    return saved;
+  });
   const [history, setHistory] = useState<HistoryItem[]>(() =>
     getSavedState('history', initialHistoryItems)
   );
@@ -189,7 +212,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     orderId?: string;
     downloadUrl?: string;
     otpCode?: string;
-  } | null>(null);
+  } | null>(() => getSavedState('credentialsModal', null));
 
   const [purchasedServer2Modal, setPurchasedServer2Modal] = useState<{
     isOpen: boolean;
@@ -198,7 +221,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     quantity?: number;
     format?: Server2DeliveryFormat;
     downloadUrl?: string;
-  } | null>(null);
+  } | null>(() => getSavedState('server2Modal', null));
 
   const [selectedReceiptItem, setSelectedReceiptItem] = useState<HistoryItem | null>(null);
 
@@ -210,13 +233,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, JSON.stringify(user));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_currency`, JSON.stringify(currency));
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeTab`, JSON.stringify(activeTab));
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_selectedServer`, JSON.stringify(selectedServer));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeOtp`, JSON.stringify(activeOtpSession));
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeInvoice`, JSON.stringify(activeInvoice));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_history`, JSON.stringify(history));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_reseller`, JSON.stringify(resellerConfig));
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_credentialsModal`, JSON.stringify(purchasedCredentialsModal));
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_server2Modal`, JSON.stringify(purchasedServer2Modal));
     } catch {
       // localStorage quota or private mode fallback
     }
-  }, [user, currency, activeOtpSession, history, resellerConfig]);
+  }, [
+    user,
+    currency,
+    activeTab,
+    selectedServer,
+    activeOtpSession,
+    activeInvoice,
+    history,
+    resellerConfig,
+    purchasedCredentialsModal,
+    purchasedServer2Modal,
+  ]);
+
+  // Guarantee state preservation when user switches to external UPI / authenticator apps
+  useEffect(() => {
+    const handleSaveSnapshot = () => {
+      try {
+        localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeTab`, JSON.stringify(activeTab));
+        localStorage.setItem(`${LOCAL_STORAGE_KEY}_selectedServer`, JSON.stringify(selectedServer));
+        localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeOtp`, JSON.stringify(activeOtpSession));
+        localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeInvoice`, JSON.stringify(activeInvoice));
+      } catch {}
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleSaveSnapshot();
+      }
+    };
+
+    window.addEventListener('pagehide', handleSaveSnapshot);
+    window.addEventListener('beforeunload', handleSaveSnapshot);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', handleSaveSnapshot);
+      window.removeEventListener('beforeunload', handleSaveSnapshot);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [activeTab, selectedServer, activeOtpSession, activeInvoice]);
 
   // Toast System
   const addToast = useCallback(
@@ -273,13 +340,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Refresh history records from backend
+  // Refresh history records from backend & reconcile active OTP session
   const refreshHistory = useCallback(async () => {
     try {
       const historyRes = await historyApi.getHistory();
       if (historyRes?.success && Array.isArray(historyRes.items)) {
         const adapted = historyRes.items.map((item, idx) => adaptHistoryItem(item, idx));
         setHistory(adapted);
+
+        // Backend reconciliation: If local activeOtpSession is null, check if backend has an ongoing waiting OTP order
+        setActiveOtpSession((currentSession) => {
+          if (currentSession && (currentSession.status === 'waiting' || currentSession.status === 'received')) {
+            return currentSession;
+          }
+
+          const waitingOrder = adapted.find(
+            (item) => item.status === 'waiting' && item.category === 'otp_activation' && item.phone
+          );
+
+          if (waitingOrder) {
+            const sMatch = waitingOrder.server?.match(/(\d+)/);
+            const serverNum = (sMatch ? Number(sMatch[1]) : 3) as 3 | 4;
+            return {
+              orderId: waitingOrder.id,
+              server: serverNum,
+              serviceName: waitingOrder.title || 'OTP Activation',
+              country: (waitingOrder as any).country || 'Virtual',
+              phone: waitingOrder.phone || '',
+              priceInr: Math.abs(waitingOrder.amountInr),
+              promoUsed: 0,
+              mainUsed: Math.abs(waitingOrder.amountInr),
+              status: 'waiting',
+              otpCode: null,
+              startTime: Date.now() - 60000,
+              totalDurationSeconds: 600,
+              remainingSeconds: 540,
+            };
+          }
+          return currentSession;
+        });
       }
     } catch {
       // offline preview mode fallback
@@ -957,6 +1056,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const phoneOrId = activeOtpSession.phone || orderId;
     const serverNum = activeOtpSession.server;
 
+    // Immediate status check on mount / app re-open
+    const checkImmediately = async () => {
+      try {
+        const res = await otpApi.getStatus(phoneOrId);
+        if (!isSubscribed) return;
+        if (res && (res.status === 'completed' || res.status === 'delivered') && res.otp) {
+          const receivedCode = res.otp;
+          try {
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+              window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            }
+          } catch {}
+          addToast(`SMS Code received for ${phoneOrId}: ${receivedCode}`, 'success', 'OTP Code Arrived!');
+          setHistory((hPrev) =>
+            hPrev.map((item) =>
+              item.id === orderId
+                ? {
+                    ...item,
+                    status: 'success',
+                    otpCode: receivedCode,
+                    subtitle: `Server ${serverNum} · SMS Received`,
+                  }
+                : item
+            )
+          );
+          setActiveOtpSession((prev) =>
+            prev && prev.orderId === orderId
+              ? { ...prev, status: 'received', otpCode: receivedCode }
+              : prev
+          );
+        }
+      } catch {}
+    };
+    checkImmediately();
+
     // Backend status polling loop every 2500ms
     const pollInterval = setInterval(async () => {
       if (!isSubscribed) return;
@@ -1014,8 +1148,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setActiveOtpSession((prev) => {
         if (!prev || prev.orderId !== orderId || prev.status !== 'waiting') return prev;
 
-        // When timer reaches 0 without an SMS code arriving, transition to expired
-        if (prev.remainingSeconds <= 1) {
+        const elapsed = Math.floor((Date.now() - prev.startTime) / 1000);
+        const remaining = Math.max(0, prev.totalDurationSeconds - elapsed);
+
+        if (remaining <= 0) {
           return {
             ...prev,
             status: 'expired',
@@ -1025,7 +1161,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         return {
           ...prev,
-          remainingSeconds: prev.remainingSeconds - 1,
+          remainingSeconds: remaining,
         };
       });
     }, 1000);
@@ -1035,6 +1171,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       clearInterval(countdownInterval);
     };
   }, [activeOtpSession?.orderId, activeOtpSession?.status]);
+
+
 
   // Auto-refund when active OTP expires without receiving SMS code
   useEffect(() => {
@@ -1277,6 +1415,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Invariant 3: P2P Balance Transfer
   // Invariant Rule: Transfer Amount <= user.balance - user.promoBalance.
   // Promo balance CANNOT be transferred under any circumstances!
+  // Background Auto-Resolver for Active UPI Invoice
+  useEffect(() => {
+    if (!activeInvoice || !activeInvoice.reference) return;
+
+    let isSubscribed = true;
+    const refCode = activeInvoice.reference;
+    const payAmount = activeInvoice.amount;
+
+    const checkInvoiceStatus = async () => {
+      if (!isSubscribed) return;
+
+      if (Date.now() >= activeInvoice.expiresAt) {
+        setActiveInvoice(null);
+        addToast('UPI Invoice expired. Please generate a new invoice if needed.', 'info', 'Invoice Expired');
+        return;
+      }
+
+      try {
+        const checkRes = await depositApi.checkFamPay(refCode);
+        if (!isSubscribed) return;
+        if (
+          checkRes &&
+          (checkRes.status === 'approved' ||
+            checkRes.status === 'verified' ||
+            checkRes.status === 'success')
+        ) {
+          submitDeposit('fampay', payAmount, refCode, true);
+          setActiveInvoice(null);
+          try {
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+              window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            }
+          } catch {}
+          addToast(`Payment of ₹${payAmount} confirmed and credited to your wallet!`, 'success', 'Deposit Completed');
+          refreshUser().catch(() => {});
+        }
+      } catch {}
+    };
+
+    checkInvoiceStatus();
+    const invoiceInterval = setInterval(checkInvoiceStatus, 4000);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(invoiceInterval);
+    };
+  }, [activeInvoice?.reference, activeInvoice?.expiresAt, activeInvoice?.amount, submitDeposit, refreshUser, addToast]);
+
   const transferP2P = (recipient: string, amount: number): { success: boolean; message: string } => {
     if (!recipient || !recipient.trim()) {
       return { success: false, message: 'Please enter a valid Telegram ID or @username.' };
@@ -1476,6 +1662,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         server34Items,
         server5Items,
         isLoadingStore,
+        activeInvoice,
+        setActiveInvoice,
         purchasedCredentialsModal,
         purchasedServer2Modal,
         selectedReceiptItem,

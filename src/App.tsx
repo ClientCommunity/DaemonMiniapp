@@ -18,6 +18,7 @@ import { AdminPassphraseModal } from './components/admin/AdminPassphraseModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { isTelegramWebApp, getWebUserToken } from './api/client';
 import { downloadApi } from './api/endpoints';
+import { GlobalRecoveryBanner } from './components/common/GlobalRecoveryBanner';
 
 const AppContent: React.FC = () => {
   const {
@@ -174,6 +175,9 @@ const AppContent: React.FC = () => {
 
       {/* Persistent Sticky Header with Telegram profile & testing switcher for admins */}
       <Header />
+
+      {/* Persistent Seamless Recovery Banner (Restores ongoing OTP or Deposit action) */}
+      <GlobalRecoveryBanner />
 
       {/* Main View Container */}
       <main className="flex-1 px-4 pb-28 pt-2 overflow-y-auto no-scrollbar">

@@ -131,6 +131,15 @@ export interface DepositCheckout {
   createdAt: string;
 }
 
+export interface ActiveInvoice {
+  reference: string;
+  amount: number;
+  upiId: string;
+  qrUrl: string;
+  upiUri?: string;
+  expiresAt: number; // timestamp in ms
+}
+
 // Order & Transaction History
 export type OrderCategory = 'otp_activation' | 'account_purchase' | 'smm_order' | 'deposit' | 'transfer';
 export type OrderStatus = 'success' | 'waiting' | 'in_progress' | 'cancelled' | 'refunded';

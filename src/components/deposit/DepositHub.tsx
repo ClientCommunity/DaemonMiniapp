@@ -17,21 +17,30 @@ import {
   QrCode
 } from 'lucide-react';
 
-interface ActiveInvoice {
-  reference: string;
-  amount: number;
-  upiId: string;
-  qrUrl: string;
-  upiUri?: string;
-  expiresAt: number; // timestamp in ms
-}
-
 export const DepositHub: React.FC = () => {
-  const { submitDeposit, addToast } = useApp();
+  const { submitDeposit, addToast, activeInvoice, setActiveInvoice } = useApp();
 
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('fampay');
-  const [amount, setAmount] = useState<number>(250);
-  const [utrNumber, setUtrNumber] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>(() => {
+    try {
+      const saved = localStorage.getItem('krish_deposit_method');
+      if (saved === 'fampay' || saved === 'upi_direct' || saved === 'usdt_bep20') return saved as PaymentMethodType;
+    } catch {}
+    return 'fampay';
+  });
+  const [amount, setAmount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('krish_deposit_amount');
+      if (saved && Number(saved) > 0) return Number(saved);
+    } catch {}
+    return 250;
+  });
+  const [utrNumber, setUtrNumber] = useState<string>(() => {
+    try {
+      return localStorage.getItem('krish_deposit_utr') || '';
+    } catch {
+      return '';
+    }
+  });
   const [isVerifying, setIsVerifying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -43,9 +52,24 @@ export const DepositHub: React.FC = () => {
   const [selectedManualId, setSelectedManualId] = useState<number | null>(null);
   const [isLoadingManual, setIsLoadingManual] = useState<boolean>(false);
 
-  // Active invoice state: only set when the user explicitly clicks "Make your invoice"
-  const [activeInvoice, setActiveInvoice] = useState<ActiveInvoice | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(900); // 15 mins in seconds
+  // Real-world countdown timer for active invoice
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    if (!activeInvoice) return 900;
+    return Math.max(0, Math.floor((activeInvoice.expiresAt - Date.now()) / 1000));
+  });
+
+  // Persist form inputs across app closes
+  useEffect(() => {
+    try {
+      localStorage.setItem('krish_deposit_method', selectedMethod);
+      localStorage.setItem('krish_deposit_amount', String(amount));
+      if (utrNumber) {
+        localStorage.setItem('krish_deposit_utr', utrNumber);
+      } else {
+        localStorage.removeItem('krish_deposit_utr');
+      }
+    } catch {}
+  }, [selectedMethod, amount, utrNumber]);
 
   const quickAmounts = [100, 250, 500, 1000, 2500];
 
@@ -93,7 +117,7 @@ export const DepositHub: React.FC = () => {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [activeInvoice]);
+  }, [activeInvoice?.expiresAt]);
 
   const formatCountdown = (secs: number) => {
     const m = Math.floor(secs / 60);
