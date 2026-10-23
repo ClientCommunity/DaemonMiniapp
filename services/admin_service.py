@@ -218,6 +218,7 @@ def adjust_user_balance(
 
 def list_pending_deposits() -> list[dict[str, Any]]:
     """List all pending manual deposits and FamPay appeal reviews."""
+    import re
     with connect() as conn:
         rows = conn.execute("""
             SELECT id, user_id, amount, method_name, status, date
@@ -226,16 +227,25 @@ def list_pending_deposits() -> list[dict[str, Any]]:
             ORDER BY id DESC LIMIT 50
         """).fetchall()
 
-    return [
-        {
-            "id": r["id"],
-            "user_id": r["user_id"],
+    items = []
+    for r in rows:
+        dep_id = int(r["id"])
+        method_str = str(r["method_name"] or "Manual UPI")
+        utr_match = re.search(r"UTR:\s*([A-Za-z0-9_-]+)", method_str, re.IGNORECASE)
+        utr_val = utr_match.group(1) if utr_match else ""
+        items.append({
+            "id": dep_id,
+            "deposit_id": dep_id,
+            "user_id": int(r["user_id"]),
             "amount": int(r["amount"] or 0),
-            "method_name": r["method_name"],
+            "method": method_str,
+            "method_name": method_str,
+            "utr": utr_val,
+            "status": str(r["status"] or "pending"),
+            "created_at": str(r["date"]),
             "date": str(r["date"]),
-        }
-        for r in rows
-    ]
+        })
+    return items
 
 
 def process_deposit_decision(deposit_id: int, approve: bool, approved_amount: int | None = None) -> dict[str, Any]:
@@ -243,9 +253,9 @@ def process_deposit_decision(deposit_id: int, approve: bool, approved_amount: in
     with transaction(immediate=True) as conn:
         dep = conn.execute("SELECT user_id, amount, status FROM deposits WHERE id = ?", (deposit_id,)).fetchone()
         if not dep:
-            return {"success": False, "error": "Deposit record not found."}
+            return {"success": False, "error": "Deposit record not found.", "message": "Deposit record not found."}
         if dep["status"] != "pending":
-            return {"success": False, "error": f"Deposit is already {dep['status']}."}
+            return {"success": False, "error": f"Deposit is already {dep['status']}.", "message": f"Deposit is already {dep['status']}."}
 
         uid = dep["user_id"]
         amt = approved_amount if approved_amount is not None else int(dep["amount"] or 0)
@@ -274,7 +284,15 @@ def process_deposit_decision(deposit_id: int, approve: bool, approved_amount: in
     except Exception as ex:
         logger.warning("Failed to send deposit decision Telegram message to user %s: %s", uid, ex)
 
-    return {"success": True, "deposit_id": deposit_id, "status": status_result, "user_id": uid, "amount": amt}
+    return {
+        "success": True,
+        "deposit_id": deposit_id,
+        "id": deposit_id,
+        "status": status_result,
+        "user_id": uid,
+        "amount": amt,
+        "message": f"Deposit #{deposit_id} successfully {status_result}."
+    }
 
 
 def list_stock_items(quality_tier: str | None = None, available_only: bool = True, limit: int = 50) -> list[dict[str, Any]]:

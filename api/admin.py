@@ -757,11 +757,11 @@ def admin_approve_deposit():
         return err
 
     data = request.get_json(silent=True) or {}
-    dep_id = data.get("deposit_id")
+    dep_id = data.get("deposit_id") or data.get("id")
     approved_amt = data.get("amount")
 
     if not dep_id:
-        return jsonify({"success": False, "error": "deposit_id is required."}), 400
+        return jsonify({"success": False, "error": "deposit_id is required.", "message": "deposit_id is required."}), 400
 
     result = process_deposit_decision(
         deposit_id=int(dep_id),
@@ -781,10 +781,10 @@ def admin_reject_deposit():
         return err
 
     data = request.get_json(silent=True) or {}
-    dep_id = data.get("deposit_id")
+    dep_id = data.get("deposit_id") or data.get("id")
 
     if not dep_id:
-        return jsonify({"success": False, "error": "deposit_id is required."}), 400
+        return jsonify({"success": False, "error": "deposit_id is required.", "message": "deposit_id is required."}), 400
 
     result = process_deposit_decision(deposit_id=int(dep_id), approve=False)
     if not result.get("success"):
