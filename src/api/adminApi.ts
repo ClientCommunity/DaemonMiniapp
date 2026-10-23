@@ -165,13 +165,16 @@ export interface SmmOrder {
 
 export interface PendingDeposit {
   deposit_id: number;
+  id?: number;
   user_id: number;
   username?: string;
   amount: number;
   method: string;
+  method_name?: string;
   utr: string;
   status: string;
   created_at: string;
+  date?: string;
   notes?: string;
 }
 

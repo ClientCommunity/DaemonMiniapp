@@ -47,15 +47,20 @@ export const PaymentsHubTab: React.FC = () => {
   }, [addToast]);
 
   const handleApproveDeposit = async (dep: PendingDeposit) => {
+    const depId = dep.deposit_id ?? (dep as any).id;
+    if (!depId) {
+      addToast('Invalid deposit ID', 'error');
+      return;
+    }
     if (!window.confirm(`Approve deposit of ₹${dep.amount} for User #${dep.user_id}? This will atomically credit their wallet.`)) return;
-    setProcessingId(dep.deposit_id);
+    setProcessingId(depId);
     try {
-      const res = await adminApi.approveDeposit(dep.deposit_id, dep.amount);
+      const res = await adminApi.approveDeposit(depId, dep.amount);
       if (res?.success) {
-        addToast(`✅ Deposit #${dep.deposit_id} approved and credited ₹${dep.amount}!`, 'success');
-        setPendingDeposits((prev) => prev.filter((d) => d.deposit_id !== dep.deposit_id));
+        addToast(`✅ Deposit #${depId} approved and credited ₹${dep.amount}!`, 'success');
+        setPendingDeposits((prev) => prev.filter((d) => (d.deposit_id ?? (d as any).id) !== depId));
       } else {
-        addToast(res?.message || 'Failed to approve deposit', 'error');
+        addToast(res?.message || (res as any)?.error || 'Failed to approve deposit', 'error');
       }
     } catch {
       addToast('Error executing deposit approval', 'error');
@@ -72,16 +77,21 @@ export const PaymentsHubTab: React.FC = () => {
 
   const handleConfirmReject = async () => {
     if (!rejectingDeposit) return;
-    setProcessingId(rejectingDeposit.deposit_id);
+    const depId = rejectingDeposit.deposit_id ?? (rejectingDeposit as any).id;
+    if (!depId) {
+      addToast('Invalid deposit ID', 'error');
+      return;
+    }
+    setProcessingId(depId);
     try {
-      const res = await adminApi.rejectDeposit(rejectingDeposit.deposit_id, rejectReason.trim());
+      const res = await adminApi.rejectDeposit(depId, rejectReason.trim());
       if (res?.success) {
-        addToast(`❌ Deposit #${rejectingDeposit.deposit_id} rejected.`, 'info');
-        setPendingDeposits((prev) => prev.filter((d) => d.deposit_id !== rejectingDeposit.deposit_id));
+        addToast(`❌ Deposit #${depId} rejected.`, 'info');
+        setPendingDeposits((prev) => prev.filter((d) => (d.deposit_id ?? (d as any).id) !== depId));
         setRejectModalOpen(false);
         setRejectingDeposit(null);
       } else {
-        addToast(res?.message || 'Failed to reject deposit', 'error');
+        addToast(res?.message || (res as any)?.error || 'Failed to reject deposit', 'error');
       }
     } catch {
       addToast('Error rejecting deposit', 'error');
@@ -379,22 +389,24 @@ export const PaymentsHubTab: React.FC = () => {
 
           {/* Pending Queue List */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pendingDeposits.map((dep) => (
+            {pendingDeposits.map((dep) => {
+              const depId = dep.deposit_id ?? (dep as any).id;
+              return (
               <div
-                key={dep.deposit_id}
+                key={depId}
                 className="bg-[#181820] border border-[#262630] rounded-2xl p-4 shadow-sm space-y-3 hover:border-[#3b3b4a] transition-all"
               >
                 {/* Header: User & Amount */}
                 <div className="flex items-start justify-between">
                   <div>
                     <span className="text-[11px] font-mono text-[#8b5cf6] block">
-                      Order #{dep.deposit_id} • User #{dep.user_id}
+                      Order #{depId} • User #{dep.user_id}
                     </span>
                     <h4 className="text-sm font-bold text-white">
                       @{dep.username || `user_${dep.user_id}`}
                     </h4>
                     <span className="text-[10px] text-[#71717a]">
-                      Submitted: {dep.created_at || 'Just now'}
+                      Submitted: {dep.created_at || dep.date || 'Just now'}
                     </span>
                   </div>
 
@@ -422,7 +434,7 @@ export const PaymentsHubTab: React.FC = () => {
                   {dep.utr && (
                     <button
                       onClick={() => handleCopy(dep.utr, 'UTR')}
-                      className="p-1.5 rounded-lg bg-[#181820] hover:bg-[#22222d] text-[#a1a1aa] hover:text-white transition-colors"
+                      className="p-1.5 rounded-lg bg-[#181820] hover:bg-[#22222d] text-[#a1a1aa] hover:text-white transition-colors cursor-pointer"
                       title="Copy UTR"
                     >
                       <Copy className="w-4 h-4" />
@@ -441,7 +453,7 @@ export const PaymentsHubTab: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     onClick={() => handleApproveDeposit(dep)}
-                    disabled={processingId === dep.deposit_id}
+                    disabled={processingId === depId}
                     className="flex items-center justify-center gap-1.5 bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-2 rounded-xl text-xs transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-4 h-4" />
@@ -450,7 +462,7 @@ export const PaymentsHubTab: React.FC = () => {
 
                   <button
                     onClick={() => handleOpenRejectModal(dep)}
-                    disabled={processingId === dep.deposit_id}
+                    disabled={processingId === depId}
                     className="flex items-center justify-center gap-1.5 bg-[#ef4444]/15 hover:bg-[#ef4444]/25 text-[#ef4444] font-semibold py-2 rounded-xl text-xs transition-all border border-[#ef4444]/30 active:scale-95 cursor-pointer disabled:opacity-50"
                   >
                     <XCircle className="w-4 h-4" />
@@ -458,7 +470,8 @@ export const PaymentsHubTab: React.FC = () => {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+            })}
 
             {pendingDeposits.length === 0 && (
               <div className="col-span-full bg-[#181820] border border-[#262630] rounded-2xl p-10 text-center space-y-2">
@@ -769,7 +782,7 @@ export const PaymentsHubTab: React.FC = () => {
                 <XCircle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Reject Deposit #{rejectingDeposit.deposit_id}</h3>
+                <h3 className="text-sm font-bold text-white">Reject Deposit #{rejectingDeposit.deposit_id ?? (rejectingDeposit as any).id}</h3>
                 <span className="text-xs text-[#a1a1aa]">₹{rejectingDeposit.amount} from User #{rejectingDeposit.user_id}</span>
               </div>
             </div>
