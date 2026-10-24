@@ -11,11 +11,13 @@ import {
   ArrowRight,
   LogOut,
   Mail,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { isTelegramWebApp, setWebUserToken } from '../../api/client';
 
 export const ProfileView: React.FC = () => {
-  const { user, transferableBalance, formatPrice, addToast } = useApp();
+  const { user, transferableBalance, formatPrice, addToast, theme, toggleTheme } = useApp();
 
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -133,6 +135,42 @@ export const ProfileView: React.FC = () => {
             <span className="text-[11px] text-[#f59e0b]">Locked: {formatPrice(user.promoBalance)}</span>
           </div>
         </div>
+      </div>
+
+      {/* Theme Preference Setting Card */}
+      <div className="p-4 mb-4 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#7c3aed]/15 border border-[#7c3aed]/30 flex items-center justify-center shrink-0">
+            {theme === 'dark' ? (
+              <Moon className="w-4 h-4 text-[#8b5cf6]" />
+            ) : (
+              <Sun className="w-4 h-4 text-[#f59e0b]" />
+            )}
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-white">Interface Theme</span>
+            <span className="text-[10px] text-[#a1a1aa]">
+              {theme === 'dark' ? 'Dark Mode (OLED Optimized)' : 'Light Mode (Clean & Bright)'}
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:border-[#7c3aed]/50 transition-all active:scale-95 cursor-pointer"
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun className="w-3.5 h-3.5 text-[#f59e0b]" />
+              <span>Light Mode</span>
+            </>
+          ) : (
+            <>
+              <Moon className="w-3.5 h-3.5 text-[#8b5cf6]" />
+              <span>Dark Mode</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Embedded Reseller Custom Margin Engine */}

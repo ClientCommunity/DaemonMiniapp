@@ -34,6 +34,7 @@ const AppContent: React.FC = () => {
     refreshStore,
     refreshHistory,
     refreshReseller,
+    theme,
   } = useApp();
 
   const { isAdminMode } = useAdmin();
@@ -72,13 +73,14 @@ const AppContent: React.FC = () => {
         tg.ready();
         tg.expand();
         tg.enableClosingConfirmation?.();
-        tg.setHeaderColor?.('#0b0b0e');
-        tg.setBackgroundColor?.('#0b0b0e');
+        const headerColor = theme === 'light' ? '#ffffff' : '#0b0b0e';
+        tg.setHeaderColor?.(headerColor);
+        tg.setBackgroundColor?.(headerColor);
       }
     } catch {
       // not in telegram webview
     }
-  }, []);
+  }, [theme]);
 
   // Handle frontend download query parameters (e.g. ?download=session&phone=... or ?download=zip&order_id=...)
   useEffect(() => {

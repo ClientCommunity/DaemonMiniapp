@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
-import { BadgeCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Sparkles, Store } from 'lucide-react';
+import { BadgeCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Sparkles, Store, Sun, Moon } from 'lucide-react';
 
 /**
  * Top navigation header with Telegram profile details, connection monitor,
@@ -18,6 +18,8 @@ export const Header: React.FC = () => {
     backendConnected,
     isCheckingBackend,
     recheckConnection,
+    theme,
+    toggleTheme,
   } = useApp();
 
   const [isSyncingBalance, setIsSyncingBalance] = React.useState(false);
@@ -180,6 +182,20 @@ export const Header: React.FC = () => {
             <span className="text-[11px] font-bold text-[#22c55e]">
               {currency === 'INR' ? '₹' : '$'}
             </span>
+          </button>
+
+          {/* Theme Switcher Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full transition-all shadow-sm cursor-pointer"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle Dark and Light theme"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-3.5 h-3.5 text-[#f59e0b] hover:rotate-45 transition-transform" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-[#7c3aed] hover:-rotate-12 transition-transform" />
+            )}
           </button>
         </div>
       </div>

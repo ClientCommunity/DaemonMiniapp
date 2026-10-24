@@ -127,6 +127,11 @@ export interface AppContextType {
   openReceiptDrawer: (item: HistoryItem) => void;
   closeReceiptDrawer: () => void;
 
+  // Theme
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
+  setTheme: (theme: 'dark' | 'light') => void;
+
   // Data Refreshers
   refreshStore: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -153,6 +158,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return defaultValue;
     }
   };
+
+  const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('krish_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.colorScheme === 'light') {
+        return 'light';
+      }
+      return 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const root = document.documentElement;
+      if (theme === 'light') {
+        root.classList.remove('dark');
+        root.classList.add('light');
+        root.style.colorScheme = 'light';
+      } else {
+        root.classList.remove('light');
+        root.classList.add('dark');
+        root.style.colorScheme = 'dark';
+      }
+      localStorage.setItem('krish_theme', theme);
+
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', theme === 'light' ? '#ffffff' : '#0b0b0e');
+      }
+
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+        const color = theme === 'light' ? '#ffffff' : '#0b0b0e';
+        tg.setHeaderColor?.(color);
+        tg.setBackgroundColor?.(color);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const setTheme = useCallback((newTheme: 'dark' | 'light') => {
+    setThemeState(newTheme);
+  }, []);
 
   const [user, setUser] = useState<UserProfile>(() => getSavedState('user', initialUserProfile));
   const [currency, setCurrency] = useState<CurrencyPreference>(() => getSavedState('currency', 'INR'));
@@ -1655,6 +1711,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         user,
         transferableBalance,
         currency,
+        theme,
+        toggleTheme,
+        setTheme,
         activeTab,
         selectedServer,
         activeOtpSession,
