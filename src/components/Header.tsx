@@ -47,12 +47,12 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#121217]/90 backdrop-blur-md border-b border-[#262630] pt-[max(12px,env(safe-area-inset-top))] pb-3 px-4">
-      <div className="flex items-center justify-between gap-2">
+    <header className="sticky top-0 z-40 w-full bg-[#121217]/90 backdrop-blur-md border-b border-[#262630] pt-[max(12px,env(safe-area-inset-top))] pb-3 px-3 sm:px-4">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2">
         {/* User Info (Left) */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <div className="relative shrink-0">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-sm text-white shadow-md ring-2 ring-[#262630]">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 ring-[#262630]">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full rounded-full object-cover" />
               ) : (
@@ -60,7 +60,7 @@ export const Header: React.FC = () => {
               )}
             </div>
             <div
-              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#121217] ${
+              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full border-2 border-[#121217] ${
                 backendConnected === true
                   ? 'bg-[#22c55e]'
                   : backendConnected === false
@@ -72,17 +72,17 @@ export const Header: React.FC = () => {
 
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-1">
-              <span className="font-bold text-sm text-white tracking-tight truncate max-w-[110px]">
+              <span className="font-bold text-sm text-white tracking-tight truncate max-w-[110px] sm:max-w-[160px]">
                 {user.firstName}
               </span>
               <BadgeCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
             </div>
             <div className="flex items-center gap-1.5 text-xs text-[#a1a1aa]">
-              <span className="font-mono truncate max-w-[80px]">@{user.username}</span>
-              <span>•</span>
+              <span className="font-mono truncate max-w-[95px] sm:max-w-[120px]">@{user.username}</span>
+              <span className="hidden sm:inline">•</span>
               <button
                 onClick={handleCopyId}
-                className="font-mono hover:text-white transition-colors shrink-0 cursor-pointer"
+                className="hidden sm:inline font-mono hover:text-white transition-colors shrink-0 cursor-pointer"
                 title="Click to copy ID"
               >
                 ID: {user.telegramId}
@@ -92,17 +92,17 @@ export const Header: React.FC = () => {
         </div>
 
         {/* Right Actions: Persistent Admin Switcher + Connection Pill + Currency Switcher */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Persistent Admin Mode Toggle Pill for Verified Admins in Storefront */}
           {isAdmin && !isAdminMode && (
             <button
               onClick={enterAdminMode}
-              className="flex items-center gap-1 bg-[#7c3aed]/20 hover:bg-[#7c3aed]/30 active:scale-95 text-[#a78bfa] hover:text-white border border-[#7c3aed]/40 px-2 py-1 rounded-full text-[10px] font-semibold transition-all shadow-sm shadow-[#7c3aed]/20 cursor-pointer"
+              className="flex items-center gap-1 bg-[#7c3aed]/20 hover:bg-[#7c3aed]/30 active:scale-95 text-[#a78bfa] hover:text-white border border-[#7c3aed]/40 px-1.5 py-1 sm:px-2 rounded-full text-[10px] font-semibold transition-all shadow-sm shadow-[#7c3aed]/20 cursor-pointer"
               title="Switch to Admin Panel (Testing Mode)"
               aria-label="Switch to Admin Panel"
             >
               <ShieldAlert className="w-3 h-3 text-[#a78bfa]" />
-              <span className="tracking-tight font-medium">Admin</span>
+              <span className="tracking-tight font-medium hidden sm:inline">Admin</span>
               <Sparkles className="w-2.5 h-2.5 text-[#f59e0b]" />
             </button>
           )}
@@ -111,20 +111,20 @@ export const Header: React.FC = () => {
           {isAdmin && isAdminMode && (
             <button
               onClick={enterUserMode}
-              className="flex items-center gap-1 bg-[#22c55e]/15 hover:bg-[#22c55e]/25 active:scale-95 text-[#22c55e] hover:text-white border border-[#22c55e]/30 px-2 py-1 rounded-full text-[10px] font-semibold transition-all shadow-sm cursor-pointer"
+              className="flex items-center gap-1 bg-[#22c55e]/15 hover:bg-[#22c55e]/25 active:scale-95 text-[#22c55e] hover:text-white border border-[#22c55e]/30 px-1.5 py-1 sm:px-2 rounded-full text-[10px] font-semibold transition-all shadow-sm cursor-pointer"
               title="Switch to Customer Storefront"
               aria-label="Switch to Customer Storefront"
             >
               <Store className="w-3 h-3 text-[#22c55e]" />
-              <span className="tracking-tight font-medium">Store</span>
+              <span className="tracking-tight font-medium hidden sm:inline">Store</span>
             </button>
           )}
 
-          {/* Connection Status Pill */}
+          {/* Connection Status Pill - Collapses to discreet status dot on mobile */}
           <button
             onClick={() => recheckConnection(true)}
             disabled={isCheckingBackend}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all active:scale-95 shadow-sm ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-2.5 rounded-full text-[10px] font-semibold border transition-all active:scale-95 shadow-sm cursor-pointer ${
               backendConnected === true
                 ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/30 hover:bg-[#10b981]/20'
                 : backendConnected === false
@@ -143,7 +143,7 @@ export const Header: React.FC = () => {
                   : 'bg-[#f59e0b] animate-ping'
               }`}
             />
-            <span className="tracking-tight">
+            <span className="tracking-tight hidden sm:inline">
               {isCheckingBackend
                 ? 'Checking...'
                 : backendConnected === true
@@ -159,7 +159,7 @@ export const Header: React.FC = () => {
           <button
             onClick={handleSyncBalance}
             disabled={isSyncingBalance}
-            className="flex items-center gap-1.5 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-2.5 py-1 transition-all shadow-sm cursor-pointer"
+            className="flex items-center gap-1 sm:gap-1.5 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-2 py-1 sm:px-2.5 transition-all shadow-sm cursor-pointer"
             title="Click to sync wallet balance"
             aria-label="Assets and Balance"
           >
@@ -173,7 +173,7 @@ export const Header: React.FC = () => {
           {/* Currency Switcher */}
           <button
             onClick={toggleCurrency}
-            className="flex items-center gap-1 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-2.5 py-1 transition-all shadow-sm"
+            className="flex items-center gap-1 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-2 py-1 sm:px-2.5 transition-all shadow-sm cursor-pointer"
             aria-label="Toggle currency between INR and USDT"
           >
             <ArrowLeftRight className="w-3 h-3 text-[#8b5cf6]" />
