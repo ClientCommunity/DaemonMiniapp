@@ -84,6 +84,7 @@ export interface AppContextType {
     orderId?: string;
     downloadUrl?: string;
     otpCode?: string;
+    isLoading?: boolean;
   } | null;
   purchasedServer2Modal: {
     isOpen: boolean;
@@ -212,6 +213,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     orderId?: string;
     downloadUrl?: string;
     otpCode?: string;
+    isLoading?: boolean;
   } | null>(() => getSavedState('credentialsModal', null));
 
   const [purchasedServer2Modal, setPurchasedServer2Modal] = useState<{
@@ -686,11 +688,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setHistory((prev) => [newHistoryItem, ...prev]);
 
-    // Open Credential Modal
+    // Open Credential Modal in allocating state (prevents dummy data flash)
     setPurchasedCredentialsModal({
       isOpen: true,
       account,
       orderId,
+      isLoading: true,
     });
 
     // Call live backend buy endpoint
@@ -723,12 +726,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return {
               ...prev,
               orderId: realOrderId,
+              isLoading: false,
               downloadUrl: res.download_url,
               account: {
                 ...currentAccount,
                 credentialsSample: {
-                  phone: realPhone || currentAccount.credentialsSample?.phone || '',
-                  twoFa: realTwofa || currentAccount.credentialsSample?.twoFa || '',
+                  phone: realPhone || '',
+                  twoFa: realTwofa || '',
                   sessionFile: currentAccount.credentialsSample?.sessionFile || '',
                   loginInstruction: currentAccount.credentialsSample?.loginInstruction || '',
                 },

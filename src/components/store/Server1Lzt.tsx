@@ -304,18 +304,83 @@ export const Server1Lzt: React.FC = () => {
       <Modal
         isOpen={!!purchasedCredentialsModal?.isOpen}
         onClose={closeCredentialsModal}
-        title="🎉 Account Delivered!"
-        subtitle={`Order ID: ${purchasedCredentialsModal?.orderId || 'S1_000000'}`}
+        title={purchasedCredentialsModal?.isLoading ? "Allocating Account..." : "🎉 Account Delivered!"}
+        subtitle={
+          purchasedCredentialsModal?.isLoading
+            ? "Connecting to LZT Market upstream provider..."
+            : `Order ID: ${purchasedCredentialsModal?.orderId || 'S1_000000'}`
+        }
         footer={
           <button
             onClick={closeCredentialsModal}
-            className="w-full py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630] active:scale-95 transition-all"
+            disabled={purchasedCredentialsModal?.isLoading}
+            className="w-full py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-white hover:bg-[#262630] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Done / Close
+            {purchasedCredentialsModal?.isLoading ? 'Allocating & Securing Credentials...' : 'Done / Close'}
           </button>
         }
       >
-        {purchasedCredentialsModal?.account && (
+        {purchasedCredentialsModal?.isLoading ? (
+          <div className="flex flex-col gap-4 py-3">
+            {/* Pulsing Status Header */}
+            <div className="p-4 bg-[#7c3aed]/10 border border-[#7c3aed]/30 rounded-2xl flex flex-col items-center justify-center text-center gap-2.5">
+              <div className="relative">
+                <RefreshCw className="w-8 h-8 text-[#8b5cf6] animate-spin" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-bold text-white">
+                  Allocating and securing 2FA credentials
+                </span>
+                <span className="text-[11px] text-[#a1a1aa]">
+                  Allocating {purchasedCredentialsModal.account?.country || 'Telegram'} Account with LZT Market · Securing session & authorizations
+                </span>
+              </div>
+            </div>
+
+            {/* Skeleton Loading Rows */}
+            <div className="space-y-3">
+              {/* Phone Skeleton */}
+              <div className="p-3 bg-[#0b0b0e] border border-[#262630] rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-[#8b5cf6] animate-pulse" />
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-[#71717a] uppercase font-semibold">Phone Number</span>
+                    <div className="h-4 w-36 bg-[#1f1f2a] rounded animate-pulse" />
+                  </div>
+                </div>
+                <div className="h-7 w-7 bg-[#181820] rounded-lg animate-pulse" />
+              </div>
+
+              {/* 2FA Skeleton */}
+              <div className="p-3 bg-[#0b0b0e] border border-[#262630] rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Key className="w-4 h-4 text-[#f59e0b] animate-pulse" />
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-[#71717a] uppercase font-semibold">2FA Password</span>
+                    <div className="h-4 w-28 bg-[#1f1f2a] rounded animate-pulse" />
+                  </div>
+                </div>
+                <div className="h-7 w-7 bg-[#181820] rounded-lg animate-pulse" />
+              </div>
+
+              {/* OTP section skeleton */}
+              <div className="p-3 bg-[#121217] border border-[#262630] rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Mail className="w-4 h-4 text-[#71717a] animate-pulse" />
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-[#71717a] uppercase font-semibold">Telegram Login Code</span>
+                    <div className="h-3.5 w-40 bg-[#1f1f2a] rounded animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-center text-[#71717a] flex items-center justify-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 animate-spin" />
+              <span>Please hold on, securing 2FA and resetting other sessions...</span>
+            </div>
+          </div>
+        ) : purchasedCredentialsModal?.account && (
           <div className="flex flex-col gap-3.5">
             <div className="p-3 bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-xl flex items-center gap-2 text-xs text-[#22c55e] font-semibold">
               <ShieldCheck className="w-4 h-4 shrink-0" />
@@ -329,22 +394,24 @@ export const Server1Lzt: React.FC = () => {
                 <div className="flex flex-col">
                   <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Phone Number</span>
                   <span className="text-xs font-mono font-bold text-white">
-                    {purchasedCredentialsModal.account.credentialsSample?.phone || '+91 98234 19283'}
+                    {purchasedCredentialsModal.account.credentialsSample?.phone || 'Allocated (Pending Phone Delivery)'}
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    purchasedCredentialsModal.account?.credentialsSample?.phone || '+91 98234 19283'
-                  );
-                  setCopiedPhone(true);
-                  setTimeout(() => setCopiedPhone(false), 2000);
-                }}
-                className="p-1.5 rounded-lg bg-[#181820] border border-[#262630] text-[#a1a1aa] hover:text-white"
-              >
-                {copiedPhone ? <Check className="w-4 h-4 text-[#22c55e]" /> : <Copy className="w-4 h-4" />}
-              </button>
+              {purchasedCredentialsModal.account?.credentialsSample?.phone && (
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      purchasedCredentialsModal.account?.credentialsSample?.phone || ''
+                    );
+                    setCopiedPhone(true);
+                    setTimeout(() => setCopiedPhone(false), 2000);
+                  }}
+                  className="p-1.5 rounded-lg bg-[#181820] border border-[#262630] text-[#a1a1aa] hover:text-white"
+                >
+                  {copiedPhone ? <Check className="w-4 h-4 text-[#22c55e]" /> : <Copy className="w-4 h-4" />}
+                </button>
+              )}
             </div>
 
             {/* 2FA Password row */}
@@ -354,22 +421,24 @@ export const Server1Lzt: React.FC = () => {
                 <div className="flex flex-col">
                   <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">2FA Password</span>
                   <span className="text-xs font-mono font-bold text-white">
-                    {purchasedCredentialsModal.account.credentialsSample?.twoFa || 'krish@2024TG'}
+                    {purchasedCredentialsModal.account.credentialsSample?.twoFa || 'None (No 2FA Required)'}
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    purchasedCredentialsModal.account?.credentialsSample?.twoFa || 'krish@2024TG'
-                  );
-                  setCopied2Fa(true);
-                  setTimeout(() => setCopied2Fa(false), 2000);
-                }}
-                className="p-1.5 rounded-lg bg-[#181820] border border-[#262630] text-[#a1a1aa] hover:text-white"
-              >
-                {copied2Fa ? <Check className="w-4 h-4 text-[#22c55e]" /> : <Copy className="w-4 h-4" />}
-              </button>
+              {purchasedCredentialsModal.account?.credentialsSample?.twoFa && (
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      purchasedCredentialsModal.account?.credentialsSample?.twoFa || ''
+                    );
+                    setCopied2Fa(true);
+                    setTimeout(() => setCopied2Fa(false), 2000);
+                  }}
+                  className="p-1.5 rounded-lg bg-[#181820] border border-[#262630] text-[#a1a1aa] hover:text-white"
+                >
+                  {copied2Fa ? <Check className="w-4 h-4 text-[#22c55e]" /> : <Copy className="w-4 h-4" />}
+                </button>
+              )}
             </div>
 
             {/* Telegram Login Code (OTP) Retrieval Section */}
