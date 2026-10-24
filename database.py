@@ -1004,6 +1004,40 @@ def set_setting(key: str, value: str) -> None:
         )
 
 
+def get_admin_log_channel_id() -> int | None:
+    """Get active admin log channel ID, checking DB first, then ENV, then default."""
+    try:
+        val = get_setting("admin_log_channel_id")
+        if val and str(val).strip():
+            return int(str(val).strip())
+    except Exception:
+        pass
+    env_val = os.getenv("ADMIN_LOG_CHANNEL_ID", "")
+    if env_val and env_val.strip():
+        try:
+            return int(env_val.strip())
+        except Exception:
+            pass
+    return -1003970256704
+
+
+def get_public_log_channel_id() -> int | None:
+    """Get active public proof log channel ID, checking DB first, then ENV, then default."""
+    try:
+        val = get_setting("public_log_channel_id")
+        if val and str(val).strip():
+            return int(str(val).strip())
+    except Exception:
+        pass
+    env_val = os.getenv("PUBLIC_LOG_CHANNEL_ID", "")
+    if env_val and env_val.strip():
+        try:
+            return int(env_val.strip())
+        except Exception:
+            pass
+    return -1003186256877
+
+
 def get_stock_count(quality_tier: str = "good", country_name: Optional[str] = None) -> int:
     """Return count of available stock for a given tier and optional country filter."""
     tier = quality_tier if quality_tier in ("good", "cheap") else "good"

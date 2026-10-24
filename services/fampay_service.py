@@ -11,7 +11,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from database import connect, transaction, utcnow
+from database import connect, transaction, utcnow, get_admin_log_channel_id
 
 logger = logging.getLogger("services.fampay")
 
@@ -173,8 +173,9 @@ def notify_admins_manual_deposit(order_db_id: int, user_id: int, amount: int, me
 
     target_chats = list(config.MASTER_ADMIN_IDS)
     try:
-        admin_log_channel = int(os.getenv("ADMIN_LOG_CHANNEL_ID", "-1003970256704"))
-        target_chats.append(admin_log_channel)
+        admin_log_channel = get_admin_log_channel_id()
+        if admin_log_channel:
+            target_chats.append(admin_log_channel)
     except Exception:
         pass
 
@@ -289,8 +290,9 @@ def notify_admins_auto_verified(order_db_id: int, user_id: int, amount: int, utr
 
     target_chats = list(config.MASTER_ADMIN_IDS)
     try:
-        admin_log_channel = int(os.getenv("ADMIN_LOG_CHANNEL_ID", "-1003970256704"))
-        target_chats.append(admin_log_channel)
+        admin_log_channel = get_admin_log_channel_id()
+        if admin_log_channel:
+            target_chats.append(admin_log_channel)
     except Exception:
         pass
 

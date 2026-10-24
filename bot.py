@@ -38,7 +38,12 @@ from telethon.tl.functions.account import (
     GetPasswordRequest, UpdatePasswordSettingsRequest, GetAuthorizationsRequest, ResetAuthorizationRequest
 )
 
-from database import connect as managed_connect, migrate as migrate_managed_services
+from database import (
+    connect as managed_connect,
+    migrate as migrate_managed_services,
+    get_admin_log_channel_id,
+    get_public_log_channel_id,
+)
 from server import server3, server4
 from server3 import DGOTPError, SERVICE_CATALOG, client as server3_client
 from server4 import TemporaError, client as server4_client
@@ -533,23 +538,26 @@ async def get_user_log_label(uid):
     except Exception:
         return f"<code>{uid}</code>"
 
-async def send_log_message(text, channel_id=PUBLIC_LOG_CHANNEL_ID, label="Log"):
-    if not channel_id:
+async def send_log_message(text, channel_id=None, label="Log"):
+    target_channel = channel_id if channel_id is not None else get_public_log_channel_id()
+    if not target_channel:
         return
     try:
-        await bot.send_message(channel_id, text)
+        await bot.send_message(target_channel, text)
     except Exception as log_ex:
-        logger.warning("%s channel send failed (channel %s): %s", label, channel_id, log_ex)
+        logger.warning("%s channel send failed (channel %s): %s", label, target_channel, log_ex)
 
 async def send_dual_log(admin_text, public_text):
+    admin_ch = get_admin_log_channel_id()
+    public_ch = get_public_log_channel_id()
     try:
-        if ADMIN_LOG_CHANNEL_ID:
-            await send_log_message(admin_text, ADMIN_LOG_CHANNEL_ID, "Admin log")
+        if admin_ch:
+            await send_log_message(admin_text, admin_ch, "Admin log")
     except Exception as ex:
         logger.warning("Admin log channel error: %s", ex)
     try:
-        if PUBLIC_LOG_CHANNEL_ID:
-            await send_log_message(public_text, PUBLIC_LOG_CHANNEL_ID, "Public log")
+        if public_ch:
+            await send_log_message(public_text, public_ch, "Public log")
     except Exception as ex:
         logger.warning("Public proof channel error: %s", ex)
 

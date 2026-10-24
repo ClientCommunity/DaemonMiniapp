@@ -14,6 +14,7 @@ import time
 from telethon import Button, TelegramClient
 from telethon.errors import SessionPasswordNeededError
 from telethon.tl.functions.account import GetPasswordRequest, UpdatePasswordSettingsRequest
+from database import get_admin_log_channel_id
 from bot_helpers import (
     COUNTRY_CODES,
     country_button_label,
@@ -642,7 +643,9 @@ async def _dispatch_text_input(e, uid: int, text: str, raw_text: str):
                 p_btn("✅ Accept", f"dep_act|man|app|{order_key}|{uid}|{amt}"),
                 p_btn("❌ Reject", f"dep_act|man|rej|{order_key}|{uid}|{amt}")
             ], [p_btn("✏️ Custom Amount", f"dep_act|man|custom|{order_key}|{uid}|{amt}")]]
-            await bot.send_file(ADMIN_LOG_CHANNEL_ID, e.media, caption=caption, parse_mode='html', buttons=btns)
+            admin_ch = get_admin_log_channel_id()
+            if admin_ch:
+                await bot.send_file(admin_ch, e.media, caption=caption, parse_mode='html', buttons=btns)
         except Exception:
             pass
 

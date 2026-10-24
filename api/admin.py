@@ -82,7 +82,7 @@ def decode_jwt(token: str, secret: str) -> dict:
         raise ValueError("Token expired")
     return payload
 
-from database import get_admin_permissions, get_setting, set_setting
+from database import get_admin_permissions, get_setting, set_setting, get_admin_log_channel_id, get_public_log_channel_id
 from services.auth_service import get_current_user_id
 from services.admin_service import (
     verify_admin,
@@ -1098,7 +1098,57 @@ def admin_settings_endpoint():
 
     keys = [
         "reseller_min_margin", "reseller_max_margin", "reseller_status",
-        "ref_reward", "ref_topup_min", "min_deposit", "bot_status", "force_join_status"
+        "ref_reward", "ref_topup_min", "min_deposit", "bot_status", "force_join_status",
+        "admin_log_channel_id", "public_log_channel_id"
     ]
     res = {k: get_setting(k) for k in keys}
     return jsonify({"success": True, "settings": res})
+
+@admin_bp.route("/api/admin/settings/channels", methods=["GET", "POST"])
+@admin_bp.route("/api/admin/channels", methods=["GET", "POST"])
+def admin_settings_channels():
+    """Inspect or update Telegram log and public proof channel IDs."""
+    uid, err = _require_permission("p_settings")
+    if err:
+        return err
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        admin_ch = data.get("admin_log_channel_id")
+        public_ch = data.get("public_log_channel_id")
+
+        if admin_ch is not None:
+            admin_ch_str = str(admin_ch).strip()
+            if admin_ch_str:
+                try:
+                    int(admin_ch_str)
+                    set_setting("admin_log_channel_id", admin_ch_str)
+                except ValueError:
+                    return jsonify({"success": False, "error": "Invalid Admin Log Channel ID (must be integer)"}), 400
+            else:
+                set_setting("admin_log_channel_id", "")
+
+        if public_ch is not None:
+            public_ch_str = str(public_ch).strip()
+            if public_ch_str:
+                try:
+                    int(public_ch_str)
+                    set_setting("public_log_channel_id", public_ch_str)
+                except ValueError:
+                    return jsonify({"success": False, "error": "Invalid Public Proof Channel ID (must be integer)"}), 400
+            else:
+                set_setting("public_log_channel_id", "")
+
+        return jsonify({
+            "success": True,
+            "admin_log_channel_id": str(get_admin_log_channel_id() or ""),
+            "public_log_channel_id": str(get_public_log_channel_id() or ""),
+            "message": "Channel settings updated successfully"
+        })
+
+    return jsonify({
+        "success": True,
+        "admin_log_channel_id": str(get_admin_log_channel_id() or ""),
+        "public_log_channel_id": str(get_public_log_channel_id() or "")
+    })
+
