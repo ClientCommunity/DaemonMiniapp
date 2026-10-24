@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { downloadApi } from '../../api/endpoints';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
-import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check } from 'lucide-react';
+import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check, RefreshCw } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
 export const Server2Sessions: React.FC = () => {
@@ -426,7 +426,7 @@ export const Server2Sessions: React.FC = () => {
             </div>
 
             {/* Instant Download Action */}
-            {purchasedServer2Modal.downloadUrl && (
+            {purchasedServer2Modal.downloadUrl ? (
               <button
                 onClick={() => {
                   const isBulk = (purchasedServer2Modal.quantity || 1) > 1;
@@ -438,13 +438,25 @@ export const Server2Sessions: React.FC = () => {
                   );
                   addToast('Opening download link...', 'info');
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-md transition-all active:scale-95"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 <span>
                   {(purchasedServer2Modal.quantity || 1) > 1
                     ? '⬇️ Download Bulk Sessions (.ZIP Archive)'
                     : '⬇️ Download .Session File'}
+                </span>
+              </button>
+            ) : (
+              <button
+                disabled
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-[#a1a1aa] font-bold text-xs cursor-not-allowed select-none transition-all"
+              >
+                <RefreshCw className="w-4 h-4 text-[#8b5cf6] animate-spin" />
+                <span>
+                  {(purchasedServer2Modal.quantity || 1) > 1
+                    ? 'Packaging bulk sessions (.ZIP)...'
+                    : 'Preparing secure .session download...'}
                 </span>
               </button>
             )}
