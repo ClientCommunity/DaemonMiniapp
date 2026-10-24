@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { useApp } from '../../context/AppContext';
 import { otpApi, downloadApi } from '../../api/endpoints';
 import { Server1AccountItem } from '../../types';
@@ -37,6 +38,13 @@ export const Server1Lzt: React.FC = () => {
       return '';
     }
   });
+  const [priceSort, setPriceSort] = useState<PriceSortOrder>(() => {
+    try {
+      return (localStorage.getItem('krish_s1_sort') as PriceSortOrder) || 'default';
+    } catch {
+      return 'default';
+    }
+  });
   const [selectedForPurchase, setSelectedForPurchase] = useState<Server1AccountItem | null>(() => {
     try {
       const saved = localStorage.getItem('krish_s1_modal_item');
@@ -49,19 +57,31 @@ export const Server1Lzt: React.FC = () => {
   useEffect(() => {
     try {
       localStorage.setItem('krish_s1_search', search);
+      localStorage.setItem('krish_s1_sort', priceSort);
       if (selectedForPurchase) {
         localStorage.setItem('krish_s1_modal_item', JSON.stringify(selectedForPurchase));
       } else {
         localStorage.removeItem('krish_s1_modal_item');
       }
     } catch {}
-  }, [search, selectedForPurchase]);
+  }, [search, priceSort, selectedForPurchase]);
 
   // Strict real data: display live stock from server1Items
-  const items = server1Items;
-  const filtered = items.filter((item) =>
-    item.country.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    return server1Items.filter((item) =>
+      item.country.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [server1Items, search]);
+
+  const sorted = useMemo(() => {
+    if (priceSort === 'asc') {
+      return [...filtered].sort((a, b) => a.priceInr - b.priceInr);
+    }
+    if (priceSort === 'desc') {
+      return [...filtered].sort((a, b) => b.priceInr - a.priceInr);
+    }
+    return filtered;
+  }, [filtered, priceSort]);
 
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copied2Fa, setCopied2Fa] = useState(false);
@@ -137,21 +157,24 @@ export const Server1Lzt: React.FC = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="relative mb-3">
-        <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search country (e.g. India, USA)..."
-          className="w-full bg-[#181820] border border-[#262630] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed] transition-colors"
-        />
+      {/* Search Bar & Price Sort Filter */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search country (e.g. India, USA)..."
+            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none transition-colors"
+          />
+        </div>
+        <PriceSortFilter value={priceSort} onChange={setPriceSort} />
       </div>
 
       {/* Accounts Catalog Grid */}
       <div className="grid grid-cols-1 gap-2.5">
-        {filtered.map((item) => (
+        {sorted.map((item) => (
           <div
             key={item.id}
             onClick={() => setSelectedForPurchase(item)}
@@ -192,13 +215,13 @@ export const Server1Lzt: React.FC = () => {
           </div>
         ))}
 
-        {items.length === 0 ? (
+        {server1Items.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center gap-2 text-[#a1a1aa]">
             <Globe className="w-8 h-8 text-[#8b5cf6]/50 mb-1" />
             <span className="text-sm font-bold text-white">No Server 1 stock available</span>
             <span className="text-xs">Market inventory is refreshing or currently out of stock.</span>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
             No accounts match your search query.
           </div>

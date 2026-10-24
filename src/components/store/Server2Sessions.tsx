@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { useApp } from '../../context/AppContext';
 import { downloadApi } from '../../api/endpoints';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
@@ -48,6 +49,13 @@ export const Server2Sessions: React.FC = () => {
       return '';
     }
   });
+  const [priceSort, setPriceSort] = useState<PriceSortOrder>(() => {
+    try {
+      return (localStorage.getItem('krish_s2_sort') as PriceSortOrder) || 'default';
+    } catch {
+      return 'default';
+    }
+  });
   const [quantity, setQuantity] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('krish_s2_qty');
@@ -72,6 +80,7 @@ export const Server2Sessions: React.FC = () => {
       localStorage.setItem('krish_s2_format', deliveryFormat);
       localStorage.setItem('krish_s2_year', String(selectedYear));
       localStorage.setItem('krish_s2_search', search);
+      localStorage.setItem('krish_s2_sort', priceSort);
       localStorage.setItem('krish_s2_qty', String(quantity));
       if (itemForPurchase) {
         localStorage.setItem('krish_s2_modal_item', JSON.stringify(itemForPurchase));
@@ -79,18 +88,29 @@ export const Server2Sessions: React.FC = () => {
         localStorage.removeItem('krish_s2_modal_item');
       }
     } catch {}
-  }, [qualityTier, deliveryFormat, selectedYear, search, quantity, itemForPurchase]);
+  }, [qualityTier, deliveryFormat, selectedYear, search, priceSort, quantity, itemForPurchase]);
 
   const years: (number | 'all')[] = ['all', 2021, 2022, 2023, 2024, 2025];
 
   // Strict real data: live stock from server2Items
-  const items = server2Items;
-  const filtered = items.filter((item) => {
-    if (item.qualityTier !== qualityTier) return false;
-    if (selectedYear !== 'all' && item.accountYear !== selectedYear) return false;
-    if (search && !item.country.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return server2Items.filter((item) => {
+      if (item.qualityTier !== qualityTier) return false;
+      if (selectedYear !== 'all' && item.accountYear !== selectedYear) return false;
+      if (search && !item.country.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [server2Items, qualityTier, selectedYear, search]);
+
+  const sorted = useMemo(() => {
+    if (priceSort === 'asc') {
+      return [...filtered].sort((a, b) => a.priceInr - b.priceInr);
+    }
+    if (priceSort === 'desc') {
+      return [...filtered].sort((a, b) => b.priceInr - a.priceInr);
+    }
+    return filtered;
+  }, [filtered, priceSort]);
 
   const handleOpenPurchase = (item: Server2StockItem) => {
     setItemForPurchase(item);
@@ -177,21 +197,24 @@ export const Server2Sessions: React.FC = () => {
         ))}
       </div>
 
-      {/* Country Search */}
-      <div className="relative mb-3">
-        <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter country (India, Vietnam, etc.)..."
-          className="w-full bg-[#181820] border border-[#262630] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed] transition-colors"
-        />
+      {/* Country Search & Price Sort Filter */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter country (India, Vietnam, etc.)..."
+            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none transition-colors"
+          />
+        </div>
+        <PriceSortFilter value={priceSort} onChange={setPriceSort} />
       </div>
 
       {/* Catalog List */}
       <div className="grid grid-cols-1 gap-2.5">
-        {filtered.map((item) => (
+        {sorted.map((item) => (
           <div
             key={item.id}
             onClick={() => handleOpenPurchase(item)}
@@ -234,13 +257,13 @@ export const Server2Sessions: React.FC = () => {
           </div>
         ))}
 
-        {items.length === 0 ? (
+        {server2Items.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center gap-2 text-[#a1a1aa]">
             <Package className="w-8 h-8 text-[#8b5cf6]/50 mb-1" />
             <span className="text-sm font-bold text-white">No Server 2 accounts in stock</span>
             <span className="text-xs">Stock is uploaded periodically by administrators. Check back soon.</span>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
             No accounts match current filters.
           </div>
