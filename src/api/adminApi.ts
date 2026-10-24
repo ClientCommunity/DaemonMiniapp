@@ -701,4 +701,24 @@ export const adminApi = {
   ): Promise<{ success: boolean; key: string; value: string }> => {
     return api.post('/api/admin/settings', { key, value });
   },
+
+  getChannelsSettings: async (): Promise<{
+    success: boolean;
+    admin_log_channel_id: string;
+    public_log_channel_id: string;
+  }> => {
+    return api.get('/api/admin/settings/channels');
+  },
+
+  updateChannelsSettings: async (data: {
+    admin_log_channel_id?: string;
+    public_log_channel_id?: string;
+  }): Promise<{
+    success: boolean;
+    admin_log_channel_id: string;
+    public_log_channel_id: string;
+    message?: string;
+  }> => {
+    return api.post('/api/admin/settings/channels', data);
+  },
 };

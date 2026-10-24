@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Users,
+  Radio,
 } from 'lucide-react';
 
 export const MarketingSettingsTab: React.FC = () => {
@@ -166,6 +167,50 @@ export const MarketingSettingsTab: React.FC = () => {
   };
 
   // ============================================================================
+  // 3b. TELEGRAM LOG & PROOF CHANNELS STATE
+  // ============================================================================
+  const [adminLogChannel, setAdminLogChannel] = useState('');
+  const [publicLogChannel, setPublicLogChannel] = useState('');
+  const [channelsLoading, setChannelsLoading] = useState(false);
+  const [channelsSaving, setChannelsSaving] = useState(false);
+
+  const loadChannelsSettings = useCallback(async () => {
+    setChannelsLoading(true);
+    try {
+      const res = await adminApi.getChannelsSettings();
+      if (res?.success) {
+        setAdminLogChannel(res.admin_log_channel_id || '-1003970256704');
+        setPublicLogChannel(res.public_log_channel_id || '-1003186256877');
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setChannelsLoading(false);
+    }
+  }, []);
+
+  const handleSaveChannels = async () => {
+    setChannelsSaving(true);
+    try {
+      const res = await adminApi.updateChannelsSettings({
+        admin_log_channel_id: adminLogChannel.trim(),
+        public_log_channel_id: publicLogChannel.trim(),
+      });
+      if (res?.success) {
+        addToast('Telegram log & proof channels updated successfully', 'success');
+        if (res.admin_log_channel_id) setAdminLogChannel(res.admin_log_channel_id);
+        if (res.public_log_channel_id) setPublicLogChannel(res.public_log_channel_id);
+      } else {
+        addToast(res?.message || 'Failed to update channel settings', 'error');
+      }
+    } catch {
+      addToast('Error saving telegram channel settings', 'error');
+    } finally {
+      setChannelsSaving(false);
+    }
+  };
+
+  // ============================================================================
   // 4. PROMO CODES STATE
   // ============================================================================
   const [promoCodes, setPromoCodes] = useState<PromoCodeItem[]>([]);
@@ -246,8 +291,9 @@ export const MarketingSettingsTab: React.FC = () => {
     loadBotStatus();
     loadResellerSettings();
     loadForceJoinSettings();
+    loadChannelsSettings();
     loadPromoCodes();
-  }, [loadBotStatus, loadResellerSettings, loadForceJoinSettings, loadPromoCodes]);
+  }, [loadBotStatus, loadResellerSettings, loadForceJoinSettings, loadChannelsSettings, loadPromoCodes]);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
@@ -394,6 +440,82 @@ export const MarketingSettingsTab: React.FC = () => {
             className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold py-2 rounded-xl text-xs transition-all shadow-sm"
           >
             Save Channels Configuration
+          </button>
+        </div>
+      </div>
+
+      {/* 2b. Telegram Log & Proof Channels Card */}
+      <div className="bg-[#181820] border border-[#262630] rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Radio className="w-4 h-4 text-[#38bdf8]" />
+            <div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                Telegram Log & Proof Channels
+              </h4>
+              <p className="text-[11px] text-[#a1a1aa]">
+                Configure real-time Telegram logging channels for private admin alerts and public purchase/deposit proofs
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={loadChannelsSettings}
+            disabled={channelsLoading}
+            className="p-1.5 rounded-xl bg-[#121217] border border-[#262630] text-[#a1a1aa] hover:text-white"
+            title="Refresh channels"
+          >
+            <RefreshCw className={`w-4 h-4 ${channelsLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-semibold text-[#a1a1aa] uppercase tracking-wider">
+                Admin Log Channel ID (Private Alerts)
+              </label>
+              <span className="text-[10px] text-[#71717a] font-mono">Default: -1003970256704</span>
+            </div>
+            <input
+              type="text"
+              placeholder="-1003970256704"
+              value={adminLogChannel}
+              onChange={(e) => setAdminLogChannel(e.target.value)}
+              className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-[#38bdf8] transition-colors"
+            />
+            <p className="text-[10px] text-[#71717a]">
+              Receives private admin logs: manual deposit verification requests, screenshots, and system error alerts.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-semibold text-[#a1a1aa] uppercase tracking-wider">
+                Public Proof Channel ID (Community Feed)
+              </label>
+              <span className="text-[10px] text-[#71717a] font-mono">Default: -1003186256877</span>
+            </div>
+            <input
+              type="text"
+              placeholder="-1003186256877"
+              value={publicLogChannel}
+              onChange={(e) => setPublicLogChannel(e.target.value)}
+              className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-[#38bdf8] transition-colors"
+            />
+            <p className="text-[10px] text-[#71717a]">
+              Public channel where completed deposits and OTP purchase success receipts are broadcast.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-1">
+          <button
+            onClick={handleSaveChannels}
+            disabled={channelsSaving || channelsLoading}
+            className="bg-[#38bdf8] hover:bg-[#0284c7] text-black font-bold px-5 py-2 rounded-xl text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>{channelsSaving ? 'Saving Channels...' : 'Save Channels Configuration'}</span>
           </button>
         </div>
       </div>
