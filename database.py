@@ -601,6 +601,8 @@ def migrate() -> None:
             """)
         elif "quality_tier IN ('good', 'cheap')" not in stock_sql_row[0]:
             # Migrate existing stock table to enforce CHECK constraint without data loss
+            stock_cols = {row[1] for row in conn.execute("PRAGMA table_info(stock)")}
+            tier_expr = "CASE WHEN quality_tier IN ('good', 'cheap') THEN quality_tier ELSE 'good' END" if "quality_tier" in stock_cols else "'good'"
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS stock_new (
                     phone TEXT PRIMARY KEY,
@@ -617,7 +619,7 @@ def migrate() -> None:
                     quality_tier TEXT DEFAULT 'good' CHECK(quality_tier IN ('good', 'cheap'))
                 )
             """)
-            conn.execute("""
+            conn.execute(f"""
                 INSERT OR IGNORE INTO stock_new (
                     phone, session_file, country_name, country_icon, account_year,
                     category, price, available, twofa, added_date, seller_id, quality_tier
@@ -625,7 +627,7 @@ def migrate() -> None:
                 SELECT
                     phone, session_file, country_name, country_icon, account_year,
                     category, price, available, twofa, added_date, seller_id,
-                    CASE WHEN quality_tier IN ('good', 'cheap') THEN quality_tier ELSE 'good' END
+                    {tier_expr}
                 FROM stock
             """)
             conn.execute("DROP TABLE stock")
@@ -646,6 +648,33 @@ def migrate() -> None:
         ]:
             if col_name not in reseller_cols:
                 conn.execute(f"ALTER TABLE reseller_links ADD COLUMN {col_name} {col_def}")
+
+        # 4b. Dynamic schema migration: reseller_earnings table
+        earnings_cols = {row[1] for row in conn.execute("PRAGMA table_info(reseller_earnings)")}
+        if "customer_id" not in earnings_cols or "commission" not in earnings_cols:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS reseller_earnings_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    reseller_id INTEGER NOT NULL,
+                    customer_id INTEGER NOT NULL,
+                    token TEXT,
+                    amount INTEGER NOT NULL,
+                    commission INTEGER NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            if "buyer_id" in earnings_cols:
+                conn.execute("""
+                    INSERT OR IGNORE INTO reseller_earnings_new (
+                        reseller_id, customer_id, token, amount, commission, description, created_at
+                    )
+                    SELECT
+                        reseller_id, buyer_id, NULL, amount, amount, 'Legacy commission', created_at
+                    FROM reseller_earnings
+                """)
+            conn.execute("DROP TABLE reseller_earnings")
+            conn.execute("ALTER TABLE reseller_earnings_new RENAME TO reseller_earnings")
 
         # 5. Dynamic column migrations: fampay_orders table
         fampay_cols = {row[1] for row in conn.execute("PRAGMA table_info(fampay_orders)")}
@@ -691,6 +720,8 @@ def migrate() -> None:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN refunded INTEGER NOT NULL DEFAULT 0")
             if "expires_at" not in columns:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN expires_at TEXT")
+            if "deleted_at" not in columns and table == "server3_orders":
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT")
 
         # 9. SMM Provider & Order column checks
         smm_provider_columns = {row[1] for row in conn.execute("PRAGMA table_info(smm_providers)")}
