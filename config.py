@@ -46,7 +46,7 @@ REQUIRE_PROXY_SECRET = os.getenv(
 # Telegram Bot Credentials
 BOT_TOKEN = os.getenv(
     "TELEGRAM_BOT_TOKEN",
-    os.getenv("BOT_TOKEN", "8273842990:AAF5PA9ikw0ABRqES1lCIPoczOdUZVCs1yU")
+    os.getenv("BOT_TOKEN", "8273842990:AAGpVv9_myYpDyW3dsUZc386Zyw_bvSWGLU")
 ).strip()
 API_ID = int(os.getenv("TELEGRAM_API_ID", "26663221"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "d3557c9b05a08892562b2777035e1cdb").strip()
