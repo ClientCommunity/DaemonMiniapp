@@ -2838,7 +2838,19 @@ if __name__ == '__main__':
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     try:
-        bot.start(bot_token=BOT_TOKEN)
+        try:
+            bot.start(bot_token=BOT_TOKEN)
+        except Exception as auth_err:
+            logger.error("Initial bot authorization failed (%s); resetting session file...", auth_err)
+            import glob
+            for s_file in glob.glob(f"{session_name}.session*"):
+                try:
+                    os.remove(s_file)
+                except Exception:
+                    pass
+            bot = TelegramClient(session_name, API_ID, API_HASH)
+            bot.parse_mode = 'html'
+            bot.start(bot_token=BOT_TOKEN)
         loop.run_until_complete(main())
     except KeyboardInterrupt:
         logger.info("Shutdown requested; disconnecting Telegram client.")

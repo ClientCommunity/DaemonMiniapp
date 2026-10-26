@@ -191,7 +191,15 @@ def create_app() -> Flask:
 def start_bot_background():
     """Launch the Telegram bot in a separate background thread."""
     os.environ["DISABLE_BOT_WEBHOOK"] = "1"
+    import asyncio
     import runpy
+
+    # Ensure background thread has an active event loop for Telethon
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
     bot_script = config.BASE_DIR / "bot.py"
     if not bot_script.exists():
