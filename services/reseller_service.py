@@ -2,6 +2,7 @@
 
 Enforces:
 Admin min margin <= reseller margin <= Admin max margin (5% to 100%).
+Supports multi-server bundling into 1 unique reseller URL.
 """
 from __future__ import annotations
 
@@ -40,7 +41,7 @@ def get_or_create_reseller_link(user_id: int) -> dict[str, Any]:
 
     with transaction(immediate=True) as conn:
         r_link = conn.execute("""
-            SELECT token, margin_percent
+            SELECT token, margin_percent, target_id
             FROM reseller_links
             WHERE user_id = ?
             ORDER BY created_at DESC LIMIT 1
@@ -50,13 +51,21 @@ def get_or_create_reseller_link(user_id: int) -> dict[str, Any]:
             token = secrets.token_hex(4).lower()
             default_margin = max(min_m, min(15, max_m))
             conn.execute("""
-                INSERT INTO reseller_links (token, user_id, margin_percent, created_at)
-                VALUES (?, ?, ?, ?)
-            """, (token, uid, default_margin, utcnow()))
+                INSERT INTO reseller_links (token, user_id, margin_percent, target_id, product_type, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (token, uid, default_margin, "1,2,3,4,5", "all", utcnow()))
             margin = default_margin
+            servers = [1, 2, 3, 4, 5]
         else:
             token = r_link["token"]
             margin = int(r_link["margin_percent"])
+            target_id = r_link["target_id"] if "target_id" in r_link.keys() else ""
+            if target_id:
+                servers = [int(s) for s in str(target_id).split(",") if s.strip().isdigit()]
+                if not servers:
+                    servers = [1, 2, 3, 4, 5]
+            else:
+                servers = [1, 2, 3, 4, 5]
 
         cust_count = conn.execute("""
             SELECT COUNT(*) FROM users
@@ -72,13 +81,19 @@ def get_or_create_reseller_link(user_id: int) -> dict[str, Any]:
         orders_count = int(earnings_row[0] or 0)
         total_earned = float(earnings_row[1] or 0.0)
 
-    link = f"https://t.me/DeamonOTPbot?start=resell_{token}"
+    # 1 URL for multiple servers: if subset selected, attach server filter tag
+    if len(servers) < 5:
+        server_suffix = "_s" + "_s".join(str(s) for s in sorted(servers))
+        link = f"https://t.me/DeamonOTPbot?start=resell_{token}{server_suffix}"
+    else:
+        link = f"https://t.me/DeamonOTPbot?start=resell_{token}"
 
     return {
         "success": True,
         "token": token,
         "margin": margin,
         "margin_percent": margin,
+        "servers": servers,
         "link": link,
         "customers": int(cust_count or 0),
         "orders": orders_count,
@@ -88,8 +103,8 @@ def get_or_create_reseller_link(user_id: int) -> dict[str, Any]:
     }
 
 
-def update_reseller_margin(user_id: int, new_margin: int) -> dict[str, Any]:
-    """Update reseller profit margin within enforced admin bounds."""
+def update_reseller_margin(user_id: int, new_margin: int, servers: list[int] | None = None) -> dict[str, Any]:
+    """Update reseller profit margin and multi-server configuration within enforced admin bounds."""
     uid = int(user_id)
     margin = int(new_margin)
     min_m, max_m = get_margin_bounds()
@@ -102,20 +117,41 @@ def update_reseller_margin(user_id: int, new_margin: int) -> dict[str, Any]:
             "max_margin": max_m,
         }
 
+    clean_servers = [s for s in servers if 1 <= s <= 5] if servers else [1, 2, 3, 4, 5]
+    if not clean_servers:
+        clean_servers = [1, 2, 3, 4, 5]
+
+    target_str = ",".join(str(s) for s in sorted(clean_servers))
+    prod_type = "servers" if len(clean_servers) < 5 else "all"
+
     with transaction(immediate=True) as conn:
         row = conn.execute("SELECT token FROM reseller_links WHERE user_id = ? LIMIT 1", (uid,)).fetchone()
         if not row:
             token = secrets.token_hex(4).lower()
             conn.execute("""
-                INSERT INTO reseller_links (token, user_id, margin_percent, created_at)
-                VALUES (?, ?, ?, ?)
-            """, (token, uid, margin, utcnow()))
+                INSERT INTO reseller_links (token, user_id, margin_percent, target_id, product_type, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (token, uid, margin, target_str, prod_type, utcnow()))
         else:
-            conn.execute("UPDATE reseller_links SET margin_percent = ? WHERE user_id = ?", (margin, uid))
+            token = row["token"]
+            conn.execute("""
+                UPDATE reseller_links
+                SET margin_percent = ?, target_id = ?, product_type = ?
+                WHERE user_id = ?
+            """, (margin, target_str, prod_type, uid))
+
+    if len(clean_servers) < 5:
+        server_suffix = "_s" + "_s".join(str(s) for s in sorted(clean_servers))
+        link = f"https://t.me/DeamonOTPbot?start=resell_{token}{server_suffix}"
+    else:
+        link = f"https://t.me/DeamonOTPbot?start=resell_{token}"
 
     return {
         "success": True,
         "margin": margin,
+        "servers": clean_servers,
+        "link": link,
+        "token": token,
         "min_margin": min_m,
         "max_margin": max_m,
     }

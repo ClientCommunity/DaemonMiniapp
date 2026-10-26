@@ -2787,7 +2787,8 @@ async def handle_start(e):
                     db.commit()
 
             if start_param.startswith("resell_"):
-                token = start_param.replace("resell_", "").strip()
+                raw_token = start_param.replace("resell_", "").strip()
+                token = raw_token.split("_s")[0] if "_s" in raw_token else raw_token
                 rlink = cur.execute("SELECT user_id, margin_percent FROM reseller_links WHERE token=?", (token,)).fetchone()
                 if rlink and rlink[0] != uid:
                     reseller_uid, margin_pct = rlink[0], rlink[1]
