@@ -6,6 +6,7 @@ import html
 import os
 import re
 import time
+import zipfile
 from telethon import Button, TelegramClient
 from telethon.errors import MessageNotModifiedError, SessionPasswordNeededError
 from telethon.tl.functions.account import GetPasswordRequest
@@ -24,6 +25,8 @@ def _ensure_context():
     for k, v in bot.__dict__.items():
         if not k.startswith("__"):
             g.setdefault(k, v)
+    if "bot" in bot.__dict__:
+        g["bot"] = bot.__dict__["bot"]
 
 
 async def handle_admin_callback(e, uid: int, data: str) -> bool:
@@ -39,10 +42,11 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
         return False
 
     _ensure_context()
-    import bot
-    ADMIN_IDS = bot.ADMIN_IDS
-    is_admin = bot.is_admin
-    safe_answer_cb = bot.safe_answer_cb
+    import bot as bot_module
+    bot = getattr(bot_module, "bot", bot_module)
+    ADMIN_IDS = bot_module.ADMIN_IDS
+    is_admin = bot_module.is_admin
+    safe_answer_cb = bot_module.safe_answer_cb
 
     if not is_admin(uid):
         await safe_answer_cb(e, "Unauthorized.", alert=True)

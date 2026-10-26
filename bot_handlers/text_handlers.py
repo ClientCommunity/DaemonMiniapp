@@ -32,6 +32,8 @@ def _ensure_context():
     for k, v in bot.__dict__.items():
         if not k.startswith("__"):
             g.setdefault(k, v)
+    if "bot" in bot.__dict__:
+        g["bot"] = bot.__dict__["bot"]
 
 
 async def handle_text_input(e, uid: int, text: str, raw_text: str) -> bool:
