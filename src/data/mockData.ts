@@ -52,5 +52,6 @@ export const initialResellerConfig: ResellerConfig = {
   resellerLink: "",
   customersCount: 0,
   ordersCount: 0,
-  totalProfitInr: 0
+  totalProfitInr: 0,
+  selectedServers: [1, 2, 3, 4, 5]
 };

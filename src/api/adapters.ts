@@ -96,6 +96,7 @@ export interface BackendResellerPayload {
   token?: string;
   margin?: number;
   margin_percent?: number;
+  servers?: number[];
   link?: string;
   customers?: number;
   orders?: number;
@@ -507,6 +508,9 @@ export function adaptResellerConfig(
   const customersCount = Number(data.customers ?? current?.customersCount ?? 0);
   const ordersCount = Number(data.orders ?? current?.ordersCount ?? 0);
   const totalProfitInr = Number(data.earnings ?? current?.totalProfitInr ?? 0);
+  const selectedServers = data.servers && data.servers.length > 0
+    ? data.servers
+    : (current?.selectedServers || [1, 2, 3, 4, 5]);
 
   return {
     token,
@@ -517,5 +521,6 @@ export function adaptResellerConfig(
     customersCount,
     ordersCount,
     totalProfitInr,
+    selectedServers,
   };
 }

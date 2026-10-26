@@ -161,6 +161,9 @@ export interface ManualMethodsResponse {
 export interface ResellerSetMarginResponse {
   success: boolean;
   margin?: number;
+  servers?: number[];
+  link?: string;
+  token?: string;
   min_margin?: number;
   max_margin?: number;
   error?: string;
@@ -340,8 +343,8 @@ export const depositApi = {
  */
 export const resellerApi = {
   getStats: () => api.get<BackendResellerPayload>('/api/reseller'),
-  setMargin: (margin: number) =>
-    api.post<ResellerSetMarginResponse>('/api/reseller/set_margin', { margin }),
+  setMargin: (margin: number, servers?: number[]) =>
+    api.post<ResellerSetMarginResponse>('/api/reseller/set_margin', { margin, servers }),
 };
 
 /**

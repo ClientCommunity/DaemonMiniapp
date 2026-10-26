@@ -122,7 +122,7 @@ export interface AppContextType {
     tier?: string,
     format?: string
   ) => Promise<boolean>;
-  updateResellerMargin: (newMargin: number) => { success: boolean; message: string };
+  updateResellerMargin: (newMargin: number, servers?: number[]) => { success: boolean; message: string };
   closeCredentialsModal: () => void;
   openReceiptDrawer: (item: HistoryItem) => void;
   closeReceiptDrawer: () => void;
@@ -1649,39 +1649,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // Invariant 4: Reseller Custom Margin Engine (₹5 <= Margin <= ₹100)
-  const updateResellerMargin = (newMargin: number): { success: boolean; message: string } => {
+  // Invariant 4: Reseller Custom Margin Engine (₹5 <= Margin <= ₹100) with Multi-Server 1 URL Bundling
+  const updateResellerMargin = (newMargin: number, servers?: number[]): { success: boolean; message: string } => {
     if (isNaN(newMargin) || newMargin < 5 || newMargin > 100) {
       const err = 'Custom margin must be between ₹5 and ₹100.';
       addToast(err, 'error', 'Invalid Margin');
       return { success: false, message: err };
     }
 
-    const updatedToken = `resell_${Math.random().toString(36).substring(2, 8)}`;
-    const updatedLink = `https://t.me/DeamonOTPbot?start=${updatedToken}`;
+    const chosenServers = servers && servers.length > 0
+      ? servers.filter((s) => s >= 1 && s <= 5)
+      : (resellerConfig.selectedServers || [1, 2, 3, 4, 5]);
+
+    const currentToken = resellerConfig.token || `resell_${Math.random().toString(36).substring(2, 8)}`;
+    const baseToken = currentToken.startsWith('resell_') ? currentToken.replace('resell_', '') : currentToken;
+    const serverSuffix = chosenServers.length < 5
+      ? `_s${[...chosenServers].sort().join('_s')}`
+      : '';
+    const updatedLink = `https://t.me/DeamonOTPbot?start=resell_${baseToken}${serverSuffix}`;
 
     setResellerConfig((prev) => ({
       ...prev,
-      token: updatedToken,
+      token: baseToken,
       marginInr: newMargin,
+      selectedServers: chosenServers,
       resellerLink: updatedLink,
     }));
 
-    // Dispatch backend set_margin
+    // Dispatch backend set_margin with selected servers
     resellerApi
-      .setMargin(newMargin)
+      .setMargin(newMargin, chosenServers)
       .then((res) => {
-        if (res && res.success && res.margin !== undefined) {
+        if (res && res.success) {
           setResellerConfig((prev) => ({
             ...prev,
-            marginInr: res.margin!,
+            marginInr: res.margin !== undefined ? res.margin : prev.marginInr,
+            selectedServers: res.servers || prev.selectedServers,
+            resellerLink: res.link || prev.resellerLink,
           }));
         }
       })
       .catch(() => {});
 
     addToast(
-      `Custom profit margin set to ₹${newMargin}! Reseller link updated.`,
+      `Saved margin (+₹${newMargin}) for ${chosenServers.length} server(s)! Reseller 1 URL updated.`,
       'success',
       'Reseller Settings Saved'
     );

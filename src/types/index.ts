@@ -174,6 +174,7 @@ export interface ResellerConfig {
   customersCount: number;
   ordersCount: number;
   totalProfitInr: number;
+  selectedServers?: number[];
 }
 
 // Toast
