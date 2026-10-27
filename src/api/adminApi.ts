@@ -7,11 +7,22 @@
  * 4. User & Wallet Management (/api/admin/users/search, /api/admin/users/balance, /api/admin/users/ban)
  * 5. Marketing & System Settings (/api/admin/reseller/*, /api/admin/promo-codes/*, /api/admin/system/*, /api/admin/settings)
  */
-import { api } from './client';
+import { api, downloadFile } from './client';
 
 // ==============================================================================
 // TYPE DEFINITIONS
 // ==============================================================================
+
+export interface DatabaseStats {
+  success: boolean;
+  filename: string;
+  size_bytes: number;
+  size_mb: number;
+  estimated_zip_mb: number;
+  counts: Record<string, number>;
+  error?: string;
+}
+
 
 export interface AdminPermissions {
   p_add_stock?: number;
@@ -720,5 +731,16 @@ export const adminApi = {
     message?: string;
   }> => {
     return api.post('/api/admin/settings/channels', data);
+  },
+
+  // --- Tab 6: Database Backup & System Snapshot ---
+
+  getDatabaseStats: async (): Promise<DatabaseStats> => {
+    return api.get<DatabaseStats>('/api/admin/database/stats');
+  },
+
+  downloadDatabaseBackup: async (): Promise<void> => {
+    const filename = `otp_bot_backup_${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)}.zip`;
+    return downloadFile('/api/admin/database/backup', filename);
   },
 };

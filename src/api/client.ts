@@ -259,3 +259,45 @@ export const api = {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }),
 };
+
+/**
+ * Direct file download helper that passes authentication headers and triggers browser download.
+ */
+export async function downloadFile(endpoint: string, defaultFilename: string): Promise<void> {
+  const url = resolveApiUrl(endpoint);
+  const headers = new Headers();
+  const initData = getTelegramInitData();
+  const webUserToken = getWebUserToken();
+  const adminToken = getAdminToken();
+
+  if (initData) {
+    headers.set('X-Telegram-Init-Data', initData);
+    if (adminToken && (endpoint.startsWith('/api/admin') || endpoint.includes('/admin/'))) {
+      headers.set('Authorization', `Bearer ${adminToken}`);
+    }
+  } else if (webUserToken) {
+    headers.set('Authorization', `Bearer ${webUserToken}`);
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    let err = `Download failed with status ${response.status}`;
+    try {
+      const j = await response.json();
+      if (j && j.error) err = j.error;
+    } catch {
+      // Not JSON
+    }
+    throw new Error(err);
+  }
+
+  const blob = await response.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = defaultFilename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(blobUrl);
+  document.body.removeChild(a);
+}
