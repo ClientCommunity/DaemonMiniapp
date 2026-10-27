@@ -20,14 +20,20 @@ from bot_helpers import (
 )
 
 
-def _ensure_context():
-    import bot
+def _ensure_context(event=None):
+    client = getattr(event, "client", None)
+    import sys
+    bot_mod = sys.modules.get("bot")
+    if not bot_mod:
+        import bot as bot_mod
     g = globals()
-    for k, v in bot.__dict__.items():
+    for k, v in bot_mod.__dict__.items():
         if not k.startswith("__"):
             g.setdefault(k, v)
-    if "bot" in bot.__dict__:
-        g["bot"] = bot.__dict__["bot"]
+    if client:
+        g["bot"] = client
+    elif "bot" in bot_mod.__dict__:
+        g["bot"] = bot_mod.__dict__["bot"]
 
 
 async def handle_admin_callback(e, uid: int, data: str) -> bool:
@@ -42,9 +48,14 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
     if not is_admin_cb:
         return False
 
-    _ensure_context()
-    import bot as bot_module
-    bot = getattr(bot_module, "bot", bot_module)
+    _ensure_context(e)
+    import sys
+    bot_module = sys.modules.get("bot")
+    if not bot_module:
+        import bot as bot_module
+    live_client = getattr(e, "client", None)
+    bot = live_client or getattr(bot_module, "bot", bot_module)
+    globals()["bot"] = bot
     ADMIN_IDS = bot_module.ADMIN_IDS
     is_admin = bot_module.is_admin
     safe_answer_cb = bot_module.safe_answer_cb

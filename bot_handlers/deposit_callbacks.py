@@ -28,7 +28,7 @@ async def handle_deposit_callback(e, uid: int, data: str) -> bool:
         return False
 
     import bot
-    bot_client = bot.bot
+    bot_client = getattr(e, "client", None) or bot.bot
     cur = bot.cur
     db = bot.db
     manual_dep_state = bot.manual_dep_state

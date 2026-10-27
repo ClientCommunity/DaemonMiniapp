@@ -1,3 +1,11 @@
+import sys
+import types
+
+# Ensure the running module namespace is registered in sys.modules as 'bot'
+# so any subsequent 'import bot' in handlers references this active instance
+if 'bot' not in sys.modules:
+    sys.modules['bot'] = types.ModuleType('bot')
+
 import os
 import sqlite3
 import re
@@ -282,6 +290,10 @@ from bot_handlers import handle_server_callbacks, handle_deposit_callback, handl
 session_name = f"bot_session_{BOT_TOKEN.split(':')[0]}"
 bot = TelegramClient(session_name, API_ID, API_HASH)
 bot.parse_mode = 'html'
+
+if 'bot' in sys.modules:
+    sys.modules['bot'].__dict__.update(globals())
+    sys.modules['bot'].bot = bot
 
 BOT_DATABASE = os.getenv("BOT_DATABASE", "otp_bot_final.db")
 db = sqlite3.connect(BOT_DATABASE, check_same_thread=False, timeout=20)
@@ -2603,6 +2615,9 @@ async def handle_callbacks(e):
         if await handle_user_callbacks(e, uid, data):
             return
 
+    except MessageNotModifiedError:
+        await safe_answer_cb(e)
+        return
     except Exception as ex:
         await send_admin_error("Global Callback Handler Failure", f"User: {uid}\nData: {data}\n\n{ex}")
         await safe_answer_cb(e, "An error occurred. The support team has been notified.", alert=True)
@@ -2851,6 +2866,9 @@ if __name__ == '__main__':
                     pass
             bot = TelegramClient(session_name, API_ID, API_HASH)
             bot.parse_mode = 'html'
+            if 'bot' in sys.modules:
+                sys.modules['bot'].__dict__.update(globals())
+                sys.modules['bot'].bot = bot
             bot.start(bot_token=BOT_TOKEN)
         loop.run_until_complete(main())
     except KeyboardInterrupt:

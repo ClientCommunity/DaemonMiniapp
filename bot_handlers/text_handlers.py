@@ -27,19 +27,28 @@ from bot_helpers import (
 )
 
 
-def _ensure_context():
-    import bot
+def _ensure_context(event=None):
+    client = getattr(event, "client", None)
+    import sys
+    bot_mod = sys.modules.get("bot")
+    if not bot_mod:
+        import bot as bot_mod
     g = globals()
-    for k, v in bot.__dict__.items():
+    for k, v in bot_mod.__dict__.items():
         if not k.startswith("__"):
             g.setdefault(k, v)
-    if "bot" in bot.__dict__:
-        g["bot"] = bot.__dict__["bot"]
+    if client:
+        g["bot"] = client
+    elif "bot" in bot_mod.__dict__:
+        g["bot"] = bot_mod.__dict__["bot"]
 
 
 async def handle_text_input(e, uid: int, text: str, raw_text: str) -> bool:
     """Handle multi-step interactive text inputs. Returns True if a state handled the message, False otherwise."""
-    _ensure_context()
+    _ensure_context(e)
+    client = getattr(e, "client", None)
+    if client:
+        globals()["bot"] = client
     file_obj = getattr(e, "file", None)
     file_name = getattr(file_obj, "name", "") or ""
     has_state = (
