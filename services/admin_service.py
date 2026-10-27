@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
+import time
+import zipfile
 from typing import Any
 
 from config import MASTER_ADMIN_IDS
@@ -968,3 +971,78 @@ def set_auto_price(
     }
 
 
+
+
+def get_database_stats() -> dict[str, Any]:
+    """Retrieve live SQLite database file size and primary table counts."""
+    db_file = "otp_bot_final.db"
+    if not os.path.exists(db_file):
+        return {
+            "success": False,
+            "error": "Database file not found on disk.",
+            "filename": db_file,
+            "size_bytes": 0,
+            "size_mb": 0.0,
+            "counts": {},
+        }
+
+    size_bytes = os.path.getsize(db_file)
+    counts: dict[str, int] = {}
+    try:
+        with connect() as conn:
+            for tbl in ["users", "stock", "orders", "deposits", "fampay_orders", "reseller_links", "admins", "promo_codes"]:
+                try:
+                    c = conn.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()
+                    if c:
+                        counts[tbl] = int(c[0])
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.warning("Error fetching table counts for db stats: %s", e)
+
+    return {
+        "success": True,
+        "filename": db_file,
+        "size_bytes": size_bytes,
+        "size_mb": round(size_bytes / (1024 * 1024), 2),
+        "estimated_zip_mb": round((size_bytes / (1024 * 1024)) * 0.20, 2),
+        "counts": counts,
+    }
+
+
+def create_compressed_database_backup() -> tuple[str, int, int]:
+    """Perform a thread-safe, non-blocking online SQLite backup and compress into a .zip archive.
+    
+    Returns:
+        (zip_path, raw_size_bytes, zip_size_bytes)
+    """
+    ts = int(time.time())
+    db_source = "otp_bot_final.db"
+    temp_snap = f"temp_snap_{ts}.db"
+    zip_output = f"otp_bot_backup_{ts}.zip"
+
+    # Step 1: Thread-safe, non-blocking online SQLite page backup
+    src = sqlite3.connect(db_source, timeout=60.0)
+    dst = sqlite3.connect(temp_snap)
+    try:
+        with dst:
+            src.backup(dst, pages=1000)
+    finally:
+        dst.close()
+        src.close()
+
+    raw_size = os.path.getsize(temp_snap)
+
+    # Step 2: High-speed Deflate compression into ZIP archive
+    try:
+        with zipfile.ZipFile(zip_output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+            zf.write(temp_snap, arcname="otp_bot_final.db")
+    finally:
+        if os.path.exists(temp_snap):
+            try:
+                os.remove(temp_snap)
+            except Exception:
+                pass
+
+    zip_size = os.path.getsize(zip_output)
+    return zip_output, raw_size, zip_size

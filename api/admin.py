@@ -25,7 +25,7 @@ try:
 except ImportError:
     jwt = None
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file, after_this_request
 
 from config import ADMIN_PANEL_SECRET, MASTER_ADMIN_IDS
 
@@ -134,6 +134,8 @@ from services.admin_service import (
     delete_promo_code,
     get_reseller_settings,
     set_reseller_settings,
+    get_database_stats,
+    create_compressed_database_backup,
 )
 
 logger = logging.getLogger("api.admin")
@@ -1152,3 +1154,51 @@ def admin_settings_channels():
         "public_log_channel_id": str(get_public_log_channel_id() or "")
     })
 
+
+
+# TAB 6: DATABASE BACKUP & SYSTEM SNAPSHOTS
+
+@admin_bp.route("/api/admin/database/stats", methods=["GET"])
+def admin_database_stats():
+    """Retrieve database file size and primary table statistics."""
+    uid, err = _require_permission("p_settings")
+    if err:
+        return err
+
+    stats = get_database_stats()
+    return jsonify(stats)
+
+
+@admin_bp.route("/api/admin/database/backup", methods=["GET"])
+def admin_database_backup_download():
+    """Download a live, uncorrupted, ZIP-compressed SQLite database backup."""
+    uid, err = _require_permission("p_settings")
+    if err:
+        return err
+
+    try:
+        zip_path, raw_sz, zip_sz = create_compressed_database_backup()
+        if not os.path.exists(zip_path):
+            return jsonify({"success": False, "error": "Backup generation failed."}), 500
+
+        timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        download_filename = f"otp_bot_backup_{timestamp_str}.zip"
+
+        @after_this_request
+        def cleanup(response):
+            try:
+                if os.path.exists(zip_path):
+                    os.remove(zip_path)
+            except Exception as e:
+                logger.warning("Error cleaning up backup file %s: %s", zip_path, e)
+            return response
+
+        return send_file(
+            zip_path,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=download_filename,
+        )
+    except Exception as ex:
+        logger.error("Admin database backup download failed: %s", ex, exc_info=True)
+        return jsonify({"success": False, "error": f"Backup failed: {str(ex)}"}), 500

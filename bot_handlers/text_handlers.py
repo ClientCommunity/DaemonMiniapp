@@ -11,6 +11,7 @@ import secrets
 import shutil
 import sqlite3
 import time
+import zipfile
 from telethon import Button, TelegramClient
 from telethon.errors import SessionPasswordNeededError
 from telethon.tl.functions.account import GetPasswordRequest, UpdatePasswordSettingsRequest
@@ -214,23 +215,44 @@ async def _dispatch_text_input(e, uid: int, text: str, raw_text: str):
         if not is_admin(uid):
             restore_state.pop(uid, None)
             return
-        if not getattr(e, "file", None):
-            return await e.reply("❌ Send the backup .db file as a document.")
+        file_obj = getattr(e, "file", None)
+        file_name = (getattr(file_obj, "name", "") or "").lower()
+        if not file_obj or not (file_name.endswith(".db") or file_name.endswith(".zip")):
+            return await e.reply("❌ Send the backup .db or .zip file as a document.")
         restore_state.pop(uid, None)
         backup_current = f"otp_bot_pre_restore_{int(time.time())}.db"
+        incoming = None
+        temp_extracted = None
         try:
             db.commit()
             shutil.copyfile("otp_bot_final.db", backup_current)
-            incoming = await bot.download_media(e, f"restore_upload_{int(time.time())}.db")
-            test = sqlite3.connect(incoming)
+            ext = ".zip" if file_name.endswith(".zip") else ".db"
+            incoming = await bot.download_media(e, f"restore_upload_{int(time.time())}{ext}")
+            db_to_use = incoming
+            if ext == ".zip":
+                with zipfile.ZipFile(incoming, "r") as zf:
+                    db_members = [m for m in zf.namelist() if m.endswith(".db") and not m.startswith("__MACOSX")]
+                    if not db_members:
+                        raise ValueError("No valid SQLite .db file found inside the uploaded ZIP archive.")
+                    temp_extracted = f"restore_extracted_{int(time.time())}.db"
+                    with open(temp_extracted, "wb") as f_out:
+                        f_out.write(zf.read(db_members[0]))
+                    db_to_use = temp_extracted
+            test = sqlite3.connect(db_to_use)
             test.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
             test.close()
-            shutil.copyfile(incoming, "otp_bot_final.db")
-            os.remove(incoming)
-            return await e.reply(f"✅ Restore file saved. Restart the bot process to load restored DB. Safety backup: <code>{backup_current}</code>")
+            shutil.copyfile(db_to_use, "otp_bot_final.db")
+            return await e.reply(f"✅ <b>Restore file verified and applied!</b>\n\nRestart the bot process to load restored DB.\nSafety backup saved: <code>{backup_current}</code>")
         except Exception as ex:
             await send_admin_error("Restore failed", str(ex))
-            return await e.reply("❌ Restore failed. Current DB was not replaced.")
+            return await e.reply(f"❌ <b>Restore failed:</b> {html.escape(str(ex))}\nCurrent DB was not replaced.")
+        finally:
+            for p in [incoming, temp_extracted]:
+                if p and os.path.exists(p):
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
 
     # SERVER 1 COUNTRY SEARCH
     if uid in lzt_search_state:

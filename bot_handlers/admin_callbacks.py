@@ -6,6 +6,7 @@ import html
 import os
 import re
 import time
+import sqlite3
 import zipfile
 from telethon import Button, TelegramClient
 from telethon.errors import MessageNotModifiedError, SessionPasswordNeededError
@@ -553,16 +554,43 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
             return await e.edit(msg, buttons=btns)
 
         elif action == "backup" and has_perm(uid, 'p_settings'):
+            await safe_answer_cb(e, "⏳ Creating compressed database snapshot...", alert=False)
+            status_msg = None
+            zip_file = None
             try:
-                backup_path = f"otp_bot_backup_{int(time.time())}.db"
-                dst = sqlite3.connect(backup_path)
-                db.backup(dst)
-                dst.close()
-                await bot.send_file(uid, backup_path, caption="✅ Bot data backup")
-                os.remove(backup_path)
+                status_msg = await bot.send_message(uid, "📦 <b>Creating database snapshot & compressing...</b>\n<i>Please wait 3-5 seconds.</i>")
+                from services.admin_service import create_compressed_database_backup
+                zip_file, orig_sz, comp_sz = await asyncio.to_thread(create_compressed_database_backup)
+
+                orig_mb = orig_sz / (1024 * 1024)
+                comp_mb = comp_sz / (1024 * 1024)
+                reduction = (1 - (comp_sz / max(orig_sz, 1))) * 100
+
+                now_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+                caption = (
+                    f"✅ <b>Full Database Backup Ready</b>\n\n"
+                    f"🗄️ Database: <code>otp_bot_final.db</code>\n"
+                    f"📊 Uncompressed Size: <b>{orig_mb:.2f} MB</b>\n"
+                    f"🗜️ Compressed Size: <b>{comp_mb:.2f} MB</b> (-{reduction:.1f}%)\n"
+                    f"⏰ Created: <code>{now_str}</code>\n\n"
+                    f"<i>Safe archive containing all users, balances, stock, and orders.</i>"
+                )
+                await bot.send_file(uid, zip_file, caption=caption, parse_mode="html")
+                if status_msg:
+                    try:
+                        await status_msg.delete()
+                    except Exception:
+                        pass
             except Exception as ex:
+                logger.error("Admin Telegram backup failed: %s", ex, exc_info=True)
                 await send_admin_error("Backup failed", str(ex))
-                await e.answer("Backup failed", alert=True)
+                await bot.send_message(uid, f"❌ <b>Backup failed:</b> {html.escape(str(ex))}")
+            finally:
+                if zip_file and os.path.exists(zip_file):
+                    try:
+                        os.remove(zip_file)
+                    except Exception:
+                        pass
             return
 
         elif action == "restore" and has_perm(uid, 'p_settings'):
