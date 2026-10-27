@@ -27,13 +27,16 @@ def _ensure_context(event=None):
     if not bot_mod:
         import bot as bot_mod
     g = globals()
-    for k, v in bot_mod.__dict__.items():
+    for k in dir(bot_mod):
         if not k.startswith("__"):
-            g.setdefault(k, v)
+            try:
+                g.setdefault(k, getattr(bot_mod, k))
+            except Exception:
+                pass
     if client:
         g["bot"] = client
-    elif "bot" in bot_mod.__dict__:
-        g["bot"] = bot_mod.__dict__["bot"]
+    elif hasattr(bot_mod, "bot"):
+        g["bot"] = getattr(bot_mod, "bot")
 
 
 async def handle_admin_callback(e, uid: int, data: str) -> bool:
@@ -56,9 +59,12 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
     live_client = getattr(e, "client", None)
     bot = live_client or getattr(bot_module, "bot", bot_module)
     globals()["bot"] = bot
-    ADMIN_IDS = bot_module.ADMIN_IDS
-    is_admin = bot_module.is_admin
-    safe_answer_cb = bot_module.safe_answer_cb
+    ADMIN_IDS = getattr(bot_module, "ADMIN_IDS", globals().get("ADMIN_IDS", []))
+    is_admin = getattr(bot_module, "is_admin", globals().get("is_admin"))
+    safe_answer_cb = getattr(bot_module, "safe_answer_cb", globals().get("safe_answer_cb"))
+    if not is_admin:
+        def is_admin(target_uid):
+            return target_uid in ADMIN_IDS or bool(cur.execute("SELECT user_id FROM admins WHERE user_id=?", (target_uid,)).fetchone())
 
     if not is_admin(uid):
         await safe_answer_cb(e, "Unauthorized.", alert=True)

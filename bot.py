@@ -1,10 +1,22 @@
 import sys
 import types
 
-# Ensure the running module namespace is registered in sys.modules as 'bot'
-# so any subsequent 'import bot' in handlers references this active instance
-if 'bot' not in sys.modules:
-    sys.modules['bot'] = types.ModuleType('bot')
+# Ensure the running module namespace is dynamically registered in sys.modules as 'bot'
+# so any subsequent 'import bot' or 'sys.modules["bot"]' resolves directly to this running module's globals.
+class _BotModule(types.ModuleType):
+    def __init__(self, name, g):
+        super().__init__(name)
+        self.__dict__["_g"] = g
+
+    def __getattr__(self, name):
+        if name in self.__dict__["_g"]:
+            return self.__dict__["_g"][name]
+        raise AttributeError(f"module 'bot' has no attribute '{name}'")
+
+    def __dir__(self):
+        return list(self.__dict__["_g"].keys())
+
+sys.modules["bot"] = _BotModule("bot", globals())
 
 import os
 import sqlite3

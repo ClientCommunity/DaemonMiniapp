@@ -34,13 +34,16 @@ def _ensure_context(event=None):
     if not bot_mod:
         import bot as bot_mod
     g = globals()
-    for k, v in bot_mod.__dict__.items():
+    for k in dir(bot_mod):
         if not k.startswith("__"):
-            g.setdefault(k, v)
+            try:
+                g.setdefault(k, getattr(bot_mod, k))
+            except Exception:
+                pass
     if client:
         g["bot"] = client
-    elif "bot" in bot_mod.__dict__:
-        g["bot"] = bot_mod.__dict__["bot"]
+    elif hasattr(bot_mod, "bot"):
+        g["bot"] = getattr(bot_mod, "bot")
 
 
 async def handle_text_input(e, uid: int, text: str, raw_text: str) -> bool:
