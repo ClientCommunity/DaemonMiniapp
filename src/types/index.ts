@@ -78,7 +78,7 @@ export interface VirtualOtpServiceItem {
   availableCount: number;
   category: OtpAppCode;
   speed: string;
-  successRate: number;
+  successRate?: number;
 }
 
 export type OtpStatus = 'waiting' | 'received' | 'cancelled' | 'expired' | 'refunded';

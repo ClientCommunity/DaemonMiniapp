@@ -348,8 +348,6 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                       {service.speed}
                     </span>
                     <span>•</span>
-                    <span>{service.successRate}% Success</span>
-                    <span>•</span>
                     <span className="font-mono text-[#a1a1aa]">{service.availableCount} stock</span>
                   </div>
                 </div>

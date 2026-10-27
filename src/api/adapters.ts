@@ -359,7 +359,6 @@ export function adaptServer34Item(
     availableCount: stock,
     category: mapAppCode(cleanServiceName, serviceCode),
     speed: serverId === 3 ? '1-3s Instant' : '10-30s Carrier',
-    successRate: serverId === 3 ? 99 : 96,
   };
 }
 
