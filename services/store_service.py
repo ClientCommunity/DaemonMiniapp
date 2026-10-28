@@ -177,7 +177,7 @@ def get_server3_stock() -> list[dict[str, Any]]:
             rows = conn.execute("""
                 SELECT service_code, name, provider_price
                 FROM server3_services
-                WHERE enabled = 1
+                WHERE enabled = 1 AND in_stock = 1
                 ORDER BY name ASC
             """).fetchall()
 
@@ -190,7 +190,7 @@ def get_server3_stock() -> list[dict[str, Any]]:
                 "country": s_name,
                 "icon": icon_map.get(code.lower(), "⚡"),
                 "price": int(r["provider_price"] or 45),
-                "stock": 999,
+                "stock": None,
                 "subtitle": "Instant Virtual OTP",
             })
     except Exception as exc:
@@ -249,7 +249,7 @@ def get_server4_stock() -> list[dict[str, Any]]:
                 raw_cost = float(r["min_price"] or 10.0)
                 final_price = int(round(max(min_price_floor, raw_cost * (1 + pct_markup / 100.0) + fixed_markup)))
                 final_price = max(15, final_price)
-                stock_count = int(r["total_stock"] or 999)
+                stock_count = int(r["total_stock"] or 0)
                 item_id = f"s4_{r['service_code']}_{r['country_code']}"
                 seen_keys.add(s_name.lower())
 
