@@ -322,7 +322,7 @@ export function adaptServer34Item(
   const serviceCode = item.service_code || (item.id && !item.id.startsWith(`s${serverId}_`) ? item.id : 'all');
   const rawName = item.name || item.country || 'Virtual Service';
   const price = Number(item.price || (serverId === 3 ? 45 : 55));
-  const stock = Number(item.stock ?? 999);
+  const stock = (item.stock !== undefined && item.stock !== null && Number(item.stock) < 999) ? Number(item.stock) : 0;
   const icon = item.icon || (serverId === 3 ? '⚡' : '📶');
 
   // Unified Server 3 & 4 path: Parse service name and country from parentheses or attributes

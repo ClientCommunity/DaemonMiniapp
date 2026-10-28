@@ -242,7 +242,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
         <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider flex items-center justify-between">
           <span>Supported Platforms</span>
           <span className="text-[10px] text-[#8b5cf6] font-normal">
-            {filtered.length} {filtered.length === 1 ? 'number' : 'numbers'} available
+            {filtered.length} {filtered.length === 1 ? 'service' : 'services'} available
           </span>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1.5 -mx-4 px-4">
@@ -282,13 +282,13 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
         </div>
       </div>
 
-      {/* Virtual Numbers List */}
+      {/* Virtual Services List */}
       <div className="grid grid-cols-1 gap-2.5">
         {serverItems.length === 0 ? (
           <div className="p-10 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
             <Radio className="w-8 h-8 text-[#71717a]" />
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-semibold text-white">No OTP Numbers in Stock</span>
+              <span className="text-sm font-semibold text-white">No OTP Services in Stock</span>
               <span className="text-xs text-[#a1a1aa]">
                 Live pool is currently empty for Server {serverId}. Check back shortly.
               </span>
@@ -298,9 +298,9 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
             <Globe className="w-8 h-8 text-[#71717a]" />
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-white">No virtual numbers found</span>
+              <span className="text-xs font-semibold text-white">No virtual services found</span>
               <span className="text-[11px] text-[#a1a1aa]">
-                No numbers matching &quot;{search}&quot;
+                No services matching &quot;{search}&quot;
                 {activeCategory !== 'all' ? ` in ${activeCategory.toUpperCase()}` : ''}.
               </span>
             </div>
@@ -348,7 +348,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                       {service.speed}
                     </span>
                     <span>•</span>
-                    <span className="font-mono text-[#a1a1aa]">{service.availableCount} stock</span>
+                    <span className="font-mono text-[#a1a1aa]">{isServer3 || !service.availableCount || service.availableCount >= 999 ? "Available" : `${service.availableCount} stock`}</span>
                   </div>
                 </div>
               </div>
@@ -375,14 +375,14 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
       {filtered.length > displayCount && (
         <div className="flex flex-col items-center justify-center py-4 px-2 gap-2">
           <span className="text-[11px] text-[#a1a1aa]">
-            Showing {displayCount} of {filtered.length.toLocaleString()} available numbers
+            Showing {displayCount} of {filtered.length.toLocaleString()} available services
           </span>
           <button
             type="button"
             onClick={() => setDisplayCount((prev) => prev + 50)}
             className="px-5 py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold shadow-violet-glow-sm transition-all active:scale-95 flex items-center gap-1.5"
           >
-            <span>Load More Numbers</span>
+            <span>Load More Services</span>
             <span className="text-[10px] opacity-80">(+{Math.min(50, filtered.length - displayCount)})</span>
           </button>
         </div>
