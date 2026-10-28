@@ -1125,3 +1125,209 @@ def get_reseller_info(user_id: int) -> dict[str, Any]:
         "total_orders": int(earnings_row[0] or 0),
         "total_earnings": float(earnings_row[1] or 0),
     }
+
+
+def get_user_order_stats(conn_or_cur: Any = None, user_id: int = 0) -> dict[str, Any]:
+    """Calculate accurate order counts and spent amounts for a user across all 5 servers.
+
+    Prevents double-counting:
+    - Server 1 & Server 2 (and legacy/local): from `orders` table where server NOT IN ('Server 3', 'Server 4', 'Server 5')
+      and otp != 'CANCELLED'.
+    - Server 3: from `server3_orders` where refunded = 0 and status != 'cancelled'.
+    - Server 4: from `server4_orders` where refunded = 0 and status != 'cancelled'.
+    - Server 5: from `smm_orders` where refunded = 0 and status NOT IN ('failed', 'cancelled', 'canceled').
+    """
+    if conn_or_cur is None:
+        with connect() as conn:
+            return get_user_order_stats(conn, user_id)
+
+    uid = int(user_id)
+    try:
+        r12 = conn_or_cur.execute("""
+            SELECT COUNT(*), COALESCE(SUM(price), 0)
+            FROM orders
+            WHERE user_id = ?
+              AND (server IN ('Server 1', 'Server 2', 'Local') OR server IS NULL OR server NOT IN ('Server 3', 'Server 4', 'Server 5'))
+              AND (otp IS NULL OR otp != 'CANCELLED')
+        """, (uid,)).fetchone()
+        s12_count, s12_spent = int(r12[0] or 0), int(r12[1] or 0)
+    except Exception:
+        s12_count, s12_spent = 0, 0
+
+    try:
+        r3 = conn_or_cur.execute("""
+            SELECT COUNT(*), COALESCE(SUM(charged_price), 0)
+            FROM server3_orders
+            WHERE user_id = ?
+              AND refunded = 0
+              AND status != 'cancelled'
+        """, (uid,)).fetchone()
+        s3_count, s3_spent = int(r3[0] or 0), int(r3[1] or 0)
+    except Exception:
+        s3_count, s3_spent = 0, 0
+
+    try:
+        r4 = conn_or_cur.execute("""
+            SELECT COUNT(*), COALESCE(SUM(charged_price), 0)
+            FROM server4_orders
+            WHERE user_id = ?
+              AND refunded = 0
+              AND status != 'cancelled'
+        """, (uid,)).fetchone()
+        s4_count, s4_spent = int(r4[0] or 0), int(r4[1] or 0)
+    except Exception:
+        s4_count, s4_spent = 0, 0
+
+    try:
+        r5 = conn_or_cur.execute("""
+            SELECT COUNT(*), COALESCE(SUM(charge), 0)
+            FROM smm_orders
+            WHERE user_id = ?
+              AND refunded = 0
+              AND status NOT IN ('failed', 'cancelled', 'canceled')
+        """, (uid,)).fetchone()
+        s5_count, s5_spent = int(r5[0] or 0), int(round(float(r5[1] or 0)))
+    except Exception:
+        s5_count, s5_spent = 0, 0
+
+    total_orders = s12_count + s3_count + s4_count + s5_count
+    total_spent = s12_spent + s3_spent + s4_spent + s5_spent
+
+    return {
+        "total_orders": total_orders,
+        "total_spent": total_spent,
+        "server1_2": {"orders": s12_count, "spent": s12_spent},
+        "server3": {"orders": s3_count, "spent": s3_spent},
+        "server4": {"orders": s4_count, "spent": s4_spent},
+        "server5": {"orders": s5_count, "spent": s5_spent},
+    }
+
+
+def get_overall_order_stats(conn_or_cur: Any = None) -> dict[str, Any]:
+    """Calculate overall total orders count and revenue across all 5 servers."""
+    if conn_or_cur is None:
+        with connect() as conn:
+            return get_overall_order_stats(conn)
+
+    try:
+        r12 = conn_or_cur.execute("""
+            SELECT COUNT(*), COALESCE(SUM(price), 0)
+            FROM orders
+            WHERE (server IN ('Server 1', 'Server 2', 'Local') OR server IS NULL OR server NOT IN ('Server 3', 'Server 4', 'Server 5'))
+              AND (otp IS NULL OR otp != 'CANCELLED')
+        """).fetchone()
+        s12_count, s12_spent = int(r12[0] or 0), int(r12[1] or 0)
+    except Exception:
+        s12_count, s12_spent = 0, 0
+
+    try:
+        r3 = conn_or_cur.execute("""
+            SELECT COUNT(*), COALESCE(SUM(charged_price), 0)
+            FROM server3_orders
+            WHERE refunded = 0 AND status != 'cancelled'
+        """).fetchone()
+        s3_count, s3_spent = int(r3[0] or 0), int(r3[1] or 0)
+    except Exception:
+        s3_count, s3_spent = 0, 0
+
+    try:
+        r4 = conn_or_cur.execute("""
+            SELECT COUNT(*), COALESCE(SUM(charged_price), 0)
+            FROM server4_orders
+            WHERE refunded = 0 AND status != 'cancelled'
+        """).fetchone()
+        s4_count, s4_spent = int(r4[0] or 0), int(r4[1] or 0)
+    except Exception:
+        s4_count, s4_spent = 0, 0
+
+    try:
+        r5 = conn_or_cur.execute("""
+            SELECT COUNT(*), COALESCE(SUM(charge), 0)
+            FROM smm_orders
+            WHERE refunded = 0 AND status NOT IN ('failed', 'cancelled', 'canceled')
+        """).fetchone()
+        s5_count, s5_spent = int(r5[0] or 0), int(round(float(r5[1] or 0)))
+    except Exception:
+        s5_count, s5_spent = 0, 0
+
+    total_orders = s12_count + s3_count + s4_count + s5_count
+    total_spent = s12_spent + s3_spent + s4_spent + s5_spent
+
+    return {
+        "total_orders": total_orders,
+        "total_spent": total_spent,
+        "server1_2": {"orders": s12_count, "spent": s12_spent},
+        "server3": {"orders": s3_count, "spent": s3_spent},
+        "server4": {"orders": s4_count, "spent": s4_spent},
+        "server5": {"orders": s5_count, "spent": s5_spent},
+    }
+
+
+def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: int = 25, offset: int = 0) -> list[dict[str, Any]]:
+    """Retrieve chronologically unified orders across all 5 servers for a user."""
+    if conn_or_cur is None:
+        with connect() as conn:
+            return get_unified_user_orders(conn, user_id, limit, offset)
+
+    uid = int(user_id)
+    lim = max(1, int(limit))
+    off = max(0, int(offset))
+
+    sql = """
+    SELECT id, country, year, price, phone, otp, server, date
+    FROM (
+        SELECT id, country, year, price, phone, otp, COALESCE(server, 'Server 1') as server, date
+        FROM orders
+        WHERE user_id = ? AND (server IS NULL OR server NOT IN ('Server 3', 'Server 4', 'Server 5'))
+
+        UNION ALL
+
+        SELECT id, server_code as country, 2024 as year, charged_price as price, phone, COALESCE(sms_code, status) as otp, 'Server 3' as server, created_at as date
+        FROM server3_orders
+        WHERE user_id = ?
+
+        UNION ALL
+
+        SELECT id, service_code as country, 2024 as year, charged_price as price, phone, COALESCE(sms_code, status) as otp, 'Server 4' as server, created_at as date
+        FROM server4_orders
+        WHERE user_id = ?
+
+        UNION ALL
+
+        SELECT id, link as country, quantity as year, CAST(charge AS INT) as price, link as phone, status as otp, 'Server 5' as server, created_at as date
+        FROM smm_orders
+        WHERE user_id = ?
+    )
+    ORDER BY date DESC
+    LIMIT ? OFFSET ?
+    """
+    try:
+        rows = conn_or_cur.execute(sql, (uid, uid, uid, uid, lim, off)).fetchall()
+        result = []
+        for r in rows:
+            if isinstance(r, dict) or hasattr(r, 'keys'):
+                result.append(dict(r))
+            else:
+                result.append({
+                    "id": r[0],
+                    "country": r[1],
+                    "year": r[2],
+                    "price": r[3],
+                    "phone": r[4],
+                    "otp": r[5],
+                    "server": r[6],
+                    "date": r[7],
+                })
+        return result
+    except Exception as ex:
+        logger.warning("Error fetching unified user orders: %s", ex)
+        # Fallback to standard orders table
+        try:
+            fb = conn_or_cur.execute(
+                "SELECT id, country, year, price, phone, otp, server, date FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+                (uid, lim, off)
+            ).fetchall()
+            return [dict(r) if isinstance(r, dict) or hasattr(r, 'keys') else {"id": r[0], "country": r[1], "year": r[2], "price": r[3], "phone": r[4], "otp": r[5], "server": r[6], "date": r[7]} for r in fb]
+        except Exception:
+            return []
+

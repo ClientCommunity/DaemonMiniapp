@@ -8,6 +8,7 @@ import time
 import random
 from telethon import Button, TelegramClient
 from telethon.errors import MessageNotModifiedError
+from database import get_user_order_stats
 from bot_helpers import (
     format_inr_amount,
     format_purchase_datetime,
@@ -306,7 +307,7 @@ async def _dispatch_user_callbacks(e, uid: int, data: str):
         bal, s_bal, dep, date, promo_bal = r
         transferable = max(0, bal - promo_bal)
         me = await bot.get_me()
-        o = cur.execute("SELECT COUNT(*), SUM(price) FROM orders WHERE user_id=?", (uid,)).fetchone()
+        stats = get_user_order_stats(cur, uid)
         msg = (f"{P_ACC} <b>USER PROFILE</b>\n\n"
                f"{P_ID} ID: <code>{uid}</code>\n"
                f"{P_CASH} Total Balance: {format_price(uid, bal)}\n"
@@ -314,7 +315,7 @@ async def _dispatch_user_callbacks(e, uid: int, data: str):
                f"🔒 Promo Balance (Locked): <b>{format_price(uid, promo_bal)}</b>\n"
                f"🤝 Sales Balance: {format_price(uid, s_bal)}\n"
                f"💳 Deposited: {format_price(uid, dep)}\n"
-               f"🛒 Total Spent: {format_price(uid, o[1] or 0)} ({o[0]} Accs)\n"
+               f"🛒 Total Spent: {format_price(uid, stats['total_spent'])} ({stats['total_orders']} Orders)\n"
                f"{P_CAL} Joined: {date[:10]}\n\n"
                f"👥 Referral Link:\n<code>https://t.me/{me.username}?start=ref_{uid}</code>")
 

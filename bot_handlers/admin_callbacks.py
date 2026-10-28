@@ -11,6 +11,7 @@ import zipfile
 from telethon import Button, TelegramClient
 from telethon.errors import MessageNotModifiedError, SessionPasswordNeededError
 from telethon.tl.functions.account import GetPasswordRequest
+from database import get_user_order_stats, get_overall_order_stats
 from bot_helpers import (
     COUNTRY_CODES,
     ConversationCancelled,
@@ -540,13 +541,17 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
             r = r_row[0] if r_row else "0"
             bal_row = cur.execute("SELECT SUM(balance) FROM users").fetchone()
             total_bal = bal_row[0] if bal_row and bal_row[0] else 0
-            o_row = cur.execute("SELECT COUNT(*), SUM(price) FROM orders").fetchone()
-            total_orders = o_row[0] if o_row else 0
-            total_spent = o_row[1] if o_row and o_row[1] else 0
+            stats = get_overall_order_stats(cur)
 
             msg = (f"📊 <b>ADVANCED STATS</b>\n\n👥 <b>Total Users:</b> {u}\n📦 <b>Accounts in Stock:</b> {s}\n"
                    f"💰 <b>Total UPI Revenue:</b> ₹{r}\n\n💳 <b>Overall Users Balance:</b> ₹{total_bal}\n"
-                   f"🛒 <b>Total Accounts Sold:</b> {total_orders}\n💲 <b>Overall Sales Amount:</b> ₹{total_spent}")
+                   f"🛒 <b>Total Orders Sold:</b> {stats['total_orders']}\n"
+                   f"💲 <b>Overall Sales Amount:</b> ₹{stats['total_spent']}\n\n"
+                   f"📊 <b>Sales by Server:</b>\n"
+                   f"  • S1/S2 Accounts: {stats['server1_2']['orders']} (₹{stats['server1_2']['spent']})\n"
+                   f"  • Server 3 OTP: {stats['server3']['orders']} (₹{stats['server3']['spent']})\n"
+                   f"  • Server 4 SMS: {stats['server4']['orders']} (₹{stats['server4']['spent']})\n"
+                   f"  • Server 5 SMM: {stats['server5']['orders']} (₹{stats['server5']['spent']})")
             return await e.edit(msg, buttons=[[p_btn("Back", "adm_adminmain")]])
 
         elif action == "richest" and has_perm(uid, 'p_stats'):
@@ -999,20 +1004,23 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
                     u_row = cur.execute("SELECT balance, total_deposited, joined_date, banned, discount FROM users WHERE user_id=?", (t_uid,)).fetchone()
                     if not u_row: return await bot.send_message(uid, f"❌ User not found.")
 
-                    o_row = cur.execute("SELECT COUNT(*), SUM(price) FROM orders WHERE user_id=?", (t_uid,)).fetchone()
                     up_row = cur.execute("SELECT SUM(amount) FROM upi_orders WHERE user_id=? AND status='success'", (t_uid,)).fetchone()
+                    stats = get_user_order_stats(cur, t_uid)
 
                     bal, dep, joined, is_banned, disc = u_row
-                    o_count = o_row[0] if o_row else 0
-                    o_spent = o_row[1] if o_row and o_row[1] else 0
                     u_upi = up_row[0] if up_row and up_row[0] else 0
 
                     msg = (f"👤 <b>USER INFO:</b> <code>{t_uid}</code>\n\n"
                            f"💰 Balance: ₹{bal}\n"
                            f"💳 Total Deposited: ₹{dep}\n"
                            f"🏦 UPI Deposited: ₹{u_upi}\n"
-                           f"🛒 Total Orders: {o_count}\n"
-                           f"💲 Total Spent: ₹{o_spent}\n"
+                           f"🛒 Total Orders: {stats['total_orders']}\n"
+                           f"💲 Total Spent: ₹{stats['total_spent']}\n\n"
+                           f"📊 <b>Server Breakdown:</b>\n"
+                           f"  • S1/S2 Accounts: {stats['server1_2']['orders']} (₹{stats['server1_2']['spent']})\n"
+                           f"  • Server 3 OTP: {stats['server3']['orders']} (₹{stats['server3']['spent']})\n"
+                           f"  • Server 4 SMS: {stats['server4']['orders']} (₹{stats['server4']['spent']})\n"
+                           f"  • Server 5 SMM: {stats['server5']['orders']} (₹{stats['server5']['spent']})\n\n"
                            f"🎁 Discount: {disc}%\n"
                            f"📅 Joined: {joined}\n"
                            f"🚫 Banned: {'Yes' if is_banned else 'No'}")

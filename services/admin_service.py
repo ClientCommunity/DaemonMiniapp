@@ -13,6 +13,9 @@ from database import (
     connect,
     transaction,
     utcnow,
+    get_user_order_stats,
+    get_overall_order_stats,
+    get_unified_user_orders,
     check_admin_permission,
     get_admin_permissions,
     get_stock_count,
@@ -83,9 +86,7 @@ def get_system_stats() -> dict[str, Any]:
             "SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'success'"
         ).fetchone()
 
-        order_stats = conn.execute(
-            "SELECT COUNT(*), COALESCE(SUM(price), 0) FROM orders"
-        ).fetchone()
+        order_stats = get_overall_order_stats(conn)
 
         pending_deposits = conn.execute(
             "SELECT COUNT(*) FROM deposits WHERE status = 'pending'"
@@ -101,8 +102,9 @@ def get_system_stats() -> dict[str, Any]:
         "total_promo_balance": int(total_balance_row[1] or 0),
         "successful_deposits_count": int(deposit_stats[0] or 0),
         "total_deposited_inr": int(deposit_stats[1] or 0),
-        "total_orders_count": int(order_stats[0] or 0),
-        "total_orders_revenue_inr": int(order_stats[1] or 0),
+        "total_orders_count": int(order_stats["total_orders"] or 0),
+        "total_orders_revenue_inr": int(order_stats["total_spent"] or 0),
+        "server_orders_breakdown": order_stats,
         "pending_deposits": int(pending_deposits or 0),
         "stock": {
             "good_quality": good_stock,
@@ -437,12 +439,8 @@ def search_users(query: str | int) -> dict[str, Any]:
         if not u:
             return {"success": False, "error": f"User ID {user_id} not found."}
 
-        orders = conn.execute("""
-            SELECT id, country, year, price, phone, otp, server, date
-            FROM orders
-            WHERE user_id = ?
-            ORDER BY id DESC LIMIT 20
-        """, (user_id,)).fetchall()
+        user_order_stats = get_user_order_stats(conn, user_id)
+        orders = get_unified_user_orders(conn, user_id, limit=20)
 
         deposits = conn.execute("""
             SELECT id, amount, method_name, status, date
@@ -465,11 +463,14 @@ def search_users(query: str | int) -> dict[str, Any]:
             "transferable_balance": trans,
             "sales_balance": sales,
             "total_deposited": int(u["total_deposited"] or 0),
+            "total_orders": user_order_stats["total_orders"],
+            "total_spent": user_order_stats["total_spent"],
+            "server_breakdown": user_order_stats,
             "banned": bool(u["banned"]),
             "joined_date": str(u["joined_date"]),
             "pref_curr": u["pref_curr"] or "INR",
         },
-        "orders": [dict(r) for r in orders],
+        "orders": [dict(r) if hasattr(r, 'keys') else r for r in orders],
         "deposits": [dict(r) for r in deposits],
     }
 

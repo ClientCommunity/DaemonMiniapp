@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from flask import Blueprint, jsonify, request
 
-from database import connect
+from database import connect, get_unified_user_orders
 from services.auth_service import get_current_user_id
 
 logger = logging.getLogger("api.history")
@@ -26,13 +26,8 @@ def get_user_history():
 
     items = []
     with connect() as conn:
-        # 1. Orders
-        orders = conn.execute("""
-            SELECT id, country, price, phone, otp, server, date
-            FROM orders
-            WHERE user_id = ?
-            ORDER BY id DESC LIMIT 25
-        """, (uid,)).fetchall()
+        # 1. Orders (unified across all 5 servers)
+        orders = get_unified_user_orders(conn, uid, limit=25)
 
         for o in orders:
             server_str = o["server"] or "Store"
