@@ -38,19 +38,30 @@ async def handle_server5_callback(e, uid: int, data: str) -> bool:
         return True
 
     elif data.startswith("smm_cat|"):
-        _, cid, page = data.split('|')
+        parts = data.split('|')
+        cid = parts[1]
+        page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
         with managed_connect() as conn:
             cat = conn.execute("SELECT display_name FROM smm_categories WHERE id=? AND visible=1", (int(cid),)).fetchone()
         if not cat:
             await e.answer("Category unavailable.", alert=True)
             return True
-        await render_smm_services(e, uid, int(page), '', 'az', cat['display_name'])
+        if len(parts) > 3 and parts[3] == 'search':
+            search_page = int(parts[4]) if len(parts) > 4 and parts[4].isdigit() else 1
+            back_target = f"smm_searchpage|{search_page}"
+        elif len(parts) > 3 and parts[3].isdigit():
+            cat_page = int(parts[3])
+            brand = parts[4] if len(parts) > 4 else ''
+            back_target = f"smm_cats|{cat_page}|{brand}" if brand else f"smm_cats|{cat_page}"
+        else:
+            back_target = "smm_cats|1"
+        await render_smm_services(e, uid, int(page), '', 'az', cat['display_name'], back_target=back_target)
         return True
 
     elif data.startswith("smm_page|"):
         _, page, sort = data.split("|")
         state = smm_search_results.get(uid, {})
-        await render_smm_services(e, uid, int(page), state.get('query', ''), sort, state.get('category_name', ''))
+        await render_smm_services(e, uid, int(page), state.get('query', ''), sort, state.get('category_name', ''), back_target=state.get('back_target'))
         return True
 
     elif data == "smm_search":
@@ -87,7 +98,8 @@ async def handle_server5_callback(e, uid: int, data: str) -> bool:
             return True
         r = rows[0]
         q = smm_quote(sid, 1000, enforce_limits=False)
-        smm_state[uid] = {"step": "link", "service_id": sid, "category_name": r['category_name']}
+        back_target = smm_search_results.get(uid, {}).get("back_target")
+        smm_state[uid] = {"step": "link", "service_id": sid, "category_name": r['category_name'], "back_target": back_target}
         raw_description = ' '.join(str(r['description'] or '').split())
         description = raw_description[:700]
         description_block = (f"<blockquote expandable>{html.escape(description)}{'…' if len(raw_description) > 700 else ''}</blockquote>\n\n" if description else "")
@@ -106,8 +118,18 @@ async def handle_server5_callback(e, uid: int, data: str) -> bool:
     elif data == "smm_back_services":
         state = smm_state.pop(uid, None)
         category = state.get('category_name', '') if state else ''
+        back_target = state.get('back_target') if state else None
         if category:
-            await render_smm_services(e, uid, 1, '', 'az', category)
+            await render_smm_services(e, uid, 1, '', 'az', category, back_target=back_target)
+        elif back_target:
+            parts = back_target.split('|')
+            if parts[0] == 'smm_cats':
+                await render_smm_categories(e, max(1, int(parts[1])), parts[2] if len(parts) > 2 else '')
+            elif parts[0] == 'smm_searchpage':
+                state_sr = smm_search_results.get(uid, {})
+                await render_smm_search(e, uid, state_sr.get('query', ''), int(parts[1]))
+            else:
+                await render_smm_categories(e, 1)
         else:
             await render_smm_categories(e, 1)
         return True

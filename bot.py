@@ -976,7 +976,7 @@ def format_smm_money(value):
     amount=float(value)
     return f"{amount:.2f}" if abs(amount)>=1 else f"{amount:.6f}".rstrip("0").rstrip(".")
 
-async def render_smm_services(e, uid, page=1, query="", sort="price_low",category_name=""):
+async def render_smm_services(e, uid, page=1, query="", sort="price_low", category_name="", back_target=None):
     rows=smm_service_rows(query=query,category_name=category_name or None,limit=500);items=[]
     for row in rows:
         try:q=smm_quote(row['id'],1000,enforce_limits=False)
@@ -995,12 +995,12 @@ async def render_smm_services(e, uid, page=1, query="", sort="price_low",categor
     if page<pages:nav.append(p_btn("Next ▶",f"smm_page|{page+1}|{sort}"))
     if nav:buttons.append(nav)
     buttons.extend([[p_btn("🔍 Search Again","smm_search",style="primary"),p_btn("📦 My Orders","smm_orders|1")]])
-    if category_name:buttons.append([p_btn("↩ Back to Categories","smm_cats|1")])
-    buttons.append([p_btn("🏠 Home","menu_buy")])
+    resolved_back = back_target or smm_search_results.get(uid, {}).get("back_target") or "smm_cats|1"
+    buttons.append([p_btn("Back", resolved_back), p_btn("🏠 Home", "menu_buy")])
     caption=(f"🔎 <b>{'Search Results' if query else 'Available Services'}</b>\n\n"
-             f"Query : <code>{html.escape(query or 'All services')}</code>\nResults Found : <b>{len(items)}</b>\n"
+             f"Query : <code>{html.escape(query or category_name or 'All services')}</code>\nResults Found : <b>{len(items)}</b>\n"
              f"Sort : <b>{sort.replace('_',' ').title()}</b>\nShowing : <b>{(page-1)*limit+1 if items else 0}–{min(page*limit,len(items))} of {len(items)}</b>\n\nSelect a service below.")
-    smm_search_results[uid]={"query":query,"sort":sort,"category_name":category_name}
+    smm_search_results[uid]={"query":query,"sort":sort,"category_name":category_name,"back_target":resolved_back}
     return await e.edit(caption,buttons=buttons)
 
 SMM_BRANDS=("telegram","instagram","whatsapp","youtube","snapchat")
@@ -1015,13 +1015,13 @@ async def render_smm_categories(e,page=1,brand=""):
     buttons=[[p_btn("🔍 Search Categories & Services","smm_search",style="success")]]
     buttons.append([p_btn(name.title(),f"smm_brand|{name}|1",style="danger") for name in SMM_BRANDS[:3]])
     buttons.append([p_btn(name.title(),f"smm_brand|{name}|1",style="danger") for name in SMM_BRANDS[3:]])
-    buttons += [[p_btn(r['display_name'],f"smm_cat|{r['id']}|1",style="primary")] for r in rows[:limit]]
-    nav=[]
     suffix=f"|{brand}" if brand else ""
+    buttons += [[p_btn(r['display_name'],f"smm_cat|{r['id']}|1|{page}{suffix}",style="primary")] for r in rows[:limit]]
+    nav=[]
     if page>1:nav.append(p_btn("◀ Previous",f"smm_cats|{page-1}{suffix}"))
     if len(rows)>limit:nav.append(p_btn("Next ▶",f"smm_cats|{page+1}{suffix}"))
     if nav:buttons.append(nav)
-    buttons.append([p_btn("📦 My Orders","smm_orders|1"),p_btn("🏠 Home","menu_buy")])
+    buttons.append([p_btn("📦 My Orders","smm_orders|1"),p_btn("Back","menu_buy")])
     caption=f"📂 <b>{html.escape(brand.title())+' ' if brand else ''}Categories</b>\n\nSorted A → Z · Page {page}\nSelect a category to view its services."
     await e.edit(caption,buttons=buttons)
 
@@ -1035,14 +1035,14 @@ async def render_smm_search(e,uid,query,page=1):
           AND (LOWER(s.name) LIKE ? OR s.remote_service_id=?) ORDER BY LOWER(s.name) LIMIT ? OFFSET ?""",(pattern,query,limit+1,offset)).fetchall()
     buttons=[]
     if page==1:
-        buttons += [[p_btn(f"📂 {r['display_name']}",f"smm_cat|{r['id']}|1",style="primary")] for r in categories]
+        buttons += [[p_btn(f"📂 {r['display_name']}",f"smm_cat|{r['id']}|1|search|{page}",style="primary")] for r in categories]
     buttons += [[p_btn(f"{r['emoji']} {r['name']}",f"smm_view|{r['id']}",style="success")] for r in services[:limit]]
     nav=[]
     if page>1:nav.append(p_btn("◀ Previous",f"smm_searchpage|{page-1}"))
     if len(services)>limit:nav.append(p_btn("Next ▶",f"smm_searchpage|{page+1}"))
     if nav:buttons.append(nav)
-    buttons += [[p_btn("🔍 Search Again","smm_search"),p_btn("📂 Categories","smm_cats|1")]]
-    smm_search_results[uid]={"query":query,"search_page":page}
+    buttons += [[p_btn("🔍 Search Again","smm_search"),p_btn("Back","smm_cats|1")]]
+    smm_search_results[uid]={"query":query,"search_page":page,"back_target":f"smm_searchpage|{page}"}
     await e.edit(f"🔎 <b>Search Results</b>\n\nQuery: <code>{html.escape(query)}</code>\nCategories: {len(categories)}\nServices on this page: {len(services[:limit])}\nPage: {page}\n\nChoose a category or service.",buttons=buttons)
 
 

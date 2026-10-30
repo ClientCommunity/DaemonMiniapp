@@ -23,7 +23,7 @@ class TestProviderRateLimitCooldown(unittest.TestCase):
 
     def test_server3_rate_limit_cooldown_blocks_further_requests(self):
         # When Server 3 endpoint is put in cooldown
-        endpoint = "https://dgotp.in/stubs/handler_api.php"
+        endpoint = "https://www.dgotp.in/stubs/handler_api.php"
         self.assertFalse(is_cooling_down(endpoint))
 
         record_rate_limit(endpoint, 10.0, reason="Simulated 429")
