@@ -6,7 +6,7 @@
 
 const BASE_URL =
   (import.meta as unknown as { env?: Record<string, string | undefined> })?.env
-    ?.VITE_API_BASE_URL || 'https://daemonproxy-7m1m.onrender.com';
+    ?.VITE_API_BASE_URL || 'https://fahhh.duckdns.org';
 
 const ADMIN_TOKEN_KEY = 'krish_telebot_admin_token';
 const WEB_USER_TOKEN_KEY = 'krish_web_user_token';

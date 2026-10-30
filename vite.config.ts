@@ -17,7 +17,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: (typeof process !== 'undefined' && process.env?.VITE_BACKEND_URL) || 'https://daemonproxy-7m1m.onrender.com',
+        target: (typeof process !== 'undefined' && process.env?.VITE_BACKEND_URL) || 'https://fahhh.duckdns.org',
         changeOrigin: true,
         secure: false,
       }
