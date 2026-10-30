@@ -177,7 +177,7 @@ def get_server3_stock() -> list[dict[str, Any]]:
             rows = conn.execute("""
                 SELECT service_code, name, provider_price
                 FROM server3_services
-                WHERE enabled = 1 AND in_stock = 1
+                WHERE enabled = 1 AND in_stock = 1 AND provider_price > 0
                 ORDER BY name ASC
             """).fetchall()
 
@@ -216,7 +216,7 @@ def get_server4_stock() -> list[dict[str, Any]]:
             fixed_markup = float(s4_cfg["fixed_markup"] if s4_cfg and s4_cfg["fixed_markup"] is not None else 0.0)
             min_price_floor = float(s4_cfg["minimum_price"] if s4_cfg and s4_cfg["minimum_price"] is not None else 15.0)
 
-            # 2. Query popular services across stocked countries from server4_stock
+            # 2. Query verified in-stock services across countries with available_count > 0
             popular_rows = conn.execute("""
                 SELECT
                     v.service_code,
@@ -230,19 +230,20 @@ def get_server4_stock() -> list[dict[str, Any]]:
                 JOIN server4_countries c ON c.operator_code = s.operator_code AND c.country_code = s.country_code
                 JOIN server4_services v ON v.operator_code = s.operator_code AND v.service_code = s.service_code
                 WHERE s.available_count > 0 AND c.enabled = 1 AND v.enabled = 1
-                  AND (
-                    LOWER(v.name) LIKE '%whatsapp%' OR LOWER(v.name) LIKE '%telegram%' OR
-                    LOWER(v.name) LIKE '%instagram%' OR LOWER(v.name) LIKE '%google%' OR
-                    LOWER(v.name) LIKE '%gmail%' OR LOWER(v.name) LIKE '%facebook%' OR
-                    LOWER(v.name) LIKE '%twitter%' OR LOWER(v.name) LIKE '%tiktok%' OR
-                    LOWER(v.name) LIKE '%steam%' OR LOWER(v.name) LIKE '%netflix%' OR
-                    LOWER(v.name) LIKE '%tinder%' OR LOWER(v.name) LIKE '%amazon%'
-                  )
                 GROUP BY v.name, c.name
-                ORDER BY c.name, v.name
+                ORDER BY
+                  CASE
+                    WHEN LOWER(v.name) LIKE '%whatsapp%' THEN 1
+                    WHEN LOWER(v.name) LIKE '%telegram%' THEN 2
+                    WHEN LOWER(v.name) LIKE '%instagram%' THEN 3
+                    WHEN LOWER(v.name) LIKE '%google%' OR LOWER(v.name) LIKE '%gmail%' THEN 4
+                    WHEN LOWER(v.name) LIKE '%facebook%' THEN 5
+                    ELSE 10
+                  END ASC,
+                  total_stock DESC
+                LIMIT 8000
             """).fetchall()
 
-            seen_keys = set()
             for r in popular_rows:
                 s_name = r["service_name"]
                 c_name = r["country_name"]
@@ -251,7 +252,6 @@ def get_server4_stock() -> list[dict[str, Any]]:
                 final_price = max(15, final_price)
                 stock_count = int(r["total_stock"] or 0)
                 item_id = f"s4_{r['service_code']}_{r['country_code']}"
-                seen_keys.add(s_name.lower())
 
                 items.append({
                     "id": item_id,
@@ -264,31 +264,6 @@ def get_server4_stock() -> list[dict[str, Any]]:
                     "price": final_price,
                     "stock": stock_count,
                     "subtitle": f"Fresh Carrier · {c_name}",
-                })
-
-            # 3. Include general carrier services from server4_services for full catalogue coverage
-            gen_rows = conn.execute("""
-                SELECT service_code, name
-                FROM server4_services
-                WHERE enabled = 1
-                ORDER BY name ASC
-            """).fetchall()
-
-            for r in gen_rows:
-                s_name = r["name"] or r["service_code"].upper()
-                if s_name.lower() in seen_keys:
-                    continue
-                items.append({
-                    "id": r["service_code"],
-                    "service_code": r["service_code"],
-                    "country_code": "0",
-                    "operator_code": "1",
-                    "name": s_name,
-                    "country": "Global Carrier",
-                    "icon": "📶",
-                    "price": int(round(max(min_price_floor, 45.0 * (1 + pct_markup / 100.0) + fixed_markup))),
-                    "stock": 999,
-                    "subtitle": "Fresh Carrier Number",
                 })
 
         _SERVER4_CACHE["timestamp"] = now
