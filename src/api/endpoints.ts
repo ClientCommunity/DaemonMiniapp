@@ -61,6 +61,33 @@ export interface Server5StockResponse {
   items: BackendServer5Item[];
 }
 
+export interface PinnedServiceItem {
+  id: number;
+  server_no: 1 | 2 | 3 | 4 | 5;
+  server_name?: string;
+  server_icon?: string;
+  service_id: string;
+  service_name: string;
+  category_name?: string;
+  country_code?: string;
+  country_name?: string;
+  badge: string;
+  display_order: number;
+  is_active?: number;
+  price?: number;
+  stock?: number | null;
+  subtitle?: string;
+  min_qty?: number;
+  max_qty?: number;
+  deep_link?: string;
+}
+
+export interface PinnedServicesResponse {
+  success: boolean;
+  pinned: PinnedServiceItem[];
+}
+
+
 export interface BuyPayload {
   server: number;
   item: Record<string, unknown>;
@@ -204,6 +231,8 @@ export const storeApi = {
   getServer3: () => api.get<Server3StockResponse>('/api/store/server3'),
   getServer4: () => api.get<Server4StockResponse>('/api/store/server4'),
   getServer5: () => api.get<Server5StockResponse>('/api/store/server5'),
+  getPinned: (server?: number) =>
+    api.get<PinnedServicesResponse>('/api/store/pinned', server ? { server } : undefined),
 };
 
 /**

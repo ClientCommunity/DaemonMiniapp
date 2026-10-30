@@ -7,7 +7,8 @@
  * 4. User & Wallet Management (/api/admin/users/search, /api/admin/users/balance, /api/admin/users/ban)
  * 5. Marketing & System Settings (/api/admin/reseller/*, /api/admin/promo-codes/*, /api/admin/system/*, /api/admin/settings)
  */
-import { api, downloadFile } from './client';
+import { api, downloadFile } from './client';
+import { PinnedServiceItem } from './endpoints';
 
 // ==============================================================================
 // TYPE DEFINITIONS
@@ -742,5 +743,46 @@ export const adminApi = {
   downloadDatabaseBackup: async (): Promise<void> => {
     const filename = `otp_bot_backup_${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)}.zip`;
     return downloadFile('/api/admin/database/backup', filename);
+  },
+  // --- Tab: Pinned Services Management & Broadcast ---
+
+  getPinnedServices: async (serverNo?: number): Promise<{ success: boolean; pinned: PinnedServiceItem[] }> => {
+    return api.get('/api/admin/pinned', serverNo ? { server: serverNo } : undefined);
+  },
+
+  addPinnedService: async (data: {
+    server_no: number;
+    service_id: string;
+    service_name: string;
+    category_name?: string;
+    country_code?: string;
+    country_name?: string;
+    badge?: string;
+    display_order?: number;
+  }): Promise<{ success: boolean; item: PinnedServiceItem }> => {
+    return api.post('/api/admin/pinned', data);
+  },
+
+  updatePinnedService: async (
+    id: number,
+    data: Partial<PinnedServiceItem>
+  ): Promise<{ success: boolean }> => {
+    return api.patch(`/api/admin/pinned/${id}`, data);
+  },
+
+  deletePinnedService: async (id: number): Promise<{ success: boolean }> => {
+    return api.delete(`/api/admin/pinned/${id}`);
+  },
+
+  broadcastPinnedService: async (
+    pinnedId: number,
+    message?: string,
+    buttonLabel?: string
+  ): Promise<{ success: boolean; sent: number; failed: number; total_users: number }> => {
+    return api.post('/api/admin/pinned/broadcast', {
+      pinned_id: pinnedId,
+      message,
+      button_label: buttonLabel,
+    });
   },
 };

@@ -3,6 +3,7 @@ import { DualBalanceCard } from './DualBalanceCard';
 import { QuickActions } from './QuickActions';
 import { ActiveOtpCard } from './ActiveOtpCard';
 import { RecentActivity } from './RecentActivity';
+import { PinnedDealsSection } from './PinnedDealsSection';
 
 interface DashboardViewProps {
   onOpenTransferModal: () => void;
@@ -16,6 +17,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenTransferModa
 
       {/* Active OTP listener if any */}
       <ActiveOtpCard />
+
+      {/* Featured & Pinned Hot Deals */}
+      <PinnedDealsSection />
 
       {/* Quick Actions Touch Grid */}
       <QuickActions />

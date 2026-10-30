@@ -27,7 +27,7 @@ import {
   Edit2,
 } from 'lucide-react';
 
-type ServerSubTab = 'server1' | 'server2' | 'server3_4' | 'server5';
+type ServerSubTab = 'server1' | 'server2' | 'server3_4' | 'server5' | 'pinned';
 
 export const ServerManagementTab: React.FC = () => {
   const { addToast } = useApp();
