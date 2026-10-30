@@ -255,4 +255,6 @@ PREMIUM_EMOJI_IDS = {
 
 OTP_REGEX = r'\b\d{5}\b'
 LZT_PRICE_CURRENCY = os.getenv("LZT_PRICE_CURRENCY", "rub").strip().lower() or "rub"
+UPI_MID = os.getenv("UPI_MID", "hAsqwQ85709194299740").strip()
+AUTO_CANCEL_SECONDS = int(os.getenv("AUTO_CANCEL_SECONDS", "600"))
 
