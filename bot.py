@@ -553,116 +553,17 @@ def callback_allowed_in_chat(uid, data, e):
     # Administrators may operate every bot menu from configured groups/channels.
     return is_admin(uid)
 
-async def get_user_log_label(uid):
-    try:
-        ent = await bot.get_entity(uid)
-        username = f"@{ent.username}" if getattr(ent, "username", None) else "No username"
-        name = html.escape((getattr(ent, "first_name", None) or str(uid)).strip())
-        return f"{name} ({username}) | <code>{uid}</code>"
-    except Exception:
-        return f"<code>{uid}</code>"
-
-async def send_log_message(text, channel_id=None, label="Log"):
-    target_channel = channel_id if channel_id is not None else get_public_log_channel_id()
-    if not target_channel:
-        return
-    try:
-        await bot.send_message(target_channel, text)
-    except Exception as log_ex:
-        logger.warning("%s channel send failed (channel %s): %s", label, target_channel, log_ex)
-
-async def send_dual_log(admin_text, public_text):
-    admin_ch = get_admin_log_channel_id()
-    public_ch = get_public_log_channel_id()
-    try:
-        if admin_ch:
-            await send_log_message(admin_text, admin_ch, "Admin log")
-    except Exception as ex:
-        logger.warning("Admin log channel error: %s", ex)
-    try:
-        if public_ch:
-            await send_log_message(public_text, public_ch, "Public log")
-    except Exception as ex:
-        logger.warning("Public proof channel error: %s", ex)
-
-async def log_primary_deposit(uid, amount, method):
-    try:
-        logger.info("Deposit credited: user=%s amount=%s method=%s", uid, amount, method)
-        user_label = await get_user_log_label(uid)
-        public_text = (
-            "🚀 <b>New Deposit Success</b>\n\n"
-            f"<b>Amount:</b> ₹{amount}\n"
-            f"<b>Payment Method:</b> {html.escape(str(method))}\n\n"
-            "Thanks For Deposit"
-        )
-        admin_text = (
-            "🚀 <b>New Deposit Success</b>\n\n"
-            f"<b>User:</b> {user_label}\n"
-            f"<b>Amount:</b> ₹{amount}\n"
-            f"<b>Payment Method:</b> {html.escape(str(method))}\n\n"
-            "Thanks For Deposit"
-        )
-        await send_dual_log(admin_text, public_text)
-    except Exception as ex:
-        logger.warning("Proof channel logging error in log_primary_deposit: %s", ex)
-    try:
-        await process_referral_bonus(uid, int(amount))
-    except Exception as ref_ex:
-        logger.warning("Referral bonus processing error: %s", ref_ex)
-
-async def bot_public_handle():
-    try:
-        me=await bot.get_me()
-        return f"@{me.username}" if getattr(me,"username",None) else "this bot"
-    except Exception:
-        return "this bot"
-
-async def log_primary_purchase(uid, country, price, paid, year, qty, phone=None, server=None, order_id=None):
-    logger.info("Purchase completed: user=%s country=%s price=%s paid=%s year=%s qty=%s phone=%s server=%s", uid, country, price, paid, year, qty, phone, server)
-    user_label = await get_user_log_label(uid)
-    handle=await bot_public_handle()
-    public_text = (
-        "📅 <b>New Purchase Success</b>\n\n"
-        f"<b>Amount:</b> {qty}\n"
-        f"<b>Price:</b> ₹{price}\n"
-        f"<b>Country:</b> {html.escape(str(country or 'Unknown'))}\n"
-        f"<b>Number:</b> <code>{mask_phone_number(phone)}</code>\n"
-        f"<b>Server:</b> {html.escape(str(server or 'Unknown'))}\n"
-        f"<b>Order ID:</b> <code>{html.escape(str(order_id or 'N/A'))}</code>\n\n"
-        f"Thanks for Purchase {html.escape(handle)} 🔄"
-    )
-    admin_text = (
-        "📅 <b>New Purchase Success</b>\n\n"
-        f"<b>User:</b> {user_label}\n"
-        f"<b>Amount:</b> {qty}\n"
-        f"<b>Price:</b> ₹{price}\n"
-        f"<b>Country:</b> {html.escape(str(country or 'Unknown'))}\n"
-        f"<b>Number:</b> <code>{mask_phone_number(phone)}</code>\n"
-        f"<b>Server:</b> {html.escape(str(server or 'Unknown'))}\n"
-        f"<b>Order ID:</b> <code>{html.escape(str(order_id or 'N/A'))}</code>\n\n"
-        "Thanks for Purchase"
-    )
-    await send_dual_log(admin_text, public_text)
-    try:
-        await process_reseller_commission(uid, paid or price, f"{server or 'Store'} Purchase")
-    except Exception as ex:
-        logger.warning("Reseller commission trigger error: %s", ex)
-
-async def log_smm_purchase(uid, link, price, service, order_id):
-    user_label=await get_user_log_label(uid);handle=await bot_public_handle()
-    public_text=("📅 <b>New Order Success</b>\n\n<b>Link:</b> hidden\n"
-                 f"<b>Price:</b> ₹{format_smm_money(price)}\n<b>Service:</b> {html.escape(str(service))}\n"
-                 f"<b>Order ID:</b> <code>{html.escape(str(order_id))}</code>\n<b>Server:</b> Server 5\n\n"
-                 f"Thanks for Purchase {html.escape(handle)} 🔄")
-    admin_text=("📅 <b>New Order Success</b>\n\n"
-                f"<b>User:</b> {user_label}\n<b>Link:</b> <code>{html.escape(str(link))}</code>\n"
-                f"<b>Price:</b> ₹{format_smm_money(price)}\n<b>Service:</b> {html.escape(str(service))}\n"
-                f"<b>Order ID:</b> <code>{html.escape(str(order_id))}</code>\n<b>Server:</b> Server 5")
-    await send_dual_log(admin_text,public_text)
-    try:
-        await process_reseller_commission(uid, int(price), f"Server 5: {service}")
-    except Exception as ex:
-        logger.warning("Reseller commission trigger error for SMM: %s", ex)
+# Re-exported from modular bot_helpers.notification_helpers
+from bot_helpers.notification_helpers import (
+    get_user_log_label,
+    send_log_message,
+    send_dual_log,
+    log_primary_deposit,
+    bot_public_handle,
+    log_primary_purchase,
+    log_smm_purchase,
+    send_admin_error,
+)
 
 async def send_main_menu(e, uid):
     ensure_user(uid)
@@ -937,160 +838,20 @@ def provider_phone_details(phone):
 def provider_sort(uid, number):
     return provider_sort_state.get((uid, number), "az")
 
-def normalize_smm_target(value):
-    """Keep provider-specific targets intact while removing copy controls."""
-    target=html.unescape(unicodedata.normalize("NFKC",str(value or ""))).strip()
-    target="".join(ch for ch in target if unicodedata.category(ch) not in ("Cf","Cc","Cs"))
-    anchor=re.search(r'<a\s+[^>]*href=["\']([^"\']+)["\']',target,re.IGNORECASE)
-    if anchor:target=anchor.group(1).strip()
-    target=re.sub(r'</?a(?:\s+[^>]*)?>','',target,flags=re.IGNORECASE).strip()
-    if not target:raise ValueError("empty target")
-    if len(target)>2000:raise ValueError("target too long")
-    return target
-
-
-
-def user_server_discount(uid, server_no):
-    row = cur.execute("SELECT discount_percent FROM user_server_discounts WHERE user_id=? AND server_no=?", (uid, server_no)).fetchone()
-    if row:
-        return max(0, min(100, int(row[0] or 0)))
-    if server_no == 1:
-        legacy = cur.execute("SELECT discount FROM users WHERE user_id=?", (uid,)).fetchone()
-        return max(0, min(100, int(legacy[0] or 0))) if legacy else 0
-    return 0
-
-def apply_server_discount(uid, server_no, amount):
-    discount = user_server_discount(uid, server_no)
-    amount = float(amount)
-    if discount <= 0:
-        return int(amount) if float(amount).is_integer() else round(amount, 6)
-    discounted = max(1 if server_no != 5 else 0.01, amount * (100 - discount) / 100)
-    return int(round(discounted)) if server_no != 5 else round(discounted, 6)
-
-def discount_label(uid, server_no):
-    discount = user_server_discount(uid, server_no)
-    return f"\n🎁 <b>Discount:</b> {discount}% applied" if discount else ""
-
-def format_smm_money(value):
-    """Keep micro-priced SMM rates visible without noisy trailing zeroes."""
-    amount=float(value)
-    return f"{amount:.2f}" if abs(amount)>=1 else f"{amount:.6f}".rstrip("0").rstrip(".")
-
-async def render_smm_services(e, uid, page=1, query="", sort="price_low", category_name="", back_target=None):
-    rows=smm_service_rows(query=query,category_name=category_name or None,limit=500);items=[]
-    for row in rows:
-        try:q=smm_quote(row['id'],1000,enforce_limits=False)
-        except Exception:continue
-        items.append((row,q))
-    keys={"price_low":lambda x:x[1].charge,"price_high":lambda x:-x[1].charge,
-          "az":lambda x:x[0]['name'].casefold(),"popular":lambda x:-x[0]['order_count']}
-    items.sort(key=keys.get(sort,keys['price_low']));limit=10;pages=max(1,(len(items)+limit-1)//limit);page=max(1,min(page,pages))
-    buttons=[]
-    for row,q in items[(page-1)*limit:page*limit]:
-        # Provider name is intentionally never exposed to customers.
-        buttons.append([p_btn(f"{row['emoji']} {row['name']} | ₹{format_smm_money(q.charge)}/1K",f"smm_view|{row['id']}",style="success")])
-    nav=[]
-    if page>1:nav.append(p_btn("◀ Prev",f"smm_page|{page-1}|{sort}"))
-    nav.append(p_btn("🔃 Sort",f"smm_sort|{page}"))
-    if page<pages:nav.append(p_btn("Next ▶",f"smm_page|{page+1}|{sort}"))
-    if nav:buttons.append(nav)
-    buttons.extend([[p_btn("🔍 Search Again","smm_search",style="primary"),p_btn("📦 My Orders","smm_orders|1")]])
-    resolved_back = back_target or smm_search_results.get(uid, {}).get("back_target") or "smm_cats|1"
-    buttons.append([p_btn("Back", resolved_back), p_btn("🏠 Home", "menu_buy")])
-    caption=(f"🔎 <b>{'Search Results' if query else 'Available Services'}</b>\n\n"
-             f"Query : <code>{html.escape(query or category_name or 'All services')}</code>\nResults Found : <b>{len(items)}</b>\n"
-             f"Sort : <b>{sort.replace('_',' ').title()}</b>\nShowing : <b>{(page-1)*limit+1 if items else 0}–{min(page*limit,len(items))} of {len(items)}</b>\n\nSelect a service below.")
-    smm_search_results[uid]={"query":query,"sort":sort,"category_name":category_name,"back_target":resolved_back}
-    return await e.edit(caption,buttons=buttons)
-
-SMM_BRANDS=("telegram","instagram","whatsapp","youtube","snapchat")
-
-async def render_smm_categories(e,page=1,brand=""):
-    limit=10;offset=(max(1,page)-1)*limit
-    pattern=f"%{brand.casefold()}%"
-    with managed_connect() as conn:
-        rows=conn.execute("""SELECT MIN(id) id,display_name,COUNT(*) provider_count FROM smm_categories
-          WHERE visible=1 AND LOWER(display_name) LIKE ? GROUP BY LOWER(display_name),display_name
-          ORDER BY LOWER(display_name) LIMIT ? OFFSET ?""",(pattern,limit+1,offset)).fetchall()
-    buttons=[[p_btn("🔍 Search Categories & Services","smm_search",style="success")]]
-    buttons.append([p_btn(name.title(),f"smm_brand|{name}|1",style="danger") for name in SMM_BRANDS[:3]])
-    buttons.append([p_btn(name.title(),f"smm_brand|{name}|1",style="danger") for name in SMM_BRANDS[3:]])
-    suffix=f"|{brand}" if brand else ""
-    buttons += [[p_btn(r['display_name'],f"smm_cat|{r['id']}|1|{page}{suffix}",style="primary")] for r in rows[:limit]]
-    nav=[]
-    if page>1:nav.append(p_btn("◀ Previous",f"smm_cats|{page-1}{suffix}"))
-    if len(rows)>limit:nav.append(p_btn("Next ▶",f"smm_cats|{page+1}{suffix}"))
-    if nav:buttons.append(nav)
-    buttons.append([p_btn("📦 My Orders","smm_orders|1"),p_btn("Back","menu_buy")])
-    caption=f"📂 <b>{html.escape(brand.title())+' ' if brand else ''}Categories</b>\n\nSorted A → Z · Page {page}\nSelect a category to view its services."
-    await e.edit(caption,buttons=buttons)
-
-async def render_smm_search(e,uid,query,page=1):
-    limit=8;offset=(max(1,page)-1)*limit;pattern=f"%{query.casefold()}%"
-    with managed_connect() as conn:
-        categories=conn.execute("""SELECT MIN(id) id,display_name FROM smm_categories WHERE visible=1
-          AND LOWER(display_name) LIKE ? GROUP BY LOWER(display_name),display_name ORDER BY LOWER(display_name) LIMIT 20""",(pattern,)).fetchall()
-        services=conn.execute("""SELECT s.id,s.name,s.emoji FROM smm_services s JOIN smm_categories c ON c.id=s.category_id
-          JOIN smm_providers p ON p.id=s.provider_id WHERE s.enabled=1 AND s.visible=1 AND c.visible=1 AND p.enabled=1
-          AND (LOWER(s.name) LIKE ? OR s.remote_service_id=?) ORDER BY LOWER(s.name) LIMIT ? OFFSET ?""",(pattern,query,limit+1,offset)).fetchall()
-    buttons=[]
-    if page==1:
-        buttons += [[p_btn(f"📂 {r['display_name']}",f"smm_cat|{r['id']}|1|search|{page}",style="primary")] for r in categories]
-    buttons += [[p_btn(f"{r['emoji']} {r['name']}",f"smm_view|{r['id']}",style="success")] for r in services[:limit]]
-    nav=[]
-    if page>1:nav.append(p_btn("◀ Previous",f"smm_searchpage|{page-1}"))
-    if len(services)>limit:nav.append(p_btn("Next ▶",f"smm_searchpage|{page+1}"))
-    if nav:buttons.append(nav)
-    buttons += [[p_btn("🔍 Search Again","smm_search"),p_btn("Back","smm_cats|1")]]
-    smm_search_results[uid]={"query":query,"search_page":page,"back_target":f"smm_searchpage|{page}"}
-    await e.edit(f"🔎 <b>Search Results</b>\n\nQuery: <code>{html.escape(query)}</code>\nCategories: {len(categories)}\nServices on this page: {len(services[:limit])}\nPage: {page}\n\nChoose a category or service.",buttons=buttons)
-
-
-async def render_admin_smm_orders(e,page=1):
-    limit=10;page=max(1,int(page));offset=(page-1)*limit
-    with managed_connect() as conn:
-        rows=conn.execute("""SELECT o.id,o.user_id,o.charge,o.profit,o.status,o.refunded,o.created_at,s.name service_name,p.name provider_name
-          FROM smm_orders o JOIN smm_services s ON s.id=o.service_id JOIN smm_providers p ON p.id=o.provider_id
-          ORDER BY o.id DESC LIMIT ? OFFSET ?""",(limit+1,offset)).fetchall()
-    lines=[]
-    for r in rows[:limit]:
-        lines.append(f"#{r['id']} · user {r['user_id']} · {r['status']} · ₹{format_smm_money(r['charge'])} · profit ₹{format_smm_money(r['profit'])} · {'refunded' if r['refunded'] else 'paid'} · {r['created_at']} · {r['service_name'][:45]}")
-    buttons=[];nav=[]
-    if page>1:nav.append(p_btn("◀ Prev",f"adm_smm_orders|{page-1}"))
-    if len(rows)>limit:nav.append(p_btn("Next ▶",f"adm_smm_orders|{page+1}"))
-    if nav:buttons.append(nav)
-    buttons.append([p_btn("Back","adm_server5")])
-    text=f"<b>Orders</b> · Page {page}\n\n"+html.escape('\n'.join(lines) or 'No records.')
-    await e.edit(text[:3900],buttons=buttons)
-
-async def render_admin_smm_categories(e,page=1,query=""):
-    limit=12;offset=(max(1,page)-1)*limit;pattern=f"%{query.casefold()}%"
-    with managed_connect() as conn:
-        rows=conn.execute("""SELECT c.id,c.display_name,c.visible,p.name provider_name,
-          (SELECT COUNT(*) FROM smm_services s WHERE s.category_id=c.id AND s.deleted_at IS NULL) service_count
-          FROM smm_categories c JOIN smm_providers p ON p.id=c.provider_id
-          WHERE p.deleted_at IS NULL AND LOWER(c.display_name) LIKE ? ORDER BY LOWER(c.display_name),p.priority LIMIT ? OFFSET ?""",(pattern,limit+1,offset)).fetchall()
-    buttons=[[p_btn("🔍 Search","adm_smm_catsearch",style="success")]]
-    buttons += [[p_btn(f"{'✅' if r['visible'] else '❌'} {r['display_name']} · {r['service_count']}",f"adm_smm_cat|{r['id']}|1")] for r in rows[:limit]]
-    nav=[]
-    if page>1:nav.append(p_btn("◀ Previous",f"adm_smm_catpage|{page-1}"))
-    if len(rows)>limit:nav.append(p_btn("Next ▶",f"adm_smm_catpage|{page+1}"))
-    if nav:buttons.append(nav)
-    buttons.append([p_btn("Choose Provider / Sync","adm_smm_syncproviders")]);buttons.append([p_btn("Back","adm_server5")])
-    await e.edit(f"📂 <b>Categories Management</b>\n\nResults: {offset+len(rows[:limit])} · Page {page}",buttons=buttons)
-
-async def render_admin_smm_services(e,category_id,page=1):
-    limit=12;offset=(max(1,page)-1)*limit
-    with managed_connect() as conn:
-        cat=conn.execute("SELECT display_name FROM smm_categories WHERE id=?",(category_id,)).fetchone()
-        rows=conn.execute("SELECT id,name,enabled,visible FROM smm_services WHERE category_id=? AND deleted_at IS NULL ORDER BY LOWER(name) LIMIT ? OFFSET ?",(category_id,limit+1,offset)).fetchall()
-    if not cat:return await e.edit("Category no longer exists.",buttons=[[p_btn("Back","adm_smm_categories")]])
-    buttons=[[p_btn(f"{'✅' if r['enabled'] and r['visible'] else '❌'} {r['name']}",f"adm_smm_service|{r['id']}|{category_id}")] for r in rows[:limit]]
-    nav=[]
-    if page>1:nav.append(p_btn("◀ Previous",f"adm_smm_cat|{category_id}|{page-1}"))
-    if len(rows)>limit:nav.append(p_btn("Next ▶",f"adm_smm_cat|{category_id}|{page+1}"))
-    if nav:buttons.append(nav)
-    buttons.append([p_btn("Back","adm_smm_categories")]);await e.edit(f"🛒 <b>{html.escape(cat['display_name'])} Services</b>\n\nSorted A → Z",buttons=buttons)
+# Re-exported from modular bot_helpers.smm_helpers
+from bot_helpers.smm_helpers import (
+    normalize_smm_target,
+    format_smm_money,
+    user_server_discount,
+    apply_server_discount,
+    discount_label,
+    render_smm_services,
+    render_smm_categories,
+    render_smm_search,
+    render_admin_smm_orders,
+    render_admin_smm_categories,
+    render_admin_smm_services,
+)
 
 def get_country_info(phone):
     phone = str(phone).replace(' ', '').replace('+', '')
@@ -1120,26 +881,6 @@ async def detect_account_year(client):
                 if m.text and 'Created:' in m.text: return int(re.search(r'Created:[^\d]*(\d{4})', m.text, re.IGNORECASE).group(1))
     except: pass
     return 2024
-
-async def send_admin_error(error_msg: str, trace: str = ""):
-    global error_cooldowns
-    try:
-        sig = f"{error_msg}_{trace[:100]}"
-        now = time.time()
-        if sig in error_cooldowns:
-            if now - error_cooldowns[sig] < 600:
-                return
-        error_cooldowns[sig] = now
-
-        clean_trace = trace[:1500]
-        alert = (f"🚨 <b>SYSTEM EXCEPTION ENCOUNTERED</b>\n\n"
-                 f"<b>Error:</b> {html.escape(error_msg)}\n"
-                 f"<b>Trace:</b>\n<pre>{html.escape(clean_trace)}</pre>")
-        for aid in ADMIN_IDS:
-            try: await bot.send_message(aid, alert)
-            except Exception: pass
-    except Exception as ex:
-        logger.error(f"Error logging admin message: {ex}")
 
 async def safe_answer_cb(e, text=None, alert=False):
     try:
@@ -1567,45 +1308,17 @@ async def fetch_lzt_country_data_with_filters(country_name, spam, geoblock, offl
     final_price = lzt_final_inr_price(item0, markup)
     return (country_name, count, final_price)
 
-async def cache_lzt_stock_loop():
-    global cached_lzt_stock
-    sem = asyncio.Semaphore(max(1, LZT_CACHE_CONCURRENCY))
-
-    async def fetch_and_cache(country_name, fkey):
-        async with sem:
-            try:
-                parts = fkey.split("_")
-                spam, geoblock, offline, login_mail, premium = parts[0], parts[1], parts[2], parts[3], parts[4]
-                data = await fetch_lzt_country_data_with_filters(country_name, spam, geoblock, offline, login_mail, premium)
-
-                if fkey not in cached_lzt_stock:
-                    cached_lzt_stock[fkey] = {}
-
-                if data is not None:
-                    cached_lzt_stock[fkey][country_name] = (data[1], data[2])
-                    try:
-                        iso, flag = COUNTRY_CODES.get(country_name, ("GL", "🌐"))
-                        cur.execute("""
-                            INSERT OR REPLACE INTO lzt_stock_cache (country, iso_code, flag, stock_count, price, updated_at)
-                            VALUES (?, ?, ?, ?, ?, datetime('now'))
-                        """, (country_name, iso, flag, int(data[1]), float(data[2])))
-                        db.commit()
-                    except Exception:
-                        pass
-            except Exception as ex:
-                if fkey not in cached_lzt_stock:
-                    cached_lzt_stock[fkey] = {}
-
-    while True:
-        try:
-            keys_to_update = list(active_filter_keys)
-            for fkey in keys_to_update:
-                for country in COUNTRY_CODES.keys():
-                    await fetch_and_cache(country, fkey)
-                    await asyncio.sleep(0.5)
-        except Exception as e:
-            logger.error(f"Background LZT cache index failed: {e}")
-        await asyncio.sleep(max(30, LZT_CACHE_REFRESH_SECONDS))
+# Re-exported from modular bot_helpers.background_tasks
+from bot_helpers.background_tasks import (
+    cache_lzt_stock_loop,
+    auto_otp_task,
+    sell_hold_task,
+    check_upi_expiry_loop,
+    query_upi_payment_success,
+    complete_upi_order,
+    auto_verify_upi_loop,
+    fampay_supervisor_loop,
+)
 
 def resolve_lzt_token():
     env_token = (LZT_TOKEN or "").strip()
@@ -1869,211 +1582,6 @@ async def get_latest_telegram_login_otp(client, start_time, limit=12):
     candidates.sort(reverse=True)
     return candidates[0][1]
 
-# ================= BACKGROUND TASKS =================
-async def auto_otp_task(phone):
-    if phone not in active_orders: return
-    order = active_orders[phone]
-    is_lzt = str(phone).startswith("LZT_")
-    start_time, uid, msg_id = order['start_time'], order['uid'], order['msg_id']
-
-    if is_lzt:
-        item_id = phone.split("_")[1]
-        while time.time() - start_time < AUTO_CANCEL_SECONDS:
-            if phone not in active_orders: return
-            try:
-                code, verified, res = await get_verified_lzt_otp(item_id, attempts=2, delay=1)
-                if code and not order.get('otp_sent'):
-                    order['otp_sent'] = True
-                    async with get_user_lock(uid):
-                        cur.execute("UPDATE orders SET otp=? WHERE phone=? AND user_id=? AND server='Server 1'", (code, order.get('phone_num') or normalize_lzt_phone(None, item_id), uid))
-                        db.commit()
-
-                    display_phone = order.get('phone_num') or normalize_lzt_phone(None, item_id)
-                    msg_text = (f"{P_YES} <b>Latest OTP Fetched (Server 1)!</b>\n\n"
-                                f"{P_PHONE} <b>Phone:</b> <code>{display_phone}</code>\n"
-                                f"{P_TIME} <b>OTP:</b> <code>{code}</code>\n"
-                                f"{P_SHIELD} <b>Server 1 double-check:</b> {'Verified' if verified else 'Best latest code'}")
-                    try: await bot.edit_message(uid, msg_id, msg_text, buttons=[[p_btn("Back to Menu", "menu_main")]])
-                    except: pass
-                    return
-            except: pass
-            await asyncio.sleep(10)
-    else:
-        client = order['client']
-        seller_id = order.get('seller_id')
-        while time.time() - start_time < AUTO_CANCEL_SECONDS:
-            if phone not in active_orders: return
-            try:
-                code = await get_latest_telegram_login_otp(client, start_time)
-                if code and not order['paid']:
-                    order['paid'] = True
-                    price = order['price']
-                    async with get_user_lock(uid):
-                        cur.execute("INSERT INTO orders (user_id, country, year, price, phone, otp) VALUES (?,?,?,?,?,?)", (uid, order['country'], order['year'], price, phone, code))
-                        cur.execute("DELETE FROM stock WHERE phone=?", (phone,))
-                        db.commit()
-
-                    if seller_id:
-                        seller_cut = int(price * 0.90)
-                        update_balance(seller_id, seller_cut, "sales_balance")
-                        try: await bot.send_message(seller_id, f"{P_GIFT} <b>Account Sold!</b>\nYour uploaded number +{phone} was just sold. {P_CASH}{seller_cut} has been added to your Sales Balance!")
-                        except: pass
-
-                    twofa_text = f"{P_SHIELD} <b>2FA:</b> <code>{order['twofa']}</code>" if order['twofa'] != "None" else f"🔓 <b>2FA:</b> <code>Disabled</code>"
-                    display_phone = f"+{phone.lstrip('+')}"
-                    msg_text = f"{P_YES} <b>Latest OTP Fetched!</b>\n\n{P_PHONE} <b>Phone:</b> <code>{display_phone}</code>\n{P_FLAG} <b>Country:</b> {order['c_icon']} {order['country']}\n{P_TIME} <b>OTP:</b> <code>{code}</code>\n{twofa_text}"
-                    try: await bot.edit_message(uid, msg_id, msg_text, buttons=[[p_btn("🔄 Get OTP Again", f"get_otp_again|{phone}")], [p_btn("📱 Manage Active Devices", f"s2_devs|{phone}")], [p_btn("🚪 Finish & Logout", f"logout_bot|{phone}")]])
-                    except: pass
-                    return
-            except: pass
-            await asyncio.sleep(6)
-
-    if phone in active_orders and not active_orders[phone]['paid']:
-        order = active_orders.pop(phone)
-        if not is_lzt:
-            try: await order['client'].disconnect()
-            except: pass
-            async with get_user_lock(uid):
-                cur.execute("UPDATE users SET balance = balance + ? WHERE user_id=?", (order['price'], uid))
-                cur.execute("UPDATE stock SET available=1 WHERE phone=? AND EXISTS (SELECT 1 FROM stock WHERE phone=?)", (phone, phone))
-                db.commit()
-        else:
-            async with get_user_lock(uid):
-                update_balance(uid, order['price'])
-        try: await bot.edit_message(uid, msg_id, f"{P_TIME} <b>Order Expired!</b>\nThe limit ran out. Your money (₹{order['price']}) has been refunded.")
-        except: pass
-
-async def sell_hold_task(phone):
-    await asyncio.sleep(600)
-    if phone not in selling_accounts: return
-
-    st = selling_accounts[phone]
-    client = st['client']
-    uid = st['uid']
-
-    if st.get('cancelled'): return
-
-    try:
-        auths = await client(GetAuthorizationsRequest())
-        if len(auths.authorizations) > 1:
-            msg = f"{P_NO} <b>Sell Rejected!</b>\nNumber: {phone}\nReason: You did not delete your other active sessions.\nClick below to retrieve your account."
-            try: await bot.edit_message(uid, st['msg_id'], msg, buttons=[[p_btn("Get Login Info", f"sell_get|{phone}")]])
-            except: pass
-        else:
-            base_val = st['p_s'] if st['is_spam'] else st['p_n']
-            cur.execute("INSERT OR REPLACE INTO stock (phone, session_file, country_name, country_icon, account_year, category, price, available, twofa, seller_id) VALUES (?,?,?,?,?,?,?,?,?)",
-                        (phone, f"sessions/{phone}.session", st['c_name'], st['c_icon'], st['year'], 'Good', base_val, 1, st['new_pass'], uid))
-            db.commit()
-
-            admin_cut = int(base_val * 0.10)
-            user_payout = base_val - admin_cut
-
-            me = await bot.get_me()
-            promo_link = f"https://t.me/{me.username}?start=buy_{phone}"
-
-            msg = f"{P_YES} <b>Upload Completed!</b>\nNumber: {phone} passed all checks and is live on Server 2.\n💰 List Price: {P_CASH}{base_val}\n🔗 Promo Link: <code>{promo_link}</code>\n\n<i>You will receive {P_CASH}{user_payout} in your Sales Balance when it sells.</i>"
-            try: await bot.edit_message(uid, st['msg_id'], msg)
-            except: await bot.send_message(uid, msg)
-
-            await client.disconnect()
-            selling_accounts.pop(phone, None)
-    except Exception as e:
-        try: await bot.send_message(uid, f"{P_NO} Error finalizing sale for {phone}: {e}")
-        except: pass
-        selling_accounts.pop(phone, None)
-        try: client.disconnect()
-        except: pass
-
-# ================= AUTOMATIC PAYMENT TASKS =================
-async def check_upi_expiry_loop(order_id, uid, qr_msg_id):
-    await asyncio.sleep(300)
-    row = cur.execute("SELECT status FROM upi_orders WHERE order_id=?", (order_id,)).fetchone()
-    if row and row[0] == "pending":
-        cur.execute("UPDATE upi_orders SET status='expired' WHERE order_id=?", (order_id,))
-        db.commit()
-        try:
-            await bot.delete_messages(uid, [qr_msg_id])
-            await bot.send_message(uid, f"{P_TIME} <b>Payment Session Expired!</b>\nTransaction window closed. Request a new QR to deposit.")
-        except:
-            pass
-
-
-async def query_upi_payment_success(order_id):
-    verify_url = f"https://redoxng.in/api/verify.php?orderId={order_id}&mid={UPI_MID}"
-    if is_cooling_down(verify_url):
-        return False
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(verify_url, timeout=15) as resp:
-                if resp.status == 429:
-                    record_rate_limit(verify_url, 10.0, reason="Redox verify 429")
-                    return False
-                data = await resp.json()
-                status_str = str(data.get("status", "")).upper()
-                return (
-                    data.get("success") is True or
-                    str(data.get("status", "")).lower() == "success" or
-                    status_str in ("TXN_SUCCESS", "SUCCESS", "COMPLETED")
-                )
-    except Exception:
-        return False
-
-async def complete_upi_order(order_id, uid, amount, qr_msg_id, edit_event=None):
-    async with get_user_lock(uid):
-        current_status = cur.execute("SELECT status FROM upi_orders WHERE order_id=?", (order_id,)).fetchone()[0]
-        if current_status != "pending":
-            return current_status == "success"
-        user_old_bal = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
-        cur.execute("UPDATE upi_orders SET status='success' WHERE order_id=?", (order_id,))
-        update_balance(uid, amount)
-        cur.execute("UPDATE users SET total_deposited = total_deposited + ? WHERE user_id=?", (amount, uid))
-        db.commit()
-
-    user_new_bal = user_old_bal + amount
-    succ_msg = (f"{P_YES} <b>PAYMENT VERIFICATION SUCCESSFUL</b>\n\n"
-                f"<tg-emoji emoji-id='5890848474563352982'>🪙</tg-emoji> Added: <b>₹{amount}</b>\n"
-                f"<tg-emoji emoji-id='6048407885233263063'>♾</tg-emoji> Old Balance: {format_price(uid, user_old_bal)}\n"
-                f" <tg-emoji emoji-id='6035305550625902723'>💬</tg-emoji> New Balance: {format_price(uid, user_new_bal)}")
-    try:
-        await bot.delete_messages(uid, [qr_msg_id])
-    except Exception:
-        pass
-    await log_primary_deposit(uid, amount, "UPI (Automated)")
-    try:
-        await bot.send_message(uid, succ_msg)
-    except Exception:
-        pass
-    if edit_event:
-        try:
-            await edit_event.edit(f"✅ Payment auto-verified. ₹{amount} added to your wallet.", buttons=[[p_btn("Back to Menu", "menu_main")]])
-        except Exception:
-            pass
-    return True
-
-async def auto_verify_upi_loop(order_id, uid, qr_msg_id):
-    for _ in range(30):
-        row = cur.execute("SELECT user_id, amount, status, qr_msg_id FROM upi_orders WHERE order_id=?", (order_id,)).fetchone()
-        if not row or row[2] != "pending":
-            return
-        try:
-            if await query_upi_payment_success(order_id):
-                await complete_upi_order(order_id, uid, row[1], qr_msg_id)
-                return
-        except Exception as err:
-            logger.info("UPI auto verify pending for %s: %s", order_id, err)
-        await asyncio.sleep(10)
-
-    row = cur.execute("SELECT status FROM upi_orders WHERE order_id=?", (order_id,)).fetchone()
-    if row and row[0] == "pending":
-        cur.execute("UPDATE upi_orders SET status='expired' WHERE order_id=?", (order_id,))
-        db.commit()
-        try:
-            await bot.delete_messages(uid, [qr_msg_id])
-            await bot.send_message(uid, f"{P_TIME} <b>Payment Session Expired!</b>\nTransaction window closed. Request a new QR to deposit.")
-        except Exception:
-            pass
-
-# ================= DEPOSIT HELPERS =================
 async def cleanup_deposit_media(uid):
     msg_ids = deposit_media_messages.pop(uid, [])
     if not isinstance(msg_ids, list):
@@ -2312,40 +1820,6 @@ async def check_fampay_order(reference, uid=None, user_initiated=False):
             return "credited", result
         latest=cur.execute("SELECT status FROM fampay_orders WHERE reference=?",(reference,)).fetchone()
         return ("credited",None) if latest and latest[0]=="success" else ("closed",None)
-
-async def fampay_supervisor_loop():
-    while True:
-        try:
-            for expired in expire_fampay_orders():
-                fampay_check_locks.pop(expired["reference"],None);fampay_error_cooldowns.pop(expired["reference"],None)
-                if expired.get("qr_msg_id"):
-                    try:await bot.delete_messages(expired["user_id"],expired["qr_msg_id"])
-                    except Exception:pass
-                buttons=[[p_btn("I Paid — Submit Review",f"fampay_review|{expired['reference']}",style="primary")]] if expired.get("check_count",0)>0 else None
-                try: await bot.send_message(expired["user_id"], f"⌛ Automatic deposit <code>{expired['reference']}</code> expired. No payment was found and no balance was credited.",buttons=buttons)
-                except Exception: pass
-            if is_method_on("fampay_status"):
-                rows = cur.execute("SELECT reference,user_id,qr_msg_id FROM fampay_orders WHERE status='pending' ORDER BY id LIMIT 100").fetchall()
-                for reference, user_id, qr_msg_id in rows:
-                    try:
-                        status, result = await check_fampay_order(reference, user_id)
-                        if status == "credited" and result:
-                            fampay_check_locks.pop(reference,None);fampay_error_cooldowns.pop(reference,None)
-                            if qr_msg_id:
-                                try: await bot.delete_messages(user_id, qr_msg_id)
-                                except Exception: pass
-                            await bot.send_message(user_id, f"✅ <b>Payment Successful!</b>\n\nAmount: ₹{result['amount']}\nReference: <code>{reference}</code>\nYour balance was updated exactly once.")
-                            await log_primary_deposit(user_id, result["amount"], "FamPay Automatic")
-                    except FamPayError as exc:
-                        logger.warning("FamPay auto-check failed for %s: %s", reference, exc)
-                        last=fampay_error_cooldowns.get(reference,0)
-                        if time.monotonic()-last>=300:
-                            fampay_error_cooldowns[reference]=time.monotonic()
-                            await send_admin_error("FamPay automatic verification failed",f"Reference: {reference}\nUser: {user_id}\n{exc}")
-                    await asyncio.sleep(0.2)
-        except Exception:
-            logger.exception("FamPay supervisor recovered from an error")
-        await asyncio.sleep(10)
 
 async def manual_deposit_init(e, method_name):
     uid = e.sender_id
