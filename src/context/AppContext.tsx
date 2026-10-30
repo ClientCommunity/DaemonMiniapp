@@ -652,12 +652,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (isMounted) {
           setInitialLoadingStep(3);
-          setInitialLoadingMessage('Synchronizing live store catalogues...');
+          setInitialLoadingMessage('Loading store...');
           await refreshStore();
-        }
-
-        if (isMounted) {
-          addToast('Connected to live Daemon backend server!', 'success', 'Connected');
         }
       } else {
         if (isMounted) {
