@@ -317,8 +317,8 @@ class Server3Client:
         while True:
             cfg = self._config()
             target_url = cfg["api_url"] or DEFAULT_ENDPOINT
-        if "://dgotp.in" in target_url:
-            target_url = target_url.replace("://dgotp.in", "://www.dgotp.in")
+            if "://dgotp.in" in target_url:
+                target_url = target_url.replace("://dgotp.in", "://www.dgotp.in")
             if cfg["service_enabled"] and cfg["api_enabled"] and cfg["api_key"] and not is_cooling_down(target_url):
                 try:
                     await self.sync_catalogue()
