@@ -12,6 +12,12 @@ services:
         source: /*
         destination: /index.html
     headers:
+      - path: /index.html
+        name: Cache-Control
+        value: "no-store, no-cache, must-revalidate, max-age=0"
+      - path: /index.html
+        name: Pragma
+        value: "no-cache"
       - path: /*
         name: Access-Control-Allow-Origin
         value: "*"
@@ -24,4 +30,4 @@ services:
       - key: VITE_BASE_PATH
         value: "/"
       - key: VITE_API_BASE_URL
-        value: "https://daemonproxy-7m1m.onrender.com"
+        value: "https://fahhh.duckdns.org"
