@@ -1202,3 +1202,104 @@ def admin_database_backup_download():
     except Exception as ex:
         logger.error("Admin database backup download failed: %s", ex, exc_info=True)
         return jsonify({"success": False, "error": f"Backup failed: {str(ex)}"}), 500
+
+
+# ==============================================================================
+# PINNED SERVICES ADMIN ENDPOINTS
+# ==============================================================================
+
+@admin_bp.route("/api/admin/pinned", methods=["GET"])
+def admin_list_pinned():
+    """List all pinned services for admin panel."""
+    admin_id, err = _require_permission("p_settings")
+    if err:
+        return err
+    from services.admin_service import list_all_pinned_services
+    server_param = request.args.get("server")
+    s_no = int(server_param) if server_param and server_param.isdigit() else None
+    items = list_all_pinned_services(server_no=s_no)
+    return jsonify({"success": True, "pinned": items})
+
+
+@admin_bp.route("/api/admin/pinned", methods=["POST"])
+def admin_create_pinned():
+    """Pin a new service."""
+    admin_id, err = _require_permission("p_settings")
+    if err:
+        return err
+    from services.admin_service import add_pinned_service
+    data = request.get_json(silent=True) or {}
+    try:
+        server_no = int(data.get("server_no", 1))
+        service_id = str(data.get("service_id", "")).strip()
+        service_name = str(data.get("service_name", "")).strip()
+        category_name = str(data.get("category_name", "")).strip()
+        country_code = str(data.get("country_code", "")).strip()
+        country_name = str(data.get("country_name", "")).strip()
+        badge = str(data.get("badge", "🔥 Hot")).strip()
+        display_order = int(data.get("display_order", 0))
+
+        item = add_pinned_service(
+            server_no=server_no,
+            service_id=service_id,
+            service_name=service_name,
+            category_name=category_name,
+            country_code=country_code,
+            country_name=country_name,
+            badge=badge,
+            display_order=display_order,
+        )
+        return jsonify({"success": True, "item": item})
+    except Exception as ex:
+        return jsonify({"success": False, "error": str(ex)}), 400
+
+
+@admin_bp.route("/api/admin/pinned/<int:pinned_id>", methods=["PATCH", "POST"])
+def admin_patch_pinned(pinned_id: int):
+    """Update a pinned service."""
+    admin_id, err = _require_permission("p_settings")
+    if err:
+        return err
+    from services.admin_service import update_pinned_service
+    data = request.get_json(silent=True) or {}
+    try:
+        ok = update_pinned_service(pinned_id, **data)
+        return jsonify({"success": ok})
+    except Exception as ex:
+        return jsonify({"success": False, "error": str(ex)}), 400
+
+
+@admin_bp.route("/api/admin/pinned/<int:pinned_id>", methods=["DELETE"])
+def admin_delete_pinned(pinned_id: int):
+    """Delete a pinned service."""
+    admin_id, err = _require_permission("p_settings")
+    if err:
+        return err
+    from services.admin_service import delete_pinned_service
+    try:
+        ok = delete_pinned_service(pinned_id)
+        return jsonify({"success": ok})
+    except Exception as ex:
+        return jsonify({"success": False, "error": str(ex)}), 400
+
+
+@admin_bp.route("/api/admin/pinned/broadcast", methods=["POST"])
+def admin_broadcast_pinned():
+    """Broadcast announcement with 1-click button for a pinned service to all Telegram bot users."""
+    admin_id, err = _require_permission("p_stats")
+    if err:
+        return err
+    from services.admin_service import broadcast_pinned_service
+    data = request.get_json(silent=True) or {}
+    pinned_id = data.get("pinned_id")
+    if not pinned_id:
+        return jsonify({"success": False, "error": "pinned_id is required"}), 400
+    try:
+        result = broadcast_pinned_service(
+            pinned_id=int(pinned_id),
+            broadcast_text=data.get("message", ""),
+            button_label=data.get("button_label", "")
+        )
+        return jsonify(result)
+    except Exception as ex:
+        return jsonify({"success": False, "error": str(ex)}), 400

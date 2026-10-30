@@ -180,7 +180,8 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
                 [p_btn("Payments", "adm_payments"), p_btn("Withdrawals", "adm_wdlist")],
                 [p_btn("Toggle Server 1", "adm_tgl_s1"), p_btn("Change Balance", "adm_bal")],
                 [p_btn("Ban User", "adm_ban"), p_btn("User Info", "adm_userinfo")],
-                [p_btn("Broadcast", "adm_bcast"), p_btn("Discount", "adm_discount")],
+                [p_btn("Broadcast", "adm_bcast"), p_btn("📌 Pinned Services", "adm_pinned")],
+                [p_btn("Discount", "adm_discount")],
                 [p_btn("Create Promo Code", "adm_createpromo"), p_btn("Create Giveaway", "adm_creategiveaway")],
                 [p_btn("Referral Settings", "adm_refsettings"), p_btn("Min Deposit configuration", "adm_min_dep")],
                 [p_btn("Game: Fight settings", "adm_tgl_fight"), p_btn(f"Force Join: {'🟢 ON' if is_force_join_enabled() else '🔴 OFF'}", "adm_tgl_forcejoin")],
@@ -191,6 +192,69 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
                 [p_btn("Back to Bot", "menu_main")]
             ]
             await e.edit(f"💻 <b>Admin Dashboard</b>", buttons=btns)
+
+        elif action == "pinned":
+            with managed_connect() as conn:
+                rows = conn.execute("SELECT id, server_no, service_name, badge, is_active FROM pinned_services ORDER BY server_no, display_order, id ASC").fetchall()
+            txt = "📌 <b>Pinned / Featured Services</b>\n\nManage services pinned to Mini App & Bot.\nTap a service to view, toggle, broadcast, or remove:\n"
+            if not rows:
+                txt += "\n<i>No services currently pinned. Pin services from Mini App Admin Panel or add one here.</i>"
+            btns = []
+            for r in rows:
+                status = "🟢" if r["is_active"] else "🔴"
+                btns.append([p_btn(f"{status} [{r['badge']}] S{r['server_no']} • {r['service_name'][:25]}", f"adm_pinview|{r['id']}")])
+            btns.append([p_btn("↩ Back to Admin", "adm_adminmain")])
+            await e.edit(txt, buttons=btns)
+
+        elif action.startswith("adm_pinview|"):
+            pid = int(action.split("|")[1])
+            with managed_connect() as conn:
+                r = conn.execute("SELECT * FROM pinned_services WHERE id = ?", (pid,)).fetchone()
+            if not r:
+                return await e.answer("Pinned service not found.", alert=True)
+            status = "🟢 ACTIVE" if r["is_active"] else "🔴 INACTIVE"
+            txt = (
+                f"📌 <b>Pinned Service #{r['id']}</b>\n\n"
+                f"Server: <b>Server {r['server_no']}</b>\n"
+                f"Service Name: <b>{html.escape(r['service_name'])}</b>\n"
+                f"Service ID: <code>{html.escape(r['service_id'])}</code>\n"
+                f"Category: <b>{html.escape(r['category_name'] or 'N/A')}</b>\n"
+                f"Badge: <b>{r['badge']}</b>\n"
+                f"Status: <b>{status}</b>\n"
+                f"Order: <b>{r['display_order']}</b>\n"
+            )
+            btns = [
+                [p_btn(f"Toggle {'Off 🔴' if r['is_active'] else 'On 🟢'}", f"adm_pintoggle|{pid}")],
+                [p_btn("📢 Broadcast to All Users", f"adm_pinbcast|{pid}", style="primary")],
+                [p_btn("🗑 Remove Pin", f"adm_pindel|{pid}", style="danger")],
+                [p_btn("↩ Back to Pinned List", "adm_pinned")]
+            ]
+            await e.edit(txt, buttons=btns)
+
+        elif action.startswith("adm_pintoggle|"):
+            pid = int(action.split("|")[1])
+            with managed_connect() as conn:
+                conn.execute("UPDATE pinned_services SET is_active = CASE is_active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (pid,))
+                conn.commit()
+            return await handle_admin_callback(e, uid, f"adm_adm_pinview|{pid}")
+
+        elif action.startswith("adm_pindel|"):
+            pid = int(action.split("|")[1])
+            with managed_connect() as conn:
+                conn.execute("DELETE FROM pinned_services WHERE id = ?", (pid,))
+                conn.commit()
+            await e.answer("Pinned service deleted.", alert=True)
+            return await handle_admin_callback(e, uid, "adm_pinned")
+
+        elif action.startswith("adm_pinbcast|"):
+            pid = int(action.split("|")[1])
+            from services.admin_service import broadcast_pinned_service
+            await e.edit("✈️ <b>Broadcasting pinned service to all Telegram bot users...</b>\nPlease wait.")
+            try:
+                res = broadcast_pinned_service(pid)
+                await e.edit(f"✅ <b>Broadcast Completed!</b>\n\nService: <b>{html.escape(res['service_name'])}</b>\nSent: <b>{res['sent']}</b>\nFailed: <b>{res['failed']}</b>\nTotal users: <b>{res['total_users']}</b>", buttons=[[p_btn("Back to Pinned", "adm_pinned")]])
+            except Exception as ex:
+                await e.edit(f"❌ Broadcast failed: {html.escape(str(ex))}", buttons=[[p_btn("Back", f"adm_pinview|{pid}")]])
 
         elif action == "server5":
             with managed_connect() as conn:

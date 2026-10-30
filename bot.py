@@ -2735,6 +2735,55 @@ async def handle_start(e):
                 label = {"account": "Account", "sell": "Sell", "history": "History"}[route]
                 return await e.respond(f"Open <b>{label}</b> from the button below.", buttons=[[p_btn(f"Open {label}", target)], [p_btn("Main Menu", "menu_main")]])
 
+            if start_param.startswith("pin_"):
+                pin_id_str = start_param.replace("pin_", "").strip()
+                if pin_id_str.isdigit():
+                    pin_id = int(pin_id_str)
+                    with managed_connect() as conn:
+                        pinned = conn.execute("SELECT * FROM pinned_services WHERE id = ? AND is_active = 1", (pin_id,)).fetchone()
+                    if pinned:
+                        s_no = pinned["server_no"]
+                        s_name = pinned["service_name"]
+                        svc_id = pinned["service_id"]
+                        badge = pinned["badge"] or "🔥 Hot"
+                        if s_no == 1:
+                            target_country = pinned["country_name"] or svc_id
+                            iso_code = COUNTRY_CODES.get(target_country, ["US"])[0] if target_country in COUNTRY_CODES else "US"
+                            return await e.respond(
+                                f"📌 <b>{badge} Featured: {html.escape(s_name)}</b>\n\nServer 1 2FA Accounts available.",
+                                buttons=[
+                                    [p_btn(f"⚡ Buy {html.escape(s_name)}", f"lzt_chk|{iso_code}|1")],
+                                    [p_btn("Back to Menu", "menu_buy")]
+                                ]
+                            )
+                        elif s_no == 2:
+                            c_name = pinned["country_name"] or svc_id
+                            return await e.respond(
+                                f"📌 <b>{badge} Featured: {html.escape(s_name)}</b>\n\nServer 2 Session & Combo Stock.",
+                                buttons=[
+                                    [p_btn(f"⚡ View {html.escape(s_name)}", f"srv_2_cntry|{c_name}|1")],
+                                    [p_btn("Back to Menu", "menu_buy")]
+                                ]
+                            )
+                        elif s_no == 3:
+                            return await e.respond(
+                                f"📌 <b>{badge} Featured: {html.escape(s_name)}</b>\n\nServer 3 Instant Virtual OTP.",
+                                buttons=[
+                                    [p_btn(f"⚡ Get {html.escape(s_name)} OTP", f"s3_s_{svc_id}")],
+                                    [p_btn("Back to Menu", "menu_buy")]
+                                ]
+                            )
+                        elif s_no == 4:
+                            return await e.respond(
+                                f"📌 <b>{badge} Featured: {html.escape(s_name)}</b>\n\nServer 4 Fresh Carrier OTP.",
+                                buttons=[
+                                    [p_btn(f"⚡ Get {html.escape(s_name)} OTP", f"s4_s_{svc_id}")],
+                                    [p_btn("Back to Menu", "menu_buy")]
+                                ]
+                            )
+                        elif s_no == 5:
+                            return await handle_server5_callback(e, uid, f"smm_view|{svc_id}")
+
             if start_param.startswith("Giv_"):
                 await render_giveaway(e, start_param)
                 return

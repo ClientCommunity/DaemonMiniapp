@@ -305,3 +305,142 @@ def get_server5_stock() -> list[dict[str, Any]]:
         logger.warning("Error querying smm_services: %s", exc)
 
     return items
+
+
+def get_pinned_services(server_no: int | None = None) -> list[dict[str, Any]]:
+    """Return active pinned/featured services across servers with live prices and badges."""
+    pinned = []
+    try:
+        with connect() as conn:
+            if server_no is not None:
+                rows = conn.execute("""
+                    SELECT id, server_no, service_id, service_name, category_name, country_code, country_name, badge, display_order
+                    FROM pinned_services
+                    WHERE is_active = 1 AND server_no = ?
+                    ORDER BY display_order ASC, id ASC
+                """, (int(server_no),)).fetchall()
+            else:
+                rows = conn.execute("""
+                    SELECT id, server_no, service_id, service_name, category_name, country_code, country_name, badge, display_order
+                    FROM pinned_services
+                    WHERE is_active = 1
+                    ORDER BY display_order ASC, id ASC
+                """).fetchall()
+
+            for r in rows:
+                s_no = int(r["server_no"])
+                meta = SERVER_NAMES.get(s_no, {})
+                s_name = meta.get("name", f"Server {s_no}")
+                s_icon = meta.get("icon", "⚡")
+
+                price = 0
+                stock = None
+                subtitle = meta.get("subtitle", "")
+                min_qty = None
+                max_qty = None
+
+                svc_id = str(r["service_id"]).strip()
+                cat_name = str(r["category_name"] or "").strip()
+                c_name = str(r["country_name"] or "").strip()
+                c_code = str(r["country_code"] or "").strip()
+
+                try:
+                    if s_no == 1:
+                        target = c_name or svc_id
+                        lzt_row = conn.execute(
+                            "SELECT price, stock_count, flag FROM lzt_stock_cache WHERE country = ? OR iso_code = ?",
+                            (target, target)
+                        ).fetchone()
+                        if lzt_row:
+                            price = int(round(lzt_row["price"] or 80))
+                            stock = int(lzt_row["stock_count"] or 0)
+                            if lzt_row["flag"]:
+                                s_icon = lzt_row["flag"]
+                        else:
+                            stk_row = conn.execute(
+                                "SELECT price, COUNT(*) as cnt, country_icon FROM stock WHERE country_name = ? AND available = 1",
+                                (target,)
+                            ).fetchone()
+                            if stk_row and stk_row["cnt"]:
+                                price = int(stk_row["price"] or 80)
+                                stock = int(stk_row["cnt"])
+                                if stk_row["country_icon"]:
+                                    s_icon = stk_row["country_icon"]
+                        subtitle = "Global Market 2FA"
+
+                    elif s_no == 2:
+                        target = c_name or svc_id
+                        stk_row = conn.execute(
+                            "SELECT price, COUNT(*) as cnt, country_icon FROM stock WHERE country_name = ? AND available = 1",
+                            (target,)
+                        ).fetchone()
+                        if stk_row and stk_row["cnt"]:
+                            price = int(stk_row["price"] or 60)
+                            stock = int(stk_row["cnt"])
+                            if stk_row["country_icon"]:
+                                s_icon = stk_row["country_icon"]
+                        subtitle = "Session + TData Combo"
+
+                    elif s_no == 3:
+                        s3_row = conn.execute(
+                            "SELECT provider_price FROM server3_services WHERE service_code = ? OR name = ?",
+                            (svc_id, r["service_name"])
+                        ).fetchone()
+                        if s3_row:
+                            price = int(s3_row["provider_price"] or 45)
+                        subtitle = "Instant Virtual OTP"
+
+                    elif s_no == 4:
+                        s4_cfg = conn.execute("SELECT percent_markup, fixed_markup, minimum_price FROM service_servers WHERE server_no = 4").fetchone()
+                        pct = float(s4_cfg["percent_markup"] if s4_cfg and s4_cfg["percent_markup"] is not None else 15.0)
+                        fix = float(s4_cfg["fixed_markup"] if s4_cfg and s4_cfg["fixed_markup"] is not None else 0.0)
+                        flr = float(s4_cfg["minimum_price"] if s4_cfg and s4_cfg["minimum_price"] is not None else 15.0)
+
+                        s4_row = conn.execute(
+                            "SELECT MIN(min_price) as mp, SUM(available_count) as cnt FROM server4_stock WHERE service_code = ?",
+                            (svc_id,)
+                        ).fetchone()
+                        if s4_row and s4_row["mp"] is not None:
+                            raw = float(s4_row["mp"])
+                            calc_price = int(round(max(flr, raw * (1 + pct / 100.0) + fix)))
+                            price = max(15, calc_price)
+                            stock = int(s4_row["cnt"] or 0)
+                        subtitle = "Fresh Carrier OTP"
+
+                    elif s_no == 5:
+                        s5_row = conn.execute(
+                            "SELECT rate, minimum, maximum, name FROM smm_services WHERE id = ?",
+                            (int(svc_id) if svc_id.isdigit() else 0,)
+                        ).fetchone()
+                        if s5_row:
+                            price = int(s5_row["rate"] or 10)
+                            min_qty = int(s5_row["minimum"] or 100)
+                            max_qty = int(s5_row["maximum"] or 10000)
+                            stock = 9999
+                        subtitle = "Rate per 1,000"
+                except Exception as inner_ex:
+                    logger.debug("Failed to calculate live price for pinned service #%s: %s", r["id"], inner_ex)
+
+                pinned.append({
+                    "id": r["id"],
+                    "server_no": s_no,
+                    "server_name": s_name,
+                    "server_icon": s_icon,
+                    "service_id": svc_id,
+                    "service_name": r["service_name"],
+                    "category_name": cat_name,
+                    "country_code": c_code,
+                    "country_name": c_name,
+                    "badge": r["badge"] or "🔥 Hot",
+                    "display_order": int(r["display_order"] or 0),
+                    "price": price,
+                    "stock": stock,
+                    "subtitle": subtitle,
+                    "min_qty": min_qty,
+                    "max_qty": max_qty,
+                    "deep_link": f"pin_{r['id']}",
+                })
+    except Exception as exc:
+        logger.error("Error querying pinned_services: %s", exc)
+
+    return pinned

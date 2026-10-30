@@ -22,6 +22,7 @@ from services.store_service import (
     get_server3_stock,
     get_server4_stock,
     get_server5_stock,
+    get_pinned_services,
 )
 
 logger = logging.getLogger("api.store")
@@ -80,3 +81,14 @@ def server5_stock():
     """Return Server 5 SMM catalogue (SMM Hub)."""
     items = get_server5_stock()
     return jsonify({"success": True, "items": items})
+
+
+@store_bp.route("/api/store/pinned", methods=["GET"])
+def list_pinned_services():
+    """Return active pinned/featured services across servers with live prices and badges."""
+    server_param = request.args.get("server")
+    s_no = None
+    if server_param and server_param.isdigit():
+        s_no = int(server_param)
+    items = get_pinned_services(server_no=s_no)
+    return jsonify({"success": True, "pinned": items})

@@ -753,6 +753,24 @@ def migrate() -> None:
         )
         """)
 
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS pinned_services (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_no INTEGER NOT NULL CHECK(server_no BETWEEN 1 AND 5),
+            service_id TEXT NOT NULL,
+            service_name TEXT NOT NULL,
+            category_name TEXT DEFAULT '',
+            country_code TEXT DEFAULT '',
+            country_name TEXT DEFAULT '',
+            badge TEXT DEFAULT '🔥 Hot',
+            display_order INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pinned_active_order ON pinned_services(is_active, display_order)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pinned_server_active ON pinned_services(server_no, is_active)")
+
         # 5. Initialize/Update Server 3 & Server 4 credentials provided by client
         try:
             from secrets_manager import encrypt_secret

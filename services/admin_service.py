@@ -1047,3 +1047,201 @@ def create_compressed_database_backup() -> tuple[str, int, int]:
 
     zip_size = os.path.getsize(zip_output)
     return zip_output, raw_size, zip_size
+
+
+# ==============================================================================
+# PINNED SERVICES MANAGEMENT & BROADCAST ENGINE
+# ==============================================================================
+
+def list_all_pinned_services(server_no: int | None = None) -> list[dict[str, Any]]:
+    """Return all pinned services (both active and inactive) for admin management."""
+    from services.store_service import get_pinned_services
+    items = []
+    try:
+        with connect() as conn:
+            if server_no is not None:
+                rows = conn.execute("""
+                    SELECT id, server_no, service_id, service_name, category_name, country_code, country_name, badge, display_order, is_active, created_at
+                    FROM pinned_services
+                    WHERE server_no = ?
+                    ORDER BY display_order ASC, id ASC
+                """, (int(server_no),)).fetchall()
+            else:
+                rows = conn.execute("""
+                    SELECT id, server_no, service_id, service_name, category_name, country_code, country_name, badge, display_order, is_active, created_at
+                    FROM pinned_services
+                    ORDER BY server_no ASC, display_order ASC, id ASC
+                """).fetchall()
+
+            for r in rows:
+                items.append({
+                    "id": r["id"],
+                    "server_no": int(r["server_no"]),
+                    "service_id": str(r["service_id"]),
+                    "service_name": r["service_name"],
+                    "category_name": r["category_name"] or "",
+                    "country_code": r["country_code"] or "",
+                    "country_name": r["country_name"] or "",
+                    "badge": r["badge"] or "🔥 Hot",
+                    "display_order": int(r["display_order"] or 0),
+                    "is_active": int(r["is_active"] or 0),
+                    "created_at": str(r["created_at"]),
+                })
+    except Exception as exc:
+        logger.error("Error in list_all_pinned_services: %s", exc)
+
+    return items
+
+
+def add_pinned_service(
+    server_no: int,
+    service_id: str,
+    service_name: str,
+    category_name: str = "",
+    country_code: str = "",
+    country_name: str = "",
+    badge: str = "🔥 Hot",
+    display_order: int = 0
+) -> dict[str, Any]:
+    """Add a new service to pinned_services."""
+    if server_no not in (1, 2, 3, 4, 5):
+        raise ValueError("Server number must be between 1 and 5")
+    if not str(service_id).strip():
+        raise ValueError("Service ID is required")
+    if not str(service_name).strip():
+        raise ValueError("Service Name is required")
+
+    with connect() as conn:
+        cur = conn.execute("""
+            INSERT INTO pinned_services (
+                server_no, service_id, service_name, category_name, country_code, country_name, badge, display_order, is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        """, (
+            int(server_no),
+            str(service_id).strip(),
+            str(service_name).strip(),
+            str(category_name or "").strip(),
+            str(country_code or "").strip(),
+            str(country_name or "").strip(),
+            str(badge or "🔥 Hot").strip(),
+            int(display_order or 0)
+        ))
+        conn.commit()
+        new_id = cur.lastrowid
+
+    return {
+        "id": new_id,
+        "server_no": int(server_no),
+        "service_id": str(service_id).strip(),
+        "service_name": str(service_name).strip(),
+        "badge": str(badge or "🔥 Hot").strip(),
+        "display_order": int(display_order or 0),
+        "is_active": 1,
+    }
+
+
+def update_pinned_service(pinned_id: int, **fields) -> bool:
+    """Update fields on a pinned service."""
+    allowed = {"server_no", "service_id", "service_name", "category_name", "country_code", "country_name", "badge", "display_order", "is_active"}
+    updates = []
+    params = []
+    for k, v in fields.items():
+        if k in allowed:
+            updates.append(f"{k} = ?")
+            params.append(v)
+    if not updates:
+        return False
+    params.append(pinned_id)
+    with connect() as conn:
+        conn.execute(f"UPDATE pinned_services SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+    return True
+
+
+def delete_pinned_service(pinned_id: int) -> bool:
+    """Delete a pinned service."""
+    with connect() as conn:
+        conn.execute("DELETE FROM pinned_services WHERE id = ?", (pinned_id,))
+        conn.commit()
+    return True
+
+
+def broadcast_pinned_service(pinned_id: int, broadcast_text: str = "", button_label: str = "") -> dict[str, Any]:
+    """Broadcast an announcement with a 1-click button linking to a pinned service to all Telegram bot users."""
+    import urllib.request
+    import urllib.parse
+    from config import BOT_TOKEN
+
+    with connect() as conn:
+        pinned = conn.execute("SELECT * FROM pinned_services WHERE id = ?", (pinned_id,)).fetchone()
+        if not pinned:
+            raise ValueError(f"Pinned service #{pinned_id} not found")
+        users = [r[0] for r in conn.execute("SELECT user_id FROM users WHERE user_id > 0").fetchall()]
+
+    s_no = pinned["server_no"]
+    s_name = pinned["service_name"]
+    badge = pinned["badge"] or "🔥 Hot"
+
+    default_text = (
+        f"<b>{badge} Featured Service Alert!</b>\n\n"
+        f"<b>{s_name}</b> (Server {s_no}) is now featured with high availability.\n"
+        f"Tap the button below to view or purchase instantly!"
+    )
+    final_text = (broadcast_text.strip() if broadcast_text and broadcast_text.strip() else default_text)
+    final_button = (button_label.strip() if button_label and button_label.strip() else f"⚡ Buy {s_name} Now")
+
+    # Fetch bot username for deep link
+    bot_username = "DeamonOTPbot"
+    try:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/getMe"
+        req = urllib.request.Request(url, headers={"User-Agent": "KrishBot/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+            if data.get("ok"):
+                bot_username = data["result"].get("username", bot_username)
+    except Exception:
+        pass
+
+    bot_start_url = f"https://t.me/{bot_username}?start=pin_{pinned_id}"
+    miniapp_url = f"https://t.me/{bot_username}/app?startapp=pin_{pinned_id}"
+
+    inline_keyboard = {
+        "inline_keyboard": [
+            [{"text": final_button, "url": bot_start_url}],
+            [{"text": "📱 Open in Mini App", "url": miniapp_url}],
+        ]
+    }
+
+    sent = 0
+    failed = 0
+    for uid in users:
+        try:
+            payload = json.dumps({
+                "chat_id": uid,
+                "text": final_text,
+                "parse_mode": "HTML",
+                "reply_markup": inline_keyboard,
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                data=payload,
+                headers={"Content-Type": "application/json", "User-Agent": "KrishBot/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                if resp.status == 200:
+                    sent += 1
+                else:
+                    failed += 1
+        except Exception:
+            failed += 1
+
+        time.sleep(0.05)
+
+    return {
+        "success": True,
+        "pinned_id": pinned_id,
+        "service_name": s_name,
+        "sent": sent,
+        "failed": failed,
+        "total_users": len(users)
+    }
