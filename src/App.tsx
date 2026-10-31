@@ -12,10 +12,11 @@ import { DepositHub } from './components/deposit/DepositHub';
 import { HistoryView } from './components/history/HistoryView';
 import { ProfileView } from './components/profile/ProfileView';
 import { P2PTransferModal } from './components/profile/P2PTransferModal';
-import { AdminDashboard } from './components/admin/AdminDashboard';
-import { AdminEntryChoiceModal } from './components/admin/AdminEntryChoiceModal';
-import { AdminPassphraseModal } from './components/admin/AdminPassphraseModal';
-import { LandingPage } from './components/landing/LandingPage';
+// Code-split heavy non-customer components
+const AdminDashboard = React.lazy(() => import('./components/admin/AdminDashboard'));
+const LandingPage = React.lazy(() =>
+  import('./components/landing/LandingPage').then((m) => ({ default: m.LandingPage }))
+);
 import { isTelegramWebApp, getWebUserToken } from './api/client';
 import { downloadApi } from './api/endpoints';
 import { GlobalRecoveryBanner } from './components/common/GlobalRecoveryBanner';
@@ -129,7 +130,9 @@ const AppContent: React.FC = () => {
     return (
       <div className="relative w-full min-h-screen bg-[#0b0b0e] text-white flex flex-col">
         <ToastContainer />
-        <LandingPage onLoginSuccess={handleGoogleLoginSuccess} />
+        <React.Suspense fallback={<InitialLoadingScreen />}>
+          <LandingPage onLoginSuccess={handleGoogleLoginSuccess} />
+        </React.Suspense>
       </div>
     );
   }
@@ -158,7 +161,9 @@ const AppContent: React.FC = () => {
     return (
       <div className="relative w-full min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl">
         <ToastContainer />
-        <AdminDashboard />
+        <React.Suspense fallback={<InitialLoadingScreen />}>
+          <AdminDashboard />
+        </React.Suspense>
       </div>
     );
   }
@@ -214,5 +219,4 @@ export const App: React.FC = () => {
   );
 };
 
-export { AdminEntryChoiceModal, AdminPassphraseModal };
 export default App;

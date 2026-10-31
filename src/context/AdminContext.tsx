@@ -1,8 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { adminApi, AdminPermissions } from '../api/adminApi';
 import { getAdminToken, setAdminToken, isTelegramWebApp } from '../api/client';
-import { AdminEntryChoiceModal } from '../components/admin/AdminEntryChoiceModal';
-import { AdminPassphraseModal } from '../components/admin/AdminPassphraseModal';
+const AdminEntryChoiceModal = React.lazy(() =>
+  import('../components/admin/AdminEntryChoiceModal').then((m) => ({ default: m.AdminEntryChoiceModal }))
+);
+const AdminPassphraseModal = React.lazy(() =>
+  import('../components/admin/AdminPassphraseModal').then((m) => ({ default: m.AdminPassphraseModal }))
+);
 
 export type AdminTab = 'overview' | 'servers' | 'payments' | 'users' | 'marketing';
 
@@ -164,10 +168,25 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
     }
 
+    const handleUnauthorized = () => {
+      setAdminTokenState(null);
+      setAdminToken(null);
+      setIsAdminMode(false);
+      setShowPassphraseModal(true);
+      setAuthError('Your admin session has expired. Please re-enter your passphrase.');
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('krish:admin_unauthorized', handleUnauthorized);
+    }
+
     checkAdminStatus();
 
     return () => {
       isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('krish:admin_unauthorized', handleUnauthorized);
+      }
     };
   }, []);
 
@@ -285,8 +304,10 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <AdminContext.Provider value={value}>
       {children}
-      {isTelegramWebApp() && showEntryChoiceModal && <AdminEntryChoiceModal />}
-      {isTelegramWebApp() && showPassphraseModal && <AdminPassphraseModal />}
+      <React.Suspense fallback={null}>
+        {isTelegramWebApp() && showEntryChoiceModal && <AdminEntryChoiceModal />}
+        {isTelegramWebApp() && showPassphraseModal && <AdminPassphraseModal />}
+      </React.Suspense>
     </AdminContext.Provider>
   );
 };

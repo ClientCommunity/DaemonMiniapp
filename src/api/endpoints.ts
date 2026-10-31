@@ -165,6 +165,7 @@ export interface FamPayCheckResponse {
 }
 
 export interface ManualDepositSubmitResponse {
+  auto_verified?: boolean;
   success: boolean;
   message?: string;
   deposit_id?: number;

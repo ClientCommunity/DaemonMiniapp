@@ -27,7 +27,7 @@ import {
   Edit2,
   Pin,
 } from 'lucide-react';
-import { PinnedServicesTab } from './PinnedServicesTab';
+const PinnedServicesTab = React.lazy(() => import('./PinnedServicesTab').then(m => ({ default: m.PinnedServicesTab })));
 
 type ServerSubTab = 'server1' | 'server2' | 'server3_4' | 'server5' | 'pinned';
 
@@ -1432,7 +1432,9 @@ export const ServerManagementTab: React.FC = () => {
       {/* ===================================================================== */}
       {subTab === 'pinned' && (
         <div className="space-y-5 animate-in fade-in duration-150">
-          <PinnedServicesTab />
+          <React.Suspense fallback={<div className="h-48 rounded-2xl bg-[#181820] border border-[#262630] animate-pulse" />}>
+            <PinnedServicesTab />
+          </React.Suspense>
         </div>
       )}
     </div>

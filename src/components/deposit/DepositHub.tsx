@@ -14,11 +14,13 @@ import {
   FileText,
   RotateCcw,
   Receipt,
-  QrCode
+  QrCode,
+  Clipboard
 } from 'lucide-react';
+import { hapticFeedback } from '../../utils/haptics';
 
 export const DepositHub: React.FC = () => {
-  const { submitDeposit, addToast, activeInvoice, setActiveInvoice } = useApp();
+  const { submitDeposit, addToast, activeInvoice, setActiveInvoice, refreshUser } = useApp();
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>(() => {
     try {
@@ -192,56 +194,29 @@ export const DepositHub: React.FC = () => {
     addToast('Invoice cancelled. You can select another amount.', 'info', 'Invoice Cancelled');
   };
 
-  const handleCheckPaymentStatus = async () => {
-    const payAmount = activeInvoice ? activeInvoice.amount : amount;
-    const refCode = activeInvoice?.reference;
-
-    if (payAmount < 10) {
-      addToast('Minimum deposit amount is ₹10.', 'error', 'Invalid Amount');
-      return;
-    }
-
-    setIsVerifying(true);
-    addToast('Contacting payment gateway to verify status...', 'info', 'Verifying');
-
-    if (selectedMethod === 'fampay' && refCode) {
-      try {
-        const checkRes = await depositApi.checkFamPay(refCode);
-        if (
-          checkRes &&
-          (checkRes.status === 'approved' ||
-            checkRes.status === 'verified' ||
-            checkRes.status === 'success')
-        ) {
-          submitDeposit(selectedMethod, payAmount, refCode, true);
-          setActiveInvoice(null);
-          setIsVerifying(false);
-          addToast(`Payment of ₹${payAmount} confirmed and credited!`, 'success', 'Deposit Completed');
-          return;
-        } else {
-          addToast(
-            'Payment not yet detected by bank gateway. If paid, please wait a moment or submit UTR below.',
-            'info',
-            'Awaiting Bank Update'
-          );
-          setIsVerifying(false);
+  const handlePasteUtr = async () => {
+    hapticFeedback.light();
+    try {
+      if (navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        const cleaned = text.trim();
+        if (cleaned) {
+          setUtrNumber(cleaned);
+          addToast('Pasted UTR from clipboard!', 'info', 'Clipboard');
           return;
         }
-      } catch {
-        addToast('Gateway check in progress. Please retry in a moment.', 'info', 'Checking Status');
-        setIsVerifying(false);
-        return;
       }
+      addToast('Clipboard is empty or access denied', 'warning', 'Clipboard');
+    } catch {
+      addToast('Unable to read clipboard. Please paste manually.', 'warning', 'Clipboard');
     }
-
-    setIsVerifying(false);
-    addToast('Please use UPI Direct or submit your UTR reference below.', 'info', 'Payment Notice');
   };
 
-  const handleUtrSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUtrSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const cleanUtr = utrNumber.trim();
     if (!cleanUtr || cleanUtr.length < 6) {
+      hapticFeedback.error();
       addToast('Please enter a valid transaction reference or 12-digit UTR.', 'error', 'Invalid Reference');
       return;
     }
@@ -249,7 +224,8 @@ export const DepositHub: React.FC = () => {
     const payAmount = activeInvoice ? activeInvoice.amount : amount;
 
     setIsVerifying(true);
-    addToast('Submitting payment reference for verification...', 'info', 'Verifying');
+    hapticFeedback.light();
+    addToast('Verifying transaction reference...', 'info', 'Verifying');
 
     try {
       const methodId =
@@ -257,15 +233,27 @@ export const DepositHub: React.FC = () => {
       const res = await depositApi.submitManual(methodId, cleanUtr, payAmount);
 
       if (res && res.success) {
-        addToast(
-          res.message || 'Deposit submitted successfully! Balance will be credited upon verification.',
-          'success',
-          'Submitted'
-        );
+        if (res.auto_verified) {
+          hapticFeedback.success();
+          addToast(
+            res.message || `Payment of ₹${payAmount} auto-verified! Your balance has been credited.`,
+            'success',
+            'Auto-Verified'
+          );
+          await refreshUser();
+        } else {
+          hapticFeedback.medium();
+          addToast(
+            res.message || 'Deposit submitted successfully! Queued for instant admin verification.',
+            'info',
+            'Submitted'
+          );
+        }
         submitDeposit(selectedMethod, payAmount, cleanUtr, true);
         setUtrNumber('');
         setActiveInvoice(null);
       } else {
+        hapticFeedback.error();
         addToast(
           res?.error || 'Failed to submit reference. Please try again.',
           'error',
@@ -273,6 +261,7 @@ export const DepositHub: React.FC = () => {
         );
       }
     } catch {
+      hapticFeedback.error();
       addToast(
         'Network error while submitting reference. Please verify your connection.',
         'error',
@@ -469,14 +458,20 @@ export const DepositHub: React.FC = () => {
               </div>
             </div>
           ) : (
-            /* STATE B: ACTIVE INVOICE VIEW (Dynamic QR, Live Countdown, Status Check & Cancel) */
-            <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col items-center">
-              {/* Active Invoice Status Bar */}
+            /* STATE B: ACTIVE INVOICE VIEW (Prominent Step-by-Step 12-Digit UTR Verification Card) */
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col items-center shadow-xl relative overflow-hidden">
+              {/* Header with Title + 15-min countdown timer */}
               <div className="w-full flex items-center justify-between pb-3 mb-3 border-b border-[#262630]">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
-                  <span className="text-xs font-bold text-white">Invoice Active</span>
+                  <div className="w-8 h-8 rounded-xl bg-[#22c55e]/15 border border-[#22c55e]/30 flex items-center justify-center">
+                    <QrCode className="w-4 h-4 text-[#22c55e]" />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-xs font-bold text-white block">UPI Instant Invoice</span>
+                    <span className="text-[10px] text-[#a1a1aa]">Auto-credited via 12-Digit UTR</span>
+                  </div>
                 </div>
+
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
                   <span className="text-xs font-bold font-mono text-amber-300">
@@ -485,116 +480,120 @@ export const DepositHub: React.FC = () => {
                 </div>
               </div>
 
-              {/* Locked Amount Banner */}
-              <div className="w-full bg-[#121217] border border-[#262630] rounded-xl p-3 mb-3 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold block">Pay Exact Amount</span>
-                  <span className="text-lg font-black font-mono text-[#22c55e]">₹{activeInvoice.amount}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold block">Ref ID</span>
-                  <span className="text-xs font-mono font-bold text-[#8b5cf6]">{activeInvoice.reference}</span>
-                </div>
-              </div>
-
-              {/* Dynamic QR Code or Fallback */}
-              {activeInvoice.qrUrl ? (
-                <div className="w-48 h-48 bg-white p-3 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
-                  <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-2">
-                    <img
-                      src={activeInvoice.qrUrl}
-                      alt={`FamPay ₹${activeInvoice.amount}`}
-                      className="w-36 h-36 object-contain"
-                      onError={() => {
-                        setActiveInvoice((prev) => (prev ? { ...prev, qrUrl: '' } : null));
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 text-center my-3 flex flex-col items-center">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mb-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <span className="text-sm font-bold text-white">QR Code Not Available Yet</span>
-                  <span className="text-xs text-[#a1a1aa] mt-1 max-w-xs">
-                    Automated QR gateway is awaiting configuration. Please use UPI ID or manual deposit below.
+              {/* STEP 1: Pay exact amount via QR or UPI ID */}
+              <div className="w-full bg-[#121217] border border-[#262630] rounded-xl p-3 sm:p-3.5 mb-3.5 text-left">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold text-[#a78bfa] uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#7c3aed] text-white flex items-center justify-center text-[10px] font-bold">1</span>
+                    <span>Step 1: Transfer Exact Amount</span>
                   </span>
+                  <span className="text-[10px] font-mono text-[#a1a1aa]">Ref: <code className="text-[#8b5cf6]">{activeInvoice.reference}</code></span>
                 </div>
-              )}
 
-              <span className="text-xs font-bold text-white mt-1">
-                Scan with GPay, PhonePe, Paytm, CRED or FamPay
-              </span>
-              <span className="text-[11px] text-[#a1a1aa] mt-0.5">
-                Ref Code: <span className="font-mono text-[#8b5cf6]">{activeInvoice.reference}</span>
-              </span>
+                {/* Amount Highlight */}
+                <div className="flex items-center justify-between bg-[#181820] border border-[#262630] rounded-xl p-2.5 sm:p-3 mb-2.5">
+                  <span className="text-xs text-[#a1a1aa] font-medium">Amount to Transfer:</span>
+                  <span className="text-xl font-black font-mono text-[#22c55e]">₹{activeInvoice.amount}</span>
+                </div>
 
-              {/* UPI ID Copy Box */}
-              {activeInvoice.upiId ? (
-                <div className="w-full flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 my-3">
-                  <div className="flex flex-col text-left">
-                    <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">UPI VPA</span>
-                    <span className="text-xs font-mono font-bold text-white">{activeInvoice.upiId}</span>
+                {/* Dynamic QR Code or Fallback */}
+                {activeInvoice.qrUrl ? (
+                  <div className="w-44 h-44 mx-auto bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
+                    <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+                      <img
+                        src={activeInvoice.qrUrl}
+                        alt={`FamPay ₹${activeInvoice.amount}`}
+                        className="w-36 h-36 object-contain"
+                        onError={() => {
+                          setActiveInvoice((prev) => (prev ? { ...prev, qrUrl: '' } : null));
+                        }}
+                      />
+                    </div>
                   </div>
-                  <button
-                    onClick={handleCopyUpi}
-                    className="flex items-center gap-1.5 bg-[#1f1f2a] hover:bg-[#262630] text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-[#262630] text-white transition-colors"
-                  >
-                    {copiedUpi ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
-                    <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
-                  </button>
-                </div>
-              ) : null}
-
-              {/* Action Buttons: Status Check & Cancel */}
-              <div className="w-full flex flex-col gap-2 mt-1">
-                {timeLeft > 0 ? (
-                  <button
-                    onClick={handleCheckPaymentStatus}
-                    disabled={isVerifying}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    <Zap className="w-4 h-4" />
-                    <span>{isVerifying ? 'Checking Bank Gateway...' : `I have paid ₹${activeInvoice.amount} — Check Status`}</span>
-                  </button>
                 ) : (
-                  <div className="w-full p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-center text-xs font-bold text-red-400">
-                    Invoice Expired (15-min limit). Please create a fresh invoice.
+                  <div className="w-full bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 text-center my-2 flex flex-col items-center">
+                    <AlertTriangle className="w-5 h-5 text-amber-400 mb-1" />
+                    <span className="text-xs font-bold text-white">QR Code Unavailable</span>
+                    <span className="text-[11px] text-[#a1a1aa] mt-0.5">Please copy the UPI VPA below to pay</span>
                   </div>
                 )}
 
-                <button
-                  onClick={handleCancelInvoice}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#121217] hover:bg-[#1f1f2a] text-[#a1a1aa] hover:text-white text-xs font-semibold border border-[#262630] transition-colors"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Cancel / Change Amount</span>
-                </button>
+                <div className="text-center text-[10px] text-[#71717a] my-1.5">
+                  Scan using GPay, PhonePe, Paytm, CRED, FamPay or any UPI app
+                </div>
+
+                {/* UPI ID Copy Box */}
+                {activeInvoice.upiId ? (
+                  <div className="w-full flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2 mt-2">
+                    <div className="flex flex-col text-left min-w-0 pr-2">
+                      <span className="text-[9px] text-[#71717a] uppercase font-bold">UPI VPA</span>
+                      <span className="text-xs font-mono font-bold text-white truncate">{activeInvoice.upiId}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyUpi}
+                      className="min-h-[36px] flex items-center gap-1.5 bg-[#1f1f2a] hover:bg-[#262630] active:scale-95 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#262630] text-white transition-all shrink-0 cursor-pointer"
+                    >
+                      {copiedUpi ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
+                      <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
-              {/* Fallback UTR Submission inside active invoice */}
-              <div className="w-full mt-4 pt-3 border-t border-[#262630]/60 text-left">
-                <span className="text-[11px] font-bold text-white block mb-1">
-                  Paid but auto-check pending?
-                </span>
-                <form onSubmit={handleUtrSubmit} className="flex gap-2 mt-1.5">
-                  <input
-                    type="text"
-                    value={utrNumber}
-                    onChange={(e) => setUtrNumber(e.target.value)}
-                    placeholder="Enter 12-digit UTR"
-                    className="flex-1 bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed]"
-                  />
+              {/* STEP 2: Input 12-Digit UTR with Paste button & Auto-Credit */}
+              <div className="w-full bg-[#121217] border border-[#262630] rounded-xl p-3 sm:p-3.5 text-left mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold text-[#22c55e] uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#22c55e] text-black flex items-center justify-center text-[10px] font-bold">2</span>
+                    <span>Step 2: Enter 12-Digit UTR</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-[#a1a1aa]">Instant Auto-Credit</span>
+                </div>
+
+                <form onSubmit={handleUtrSubmit} className="flex flex-col gap-3">
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={utrNumber}
+                      onChange={(e) => setUtrNumber(e.target.value)}
+                      placeholder="Enter 12-digit UTR (e.g. 429812345678)"
+                      maxLength={22}
+                      className="w-full bg-[#0b0b0e] border border-[#262630] focus:border-[#7c3aed] rounded-xl pl-3.5 pr-20 py-3 text-xs font-mono text-white placeholder-[#71717a] focus:outline-none transition-colors"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePasteUtr}
+                      className="absolute right-2 min-h-[34px] px-2.5 py-1 rounded-lg bg-[#1f1f2a] hover:bg-[#2a2a38] active:scale-95 text-[11px] font-semibold text-[#a78bfa] border border-[#38384a] flex items-center gap-1 transition-all cursor-pointer"
+                      title="Paste UTR from clipboard"
+                    >
+                      <Clipboard className="w-3.5 h-3.5" />
+                      <span>Paste</span>
+                    </button>
+                  </div>
+
+                  {/* Primary CTA: Verify UTR & Auto-Credit Balance */}
                   <button
                     type="submit"
-                    disabled={isVerifying}
-                    className="px-3.5 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold rounded-xl whitespace-nowrap disabled:opacity-50"
+                    disabled={isVerifying || !utrNumber.trim()}
+                    className="w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                   >
-                    Submit UTR
+                    <Zap className="w-4 h-4 fill-black" />
+                    <span>{isVerifying ? 'Verifying with Bank...' : '⚡ Verify UTR & Auto-Credit Balance'}</span>
                   </button>
                 </form>
               </div>
+
+              {/* Cancel / Change Amount button */}
+              <button
+                type="button"
+                onClick={handleCancelInvoice}
+                className="w-full min-h-[40px] flex items-center justify-center gap-1.5 py-2 rounded-xl bg-transparent hover:bg-[#181820] text-[#71717a] hover:text-[#a1a1aa] text-xs font-medium border border-transparent hover:border-[#262630] transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Cancel / Change Amount</span>
+              </button>
             </div>
           )}
         </>
@@ -663,21 +662,32 @@ export const DepositHub: React.FC = () => {
               Step 2: Enter 12-digit UTR Transaction ID
             </span>
             <form onSubmit={handleUtrSubmit} className="flex flex-col gap-2.5">
-              <input
-                type="text"
-                value={utrNumber}
-                onChange={(e) => setUtrNumber(e.target.value)}
-                placeholder="Enter 12-digit UTR / Ref Number"
-                className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed]"
-                required
-              />
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={utrNumber}
+                  onChange={(e) => setUtrNumber(e.target.value)}
+                  placeholder="Enter 12-digit UTR (e.g. 429812345678)"
+                  className="w-full bg-[#0b0b0e] border border-[#262630] focus:border-[#7c3aed] rounded-xl pl-3.5 pr-20 py-2.5 text-xs font-mono text-white placeholder-[#71717a] focus:outline-none transition-colors"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={handlePasteUtr}
+                  className="absolute right-2 min-h-[32px] px-2.5 py-1 rounded-lg bg-[#1f1f2a] hover:bg-[#2a2a38] active:scale-95 text-[11px] font-semibold text-[#a78bfa] border border-[#38384a] flex items-center gap-1 transition-all cursor-pointer"
+                  title="Paste UTR from clipboard"
+                >
+                  <Clipboard className="w-3 h-3" />
+                  <span>Paste</span>
+                </button>
+              </div>
               <button
                 type="submit"
-                disabled={isVerifying}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold text-xs shadow-violet-glow transition-all active:scale-95 disabled:opacity-50"
+                disabled={isVerifying || !utrNumber.trim()}
+                className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
-                <Check className="w-4 h-4" />
-                <span>{isVerifying ? 'Verifying UTR...' : `Submit UTR for ₹${amount}`}</span>
+                <Zap className="w-4 h-4 fill-black" />
+                <span>{isVerifying ? 'Verifying UTR...' : `⚡ Verify UTR & Auto-Credit Balance (₹${amount})`}</span>
               </button>
             </form>
           </div>

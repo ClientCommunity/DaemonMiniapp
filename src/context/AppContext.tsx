@@ -36,6 +36,7 @@ import {
   historyApi,
 } from '../api/endpoints';
 import { api, isTelegramWebApp, getWebUserToken, setWebUserToken } from '../api/client';
+import { hapticFeedback } from '../utils/haptics';
 import {
   adaptBackendUser,
   adaptHistoryItem,
@@ -684,6 +685,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (isNaN(costInr) || costInr <= 0) return { success: false, promoUsed: 0, mainUsed: 0 };
 
     if (user.balance < costInr) {
+      hapticFeedback.error();
       addToast(
         `Insufficient balance. Required: ${formatPrice(costInr)}, Available: ${formatPrice(user.balance)}.`,
         'error',
@@ -720,6 +722,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Server 1: Purchase Account
   const purchaseServer1Account = (account: Server1AccountItem): boolean => {
+    hapticFeedback.medium();
     const deduction = deductPurchaseAmount(account.priceInr);
     if (!deduction.success) return false;
 
@@ -981,6 +984,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Server 3 & 4: Virtual OTP Numbers (Fast OTP & Fresh Numbers)
   const requestVirtualOtp = (service: VirtualOtpServiceItem): boolean => {
+    hapticFeedback.medium();
     if (activeOtpSession && activeOtpSession.status === 'waiting') {
       addToast(
         'You already have an active OTP session in progress. Please finish or cancel it first.',

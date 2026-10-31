@@ -230,6 +230,16 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      // Handle 401 Unauthorized: clear invalid admin token & notify listeners
+      if (adminSessionToken) {
+        setAdminToken(null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('krish:admin_unauthorized'));
+        }
+      }
+    }
+
     const errorMsg =
       (responseData && typeof responseData === 'object' && (responseData.error || responseData.detail || responseData.message)) ||
       `Request to ${endpoint} failed with status ${response.status}`;
