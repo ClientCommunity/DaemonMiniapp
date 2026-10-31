@@ -35,14 +35,46 @@ def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def connect() -> sqlite3.Connection:
+class ManagedConnection(sqlite3.Connection):
+    """SQLite connection subclass that automatically closes itself upon context exit.
+
+    Standard sqlite3.Connection context managers only manage transactions (commit/rollback)
+    and leave the connection open, resulting in leaked file descriptors and ResourceWarnings.
+    ManagedConnection ensures that 'with connect() as conn:' closes the connection reliably.
+    """
+
+    def __enter__(self) -> ManagedConnection:
+        try:
+            super().__enter__()
+        except sqlite3.ProgrammingError:
+            pass
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
+        suppress = False
+        try:
+            suppress = bool(super().__exit__(exc_type, exc_val, exc_tb))
+        except sqlite3.ProgrammingError:
+            pass
+        finally:
+            try:
+                self.close()
+            except sqlite3.ProgrammingError:
+                pass
+        return suppress
+
+
+def connect() -> ManagedConnection:
     """Open and configure a SQLite connection with WAL mode and busy timeout."""
-    conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
+    conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None, factory=ManagedConnection)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA busy_timeout=30000")
     return conn
+
+
+managed_connect = connect
 
 
 @contextmanager
