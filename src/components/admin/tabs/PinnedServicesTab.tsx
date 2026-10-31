@@ -495,8 +495,8 @@ export const PinnedServicesTab: React.FC = () => {
 
             <div className="p-3 bg-[#121217] border border-[#262630] rounded-xl text-[11px] text-[#71717a] space-y-1">
               <div>🔗 <b>Direct Deep Links included:</b></div>
-              <div>• Telegram Bot: <code>t.me/bot?start=pin_{broadcastTarget.id}</code></div>
-              <div>• Mini App: <code>t.me/bot/app?startapp=pin_{broadcastTarget.id}</code></div>
+              <div>• Telegram Bot: <code>t.me/patelkrish_99bot?start=pin_{broadcastTarget.id}</code></div>
+              <div>• Mini App: <code>t.me/patelkrish_99bot/app?startapp=pin_{broadcastTarget.id}</code></div>
             </div>
 
             <div className="flex justify-end gap-2.5 pt-2">

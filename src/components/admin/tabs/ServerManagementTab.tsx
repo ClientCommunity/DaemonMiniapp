@@ -25,7 +25,9 @@ import {
   Radio,
   TrendingUp,
   Edit2,
+  Pin,
 } from 'lucide-react';
+import { PinnedServicesTab } from './PinnedServicesTab';
 
 type ServerSubTab = 'server1' | 'server2' | 'server3_4' | 'server5' | 'pinned';
 
@@ -515,6 +517,18 @@ export const ServerManagementTab: React.FC = () => {
         >
           <TrendingUp className="w-3.5 h-3.5" />
           <span>Server 5 (SMM Boost)</span>
+        </button>
+
+        <button
+          onClick={() => setSubTab('pinned')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+            subTab === 'pinned'
+              ? 'bg-amber-500 text-black shadow-md font-bold'
+              : 'text-amber-400 hover:text-amber-300 hover:bg-[#20202a]'
+          }`}
+        >
+          <Pin className="w-3.5 h-3.5" />
+          <span>📌 Pinned Services</span>
         </button>
       </div>
 
@@ -1410,6 +1424,15 @@ export const ServerManagementTab: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* SUBTAB 5: PINNED & FEATURED SERVICES */}
+      {/* ===================================================================== */}
+      {subTab === 'pinned' && (
+        <div className="space-y-5 animate-in fade-in duration-150">
+          <PinnedServicesTab />
         </div>
       )}
     </div>
