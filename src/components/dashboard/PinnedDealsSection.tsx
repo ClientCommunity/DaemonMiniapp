@@ -47,6 +47,19 @@ export const PinnedDealsSection: React.FC<PinnedDealsSectionProps> = ({
     if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
     }
+    const query = item.country_name || item.service_name || item.service_id;
+    try {
+      if (item.server_no === 1) {
+        localStorage.setItem('krish_s1_search', query);
+      } else if (item.server_no === 2) {
+        localStorage.setItem('krish_s2_search', query);
+      } else if (item.server_no === 3 || item.server_no === 4) {
+        localStorage.setItem(`krish_otp_search_s${item.server_no}`, query);
+      } else if (item.server_no === 5) {
+        localStorage.setItem('krish_smm_search', query);
+      }
+    } catch {}
+
     setSelectedServer(item.server_no);
     setActiveTab('store');
   };
