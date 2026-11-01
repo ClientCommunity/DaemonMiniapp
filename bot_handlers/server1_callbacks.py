@@ -102,6 +102,16 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
                         cached_lzt_stock[fkey] = {}
                     if d is not None:
                         cached_lzt_stock[fkey][country_name] = (d[1], d[2])
+                        try:
+                            with managed_connect() as conn:
+                                iso_code, flag = COUNTRY_CODES.get(country_name, ("US", "🇺🇸"))
+                                conn.execute(
+                                    "INSERT OR REPLACE INTO lzt_stock_cache (country, iso_code, flag, stock_count, price, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+                                    (country_name, iso_code, flag, d[1], d[2])
+                                )
+                                conn.commit()
+                        except Exception:
+                            pass
                 except Exception:
                     if fkey not in cached_lzt_stock:
                         cached_lzt_stock[fkey] = {}
@@ -276,6 +286,24 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
 
         markup = get_lzt_markup(country)
         starting_price = lzt_final_inr_price(items[0], markup) if items else 0
+
+        # Save live price and stock count to memory cache & persistent SQLite cache
+        fkey = get_filter_key(flt)
+        if fkey not in cached_lzt_stock:
+            cached_lzt_stock[fkey] = {}
+        cached_lzt_stock[fkey][country] = (total_items, starting_price)
+        if "no_no_any_any_any" not in cached_lzt_stock:
+            cached_lzt_stock["no_no_any_any_any"] = {}
+        cached_lzt_stock["no_no_any_any_any"][country] = (total_items, starting_price)
+        try:
+            with managed_connect() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO lzt_stock_cache (country, iso_code, flag, stock_count, price, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+                    (country, iso_code, flag, total_items, starting_price)
+                )
+                conn.commit()
+        except Exception:
+            pass
 
         msg = (f"📦 Found: {total_items} | Page {page}/{total_pages}\n"
                f"💰 Starting Price: {format_price(uid, starting_price)}\n"

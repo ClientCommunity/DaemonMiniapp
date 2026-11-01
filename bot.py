@@ -619,7 +619,15 @@ async def render_server1_country_page(e, uid, page):
     flt = get_user_filters(uid)
     fkey = get_filter_key(flt)
     active_filter_keys.add(fkey)
-    stock_dict = cached_lzt_stock.get(fkey, cached_lzt_stock.get("no_no_any_any_any", {}))
+    merged_stock = {}
+    try:
+        with managed_connect() as conn:
+            for r in conn.execute("SELECT country, stock_count, price FROM lzt_stock_cache").fetchall():
+                merged_stock[r[0]] = (int(r[1]), float(r[2]))
+    except Exception:
+        pass
+    merged_stock.update(cached_lzt_stock.get(fkey, cached_lzt_stock.get("no_no_any_any_any", {})))
+    stock_dict = merged_stock
 
     sorted_countries = sorted(COUNTRY_CODES.keys())
     sort_mode = flt.get("sort", "az")

@@ -443,27 +443,41 @@ async def fampay_supervisor_loop():
 
 async def cache_lzt_stock_loop():
     """Background worker caching live LZT Market stock to SQLite lzt_stock_cache table."""
-    fetch_lzt = get_bot_attr("fetch_lzt_country_data_with_filters")
     from database import utcnow
+    from bot_helpers.constants import COUNTRY_CODES
+    priority_countries = [
+        "United States", "India", "Russia", "Indonesia", "United Kingdom",
+        "Germany", "Brazil", "Vietnam", "Turkey", "Kazakhstan", "Ukraine",
+        "Philippines", "Malaysia", "Nigeria", "Pakistan", "France", "Canada"
+    ]
+    other_countries = [c for c in COUNTRY_CODES.keys() if c not in priority_countries]
+    all_ordered = priority_countries + other_countries
+
     while True:
         try:
-            if fetch_lzt:
-                data = await fetch_lzt(country="all", max_pages=1)
-                if data and isinstance(data, list):
-                    with managed_connect() as conn:
-                        for row in data:
-                            conn.execute(
-                                "INSERT OR REPLACE INTO lzt_stock_cache (country, iso_code, flag, stock_count, price, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-                                (
-                                    row.get("country", ""),
-                                    row.get("iso_code", ""),
-                                    row.get("flag", "🌐"),
-                                    int(row.get("stock_count", 0)),
-                                    float(row.get("price", 80)),
-                                    utcnow(),
-                                ),
-                            )
-                        conn.commit()
+            fetch_lzt = get_bot_attr("fetch_lzt_country_data_with_filters")
+            cached_lzt_stock = get_bot_attr("cached_lzt_stock")
+            managed_connect = get_bot_attr("managed_connect")
+            if fetch_lzt and managed_connect:
+                for c in all_ordered:
+                    try:
+                        iso_code, flag = COUNTRY_CODES.get(c, ("US", "🇺🇸"))
+                        res = await fetch_lzt(c, "no", "no", "any", "any", "any")
+                        if res and isinstance(res, (tuple, list)) and len(res) >= 3:
+                            country_name, count, price = res[0], res[1], res[2]
+                            if cached_lzt_stock is not None:
+                                if "no_no_any_any_any" not in cached_lzt_stock:
+                                    cached_lzt_stock["no_no_any_any_any"] = {}
+                                cached_lzt_stock["no_no_any_any_any"][country_name] = (count, price)
+                            with managed_connect() as conn:
+                                conn.execute(
+                                    "INSERT OR REPLACE INTO lzt_stock_cache (country, iso_code, flag, stock_count, price, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                                    (country_name, iso_code, flag, int(count), float(price), utcnow())
+                                )
+                                conn.commit()
+                    except Exception as err:
+                        logger.debug("LZT background sync for %s: %s", c, err)
+                    await asyncio.sleep(2.5)
         except Exception as ex:
             logger.debug("LZT cache loop note: %s", ex)
         try:
@@ -471,4 +485,4 @@ async def cache_lzt_stock_loop():
             cleanup_expired_conversations()
         except Exception:
             pass
-        await asyncio.sleep(60)
+        await asyncio.sleep(120)
