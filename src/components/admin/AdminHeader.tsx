@@ -37,7 +37,7 @@ export const AdminHeader: React.FC = () => {
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold text-white tracking-tight truncate">
-                Krish Admin Dashboard
+                Deamon Admin Dashboard
               </h1>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#7c3aed]/20 text-[#a78bfa] border border-[#7c3aed]/30 shrink-0">
                 RBAC Active

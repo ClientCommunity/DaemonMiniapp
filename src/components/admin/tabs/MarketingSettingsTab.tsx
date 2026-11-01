@@ -42,8 +42,8 @@ export const MarketingSettingsTab: React.FC = () => {
   const handleToggleBotStatus = async () => {
     const nextStatus = botStatus === 'on' ? 'off' : 'on';
     const msg = nextStatus === 'off'
-      ? 'Put Krish Bot into MAINTENANCE mode? Non-admin users will be blocked.'
-      : 'Set Krish Bot ONLINE? All customers will have immediate access.';
+      ? 'Put Bot into MAINTENANCE mode? Non-admin users will be blocked.'
+      : 'Set Bot ONLINE? All customers will have immediate access.';
 
     if (!window.confirm(msg)) return;
 
@@ -240,7 +240,7 @@ export const MarketingSettingsTab: React.FC = () => {
 
   const handleGenerateRandomCode = () => {
     const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setNewPromoCode(`KRISH${rand}`);
+    setNewPromoCode(`DEAMON${rand}`);
   };
 
   const handleCreatePromoCode = async (e: React.FormEvent) => {
@@ -344,7 +344,7 @@ export const MarketingSettingsTab: React.FC = () => {
           <div className="flex items-center gap-2">
             <Power className="w-5 h-5 text-[#8b5cf6]" />
             <h3 className="text-sm font-bold text-white tracking-tight">
-              Master Krish Telegram Bot Status
+              Master Telegram Bot Status
             </h3>
             <span
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${

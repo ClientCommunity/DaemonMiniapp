@@ -61,7 +61,7 @@ export const InitialLoadingScreen: React.FC<InitialLoadingScreenProps> = ({
           {/* SVG Progress Circle */}
           <svg className="w-36 h-36 -rotate-90 transform" viewBox="0 0 130 130">
             <defs>
-              <linearGradient id="krishLoaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="deamonLoaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#8b5cf6" />
                 <stop offset="50%" stopColor="#6366f1" />
                 <stop offset="100%" stopColor="#06b6d4" />
@@ -81,7 +81,7 @@ export const InitialLoadingScreen: React.FC<InitialLoadingScreenProps> = ({
               cx="65"
               cy="65"
               r={radius}
-              stroke="url(#krishLoaderGrad)"
+              stroke="url(#deamonLoaderGrad)"
               strokeWidth="5"
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
@@ -105,7 +105,7 @@ export const InitialLoadingScreen: React.FC<InitialLoadingScreenProps> = ({
         {/* Title & Slogan */}
         <div className="flex flex-col items-center text-center mb-8">
           <h1 className="text-2xl font-black tracking-wider text-white uppercase flex items-center gap-1.5">
-            KRISH <span className="bg-gradient-to-r from-[#a78bfa] via-[#818cf8] to-[#38bdf8] bg-clip-text text-transparent">STORE</span>
+            DEAMON <span className="bg-gradient-to-r from-[#a78bfa] via-[#818cf8] to-[#38bdf8] bg-clip-text text-transparent">OTP</span>
           </h1>
           <p className="text-xs text-[#a1a1aa] font-medium tracking-wider uppercase mt-1">
             Virtual Numbers & Services Hub

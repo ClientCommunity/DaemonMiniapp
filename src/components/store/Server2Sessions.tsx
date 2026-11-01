@@ -127,7 +127,7 @@ export const Server2Sessions: React.FC = () => {
 
   return (
     <div className="w-full flex flex-col pt-2">
-      {/* Quality Tier Segmented Pill Control (Krish's Key Quality Split) */}
+      {/* Quality Tier Segmented Pill Control (Account Quality Split) */}
       <div className="grid grid-cols-2 gap-2 p-1 bg-[#121217] border border-[#262630] rounded-2xl mb-3">
         <button
           onClick={() => setQualityTier('good')}

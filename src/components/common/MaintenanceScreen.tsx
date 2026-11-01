@@ -52,7 +52,7 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({
         </button>
 
         <a
-          href="https://t.me/patelkrish_99bot"
+          href="https://t.me/DeamonOTPbot"
           target="_blank"
           rel="noopener noreferrer"
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#181820] hover:bg-[#1f1f2a] text-[#a1a1aa] hover:text-white font-bold text-xs border border-[#262630] transition-colors"
@@ -64,7 +64,7 @@ export const MaintenanceScreen: React.FC<MaintenanceScreenProps> = ({
 
       {/* Security note */}
       <div className="absolute bottom-6 text-[10px] text-[#52525b] font-mono">
-        Krish Daemon Mini App • Production Server Monitor
+        Deamon OTP Mini App • Production Server Monitor
       </div>
     </div>
   );

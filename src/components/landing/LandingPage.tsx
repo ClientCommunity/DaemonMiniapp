@@ -198,7 +198,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             </div>
             <div>
               <span className="font-extrabold text-lg tracking-tight text-white flex items-center gap-1.5">
-                Krish OTP Store
+                Deamon OTP Store
                 <span className="text-[10px] font-mono font-bold bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30 px-1.5 py-0.2 rounded-full">
                   LIVE
                 </span>
@@ -657,7 +657,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#71717a]">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-[#7c3aed]" />
-            <span className="font-bold text-[#d4d4d8]">Krish OTP Store</span>
+            <span className="font-bold text-[#d4d4d8]">Deamon OTP Store</span>
             <span>• © 2026 All Rights Reserved</span>
           </div>
 

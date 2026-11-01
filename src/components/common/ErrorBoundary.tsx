@@ -120,7 +120,7 @@ export class ErrorBoundary extends Component<Props, State> {
           {/* Footer Badge */}
           <div className="w-full flex items-center justify-center pb-2">
             <span className="text-[11px] text-[#52525b] font-mono">
-              Krish Mini App • Production Error Recovery
+              Deamon Mini App • Production Error Recovery
             </span>
           </div>
         </div>

@@ -644,7 +644,7 @@ export const DepositHub: React.FC = () => {
               <div className="flex flex-col">
                 <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Merchant UPI</span>
                 <span className="text-xs font-mono font-bold text-white">
-                  {merchantUpi || 'Contact @patelkrish_99bot for UPI'}
+                  {merchantUpi || 'Contact @DeamonOTPbot for UPI'}
                 </span>
               </div>
               {merchantUpi ? (
@@ -743,7 +743,7 @@ export const DepositHub: React.FC = () => {
               </div>
               <span className="text-sm font-bold text-white">No Crypto Gateways Active</span>
               <p className="text-xs text-[#a1a1aa] mt-1 max-w-xs">
-                Custom crypto payment methods (Cwallet / USDT) are currently not configured. Please use FamPay QR or contact support @patelkrish_99bot.
+                Custom crypto payment methods (Cwallet / USDT) are currently not configured. Please use FamPay QR or contact support @DeamonOTPbot.
               </p>
             </div>
           ) : (

@@ -518,7 +518,7 @@ export const PaymentsHubTab: React.FC = () => {
               />
               <input
                 type="text"
-                placeholder="Display Name (e.g. Krish Store)"
+                placeholder="Display Name (e.g. Deamon Store)"
                 value={newFpPayName}
                 onChange={(e) => setNewFpPayName(e.target.value)}
                 className="bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"

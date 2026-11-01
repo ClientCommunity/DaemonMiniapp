@@ -127,7 +127,7 @@ export const GoogleLoginScreen: React.FC<GoogleLoginScreenProps> = ({ onLoginSuc
         </div>
 
         <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-          <span>Krish OTP Store</span>
+          <span>Deamon OTP Store</span>
         </h1>
         <p className="text-xs text-[#a1a1aa] mt-1.5 max-w-[280px]">
           Virtual OTP Numbers, Premium Telegram Sessions &amp; Social Media Services
