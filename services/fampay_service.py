@@ -10,6 +10,7 @@ import secrets
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Any
+import sqlite3
 
 from database import connect, transaction, utcnow, get_admin_log_channel_id
 
@@ -315,7 +316,9 @@ def notify_admins_auto_verified(order_db_id: int, user_id: int, amount: int, utr
 
 
 def submit_manual_deposit(user_id: int, method_id: int | str, utr: str, amount: int = 0) -> dict[str, Any]:
-    """Submit a manual deposit UTR with instant Gmail IMAP auto-verification and admin fallback."""
+    """Submit a manual deposit UTR with instant Gmail IMAP auto-verification and admin fallback.
+    Protected against double-crediting race conditions via atomic reservation and immediate transactions.
+    """
     uid = int(user_id)
     clean_utr = str(utr).strip()
     if not clean_utr:
@@ -324,34 +327,53 @@ def submit_manual_deposit(user_id: int, method_id: int | str, utr: str, amount: 
     amt = max(0, int(amount))
     method_label = f"Manual #{method_id} (UTR: {clean_utr})"
 
-    # 1. Anti-Replay / Duplicate UTR check
-    with connect() as conn:
-        already_credited = conn.execute("""
-            SELECT id FROM deposits
-            WHERE status IN ('success', 'approved')
-              AND method_name LIKE ?
-        """, (f"%{clean_utr}%",)).fetchone()
-        if already_credited:
-            return {
-                "success": False,
-                "error": "This transaction reference / UTR has already been verified and credited."
-            }
+    # 1. Atomic Anti-Replay & Reservation
+    # Uses immediate transaction to lock out concurrent submissions of the same UTR
+    deposit_db_id = None
+    try:
+        with transaction(immediate=True) as conn:
+            # Check if UTR is already credited or pending in deposits
+            existing = conn.execute("""
+                SELECT id, status, amount FROM deposits
+                WHERE (utr = ? OR (method_name LIKE ? AND utr IS NULL))
+                  AND status IN ('success', 'approved', 'pending', 'processing')
+                ORDER BY id DESC LIMIT 1
+            """, (clean_utr, f"%{clean_utr}%")).fetchone()
 
-        # Anti-Duplication: check if already submitted and pending review
-        already_pending = conn.execute("""
-            SELECT id FROM deposits
-            WHERE status = 'pending'
-              AND method_name LIKE ?
-        """, (f"%{clean_utr}%",)).fetchone()
-        if already_pending:
-            logger.info("Duplicate pending deposit submission suppressed for user %s: %s", uid, clean_utr)
-            return {
-                "success": True,
-                "auto_verified": False,
-                "status": "pending",
-                "message": "Deposit reference already received and pending admin review.",
-                "deposit_id": already_pending["id"]
-            }
+            if existing:
+                if existing["status"] in ("success", "approved"):
+                    return {
+                        "success": False,
+                        "error": "This transaction reference / UTR has already been verified and credited."
+                    }
+                # Already pending or processing
+                logger.info("Duplicate deposit submission suppressed for user %s: %s (status: %s)", uid, clean_utr, existing["status"])
+                return {
+                    "success": True,
+                    "auto_verified": False,
+                    "status": "pending",
+                    "message": "Deposit reference already received and pending verification.",
+                    "deposit_id": existing["id"]
+                }
+
+            # Atomically reserve the UTR in 'processing' status
+            cur = conn.execute("""
+                INSERT INTO deposits (user_id, amount, method_name, status, utr, date)
+                VALUES (?, ?, ?, 'processing', ?, ?)
+            """, (uid, amt, method_label, clean_utr, utcnow()))
+            deposit_db_id = cur.lastrowid
+    except sqlite3.IntegrityError:
+        # Unique constraint on utr triggered by concurrent thread
+        logger.warning("Concurrent duplicate deposit UTR detected for user %s: %s", uid, clean_utr)
+        return {
+            "success": True,
+            "auto_verified": False,
+            "status": "pending",
+            "message": "Deposit reference already received and pending verification."
+        }
+
+    if not deposit_db_id:
+        return {"success": False, "error": "Could not initiate deposit verification."}
 
     # 2. Check enabled UPI Gateway with Gmail credentials
     verified_via_imap = False
@@ -372,40 +394,41 @@ def submit_manual_deposit(user_id: int, method_id: int | str, utr: str, amount: 
         except Exception as ex:
             logger.warning("IMAP UTR verification failed: %s", ex)
 
-    # 3. If verified via IMAP: credit instantly!
+    # 3. If verified via IMAP: credit instantly and update reservation!
     if verified_via_imap:
-        order_db_id = 0
+        credited = False
         with transaction(immediate=True) as conn:
-            conn.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (uid,))
-            conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amt, uid))
-            cur = conn.execute("""
-                INSERT INTO deposits (user_id, amount, method_name, status, date)
-                VALUES (?, ?, ?, 'success', ?)
-            """, (uid, amt, f"UPI Auto-Verified (UTR: {clean_utr})", utcnow()))
-            order_db_id = cur.lastrowid
+            # Re-verify that this reservation is still in 'processing' status
+            res_row = conn.execute("SELECT status FROM deposits WHERE id = ?", (deposit_db_id,)).fetchone()
+            if res_row and res_row["status"] == "processing":
+                conn.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (uid,))
+                conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amt, uid))
+                conn.execute("""
+                    UPDATE deposits
+                    SET status = 'success', method_name = ?, date = ?
+                    WHERE id = ?
+                """, (f"UPI Auto-Verified (UTR: {clean_utr})", utcnow(), deposit_db_id))
+                credited = True
 
-        if order_db_id:
-            notify_admins_auto_verified(order_db_id, uid, amt, clean_utr)
+        if credited:
+            notify_admins_auto_verified(deposit_db_id, uid, amt, clean_utr)
+            return {
+                "success": True,
+                "auto_verified": True,
+                "status": "approved",
+                "message": f"Payment of ₹{amt} verified automatically via UTR! Your balance has been credited.",
+            }
 
-        return {
-            "success": True,
-            "auto_verified": True,
-            "status": "approved",
-            "message": f"Payment of ₹{amt} verified automatically via UTR! Your balance has been credited.",
-        }
-
-    # 4. Fallback: Queue for manual admin approval
-    order_db_id = 0
+    # 4. Fallback: Transition reservation to 'pending' for manual admin approval
     with transaction(immediate=True) as conn:
         conn.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (uid,))
-        cur = conn.execute("""
-            INSERT INTO deposits (user_id, amount, method_name, status, date)
-            VALUES (?, ?, ?, 'pending', ?)
-        """, (uid, amt, method_label, utcnow()))
-        order_db_id = cur.lastrowid
+        conn.execute("""
+            UPDATE deposits
+            SET status = 'pending', method_name = ?, date = ?
+            WHERE id = ? AND status = 'processing'
+        """, (method_label, utcnow(), deposit_db_id))
 
-    if order_db_id:
-        notify_admins_manual_deposit(order_db_id, uid, amt, method_id, clean_utr)
+    notify_admins_manual_deposit(deposit_db_id, uid, amt, method_id, clean_utr)
 
     return {
         "success": True,

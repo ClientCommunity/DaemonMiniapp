@@ -611,6 +611,13 @@ def migrate() -> None:
         order_columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
         if "promo_deducted" not in order_columns:
             conn.execute("ALTER TABLE orders ADD COLUMN promo_deducted INTEGER DEFAULT 0")
+        if "refunded" not in order_columns:
+            conn.execute("ALTER TABLE orders ADD COLUMN refunded INTEGER DEFAULT 0")
+
+        deposit_columns = {row[1] for row in conn.execute("PRAGMA table_info(deposits)")}
+        if "utr" not in deposit_columns:
+            conn.execute("ALTER TABLE deposits ADD COLUMN utr TEXT")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_deposits_utr_active ON deposits(utr) WHERE utr IS NOT NULL AND status IN ('success', 'approved', 'pending', 'processing')")
 
         # 3. Dynamic schema migration: stock table with CHECK(quality_tier IN ('good', 'cheap'))
         stock_sql_row = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='stock'").fetchone()

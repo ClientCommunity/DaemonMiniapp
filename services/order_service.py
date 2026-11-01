@@ -644,10 +644,15 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
                         "server": row["server"],
                     }
                 elif s_status == "cancelled":
-                    with connect() as conn:
-                        conn.execute("UPDATE server3_orders SET status = 'cancelled' WHERE provider_order_id = ?", (s3_row["provider_order_id"],))
-                        conn.execute("UPDATE orders SET otp = 'CANCELLED' WHERE id = ?", (row["id"],))
-                        conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (row["price"], row["user_id"]))
+                    with transaction(immediate=True) as conn:
+                        s3_curr = conn.execute("SELECT refunded FROM server3_orders WHERE provider_order_id = ?", (s3_row["provider_order_id"],)).fetchone()
+                        already_refunded = bool(s3_curr and s3_curr["refunded"])
+
+                        conn.execute("UPDATE server3_orders SET status = 'cancelled', refunded = 1 WHERE provider_order_id = ?", (s3_row["provider_order_id"],))
+                        conn.execute("UPDATE orders SET otp = 'CANCELLED', refunded = 1 WHERE id = ?", (row["id"],))
+
+                        if not already_refunded:
+                            conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (row["price"], row["user_id"]))
                     return {"status": "cancelled", "otp": None, "phone": row["phone"], "server": row["server"]}
         except Exception as ex:
             logger.debug("Server 3 poll exception: %s", ex)
@@ -676,10 +681,15 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
                         "server": row["server"],
                     }
                 elif s_status == "cancelled":
-                    with connect() as conn:
-                        conn.execute("UPDATE server4_orders SET status = 'cancelled' WHERE provider_order_id = ?", (s4_row["provider_order_id"],))
-                        conn.execute("UPDATE orders SET otp = 'CANCELLED' WHERE id = ?", (row["id"],))
-                        conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (row["price"], row["user_id"]))
+                    with transaction(immediate=True) as conn:
+                        s4_curr = conn.execute("SELECT refunded FROM server4_orders WHERE provider_order_id = ?", (s4_row["provider_order_id"],)).fetchone()
+                        already_refunded = bool(s4_curr and s4_curr["refunded"])
+
+                        conn.execute("UPDATE server4_orders SET status = 'cancelled', refunded = 1 WHERE provider_order_id = ?", (s4_row["provider_order_id"],))
+                        conn.execute("UPDATE orders SET otp = 'CANCELLED', refunded = 1 WHERE id = ?", (row["id"],))
+
+                        if not already_refunded:
+                            conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (row["price"], row["user_id"]))
                     return {"status": "cancelled", "otp": None, "phone": row["phone"], "server": row["server"]}
         except Exception as ex:
             logger.debug("Server 4 poll exception: %s", ex)
@@ -693,7 +703,7 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
 
 
 def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
-    """Cancel an active waiting order and refund the user wallet atomically and symmetrically."""
+    """Cancel an active waiting order and refund the user wallet atomically and symmetrically, preventing duplicate refunds."""
     uid = int(user_id)
     clean_id = (identifier or "").replace("+", "").replace(" ", "").strip()
 
@@ -713,26 +723,31 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
         phone = row["phone"]
         promo_restored = int(row["promo_deducted"] or 0) if "promo_deducted" in row.keys() else 0
         server_label = str(row["server"] or "").strip()
+        is_already_refunded = False
 
-        # Upstream cancellation for Server 3
+        # Upstream cancellation & refund check for Server 3
         if server_label == "Server 3":
             try:
-                s3_row = conn.execute("SELECT provider_order_id FROM server3_orders WHERE phone = ? OR provider_order_id = ?", (phone, clean_id)).fetchone()
+                s3_row = conn.execute("SELECT provider_order_id, refunded FROM server3_orders WHERE phone = ? OR provider_order_id = ?", (phone, clean_id)).fetchone()
                 if s3_row:
+                    if s3_row["refunded"]:
+                        is_already_refunded = True
                     from server3 import Server3Client
                     run_sync(Server3Client().set_status(s3_row["provider_order_id"], 8))
-                    conn.execute("UPDATE server3_orders SET status = 'cancelled' WHERE provider_order_id = ?", (s3_row["provider_order_id"],))
+                    conn.execute("UPDATE server3_orders SET status = 'cancelled', refunded = 1 WHERE provider_order_id = ?", (s3_row["provider_order_id"],))
             except Exception as ex:
                 logger.warning("Upstream Server 3 cancellation notice: %s", ex)
 
-        # Upstream cancellation for Server 4
+        # Upstream cancellation & refund check for Server 4
         elif server_label == "Server 4":
             try:
-                s4_row = conn.execute("SELECT provider_order_id FROM server4_orders WHERE phone = ? OR provider_order_id = ?", (phone, clean_id)).fetchone()
+                s4_row = conn.execute("SELECT provider_order_id, refunded FROM server4_orders WHERE phone = ? OR provider_order_id = ?", (phone, clean_id)).fetchone()
                 if s4_row:
+                    if s4_row["refunded"]:
+                        is_already_refunded = True
                     from server4 import TemporaClient
                     run_sync(TemporaClient().set_status(s4_row["provider_order_id"], 8))
-                    conn.execute("UPDATE server4_orders SET status = 'cancelled' WHERE provider_order_id = ?", (s4_row["provider_order_id"],))
+                    conn.execute("UPDATE server4_orders SET status = 'cancelled', refunded = 1 WHERE provider_order_id = ?", (s4_row["provider_order_id"],))
             except Exception as ex:
                 logger.warning("Upstream Server 4 cancellation notice: %s", ex)
 
@@ -740,16 +755,20 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
         elif server_label == "Server 2" and phone:
             conn.execute("UPDATE stock SET available = 1 WHERE phone = ?", (phone,))
 
-        # Mark cancelled in orders table
-        conn.execute("UPDATE orders SET otp = 'CANCELLED' WHERE id = ?", (order_id,))
+        # Mark cancelled and refunded in orders table
+        conn.execute("UPDATE orders SET otp = 'CANCELLED', refunded = 1 WHERE id = ?", (order_id,))
 
-        # Symmetrical refund: restore main balance and promo balance exactly
-        conn.execute("""
-            UPDATE users
-            SET balance = balance + ?,
-                promo_balance = COALESCE(promo_balance, 0) + ?
-            WHERE user_id = ?
-        """, (refund_amount, promo_restored, uid))
+        # Only refund wallet if NOT already refunded by background worker or prior action
+        if not is_already_refunded:
+            conn.execute("""
+                UPDATE users
+                SET balance = balance + ?,
+                    promo_balance = COALESCE(promo_balance, 0) + ?
+                WHERE user_id = ?
+            """, (refund_amount, promo_restored, uid))
+        else:
+            logger.info("Order %s was already refunded, skipping duplicate refund for user %s", order_id, uid)
+            refund_amount = 0
 
         new_bal = conn.execute("SELECT balance FROM users WHERE user_id = ?", (uid,)).fetchone()[0]
 

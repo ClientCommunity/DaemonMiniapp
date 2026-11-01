@@ -45,16 +45,22 @@ def complete_order(table: str, order_id: str, code: str) -> dict | None:
 
 
 def cancel_and_refund(table: str, order_id: str, reason: str) -> dict | None:
-    """Refund only once after the provider confirms cancellation."""
+    """Refund only once after the provider confirms cancellation, synchronizing with the main orders table."""
     with transaction(immediate=True) as conn:
-        row = conn.execute(f"SELECT user_id,charged_price,refunded FROM {table} WHERE provider_order_id=?", (order_id,)).fetchone()
-        if not row:
+        row = conn.execute(f"SELECT user_id,phone,charged_price,refunded FROM {table} WHERE provider_order_id=?", (order_id,)).fetchone()
+        if not row or row["refunded"]:
             return None
         changed = conn.execute(f"""UPDATE {table} SET status='cancelled',refunded=1,updated_at=?
           WHERE provider_order_id=? AND status='waiting' AND refunded=0""", (utcnow(), order_id)).rowcount
         if not changed:
             return None
         conn.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (row["charged_price"], row["user_id"]))
+
+        # Synchronize main orders table so Mini App does not show WAITING and cannot double-refund
+        phone = row["phone"] if "phone" in row.keys() else None
+        if phone:
+            conn.execute("UPDATE orders SET otp='CANCELLED', refunded=1 WHERE (phone=? OR phone LIKE ?) AND otp='WAITING'", (phone, f"%{phone}%"))
+
         return {"user_id": row["user_id"], "order_id": order_id, "amount": row["charged_price"], "reason": reason}
 
 
