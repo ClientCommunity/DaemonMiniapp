@@ -43,9 +43,6 @@ REQUIRE_PROXY_SECRET = os.getenv(
     os.getenv("PROXY_SECRET_REQUIRED", "0")
 ).lower() in ("1", "true", "yes")
 
-# Telegram Mini App WebApp URL
-MINI_APP_URL = os.getenv("MINI_APP_URL", "https://fahhh.duckdns.org").strip().rstrip("/")
-
 # Telegram Bot Credentials
 BOT_TOKEN = os.getenv(
     "TELEGRAM_BOT_TOKEN",
@@ -53,6 +50,38 @@ BOT_TOKEN = os.getenv(
 ).strip()
 API_ID = int(os.getenv("TELEGRAM_API_ID", "26663221"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "d3557c9b05a08892562b2777035e1cdb").strip()
+
+
+def fetch_bot_username(token: str = None) -> str:
+    """Fetch the bot's username dynamically from Telegram API using BOT_TOKEN."""
+    t = (token or BOT_TOKEN).strip()
+    if not t:
+        return os.getenv("BOT_USERNAME", "SnapToNumberBot")
+    try:
+        import urllib.request
+        import json
+        url = f"https://api.telegram.org/bot{t}/getMe"
+        req = urllib.request.Request(url, headers={"User-Agent": "DeamonOTPBot/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data.get("ok") and data.get("result", {}).get("username"):
+                return data["result"]["username"]
+    except Exception:
+        pass
+    return os.getenv("BOT_USERNAME", "SnapToNumberBot")
+
+
+BOT_USERNAME = os.getenv("BOT_USERNAME") or fetch_bot_username(BOT_TOKEN)
+
+
+def get_mini_app_url(bot_username: str = None) -> str:
+    """Return dynamic Telegram Mini App URL (e.g. https://t.me/SnapToNumberBot/bot)."""
+    uname = bot_username or BOT_USERNAME
+    return os.getenv("MINI_APP_URL") or f"https://t.me/{uname}/bot"
+
+
+# Dynamic Mini App URL derived directly from the bot token identity
+MINI_APP_URL = get_mini_app_url(BOT_USERNAME)
 
 # Admin IDs
 _raw_admin_ids = os.getenv("TELEGRAM_ADMIN_ID", "7507183871,1928631932")

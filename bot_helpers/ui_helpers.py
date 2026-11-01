@@ -10,24 +10,18 @@ from api_cooldown import is_cooling_down, record_rate_limit
 from bot_helpers.constants import PREMIUM_EMOJI_IDS
 
 
-# Ensure telethon.Button has web_app static method
-if not hasattr(Button, "web_app"):
-    Button.web_app = staticmethod(lambda text, url, **kwargs: tl_types.KeyboardButtonWebView(text=text, url=url))
-
-
-def p_webapp_btn(text: str, url: str):
-    """Construct an inline button that opens a native Telegram WebApp."""
-    return tl_types.KeyboardButtonWebView(text=text, url=url)
-
-
-# Ensure telethon.Button has web_app static method
-if not hasattr(Button, "web_app"):
-    Button.web_app = staticmethod(lambda text, url, **kwargs: tl_types.KeyboardButtonWebView(text=text, url=url))
+# Ensure telethon.Button has web_app static method that handles both t.me and direct URLs
+def _button_web_app(text: str, url: str, **kwargs):
+    if "t.me/" in str(url or "").lower():
+        return Button.url(text, url)
+    return tl_types.KeyboardButtonWebView(text=text, url=url)
+
+Button.web_app = staticmethod(_button_web_app)
 
 
 def p_webapp_btn(text: str, url: str):
     """Construct an inline button that opens a native Telegram WebApp."""
-    return tl_types.KeyboardButtonWebView(text=text, url=url)
+    return _button_web_app(text, url)
 
 
 def p_btn(text, data=None, url=None, style=None, icon_custom_emoji_id=None):
