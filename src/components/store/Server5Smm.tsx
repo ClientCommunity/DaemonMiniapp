@@ -4,11 +4,13 @@ import { SmmPlatform, SmmServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
 import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { Modal } from '../common/Modal';
+import { hapticFeedback } from '../../utils/haptics';
 import {
   Rocket,
   Search,
   X,
   Link as LinkIcon,
+  Clipboard,
   ShieldCheck,
   Zap,
   Clock,
@@ -20,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
-  const { formatPrice, submitSmmOrder, server5Items, user, setActiveTab } = useApp();
+  const { formatPrice, submitSmmOrder, server5Items, user, setActiveTab, addToast } = useApp();
 
   const [activePlatform, setActivePlatform] = useState<SmmPlatform | 'all'>(() => {
     try {
@@ -140,6 +142,24 @@ export const Server5Smm: React.FC = () => {
   }, [platformServices, priceSort]);
 
   const presetIncrements = [500, 1000, 2500, 5000];
+
+  const handlePasteLink = async () => {
+    hapticFeedback.light();
+    try {
+      if (navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        const cleaned = text.trim();
+        if (cleaned) {
+          setModalTargetLink(cleaned);
+          addToast('Pasted link from clipboard!', 'info', 'Clipboard');
+          return;
+        }
+      }
+      addToast('Clipboard is empty or access denied', 'warning', 'Clipboard');
+    } catch {
+      addToast('Unable to read clipboard. Please paste manually.', 'warning', 'Clipboard');
+    }
+  };
 
   const handleOpenBuyModal = (service: SmmServiceItem) => {
     setModalService(service);
@@ -447,14 +467,25 @@ export const Server5Smm: React.FC = () => {
                 </span>
                 <span className="text-[10px] font-normal text-[#a1a1aa]">Must be public</span>
               </label>
-              <input
-                type="text"
-                value={modalTargetLink}
-                onChange={(e) => setModalTargetLink(e.target.value)}
-                placeholder={getUrlPlaceholder(modalService.platform)}
-                className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none focus:border-[#7c3aed] transition-colors"
-                required
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={modalTargetLink}
+                  onChange={(e) => setModalTargetLink(e.target.value)}
+                  placeholder={getUrlPlaceholder(modalService.platform)}
+                  className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl pl-3.5 pr-20 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none focus:border-[#7c3aed] transition-colors"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={handlePasteLink}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg bg-[#1f1f2a] hover:bg-[#2a2a3a] border border-[#262630] text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-1 transition-all active:scale-95"
+                  title="Paste from clipboard"
+                >
+                  <Clipboard className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                  <span>Paste</span>
+                </button>
+              </div>
               <span className="text-[10px] text-[#a1a1aa]">
                 Ensure your channel, page, or account is public with zero privacy restrictions.
               </span>

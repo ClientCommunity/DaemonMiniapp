@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
-import { Send, Lock, AlertCircle } from 'lucide-react';
+import { Send, Lock, AlertCircle, Clipboard } from 'lucide-react';
+import { hapticFeedback } from '../../utils/haptics';
 
 interface P2PTransferModalProps {
   isOpen: boolean;
@@ -9,7 +10,7 @@ interface P2PTransferModalProps {
 }
 
 export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onClose }) => {
-  const { user, transferableBalance, formatPrice, transferP2P } = useApp();
+  const { user, transferableBalance, formatPrice, transferP2P, addToast } = useApp();
 
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
@@ -19,6 +20,25 @@ export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onCl
   const numAmount = Number(amount) || 0;
   const isAmountOverTransferable = numAmount > transferableBalance;
   const isAmountZeroOrNegative = numAmount <= 0;
+
+  const handlePasteRecipient = async () => {
+    hapticFeedback.light();
+    try {
+      if (navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        const cleaned = text.trim();
+        if (cleaned) {
+          setRecipient(cleaned);
+          setErrorText(null);
+          addToast('Pasted recipient from clipboard!', 'info', 'Clipboard');
+          return;
+        }
+      }
+      addToast('Clipboard is empty or access denied', 'warning', 'Clipboard');
+    } catch {
+      addToast('Unable to read clipboard. Please paste manually.', 'warning', 'Clipboard');
+    }
+  };
 
   const handleMaxClick = () => {
     setAmount(transferableBalance);
@@ -120,17 +140,28 @@ export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onCl
           {/* Recipient Input */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-white">Recipient User</label>
-            <input
-              type="text"
-              value={recipient}
-              onChange={(e) => {
-                setRecipient(e.target.value);
-                setErrorText(null);
-              }}
-              placeholder="e.g. 7507183871 or @username"
-              className="w-full bg-[#181820] border border-[#262630] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed]"
-              required
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={recipient}
+                onChange={(e) => {
+                  setRecipient(e.target.value);
+                  setErrorText(null);
+                }}
+                placeholder="e.g. 7507183871 or @username"
+                className="w-full bg-[#181820] border border-[#262630] rounded-xl pl-3.5 pr-20 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed]"
+                required
+              />
+              <button
+                type="button"
+                onClick={handlePasteRecipient}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg bg-[#262630] hover:bg-[#323242] text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-1 transition-all active:scale-95"
+                title="Paste recipient"
+              >
+                <Clipboard className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                <span>Paste</span>
+              </button>
+            </div>
           </div>
 
           {/* Amount Input */}
