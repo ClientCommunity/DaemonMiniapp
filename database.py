@@ -576,6 +576,16 @@ def migrate() -> None:
             ('sync_interval','300'),('search_limit','500'),('services_per_page','10'),
             ('orders_per_page','10'),('default_currency','INR'),('low_balance','10');
 
+        CREATE TABLE IF NOT EXISTS user_conversations (
+            namespace TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            state_data TEXT NOT NULL,
+            expires_at REAL NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (namespace, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_conv_exp ON user_conversations(expires_at);
+
         CREATE TABLE IF NOT EXISTS auto_prices (
             country TEXT,
             year TEXT,
@@ -1385,6 +1395,19 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
                 (uid, lim, off)
             ).fetchall()
             return [dict(r) if isinstance(r, dict) or hasattr(r, 'keys') else {"id": r[0], "country": r[1], "year": r[2], "price": r[3], "phone": r[4], "otp": r[5], "server": r[6], "date": r[7]} for r in fb]
+
+
         except Exception:
             return []
 
+
+def cleanup_expired_conversations() -> int:
+    """Delete all expired user conversation states across all namespaces."""
+    import time
+    try:
+        with connect() as conn:
+            cur = conn.execute("DELETE FROM user_conversations WHERE expires_at <= ?", (time.time(),))
+            return cur.rowcount
+    except Exception as exc:
+        logger.warning("Failed to clean up expired conversations: %s", exc)
+        return 0

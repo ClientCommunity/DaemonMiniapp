@@ -466,4 +466,9 @@ async def cache_lzt_stock_loop():
                         conn.commit()
         except Exception as ex:
             logger.debug("LZT cache loop note: %s", ex)
+        try:
+            from database import cleanup_expired_conversations
+            cleanup_expired_conversations()
+        except Exception:
+            pass
         await asyncio.sleep(60)

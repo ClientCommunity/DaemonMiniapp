@@ -312,45 +312,45 @@ db = sqlite3.connect(BOT_DATABASE, check_same_thread=False, timeout=20)
 db.execute("PRAGMA journal_mode=WAL;")
 cur = db.cursor()
 
-# ================= GLOBAL TRACKING DICTIONARIES =================
+# ================= GLOBAL TRACKING DICTIONARIES & PERSISTENT STATES =================
 active_orders = {}
-deposit_input = {}
-admin_dep_state = {}
+deposit_input = PersistentState("deposit_input", ttl=1800)
+admin_dep_state = PersistentState("admin_dep", ttl=1800)
 user_spam_cooldown = {}
-session_buy_state = {}
-transfer_state = {}
-reseller_state = {}
-admin_upload_tier = {}
-sell_state = {}
+session_buy_state = PersistentState("session_buy", ttl=1800)
+transfer_state = PersistentState("transfer", ttl=1800)
+reseller_state = PersistentState("reseller", ttl=1800)
+admin_upload_tier = PersistentState("admin_upload_tier", ttl=1800)
+sell_state = PersistentState("sell", ttl=1800)
 user_locks = {}
 user_filters = {}
-manual_dep_state = {}
-fampay_deposit_state = set()
+manual_dep_state = PersistentState("manual_dep", ttl=1800)
+fampay_deposit_state = PersistentState("fampay_deposit", ttl=1800)
 fampay_gateway_selection = {}
 fampay_check_locks = {}
 fampay_error_cooldowns = {}
-fampay_review_state = {}
+fampay_review_state = PersistentState("fampay_review", ttl=1800)
 deposit_media_messages = {}
-promo_state = {}
-payment_admin_state = {}
+promo_state = PersistentState("promo", ttl=1800)
+payment_admin_state = PersistentState("payment_admin", ttl=1800)
 selling_accounts = {}
 cached_lzt_stock = {}
 active_filter_keys = {"no_no_any_any_any"}
 active_fights = {}
 active_giveaways = {}
 error_cooldowns = {}
-lzt_search_state = {}
-server3_search_state = set()
-server4_search_state = {}
-server4_country_search_state = {}
+lzt_search_state = PersistentState("lzt_search", ttl=600)
+server3_search_state = PersistentState("server3_search", ttl=600)
+server4_search_state = PersistentState("server4_search", ttl=600)
+server4_country_search_state = PersistentState("server4_country_search", ttl=600)
 provider_sort_state = {}
-server3_purchase_state = {}
-server4_purchase_state = {}
-smm_state = {}
+server3_purchase_state = PersistentState("server3_purchase", ttl=600)
+server4_purchase_state = PersistentState("server4_purchase", ttl=600)
+smm_state = PersistentState("smm", ttl=1800)
 smm_search_results = {}
 active_lzt_purchases = {}
-restore_state = {}
-giveaway_ticket_state = {}
+restore_state = PersistentState("restore", ttl=1800)
+giveaway_ticket_state = PersistentState("giveaway_ticket", ttl=1800)
 _lzt_missing_logged = False
 _lzt_session = None
 _lzt_rate_lock = asyncio.Lock()
