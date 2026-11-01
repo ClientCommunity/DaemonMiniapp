@@ -44,10 +44,16 @@ def auth_session():
     }
     session_token = encode_jwt(payload, ADMIN_PANEL_SECRET)
 
+    from services.force_join_service import check_user_force_join, get_force_join_channels
+    joined, missing = check_user_force_join(uid)
+
     return jsonify({
         "success": True,
         "user": user_info,
         "token": session_token,
+        "force_join_required": not joined,
+        "missing_channels": missing if not joined else [],
+        "force_join_channels": get_force_join_channels() if not joined else [],
     })
 
 
@@ -86,16 +92,43 @@ def auth_google():
 
 
 @auth_bp.route("/api/auth/me", methods=["GET"])
+@auth_bp.route("/api/user", methods=["GET"])
 def get_session():
     """Retrieve currently authenticated user profile and wallet balances."""
     uid = get_current_user_id(request)
     if not uid:
         return jsonify({"success": False, "error": "Unauthorized"}), 401
 
+    from services.force_join_service import check_user_force_join, get_force_join_channels
+    joined, missing = check_user_force_join(uid)
+
     user_info = get_or_create_user(uid)
     return jsonify({
         "success": True,
         "user": user_info,
+        "force_join_required": not joined,
+        "missing_channels": missing if not joined else [],
+        "force_join_channels": get_force_join_channels() if not joined else [],
+    })
+
+
+@auth_bp.route("/api/user/verify_force_join", methods=["POST"])
+def verify_force_join():
+    """Verify whether current user has joined all required Telegram channels."""
+    uid = get_current_user_id(request)
+    if not uid:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    from services.force_join_service import clear_user_membership_cache, check_user_force_join, get_force_join_channels
+    clear_user_membership_cache(uid)
+    joined, missing = check_user_force_join(uid)
+
+    return jsonify({
+        "success": True,
+        "joined": joined,
+        "force_join_required": not joined,
+        "missing_channels": missing if not joined else [],
+        "force_join_channels": get_force_join_channels() if not joined else [],
     })
 
 

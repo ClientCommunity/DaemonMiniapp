@@ -24,6 +24,16 @@ def buy_item():
     if not uid:
         return jsonify({"success": False, "error": "Unauthorized"}), 401
 
+    from services.force_join_service import check_user_force_join
+    joined, missing = check_user_force_join(uid)
+    if not joined:
+        return jsonify({
+            "success": False,
+            "error": "You must join our required channels before placing an order.",
+            "force_join_required": True,
+            "channels": missing,
+        }), 403
+
     data = request.get_json(silent=True) or {}
     server_num = int(data.get("server", 1))
     item = data.get("item", {})

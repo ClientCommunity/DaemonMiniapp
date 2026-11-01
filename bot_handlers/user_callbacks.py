@@ -245,6 +245,11 @@ async def _dispatch_user_callbacks(e, uid: int, data: str):
         return
 
     elif data == "verify_join":
+        try:
+            from services.force_join_service import clear_user_membership_cache
+            clear_user_membership_cache(uid)
+        except Exception:
+            pass
         if not await check_channel_joined(uid): return await e.answer("⚠️ Join channels first!", alert=True)
         await send_terms_or_main_menu(e, uid)
     elif data == "menu_main" or data == "cancel_action":

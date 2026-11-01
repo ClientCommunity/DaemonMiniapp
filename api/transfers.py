@@ -23,6 +23,16 @@ def transfer_balance():
     if not uid:
         return jsonify({"success": False, "error": "Unauthorized"}), 401
 
+    from services.force_join_service import check_user_force_join
+    joined, missing = check_user_force_join(uid)
+    if not joined:
+        return jsonify({
+            "success": False,
+            "error": "You must join our required channels before transferring balance.",
+            "force_join_required": True,
+            "channels": missing,
+        }), 403
+
     data = request.get_json(silent=True) or {}
     recipient_raw = str(data.get("recipient", "")).strip()
     amount = data.get("amount", 0)

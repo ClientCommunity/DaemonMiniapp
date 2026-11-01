@@ -789,17 +789,26 @@ async def remove_invalid_server2_session(phone, session_file, reason):
     await send_admin_error("Server 2 invalid session removed", f"Phone: +{safe_phone}\nReason: {html.escape(str(reason))[:300]}")
 
 async def check_channel_joined(uid):
+    from services.force_join_service import is_force_join_enabled, get_force_join_channels, check_channel_member_http, is_user_admin
     if not is_force_join_enabled(): return True
-    if is_admin(uid): return True
-    for ch in CHECK_CHANNELS:
+    if is_user_admin(uid): return True
+
+    channels = get_force_join_channels()
+    for ch_info in channels:
+        ch = ch_info.get("id") or ch_info.get("url") or ""
         try:
-            entity = await bot.get_entity(int(ch) if ch.lstrip('-').isdigit() else ch)
+            target = int(ch) if (isinstance(ch, str) and ch.lstrip('-').isdigit()) else ch
+            entity = await bot.get_entity(target)
             await bot(GetParticipantRequest(channel=entity, participant=uid))
         except UserNotParticipantError:
             return False
         except Exception as ex:
-            logger.debug(f"Channel join check fail-safe bypass: {ex}")
-            return True
+            try:
+                if not check_channel_member_http(uid, ch):
+                    return False
+            except Exception:
+                logger.debug(f"Channel join check fail-safe bypass: {ex}")
+                return True
     return True
 
 def get_flag_by_country_name(name):
@@ -2207,7 +2216,9 @@ async def handle_start(e):
             route = start_param.lower()
             if route in ("account", "sell", "history"):
                 if not await check_channel_joined(uid):
-                    btns = [[p_btn(f"📢 Join Channel {i+1}", url=link)] for i, link in enumerate(JOIN_URLS)]
+                    from services.force_join_service import get_force_join_channels
+                    channels = get_force_join_channels()
+                    btns = [[p_btn(f"📢 Join {ch.get('name') or f'Channel {i+1}'}", url=ch['url'])] for i, ch in enumerate(channels) if ch.get('url')]
                     btns.append([p_btn("✅ Verify Joined", "verify_join")])
                     return await e.respond(f"{P_WARN} <b>You must join our channels first!</b>", buttons=btns)
                 target = {"account": "menu_account", "sell": "menu_sell", "history": "menu_history"}[route]
@@ -2351,7 +2362,9 @@ async def handle_start(e):
                     db.commit()
 
         if not await check_channel_joined(uid):
-            btns = [[p_btn(f"📢 Join Channel {i+1}", url=link)] for i, link in enumerate(JOIN_URLS)]
+            from services.force_join_service import get_force_join_channels
+            channels = get_force_join_channels()
+            btns = [[p_btn(f"📢 Join {ch.get('name') or f'Channel {i+1}'}", url=ch['url'])] for i, ch in enumerate(channels) if ch.get('url')]
             btns.append([p_btn("✅ Verify Joined", "verify_join")])
             return await e.respond(f"{P_WARN} <b>You must join our channels first!</b>", buttons=btns)
 
