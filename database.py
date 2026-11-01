@@ -1012,20 +1012,63 @@ def migrate() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_pinned_active_order ON pinned_services(is_active, display_order)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_pinned_server_active ON pinned_services(server_no, is_active)")
 
-        # 5. Initialize/Update Server 3 & Server 4 credentials provided by client
+        # 5. Initialize/Self-heal Server 3, 4, 5 credentials
         try:
-            from secrets_manager import encrypt_secret
+            from secrets_manager import encrypt_secret, decrypt_secret
+
+            # Server 3 (DGOTP)
             s3_row = conn.execute("SELECT api_key, api_url FROM service_servers WHERE server_no=3").fetchone()
-            if s3_row and (not s3_row[0] or s3_row[0] == ""):
+            s3_needs_update = True
+            if s3_row and s3_row[0]:
+                try:
+                    dec = decrypt_secret(s3_row[0][4:]) if s3_row[0].startswith("enc:") else s3_row[0]
+                    if dec and len(dec) > 5:
+                        s3_needs_update = False
+                except Exception:
+                    s3_needs_update = True
+            if s3_needs_update:
                 conn.execute(
                     "UPDATE service_servers SET api_key=?, api_url='https://dgotp.in/stubs/handler_api.php', api_enabled=1, service_enabled=1 WHERE server_no=3",
                     ("enc:" + encrypt_secret("sk_1zay7chyahpmupltkpc"),)
                 )
+
+            # Server 4 (TemporaSMS)
             s4_row = conn.execute("SELECT api_key, api_url FROM service_servers WHERE server_no=4").fetchone()
-            if s4_row and (not s4_row[0] or s4_row[0] == ""):
+            s4_needs_update = True
+            if s4_row and s4_row[0]:
+                try:
+                    dec = decrypt_secret(s4_row[0][4:]) if s4_row[0].startswith("enc:") else s4_row[0]
+                    if dec and len(dec) > 5:
+                        s4_needs_update = False
+                except Exception:
+                    s4_needs_update = True
+            if s4_needs_update:
                 conn.execute(
                     "UPDATE service_servers SET api_key=?, api_url='https://api.temporasms.com/stubs/handler_api.php', api_enabled=1, service_enabled=1 WHERE server_no=4",
                     ("enc:" + encrypt_secret("0098fcfb569c7d21e6afa21ac42fab1c7db0"),)
+                )
+
+            # Server 5 (MySMMProvider)
+            s5_row = conn.execute("SELECT id, api_key, enabled FROM smm_providers WHERE api_url LIKE '%mysmmprovider%'").fetchone()
+            if s5_row:
+                s5_id, s5_key, s5_en = s5_row[0], s5_row[1], s5_row[2]
+                s5_needs_update = True
+                if s5_key:
+                    try:
+                        dec = decrypt_secret(s5_key[4:]) if s5_key.startswith("enc:") else s5_key
+                        if dec == "3ecbf8fb3140fb98133d960d3a750b29":
+                            s5_needs_update = False
+                    except Exception:
+                        s5_needs_update = True
+                if s5_needs_update or not s5_en:
+                    conn.execute(
+                        "UPDATE smm_providers SET api_key=?, enabled=1, deleted_at=NULL WHERE id=?",
+                        ("enc:" + encrypt_secret("3ecbf8fb3140fb98133d960d3a750b29"), s5_id)
+                    )
+            else:
+                conn.execute(
+                    "INSERT INTO smm_providers (name, api_url, api_key, enabled, currency, priority, created_at, updated_at) VALUES (?, ?, ?, 1, 'INR', 1, ?, ?)",
+                    ("My SMM Provider", "https://mysmmprovider.com/api/v2", "enc:" + encrypt_secret("3ecbf8fb3140fb98133d960d3a750b29"), utcnow(), utcnow())
                 )
         except Exception:
             pass
