@@ -594,6 +594,42 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
         """, (f"%{clean_id}%", clean_id if clean_id.isdigit() else -1, clean_id)).fetchone()
 
     if not row:
+        with connect() as conn:
+            s3_fb = conn.execute("""
+                SELECT provider_order_id, user_id, charged_price as price, phone, sms_code, status, 'Server 3' as server, created_at as date
+                FROM server3_orders
+                WHERE phone LIKE ? OR provider_order_id = ? OR phone = ?
+                ORDER BY id DESC LIMIT 1
+            """, (f"%{clean_id}%", clean_id, clean_id)).fetchone()
+            if s3_fb:
+                row = {
+                    "id": s3_fb["provider_order_id"],
+                    "user_id": s3_fb["user_id"],
+                    "price": s3_fb["price"],
+                    "phone": s3_fb["phone"],
+                    "otp": s3_fb["sms_code"] or ("WAITING" if s3_fb["status"] == "waiting" else s3_fb["status"].upper()),
+                    "server": "Server 3",
+                    "date": s3_fb["date"],
+                }
+            else:
+                s4_fb = conn.execute("""
+                    SELECT provider_order_id, user_id, charged_price as price, phone, sms_code, status, 'Server 4' as server, created_at as date
+                    FROM server4_orders
+                    WHERE phone LIKE ? OR provider_order_id = ? OR phone = ?
+                    ORDER BY id DESC LIMIT 1
+                """, (f"%{clean_id}%", clean_id, clean_id)).fetchone()
+                if s4_fb:
+                    row = {
+                        "id": s4_fb["provider_order_id"],
+                        "user_id": s4_fb["user_id"],
+                        "price": s4_fb["price"],
+                        "phone": s4_fb["phone"],
+                        "otp": s4_fb["sms_code"] or ("WAITING" if s4_fb["status"] == "waiting" else s4_fb["status"].upper()),
+                        "server": "Server 4",
+                        "date": s4_fb["date"],
+                    }
+
+    if not row:
         return {"status": "not_found", "otp": None}
 
     raw_otp = row["otp"]
@@ -716,6 +752,39 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
         """, (uid, f"%{clean_id}%", clean_id if clean_id.isdigit() else -1, clean_id)).fetchone()
 
         if not row:
+            s3_wait = conn.execute("""
+                SELECT id, provider_order_id, charged_price as price, phone, status, refunded
+                FROM server3_orders
+                WHERE user_id = ? AND (phone LIKE ? OR provider_order_id = ? OR phone = ?) AND status = 'waiting'
+                ORDER BY id DESC LIMIT 1
+            """, (uid, f"%{clean_id}%", clean_id, clean_id)).fetchone()
+            if s3_wait and not s3_wait["refunded"]:
+                row = {
+                    "id": None,
+                    "price": s3_wait["price"],
+                    "phone": s3_wait["phone"],
+                    "otp": "WAITING",
+                    "server": "Server 3",
+                    "promo_deducted": 0,
+                }
+            else:
+                s4_wait = conn.execute("""
+                    SELECT id, provider_order_id, charged_price as price, phone, status, refunded
+                    FROM server4_orders
+                    WHERE user_id = ? AND (phone LIKE ? OR provider_order_id = ? OR phone = ?) AND status = 'waiting'
+                    ORDER BY id DESC LIMIT 1
+                """, (uid, f"%{clean_id}%", clean_id, clean_id)).fetchone()
+                if s4_wait and not s4_wait["refunded"]:
+                    row = {
+                        "id": None,
+                        "price": s4_wait["price"],
+                        "phone": s4_wait["phone"],
+                        "otp": "WAITING",
+                        "server": "Server 4",
+                        "promo_deducted": 0,
+                    }
+
+        if not row:
             return {"success": False, "error": "Order not found or cannot be cancelled."}
 
         order_id = row["id"]
@@ -732,11 +801,14 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
                 if s3_row:
                     if s3_row["refunded"]:
                         is_already_refunded = True
-                    from server3 import Server3Client
-                    run_sync(Server3Client().set_status(s3_row["provider_order_id"], 8))
+                    try:
+                        from server3 import Server3Client
+                        run_sync(Server3Client().set_status(s3_row["provider_order_id"], 8))
+                    except Exception as s3_api_ex:
+                        logger.warning("Upstream Server 3 cancellation notice: %s", s3_api_ex)
                     conn.execute("UPDATE server3_orders SET status = 'cancelled', refunded = 1 WHERE provider_order_id = ?", (s3_row["provider_order_id"],))
             except Exception as ex:
-                logger.warning("Upstream Server 3 cancellation notice: %s", ex)
+                logger.warning("Upstream Server 3 cancellation update: %s", ex)
 
         # Upstream cancellation & refund check for Server 4
         elif server_label == "Server 4":
@@ -745,18 +817,24 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
                 if s4_row:
                     if s4_row["refunded"]:
                         is_already_refunded = True
-                    from server4 import TemporaClient
-                    run_sync(TemporaClient().set_status(s4_row["provider_order_id"], 8))
+                    try:
+                        from server4 import TemporaClient
+                        run_sync(TemporaClient().set_status(s4_row["provider_order_id"], 8))
+                    except Exception as s4_api_ex:
+                        logger.warning("Upstream Server 4 cancellation notice: %s", s4_api_ex)
                     conn.execute("UPDATE server4_orders SET status = 'cancelled', refunded = 1 WHERE provider_order_id = ?", (s4_row["provider_order_id"],))
             except Exception as ex:
-                logger.warning("Upstream Server 4 cancellation notice: %s", ex)
+                logger.warning("Upstream Server 4 cancellation update: %s", ex)
 
         # Return stock for Server 2
         elif server_label == "Server 2" and phone:
             conn.execute("UPDATE stock SET available = 1 WHERE phone = ?", (phone,))
 
         # Mark cancelled and refunded in orders table
-        conn.execute("UPDATE orders SET otp = 'CANCELLED', refunded = 1 WHERE id = ?", (order_id,))
+        if order_id:
+            conn.execute("UPDATE orders SET otp = 'CANCELLED', refunded = 1 WHERE id = ?", (order_id,))
+        elif phone:
+            conn.execute("UPDATE orders SET otp = 'CANCELLED', refunded = 1 WHERE (phone = ? OR phone LIKE ?) AND otp = 'WAITING'", (phone, f"%{phone}%"))
 
         # Only refund wallet if NOT already refunded by background worker or prior action
         if not is_already_refunded:

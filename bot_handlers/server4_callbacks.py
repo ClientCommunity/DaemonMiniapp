@@ -152,12 +152,17 @@ async def handle_server4_callback(e, uid: int, data: str) -> bool:
             now = created.isoformat()
             cur.execute("""INSERT INTO server4_orders(provider_order_id,user_id,operator_code,country_code,service_code,phone,provider_price,charged_price,status,expires_at,created_at,updated_at)
               VALUES(?,?,?,?,?,?,?,?, 'waiting',?,?,?)""", (activation.order_id, uid, operator, country, service, activation.phone, actual_provider_cost, charge, expiry_timestamp(created), now, now))
+            with managed_connect() as conn:
+                country_row = conn.execute("SELECT name FROM server4_countries WHERE operator_code=? AND country_code=?", (operator, country)).fetchone()
+            country_name = country_row['name'] if country_row else country
+            clean_phone = f"+{str(activation.phone).lstrip('+')}"
+            cur.execute("""INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+              VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 4', ?, 0)""",
+              (uid, country_name, charge, clean_phone, now))
             db.commit()
             wait = cancellation_wait(now)
             phone = provider_phone_details(activation.phone)
-            with managed_connect() as conn:
-                country_row = conn.execute("SELECT name FROM server4_countries WHERE operator_code=? AND country_code=?", (operator, country)).fetchone()
-            await log_primary_purchase(uid, country_row['name'] if country_row else country, charge, charge, 2024, 1, activation.phone, "Server 4", activation.order_id)
+            await log_primary_purchase(uid, country_name, charge, charge, 2024, 1, activation.phone, "Server 4", activation.order_id)
             await e.edit(
                 f"✅ <b>{html.escape(managed_server_name(4))} Number</b>\n\nNumber: {phone['flag']} <code>{html.escape(phone['full'])}</code>\nOrder: <code>{activation.order_id}</code>\n\nWaiting for one OTP…\nCancellation available in: <b>{wait // 60:02d}:{wait % 60:02d}</b>",
                 buttons=[

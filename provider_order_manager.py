@@ -36,11 +36,14 @@ def cancellation_wait(created_at: str, now: datetime | None = None) -> int:
 
 def complete_order(table: str, order_id: str, code: str) -> dict | None:
     with transaction(immediate=True) as conn:
-        row = conn.execute(f"SELECT user_id FROM {table} WHERE provider_order_id=? AND status='waiting'", (order_id,)).fetchone()
+        row = conn.execute(f"SELECT user_id, phone FROM {table} WHERE provider_order_id=? AND status='waiting'", (order_id,)).fetchone()
         if not row:
             return None
         conn.execute(f"UPDATE {table} SET status='completed',sms_code=?,updated_at=? WHERE provider_order_id=? AND status='waiting'",
                      (code, utcnow(), order_id))
+        phone = row["phone"] if "phone" in row.keys() else None
+        if phone:
+            conn.execute("UPDATE orders SET otp=? WHERE (phone=? OR phone LIKE ?) AND otp='WAITING'", (code, phone, f"%{phone}%"))
         return {"user_id": row["user_id"], "order_id": order_id, "code": code}
 
 

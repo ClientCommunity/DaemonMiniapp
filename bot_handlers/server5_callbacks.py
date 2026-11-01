@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+from database import utcnow
 from bot_helpers import p_btn, bot_api_edit_text
 
 
@@ -155,7 +156,12 @@ async def handle_server5_callback(e, uid: int, data: str) -> bool:
             return True
         with managed_connect() as conn:
             service_row = conn.execute("SELECT name FROM smm_services WHERE id=?", (int(sid),)).fetchone()
-        await log_smm_purchase(uid, state['link'], q.charge, service_row['name'] if service_row else sid, oid)
+            service_name = service_row['name'] if service_row else str(sid)
+            conn.execute("""INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+              VALUES (?, ?, ?, ?, ?, 'IN_PROGRESS', 'Server 5', ?, 0)""",
+              (uid, service_name, int(qty), int(q.charge), state['link'], utcnow()))
+            conn.commit()
+        await log_smm_purchase(uid, state['link'], q.charge, service_name, oid)
         await e.edit(
             f"✅ <b>Order Placed</b>\n\nOrder: <code>#{oid}</code>\nQuantity: {qty}\nCharge: ₹{format_smm_money(q.charge)}\nStatus: Pending",
             buttons=[[p_btn("📦 View Order", f"smm_order|{oid}", style="success")], [p_btn("Services", "smm_page|1|price_low")]]

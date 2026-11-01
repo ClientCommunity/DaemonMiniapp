@@ -579,20 +579,28 @@ async def _dispatch_user_callbacks(e, uid: int, data: str):
     elif data == "menu_history":
         page = 1
         limit, offset = 5, 0
-        t_row = cur.execute("SELECT COUNT(*) FROM orders WHERE user_id=?", (uid,)).fetchone()
+        from database import get_unified_user_orders, get_user_order_stats
+        stats = get_user_order_stats(cur, uid)
+        total = stats.get("total_orders", 0)
         today_row = cur.execute("SELECT COUNT(*) FROM orders WHERE user_id=? AND date(date)=date('now')", (uid,)).fetchone()
-        total = t_row[0] if t_row else 0
         today_total = today_row[0] if today_row else 0
-        rows = cur.execute("SELECT phone, date, country, price, server FROM orders WHERE user_id=? ORDER BY id DESC LIMIT ? OFFSET ?", (uid, limit, offset)).fetchall()
+        rows = get_unified_user_orders(cur, uid, limit=limit, offset=offset)
         msg = f"{P_DOC} <b>Purchase History (Page {page})</b>\n🗓 <b>Today:</b> {today_total} purchase(s)\n\n"
         if not rows: msg += "No purchases found."
         else:
-            for ph, d, country, price, server in rows:
+            for o in rows:
+                ph = o.get("phone") or "N/A"
+                d = o.get("date") or ""
+                country = o.get("country") or "Unknown"
+                price = o.get("price") or 0
+                server = o.get("server") or "Server"
                 if str(ph).startswith("LZT_"):
                     display_ph = "Server 1 number"
+                elif str(ph).startswith("http"):
+                    display_ph = "SMM Target Link"
                 else:
                     display_ph = f"+{str(ph).lstrip('+')}" if str(ph).lstrip('+').isdigit() else ph
-                msg += f"📱 {display_ph}\n🏳️ {country or 'Unknown'} | {server or 'Server'} | {format_price(uid, price or 0)}\n📅 {format_purchase_datetime(d)}\n────────────────\n"
+                msg += f"📱 {display_ph}\n🏳️ {country} | {server} | {format_price(uid, price)}\n📅 {format_purchase_datetime(d)}\n────────────────\n"
         nav = [p_btn("Back", "menu_main")]
         if offset + limit < total: nav.append(p_btn("Next", "page_purchases_2"))
         await e.edit(msg, buttons=[nav])
@@ -600,20 +608,28 @@ async def _dispatch_user_callbacks(e, uid: int, data: str):
     elif data.startswith("page_purchases_"):
         page = int(data.split("_")[2])
         limit, offset = 5, (page - 1) * 5
-        t_row = cur.execute("SELECT COUNT(*) FROM orders WHERE user_id=?", (uid,)).fetchone()
+        from database import get_unified_user_orders, get_user_order_stats
+        stats = get_user_order_stats(cur, uid)
+        total = stats.get("total_orders", 0)
         today_row = cur.execute("SELECT COUNT(*) FROM orders WHERE user_id=? AND date(date)=date('now')", (uid,)).fetchone()
-        total = t_row[0] if t_row else 0
         today_total = today_row[0] if today_row else 0
-        rows = cur.execute("SELECT phone, date, country, price, server FROM orders WHERE user_id=? ORDER BY id DESC LIMIT ? OFFSET ?", (uid, limit, offset)).fetchall()
+        rows = get_unified_user_orders(cur, uid, limit=limit, offset=offset)
         msg = f"{P_DOC} <b>Purchase History (Page {page})</b>\n🗓 <b>Today:</b> {today_total} purchase(s)\n\n"
         if not rows: msg += "No purchases found."
         else:
-            for ph, d, country, price, server in rows:
+            for o in rows:
+                ph = o.get("phone") or "N/A"
+                d = o.get("date") or ""
+                country = o.get("country") or "Unknown"
+                price = o.get("price") or 0
+                server = o.get("server") or "Server"
                 if str(ph).startswith("LZT_"):
                     display_ph = "Server 1 number"
+                elif str(ph).startswith("http"):
+                    display_ph = "SMM Target Link"
                 else:
                     display_ph = f"+{str(ph).lstrip('+')}" if str(ph).lstrip('+').isdigit() else ph
-                msg += f"📱 {display_ph}\n🏳️ {country or 'Unknown'} | {server or 'Server'} | {format_price(uid, price or 0)}\n📅 {format_purchase_datetime(d)}\n────────────────\n"
+                msg += f"📱 {display_ph}\n🏳️ {country} | {server} | {format_price(uid, price)}\n📅 {format_purchase_datetime(d)}\n────────────────\n"
         nav = []
         if page > 1: nav.append(p_btn("Prev", f"page_purchases_{page-1}"))
         nav.append(p_btn("Back", "menu_main"))

@@ -158,7 +158,7 @@ async def handle_server3_callback(e, uid: int, data: str) -> bool:
             return True
         cfg = server3.config()
         with managed_connect() as conn:
-            item = conn.execute("""SELECT s.provider_price,v.name server_name FROM server3_services s
+            item = conn.execute("""SELECT s.provider_price,v.name server_name,s.name service_name FROM server3_services s
               JOIN server3_servers v ON v.code=s.server_code WHERE s.service_code=? AND s.server_code=?
               AND s.enabled=1 AND s.in_stock=1""", (service_code, server_code)).fetchone()
         if not item:
@@ -181,8 +181,14 @@ async def handle_server3_callback(e, uid: int, data: str) -> bool:
                 await e.answer("Balance changed; provider activation was cancelled.", alert=True)
                 return True
             created = datetime.now(timezone.utc)
+            now_iso = created.isoformat()
             cur.execute("""INSERT INTO server3_orders(provider_order_id,user_id,service_code,server_code,phone,provider_price,charged_price,status,expires_at,created_at,updated_at)
-              VALUES(?,?,?,?,?,?,?,'waiting',?,?,?)""", (activation.order_id, uid, service_code, server_code, activation.phone, item[0], charge, expiry_timestamp(created), created.isoformat(), created.isoformat()))
+              VALUES(?,?,?,?,?,?,?,'waiting',?,?,?)""", (activation.order_id, uid, service_code, server_code, activation.phone, item[0], charge, expiry_timestamp(created), now_iso, now_iso))
+            clean_phone = f"+{str(activation.phone).lstrip('+')}"
+            service_label = item['service_name'] if ('service_name' in item.keys() and item['service_name']) else item['server_name']
+            cur.execute("""INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+              VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 3', ?, 0)""",
+              (uid, service_label, charge, clean_phone, now_iso))
             db.commit()
             wait = cancellation_wait(created.isoformat())
             phone = provider_phone_details(activation.phone)

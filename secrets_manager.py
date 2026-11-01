@@ -15,7 +15,8 @@ def _key() -> bytes:
         return hashlib.sha256(configured.encode()).digest()
     path = os.getenv("PAYMENT_KEY_FILE", ".payment_encryption.key")
     try:
-        stored = open(path, "rb").read().strip()
+        with open(path, "rb") as f:
+            stored = f.read().strip()
         if len(stored) >= 32:
             return hashlib.sha256(stored).digest()
     except FileNotFoundError:
@@ -28,7 +29,8 @@ def _key() -> bytes:
     except FileExistsError:
         pass
     for _ in range(20):
-        stored = open(path, "rb").read().strip()
+        with open(path, "rb") as f:
+            stored = f.read().strip()
         if len(stored) >= 32:
             return hashlib.sha256(stored).digest()
         time.sleep(0.05)
