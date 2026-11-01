@@ -74,10 +74,15 @@ def fetch_bot_username(token: str = None) -> str:
 BOT_USERNAME = os.getenv("BOT_USERNAME") or fetch_bot_username(BOT_TOKEN)
 
 
-def get_mini_app_url(bot_username: str = None) -> str:
-    """Return dynamic Telegram Mini App URL (e.g. https://t.me/SnapToNumberBot/bot)."""
+def get_mini_app_url(bot_username: str = None, startapp: str = None) -> str:
+    """Return dynamic Telegram Mini App URL (e.g. https://t.me/SnapToNumberBot/deamonotp)."""
     uname = bot_username or BOT_USERNAME
-    return os.getenv("MINI_APP_URL") or f"https://t.me/{uname}/bot"
+    app_short_name = os.getenv("MINI_APP_SHORT_NAME", "deamonotp")
+    base = os.getenv("MINI_APP_URL") or f"https://t.me/{uname}/{app_short_name}"
+    if startapp:
+        sep = "&" if "?" in base else "?"
+        return f"{base}{sep}startapp={startapp}"
+    return base
 
 
 # Dynamic Mini App URL derived directly from the bot token identity

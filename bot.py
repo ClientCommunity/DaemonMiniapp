@@ -2389,7 +2389,7 @@ async def setup_bot_menu_button():
     try:
         me = await bot.get_me()
         if me and getattr(me, "username", None):
-            mini_app_url = f"https://t.me/{me.username}/bot"
+            mini_app_url = get_mini_app_url(me.username)
     except Exception:
         pass
 

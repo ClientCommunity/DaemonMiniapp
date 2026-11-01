@@ -8,7 +8,7 @@ import time
 import zipfile
 from typing import Any
 
-from config import MASTER_ADMIN_IDS
+from config import MASTER_ADMIN_IDS, get_mini_app_url
 from database import (
     connect,
     transaction,
@@ -1203,7 +1203,7 @@ def broadcast_pinned_service(pinned_id: int, broadcast_text: str = "", button_la
         pass
 
     bot_start_url = f"https://t.me/{bot_username}?start=pin_{pinned_id}"
-    miniapp_url = f"https://t.me/{bot_username}/app?startapp=pin_{pinned_id}"
+    miniapp_url = get_mini_app_url(bot_username, startapp=f"pin_{pinned_id}")
 
     inline_keyboard = {
         "inline_keyboard": [
