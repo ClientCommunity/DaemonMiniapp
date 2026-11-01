@@ -5,6 +5,8 @@ and Google ID tokens against Google OAuth 2.0 API.
 """
 from __future__ import annotations
 
+import os
+import sys
 import hashlib
 import hmac
 import json
@@ -151,17 +153,21 @@ def get_current_user_id(request_obj) -> int | None:
         except Exception:
             pass
 
-    # 3. Development / Testing / Internal fallback
-    user_header = request_obj.headers.get("X-User-Id") or request_obj.args.get("user_id")
-    if not user_header and request_obj.is_json:
-        try:
-            body = request_obj.get_json(silent=True) or {}
-            user_header = body.get("user_id")
-        except Exception:
-            pass
+    # 3. Automated Test Suite ONLY (Strictly disabled in production)
+    # Gated strictly behind Flask testing environment / test runner to prevent user impersonation
+    is_testing = False
+    try:
+        from flask import current_app
+        is_testing = bool(current_app and (current_app.testing or current_app.config.get("TESTING")))
+    except Exception:
+        pass
+    if not is_testing:
+        is_testing = "unittest" in sys.modules or os.environ.get("TESTING") == "1"
 
-    if user_header and str(user_header).isdigit():
-        return int(user_header)
+    if is_testing:
+        user_header = request_obj.headers.get("X-User-Id")
+        if user_header and str(user_header).isdigit():
+            return int(user_header)
 
     return None
 
