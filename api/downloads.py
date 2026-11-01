@@ -52,6 +52,7 @@ def download_session(phone: str):
     twofa_pass = (stock_row["twofa"] if stock_row and stock_row["twofa"] else "") or "None"
     possible_paths = [
         SESSIONS_DIR / f"{clean_phone}.session",
+        SESSIONS_DIR / f"+{clean_phone}.session",
     ]
     if raw_file:
         possible_paths.extend([

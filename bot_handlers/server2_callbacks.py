@@ -364,7 +364,7 @@ async def handle_server2_callback(e, uid: int, data: str) -> bool:
                     (uid, country, acc['year'], final_price, acc['phone'], None, "Server 2")
                 )
                 order_ids.append(str(cur.lastrowid))
-                cur.execute("DELETE FROM stock WHERE phone=?", (acc['phone'],))
+                cur.execute("UPDATE stock SET available=0 WHERE phone=?", (acc['phone'],))
 
                 if acc['seller_id']:
                     seller_cut = int(final_price * 0.90)

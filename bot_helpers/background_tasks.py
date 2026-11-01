@@ -104,7 +104,7 @@ async def auto_otp_task(phone):
                             "INSERT INTO orders (user_id, country, year, price, phone, otp) VALUES (?,?,?,?,?,?)",
                             (uid, order["country"], order["year"], price, phone, code),
                         )
-                        conn.execute("DELETE FROM stock WHERE phone=?", (phone,))
+                        conn.execute("UPDATE stock SET available=0 WHERE phone=?", (phone,))
                         conn.commit()
 
                     if seller_id and update_balance:
