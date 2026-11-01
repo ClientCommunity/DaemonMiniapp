@@ -63,6 +63,8 @@ from database import (
     migrate as migrate_managed_services,
     get_admin_log_channel_id,
     get_public_log_channel_id,
+    SafeDatabaseProxy,
+    SafeCursorProxy,
 )
 from server import server3, server4
 from server3 import DGOTPError, SERVICE_CATALOG, client as server3_client
@@ -308,9 +310,9 @@ if 'bot' in sys.modules:
     sys.modules['bot'].bot = bot
 
 BOT_DATABASE = os.getenv("BOT_DATABASE", "otp_bot_final.db")
-db = sqlite3.connect(BOT_DATABASE, check_same_thread=False, timeout=20)
-db.execute("PRAGMA journal_mode=WAL;")
-cur = db.cursor()
+# Coroutine- and task-safe proxy objects replacing raw shared SQLite cursor
+db = SafeDatabaseProxy()
+cur = SafeCursorProxy()
 
 # ================= GLOBAL TRACKING DICTIONARIES & PERSISTENT STATES =================
 active_orders = {}

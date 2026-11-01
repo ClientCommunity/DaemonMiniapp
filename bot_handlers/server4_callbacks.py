@@ -136,30 +136,33 @@ async def handle_server4_callback(e, uid: int, data: str) -> bool:
             await e.answer("This confirmation expired or was already used. Please select the service again.", alert=True)
             return True
         provider_price, charge = confirmation[3], apply_server_discount(uid, 4, confirmation[4])
-        balance = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
+        with managed_connect() as conn:
+            bal_row = conn.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()
+            balance = bal_row['balance'] if bal_row else 0
         if balance < charge:
             await e.answer(f"Insufficient balance. Need ₹{charge}.", alert=True)
             return True
         activation = None
         try:
             activation, actual_provider_cost = await server4_client.get_number_v2(service, country, operator, provider_price)
-            cur.execute("UPDATE users SET balance=balance-? WHERE user_id=? AND balance>=?", (charge, uid, charge))
-            if cur.rowcount != 1:
-                await server4_client.set_status(activation.order_id, 8)
-                await e.answer("Balance changed; activation cancelled.", alert=True)
-                return True
-            created = datetime.now(timezone.utc)
-            now = created.isoformat()
-            cur.execute("""INSERT INTO server4_orders(provider_order_id,user_id,operator_code,country_code,service_code,phone,provider_price,charged_price,status,expires_at,created_at,updated_at)
-              VALUES(?,?,?,?,?,?,?,?, 'waiting',?,?,?)""", (activation.order_id, uid, operator, country, service, activation.phone, actual_provider_cost, charge, expiry_timestamp(created), now, now))
             with managed_connect() as conn:
+                c = conn.cursor()
+                c.execute("UPDATE users SET balance=balance-? WHERE user_id=? AND balance>=?", (charge, uid, charge))
+                if c.rowcount != 1:
+                    await server4_client.set_status(activation.order_id, 8)
+                    await e.answer("Balance changed; activation cancelled.", alert=True)
+                    return True
+                created = datetime.now(timezone.utc)
+                now = created.isoformat()
+                c.execute("""INSERT INTO server4_orders(provider_order_id,user_id,operator_code,country_code,service_code,phone,provider_price,charged_price,status,expires_at,created_at,updated_at)
+                  VALUES(?,?,?,?,?,?,?,?, 'waiting',?,?,?)""", (activation.order_id, uid, operator, country, service, activation.phone, actual_provider_cost, charge, expiry_timestamp(created), now, now))
                 country_row = conn.execute("SELECT name FROM server4_countries WHERE operator_code=? AND country_code=?", (operator, country)).fetchone()
-            country_name = country_row['name'] if country_row else country
-            clean_phone = f"+{str(activation.phone).lstrip('+')}"
-            cur.execute("""INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
-              VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 4', ?, 0)""",
-              (uid, country_name, charge, clean_phone, now))
-            db.commit()
+                country_name = country_row['name'] if country_row else country
+                clean_phone = f"+{str(activation.phone).lstrip('+')}"
+                c.execute("""INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+                  VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 4', ?, 0)""",
+                  (uid, country_name, charge, clean_phone, now))
+                conn.commit()
             wait = cancellation_wait(now)
             phone = provider_phone_details(activation.phone)
             await log_primary_purchase(uid, country_name, charge, charge, 2024, 1, activation.phone, "Server 4", activation.order_id)

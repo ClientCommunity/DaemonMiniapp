@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+import threading
+import asyncio
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -94,6 +96,196 @@ def transaction(immediate: bool = False) -> Iterator[sqlite3.Connection]:
         raise
     finally:
         conn.close()
+
+
+_thread_local = threading.local()
+
+
+def _get_current_task_conn() -> ManagedConnection:
+    """Return an isolated SQLite connection dedicated to the current asyncio.Task or thread."""
+    try:
+        task = asyncio.current_task()
+    except RuntimeError:
+        task = None
+
+    if task is not None:
+        conn = getattr(task, "_safe_sqlite_conn", None)
+        if conn is None:
+            conn = connect()
+            setattr(task, "_safe_sqlite_conn", conn)
+
+            def _close_conn(t: Any) -> None:
+                c = getattr(t, "_safe_sqlite_conn", None)
+                if c is not None:
+                    try:
+                        c.close()
+                    except Exception:
+                        pass
+
+            try:
+                task.add_done_callback(_close_conn)
+            except Exception:
+                pass
+        return conn
+
+    # Synchronous thread fallback
+    conn = getattr(_thread_local, "conn", None)
+    if conn is None:
+        conn = connect()
+        _thread_local.conn = conn
+    return conn
+
+
+class TaskCursorResult:
+    """Active cursor wrapper returned by execute() to support chained calls and iteration."""
+
+    def __init__(self, raw_cursor: sqlite3.Cursor, parent: SafeCursorProxy):
+        self._raw_cursor = raw_cursor
+        self._parent = parent
+
+    def fetchone(self) -> Any:
+        return self._raw_cursor.fetchone()
+
+    def fetchall(self) -> list[Any]:
+        return self._raw_cursor.fetchall()
+
+    def fetchmany(self, size: int = 1) -> list[Any]:
+        return self._raw_cursor.fetchmany(size)
+
+    @property
+    def rowcount(self) -> int:
+        return self._raw_cursor.rowcount
+
+    @property
+    def lastrowid(self) -> Any:
+        return self._raw_cursor.lastrowid
+
+    @property
+    def description(self) -> Any:
+        return self._raw_cursor.description
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter(self._raw_cursor)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._raw_cursor, name)
+
+
+class SafeCursorProxy:
+    """Coroutine- and thread-safe proxy for sqlite3.Cursor.
+
+    Eliminates Telethon concurrency crashes (ProgrammingError: Recursive use of cursors
+    not allowed) by isolating connections and cursor statement state per asyncio.Task.
+    """
+
+    def _set_task_cursor(self, cur: sqlite3.Cursor) -> None:
+        try:
+            task = asyncio.current_task()
+        except RuntimeError:
+            task = None
+        target = task if task is not None else _thread_local
+        setattr(target, "_safe_sqlite_cur", cur)
+
+    def _get_task_cursor(self) -> sqlite3.Cursor:
+        try:
+            task = asyncio.current_task()
+        except RuntimeError:
+            task = None
+        target = task if task is not None else _thread_local
+        cur = getattr(target, "_safe_sqlite_cur", None)
+        if cur is None:
+            conn = _get_current_task_conn()
+            cur = conn.cursor()
+            setattr(target, "_safe_sqlite_cur", cur)
+        return cur
+
+    def execute(self, sql: str, params: Any = ()) -> TaskCursorResult:
+        conn = _get_current_task_conn()
+        c = conn.cursor()
+        c.execute(sql, params)
+        self._set_task_cursor(c)
+        return TaskCursorResult(c, self)
+
+    def executemany(self, sql: str, params_seq: Any) -> TaskCursorResult:
+        conn = _get_current_task_conn()
+        c = conn.cursor()
+        c.executemany(sql, params_seq)
+        self._set_task_cursor(c)
+        return TaskCursorResult(c, self)
+
+    def executescript(self, sql_script: str) -> TaskCursorResult:
+        conn = _get_current_task_conn()
+        c = conn.cursor()
+        c.executescript(sql_script)
+        self._set_task_cursor(c)
+        return TaskCursorResult(c, self)
+
+    def fetchone(self) -> Any:
+        return self._get_task_cursor().fetchone()
+
+    def fetchall(self) -> list[Any]:
+        return self._get_task_cursor().fetchall()
+
+    def fetchmany(self, size: int = 1) -> list[Any]:
+        return self._get_task_cursor().fetchmany(size)
+
+    @property
+    def rowcount(self) -> int:
+        return self._get_task_cursor().rowcount
+
+    @property
+    def lastrowid(self) -> Any:
+        return self._get_task_cursor().lastrowid
+
+    @property
+    def description(self) -> Any:
+        return self._get_task_cursor().description
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter(self._get_task_cursor())
+
+    def close(self) -> None:
+        pass
+
+
+class SafeDatabaseProxy:
+    """Coroutine- and thread-safe proxy for sqlite3.Connection."""
+
+    def cursor(self) -> SafeCursorProxy:
+        return SafeCursorProxy()
+
+    def commit(self) -> None:
+        conn = _get_current_task_conn()
+        try:
+            conn.commit()
+        except Exception:
+            pass
+
+    def rollback(self) -> None:
+        conn = _get_current_task_conn()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    def execute(self, sql: str, params: Any = ()) -> sqlite3.Cursor:
+        conn = _get_current_task_conn()
+        return conn.execute(sql, params)
+
+    def executemany(self, sql: str, params_seq: Any) -> sqlite3.Cursor:
+        conn = _get_current_task_conn()
+        return conn.executemany(sql, params_seq)
+
+    def executescript(self, sql_script: str) -> sqlite3.Cursor:
+        conn = _get_current_task_conn()
+        return conn.executescript(sql_script)
+
+    def close(self) -> None:
+        pass
+
+
+db = SafeDatabaseProxy()
+cur = SafeCursorProxy()
 
 
 def migrate() -> None:

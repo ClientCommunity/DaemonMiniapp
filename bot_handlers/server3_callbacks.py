@@ -132,7 +132,9 @@ async def handle_server3_callback(e, uid: int, data: str) -> bool:
         if cfg.maximum_price > 0 and charge > cfg.maximum_price:
             await e.answer("This stock exceeds the configured maximum price.", alert=True)
             return True
-        balance = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
+        with managed_connect() as conn:
+            bal_row = conn.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()
+            balance = bal_row['balance'] if bal_row else 0
         if balance < charge:
             await e.answer(f"Insufficient balance. Need ₹{charge}.", alert=True)
             return True
@@ -168,28 +170,32 @@ async def handle_server3_callback(e, uid: int, data: str) -> bool:
         if cfg.maximum_price > 0 and charge > cfg.maximum_price:
             await e.answer("This stock exceeds the configured maximum price.", alert=True)
             return True
-        balance = cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()[0]
+        with managed_connect() as conn:
+            bal_row = conn.execute("SELECT balance FROM users WHERE user_id=?", (uid,)).fetchone()
+            balance = bal_row['balance'] if bal_row else 0
         if balance < charge:
             await e.answer(f"Insufficient balance. Need ₹{charge}.", alert=True)
             return True
         activation = None
         try:
             activation = await server3_client.get_number(service_code, server_code)
-            cur.execute("UPDATE users SET balance=balance-? WHERE user_id=? AND balance>=?", (charge, uid, charge))
-            if cur.rowcount != 1:
-                await server3_client.set_status(activation.order_id, 8)
-                await e.answer("Balance changed; provider activation was cancelled.", alert=True)
-                return True
-            created = datetime.now(timezone.utc)
-            now_iso = created.isoformat()
-            cur.execute("""INSERT INTO server3_orders(provider_order_id,user_id,service_code,server_code,phone,provider_price,charged_price,status,expires_at,created_at,updated_at)
-              VALUES(?,?,?,?,?,?,?,'waiting',?,?,?)""", (activation.order_id, uid, service_code, server_code, activation.phone, item[0], charge, expiry_timestamp(created), now_iso, now_iso))
-            clean_phone = f"+{str(activation.phone).lstrip('+')}"
-            service_label = item['service_name'] if ('service_name' in item.keys() and item['service_name']) else item['server_name']
-            cur.execute("""INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
-              VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 3', ?, 0)""",
-              (uid, service_label, charge, clean_phone, now_iso))
-            db.commit()
+            with managed_connect() as conn:
+                c = conn.cursor()
+                c.execute("UPDATE users SET balance=balance-? WHERE user_id=? AND balance>=?", (charge, uid, charge))
+                if c.rowcount != 1:
+                    await server3_client.set_status(activation.order_id, 8)
+                    await e.answer("Balance changed; provider activation was cancelled.", alert=True)
+                    return True
+                created = datetime.now(timezone.utc)
+                now_iso = created.isoformat()
+                c.execute("""INSERT INTO server3_orders(provider_order_id,user_id,service_code,server_code,phone,provider_price,charged_price,status,expires_at,created_at,updated_at)
+                  VALUES(?,?,?,?,?,?,?,'waiting',?,?,?)""", (activation.order_id, uid, service_code, server_code, activation.phone, item[0], charge, expiry_timestamp(created), now_iso, now_iso))
+                clean_phone = f"+{str(activation.phone).lstrip('+')}"
+                service_label = item['service_name'] if ('service_name' in item.keys() and item['service_name']) else item['server_name']
+                c.execute("""INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
+                  VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 3', ?, 0)""",
+                  (uid, service_label, charge, clean_phone, now_iso))
+                conn.commit()
             wait = cancellation_wait(created.isoformat())
             phone = provider_phone_details(activation.phone)
             await log_primary_purchase(uid, item['server_name'], charge, charge, 2024, 1, activation.phone, "Server 3", activation.order_id)
