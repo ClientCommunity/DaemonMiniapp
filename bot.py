@@ -580,7 +580,9 @@ async def send_main_menu(e, uid):
         ("{balance}", P_CASH, "balance"),
         ("{help_icon}", "✆", "help"),
     ])
+    from config import MINI_APP_URL
     btns = [
+        [Button.web_app("⚡ Launch Mini App Store", MINI_APP_URL)],
         [premium_button("Shop Now", "menu_buy", style="success", emoji_name="buy")],
         [premium_button("TopUp Balance ( Deposit )", "menu_deposit", style="danger", emoji_name="topup")],
         [premium_button("Account", "menu_account", style="primary", emoji_name="account"), premium_button("History", "menu_history", style="primary", emoji_name="history")],
@@ -2350,9 +2352,50 @@ async def handle_start(e):
             btns.append([p_btn("✅ Verify Joined", "verify_join")])
             return await e.respond(f"{P_WARN} <b>You must join our channels first!</b>", buttons=btns)
 
+        try:
+            from config import MINI_APP_URL
+            from telethon.tl import functions, types
+            await bot(functions.bots.SetBotMenuButtonRequest(
+                user_id=await bot.get_input_entity(uid),
+                button=types.BotMenuButton(text="⚡ Store", url=MINI_APP_URL)
+            ))
+        except Exception:
+            pass
+
         await send_terms_or_main_menu(e, uid)
     except Exception as ex:
         logger.error(f"Start Error: {ex}")
+
+async def setup_bot_menu_button():
+    """Configure the native bottom-left chat menu button to launch the Mini App."""
+    from config import BOT_TOKEN, MINI_APP_URL
+    try:
+        import aiohttp
+        api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/setChatMenuButton"
+        payload = {
+            "menu_button": {
+                "type": "web_app",
+                "text": "⚡ Store",
+                "web_app": {"url": MINI_APP_URL}
+            }
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(api_url, json=payload, timeout=10) as resp:
+                data = await resp.json()
+                if data.get("ok"):
+                    logger.info("Native Telegram WebApp menu button configured successfully.")
+    except Exception as ex:
+        logger.warning("Error configuring native WebApp menu button via HTTP API: %s", ex)
+
+    try:
+        from telethon.tl import functions, types
+        await bot(functions.bots.SetBotMenuButtonRequest(
+            user_id=types.InputUserEmpty(),
+            button=types.BotMenuButton(text="⚡ Store", url=MINI_APP_URL)
+        ))
+    except Exception as ex:
+        logger.debug("Telethon SetBotMenuButtonRequest note: %s", ex)
+
 
 async def main():
     setup_db()
@@ -2379,6 +2422,7 @@ async def main():
     asyncio.create_task(smm_order_loop(), name="server5-orders")
     asyncio.create_task(fampay_supervisor_loop(), name="fampay-deposit-supervisor")
     asyncio.create_task(cache_lzt_stock_loop())
+    asyncio.create_task(setup_bot_menu_button(), name="setup-menu-button")
     await bot.run_until_disconnected()
 
 if __name__ == '__main__':

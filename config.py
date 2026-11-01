@@ -43,6 +43,9 @@ REQUIRE_PROXY_SECRET = os.getenv(
     os.getenv("PROXY_SECRET_REQUIRED", "0")
 ).lower() in ("1", "true", "yes")
 
+# Telegram Mini App WebApp URL
+MINI_APP_URL = os.getenv("MINI_APP_URL", "https://fahhh.duckdns.org").strip().rstrip("/")
+
 # Telegram Bot Credentials
 BOT_TOKEN = os.getenv(
     "TELEGRAM_BOT_TOKEN",
