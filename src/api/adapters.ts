@@ -237,19 +237,36 @@ export function adaptServer2Item(
  * Helper to map app identifiers to OtpAppCode chips.
  */
 export function mapAppCode(code: string | undefined, fallback?: string): OtpAppCode {
-  const check = (val: string | undefined): OtpAppCode => {
-    if (!val) return 'all';
+  const checkKnown = (val: string | undefined): OtpAppCode | null => {
+    if (!val) return null;
     const c = val.toLowerCase().trim();
     if (c === 'wa' || c === 'whatsapp' || /\bwhatsapp\b/i.test(c)) return 'wa';
     if (c === 'tg' || c === 'telegram' || /\btelegram\b/i.test(c)) return 'tg';
     if (c === 'ig' || c === 'instagram' || /\binstagram\b/i.test(c) || /\binsta\b/i.test(c)) return 'ig';
     if (c === 'go' || c === 'google' || c === 'gmail' || /\bgoogle\b/i.test(c) || /\bgmail\b/i.test(c)) return 'go';
     if (c === 'snap' || c === 'snapchat' || c === 'fu' || /\bsnapchat\b/i.test(c) || /\bsnap\b/i.test(c) || c === 'spam' || /\bspam\b/i.test(c)) return 'snap';
-    return 'all';
+    if (c === 'fb' || c === 'facebook' || /\bfacebook\b/i.test(c)) return 'fb';
+    if (c === 'tiktok' || c === 'tk' || /\btiktok\b/i.test(c)) return 'tiktok';
+    if (c === 'twitter' || c === 'tw' || c === 'x' || /\btwitter\b/i.test(c)) return 'twitter';
+    if (c === 'discord' || c === 'dc' || /\bdiscord\b/i.test(c)) return 'discord';
+    if (c === 'openai' || c === 'chatgpt' || /\bopenai\b/i.test(c) || /\bchatgpt\b/i.test(c)) return 'openai';
+    if (c === 'steam' || /\bsteam\b/i.test(c)) return 'steam';
+    return null;
   };
-  const primary = check(code);
-  if (primary !== 'all') return primary;
-  return check(fallback);
+
+  const primary = checkKnown(code);
+  if (primary) return primary;
+  const secondary = checkKnown(fallback);
+  if (secondary) return secondary;
+
+  // Return clean service identifier if available
+  if (code && code.trim().length > 0 && code.toLowerCase() !== 'all') {
+    return code.trim() as OtpAppCode;
+  }
+  if (fallback && fallback.trim().length > 0 && fallback.toLowerCase() !== 'all') {
+    return fallback.trim() as OtpAppCode;
+  }
+  return 'all';
 }
 
 interface CountryMeta {
