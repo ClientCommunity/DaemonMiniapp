@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   adminApi,
   Server1Settings,
@@ -366,6 +366,60 @@ export const ServerManagementTab: React.FC = () => {
   const [smmOrders, setSmmOrders] = useState<SmmOrder[]>([]);
   const [smmSubSection, setSmmSubSection] = useState<'providers' | 'categories' | 'orders'>('providers');
 
+  // SMM Categories state
+  const [smmCatSearch, setSmmCatSearch] = useState('');
+  const [smmCatPlatformFilter, setSmmCatPlatformFilter] = useState('all');
+  const [smmCatStatusFilter, setSmmCatStatusFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+  const [smmCatPage, setSmmCatPage] = useState(1);
+  const SMM_CATS_PER_PAGE = 48;
+
+  const smmPlatformList = [
+    'all',
+    'Instagram',
+    'Telegram',
+    'TikTok',
+    'YouTube',
+    'Facebook',
+    'Twitter / X',
+    'WhatsApp',
+    'Other',
+  ];
+
+  const smmVisibleCount = useMemo(
+    () => smmCategories.filter((c) => Boolean(c.enabled)).length,
+    [smmCategories]
+  );
+  const smmHiddenCount = smmCategories.length - smmVisibleCount;
+
+  const filteredSmmCategories = useMemo(() => {
+    return smmCategories.filter((c) => {
+      const isVis = Boolean(c.enabled);
+      if (smmCatStatusFilter === 'visible' && !isVis) return false;
+      if (smmCatStatusFilter === 'hidden' && isVis) return false;
+
+      const plat = c.platform || 'Other';
+      if (smmCatPlatformFilter !== 'all' && plat.toLowerCase() !== smmCatPlatformFilter.toLowerCase()) {
+        return false;
+      }
+
+      if (smmCatSearch.trim()) {
+        const q = smmCatSearch.toLowerCase();
+        const name = (c.name || c.display_name || '').toLowerCase();
+        const pName = (c.platform || '').toLowerCase();
+        const prov = (c.provider_name || '').toLowerCase();
+        if (!name.includes(q) && !pName.includes(q) && !prov.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }, [smmCategories, smmCatStatusFilter, smmCatPlatformFilter, smmCatSearch]);
+
+  const smmTotalPages = Math.max(1, Math.ceil(filteredSmmCategories.length / SMM_CATS_PER_PAGE));
+  const paginatedSmmCategories = useMemo(() => {
+    const start = (smmCatPage - 1) * SMM_CATS_PER_PAGE;
+    return filteredSmmCategories.slice(start, start + SMM_CATS_PER_PAGE);
+  }, [filteredSmmCategories, smmCatPage]);
+
   // Add provider form
   const [newProvName, setNewProvName] = useState('');
   const [newProvUrl, setNewProvUrl] = useState('');
@@ -425,9 +479,15 @@ export const ServerManagementTab: React.FC = () => {
       const res = await adminApi.toggleSmmCategory(id);
       if (res?.success) {
         setSmmCategories((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, enabled: res.enabled ? 1 : 0 } : c))
+          prev.map((c) => {
+            if (c.id === id) {
+              const nextVal = res.enabled !== undefined ? (res.enabled ? 1 : 0) : (c.enabled ? 0 : 1);
+              return { ...c, enabled: nextVal, visible: nextVal };
+            }
+            return c;
+          })
         );
-        addToast(`Category visibility toggled`, 'success');
+        addToast('Category visibility updated', 'success');
       }
     } catch {
       addToast('Failed to toggle category', 'error');
@@ -1349,28 +1409,161 @@ export const ServerManagementTab: React.FC = () => {
 
           {/* SMM Categories Section */}
           {smmSubSection === 'categories' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {smmCategories.map((c) => (
-                <div
-                  key={c.id}
-                  className="bg-[#181820] border border-[#262630] rounded-xl p-3 flex items-center justify-between"
-                >
-                  <div>
-                    <span className="font-bold text-xs text-white block">{c.name}</span>
-                    <span className="text-[10px] text-[#71717a]">{c.platform || 'General'}</span>
+            <div className="space-y-4">
+              {/* Controls bar: Search + Status filter */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#181820] border border-[#262630] rounded-2xl p-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 bg-[#121217] p-1 rounded-xl border border-[#262630]">
+                    <button
+                      onClick={() => { setSmmCatStatusFilter('all'); setSmmCatPage(1); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        smmCatStatusFilter === 'all'
+                          ? 'bg-[#7c3aed] text-white'
+                          : 'text-[#a1a1aa] hover:text-white'
+                      }`}
+                    >
+                      All ({smmCategories.length})
+                    </button>
+                    <button
+                      onClick={() => { setSmmCatStatusFilter('visible'); setSmmCatPage(1); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        smmCatStatusFilter === 'visible'
+                          ? 'bg-[#22c55e] text-black font-bold'
+                          : 'text-[#22c55e] hover:bg-[#22c55e]/10'
+                      }`}
+                    >
+                      🟢 Visible ({smmVisibleCount})
+                    </button>
+                    <button
+                      onClick={() => { setSmmCatStatusFilter('hidden'); setSmmCatPage(1); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        smmCatStatusFilter === 'hidden'
+                          ? 'bg-[#ef4444] text-white font-bold'
+                          : 'text-[#ef4444] hover:bg-[#ef4444]/10'
+                      }`}
+                    >
+                      🔴 Hidden ({smmHiddenCount})
+                    </button>
                   </div>
+                </div>
+
+                <div className="relative flex-1 sm:max-w-xs">
+                  <input
+                    type="text"
+                    placeholder="Search categories..."
+                    value={smmCatSearch}
+                    onChange={(e) => {
+                      setSmmCatSearch(e.target.value);
+                      setSmmCatPage(1);
+                    }}
+                    className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white placeholder-[#71717a] outline-none focus:border-[#7c3aed]"
+                  />
+                  {smmCatSearch && (
+                    <button
+                      onClick={() => { setSmmCatSearch(''); setSmmCatPage(1); }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#71717a] hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Platform Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                {smmPlatformList.map((plat) => (
                   <button
-                    onClick={() => handleToggleSmmCategory(c.id)}
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-                      c.enabled
-                        ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
-                        : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30'
+                    key={plat}
+                    onClick={() => { setSmmCatPlatformFilter(plat); setSmmCatPage(1); }}
+                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                      smmCatPlatformFilter.toLowerCase() === plat.toLowerCase()
+                        ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-[#a78bfa] font-bold'
+                        : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
                     }`}
                   >
-                    {c.enabled ? 'Visible' : 'Hidden'}
+                    {plat === 'all' ? 'All Platforms' : plat}
                   </button>
+                ))}
+              </div>
+
+              {/* Category Cards Grid */}
+              {paginatedSmmCategories.length === 0 ? (
+                <div className="bg-[#181820] border border-[#262630] rounded-2xl p-8 text-center text-xs text-[#a1a1aa]">
+                  No SMM categories found matching your filter or search query.
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {paginatedSmmCategories.map((c) => {
+                    const isVisible = Boolean(c.enabled);
+                    const plat = c.platform || 'Other';
+                    return (
+                      <div
+                        key={c.id}
+                        className="bg-[#181820] border border-[#262630] hover:border-[#383848] rounded-xl p-3 flex items-center justify-between gap-2 transition-all shadow-sm"
+                      >
+                        <div className="min-w-0 pr-2 space-y-1">
+                          <span
+                            className="font-bold text-xs text-white block truncate"
+                            title={c.name || c.display_name || ''}
+                          >
+                            {c.name || c.display_name || 'Category'}
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#262635] text-[#a78bfa] font-medium border border-[#383848]">
+                              {plat}
+                            </span>
+                            {c.provider_name && (
+                              <span className="text-[10px] text-[#71717a] font-medium truncate max-w-[100px]">
+                                {c.provider_name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleToggleSmmCategory(c.id)}
+                          className={`text-[10px] font-bold px-3 py-1 rounded-full border transition-all shrink-0 cursor-pointer ${
+                            isVisible
+                              ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30 hover:bg-[#22c55e]/25'
+                              : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30 hover:bg-[#ef4444]/25'
+                          }`}
+                        >
+                          {isVisible ? 'Visible' : 'Hidden'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pagination controls */}
+              {smmTotalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 pt-2 px-1">
+                  <span className="text-xs text-[#a1a1aa]">
+                    Showing {(smmCatPage - 1) * SMM_CATS_PER_PAGE + 1} -{' '}
+                    {Math.min(smmCatPage * SMM_CATS_PER_PAGE, filteredSmmCategories.length)} of{' '}
+                    {filteredSmmCategories.length} categories
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setSmmCatPage((p) => Math.max(1, p - 1))}
+                      disabled={smmCatPage <= 1}
+                      className="px-3 py-1 rounded-lg text-xs bg-[#181820] border border-[#262630] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#222230]"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-xs text-[#a1a1aa] px-2">
+                      {smmCatPage} / {smmTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setSmmCatPage((p) => Math.min(smmTotalPages, p + 1))}
+                      disabled={smmCatPage >= smmTotalPages}
+                      className="px-3 py-1 rounded-lg text-xs bg-[#181820] border border-[#262630] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#222230]"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

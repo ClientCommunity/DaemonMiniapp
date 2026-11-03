@@ -7,7 +7,8 @@
  * 4. User & Wallet Management (/api/admin/users/search, /api/admin/users/balance, /api/admin/users/ban)
  * 5. Marketing & System Settings (/api/admin/reseller/*, /api/admin/promo-codes/*, /api/admin/system/*, /api/admin/settings)
  */
-import { api, downloadFile } from './client';
+import { api, downloadFile } from './client';
+
 import { PinnedServiceItem } from './endpoints';
 
 // ==============================================================================
@@ -148,7 +149,11 @@ export interface SmmCategory {
   name: string;
   platform: string;
   icon?: string;
-  enabled: number;
+  enabled: number | boolean;
+  visible?: number;
+  display_name?: string;
+  provider_id?: number;
+  provider_name?: string;
   services_count?: number;
 }
 

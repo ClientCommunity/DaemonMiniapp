@@ -244,7 +244,7 @@ export function mapAppCode(code: string | undefined, fallback?: string): OtpAppC
     if (c === 'tg' || c === 'telegram' || /\btelegram\b/i.test(c)) return 'tg';
     if (c === 'ig' || c === 'instagram' || /\binstagram\b/i.test(c) || /\binsta\b/i.test(c)) return 'ig';
     if (c === 'go' || c === 'google' || c === 'gmail' || /\bgoogle\b/i.test(c) || /\bgmail\b/i.test(c)) return 'go';
-    if (c === 'spam' || /\bspam\b/i.test(c)) return 'spam';
+    if (c === 'snap' || c === 'snapchat' || c === 'fu' || /\bsnapchat\b/i.test(c) || /\bsnap\b/i.test(c) || c === 'spam' || /\bspam\b/i.test(c)) return 'snap';
     return 'all';
   };
   const primary = check(code);

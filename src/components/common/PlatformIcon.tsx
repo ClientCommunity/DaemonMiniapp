@@ -2,7 +2,7 @@ import React from 'react';
 import { SmmPlatform, OtpAppCode } from '../../types';
 
 interface PlatformIconProps {
-  platform: SmmPlatform | OtpAppCode | 'facebook' | 'discord' | 'threads' | 'google' | 'gmail' | 'whatsapp' | 'spamchat' | 'sms' | string;
+  platform: SmmPlatform | OtpAppCode | 'facebook' | 'discord' | 'threads' | 'google' | 'gmail' | 'whatsapp' | 'snapchat' | 'snap' | 'spamchat' | 'sms' | string;
   className?: string;
   size?: number | string;
   colored?: boolean;
@@ -168,6 +168,32 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
           ) : (
             <path
               d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"
+              fill="currentColor"
+            />
+          )}
+        </svg>
+      );
+
+    case 'snap':
+    case 'snapchat':
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={className}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {colored ? (
+            <>
+              <rect width="24" height="24" rx="6" fill="#FFFC00" />
+              <path
+                d="M12 4.5c-2.4 0-4 1.7-4 3.9 0 .6.1 1.4.3 1.9-.3.1-.7.2-1 .4-.2.1-.3.3-.2.5.1.2.3.3.6.2.5-.1 1.1-.3 1.6-.3.1.4.4.9.8 1.1-.6.2-1.3.4-1.9.8-.3.2-.4.4-.3.6.1.2.4.3.7.2.7-.2 1.5-.4 2.2-.4.3.4.7.7 1.2.7.5 0 .9-.3 1.2-.7.7 0 1.5.2 2.2.4.3.1.6 0 .7-.2.1-.2 0-.4-.3-.6-.6-.4-1.3-.6-1.9-.8.4-.2.7-.7.8-1.1.5 0 1.1.2 1.6.3.3.1.5 0 .6-.2.1-.2 0-.4-.2-.5-.3-.2-.7-.3-1-.4.2-.5.3-1.3.3-1.9 0-2.2-1.6-3.9-4-3.9z"
+                fill="#000000"
+              />
+            </>
+          ) : (
+            <path
+              d="M12 4.5c-2.4 0-4 1.7-4 3.9 0 .6.1 1.4.3 1.9-.3.1-.7.2-1 .4-.2.1-.3.3-.2.5.1.2.3.3.6.2.5-.1 1.1-.3 1.6-.3.1.4.4.9.8 1.1-.6.2-1.3.4-1.9.8-.3.2-.4.4-.3.6.1.2.4.3.7.2.7-.2 1.5-.4 2.2-.4.3.4.7.7 1.2.7.5 0 .9-.3 1.2-.7.7 0 1.5.2 2.2.4.3.1.6 0 .7-.2.1-.2 0-.4-.3-.6-.6-.4-1.3-.6-1.9-.8.4-.2.7-.7.8-1.1.5 0 1.1.2 1.6.3.3.1.5 0 .6-.2.1-.2 0-.4-.2-.5-.3-.2-.7-.3-1-.4.2-.5.3-1.3.3-1.9 0-2.2-1.6-3.9-4-3.9z"
               fill="currentColor"
             />
           )}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PaymentMethodType } from '../../types';
 import { depositApi, ManualMethodItem } from '../../api/endpoints';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Copy,
   Check,
@@ -18,6 +19,22 @@ import {
   Clipboard
 } from 'lucide-react';
 import { hapticFeedback } from '../../utils/haptics';
+
+function decodeHtmlEntities(raw: string): string {
+  if (!raw) return '';
+  return raw
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;#x27;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+}
 
 export const DepositHub: React.FC = () => {
   const { submitDeposit, addToast, activeInvoice, setActiveInvoice, refreshUser } = useApp();
@@ -47,6 +64,11 @@ export const DepositHub: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+  const [qrImgError, setQrImgError] = useState(false);
+
+  useEffect(() => {
+    setQrImgError(false);
+  }, [activeInvoice?.reference]);
 
   // Dynamic live payment gateways
   const [merchantUpi, setMerchantUpi] = useState<string>('');
@@ -104,8 +126,13 @@ export const DepositHub: React.FC = () => {
     };
   }, []);
 
+  // Filter manual methods to crypto/custom only for the Crypto tab (exclude UPI which belongs in the UPI tabs)
+  const cryptoMethods = React.useMemo(() => {
+    return manualMethods.filter((m) => !m.name.toLowerCase().includes('upi'));
+  }, [manualMethods]);
+
   const activeManualMethod =
-    manualMethods.find((m) => m.id === selectedManualId) || manualMethods[0] || null;
+    cryptoMethods.find((m) => m.id === selectedManualId) || cryptoMethods[0] || null;
 
   // 15-minute countdown timer for active invoice
   useEffect(() => {
@@ -496,27 +523,28 @@ export const DepositHub: React.FC = () => {
                   <span className="text-xl font-black font-mono text-[#22c55e]">₹{activeInvoice.amount}</span>
                 </div>
 
-                {/* Dynamic QR Code or Fallback */}
-                {activeInvoice.qrUrl ? (
-                  <div className="w-44 h-44 mx-auto bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
-                    <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+                {/* Dynamic QR Code (Dual Layer: Backend Base64 Data URI with Browser SVG Fallback) */}
+                <div className="w-48 h-48 mx-auto bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
+                  <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+                    {!qrImgError && activeInvoice.qrUrl ? (
                       <img
                         src={activeInvoice.qrUrl}
                         alt={`FamPay ₹${activeInvoice.amount}`}
-                        className="w-36 h-36 object-contain"
-                        onError={() => {
-                          setActiveInvoice((prev) => (prev ? { ...prev, qrUrl: '' } : null));
-                        }}
+                        className="w-40 h-40 object-contain"
+                        onError={() => setQrImgError(true)}
                       />
-                    </div>
+                    ) : (
+                      <QRCodeSVG
+                        value={
+                          activeInvoice.upiUri ||
+                          `upi://pay?pa=${activeInvoice.upiId || merchantUpi || 'Patel.96@fam'}&pn=Payment&am=${activeInvoice.amount}&tn=${activeInvoice.reference}&cu=INR`
+                        }
+                        size={152}
+                        level="M"
+                      />
+                    )}
                   </div>
-                ) : (
-                  <div className="w-full bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 text-center my-2 flex flex-col items-center">
-                    <AlertTriangle className="w-5 h-5 text-amber-400 mb-1" />
-                    <span className="text-xs font-bold text-white">QR Code Unavailable</span>
-                    <span className="text-[11px] text-[#a1a1aa] mt-0.5">Please copy the UPI VPA below to pay</span>
-                  </div>
-                )}
+                </div>
 
                 <div className="text-center text-[10px] text-[#71717a] my-1.5">
                   Scan using GPay, PhonePe, Paytm, CRED, FamPay or any UPI app
@@ -580,7 +608,7 @@ export const DepositHub: React.FC = () => {
                     className="w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                   >
                     <Zap className="w-4 h-4 fill-black" />
-                    <span>{isVerifying ? 'Verifying with Bank...' : '⚡ Verify UTR & Auto-Credit Balance'}</span>
+                    <span>{isVerifying ? 'Verifying with Bank...' : 'Verify UTR & Auto-Credit Balance'}</span>
                   </button>
                 </form>
               </div>
@@ -658,6 +686,24 @@ export const DepositHub: React.FC = () => {
               ) : null}
             </div>
 
+            {merchantUpi ? (
+              <div className="flex flex-col items-center justify-center my-2 p-3 bg-[#121217] rounded-xl border border-[#262630]">
+                <div className="w-44 h-44 bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center">
+                  <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+                    <QRCodeSVG
+                      value={`upi://pay?pa=${merchantUpi}&pn=Payment${amount ? `&am=${amount}` : ''}&cu=INR`}
+                      size={144}
+                      level="M"
+                    />
+                  </div>
+                </div>
+                <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
+                  <QrCode className="w-3 h-3 text-[#8b5cf6]" />
+                  Scan with GPay, PhonePe, Paytm or any UPI app
+                </span>
+              </div>
+            ) : null}
+
             <span className="text-xs font-bold text-white mb-1">
               Step 2: Enter 12-digit UTR Transaction ID
             </span>
@@ -687,7 +733,7 @@ export const DepositHub: React.FC = () => {
                 className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
                 <Zap className="w-4 h-4 fill-black" />
-                <span>{isVerifying ? 'Verifying UTR...' : `⚡ Verify UTR & Auto-Credit Balance (₹${amount})`}</span>
+                <span>{isVerifying ? 'Verifying UTR...' : `Verify UTR & Auto-Credit Balance (₹${amount})`}</span>
               </button>
             </form>
           </div>
@@ -749,14 +795,14 @@ export const DepositHub: React.FC = () => {
           ) : (
             <div className="flex flex-col gap-3">
               {/* Selector Pills if multiple methods exist */}
-              {manualMethods.length > 1 && (
+              {cryptoMethods.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  {manualMethods.map((m) => (
+                  {cryptoMethods.map((m) => (
                     <button
                       key={m.id}
                       onClick={() => setSelectedManualId(m.id)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                        (selectedManualId === m.id || (!selectedManualId && manualMethods[0].id === m.id))
+                        (selectedManualId === m.id || (!selectedManualId && cryptoMethods[0].id === m.id))
                           ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
                           : 'bg-[#181820] text-[#a1a1aa] border border-[#262630]'
                       }`}
@@ -783,10 +829,10 @@ export const DepositHub: React.FC = () => {
                   {activeManualMethod.caption && (
                     <div className="p-3 bg-[#121217] border border-[#262630] rounded-xl mb-3 flex items-start justify-between gap-2">
                       <span className="text-xs text-[#e4e4e7] leading-relaxed break-words whitespace-pre-wrap">
-                        {activeManualMethod.caption.replace(/<[^>]+>/g, ' ')}
+                        {decodeHtmlEntities(activeManualMethod.caption)}
                       </span>
                       <button
-                        onClick={() => handleCopyCustom(activeManualMethod.caption.replace(/<[^>]+>/g, ' '))}
+                        onClick={() => handleCopyCustom(decodeHtmlEntities(activeManualMethod.caption))}
                         className="p-1.5 bg-[#1f1f2a] rounded-lg border border-[#262630] text-white hover:bg-[#262630] shrink-0"
                         title="Copy instructions"
                       >
@@ -802,11 +848,15 @@ export const DepositHub: React.FC = () => {
                   {/* QR Code image if exists */}
                   {activeManualMethod.qr_url ? (
                     <div className="flex flex-col items-center justify-center my-2 p-3 bg-[#121217] rounded-xl border border-[#262630]">
-                      <img
-                        src={activeManualMethod.qr_url}
-                        alt={activeManualMethod.name}
-                        className="w-44 h-44 object-contain rounded-xl bg-white p-2"
-                      />
+                      <div className="w-48 h-48 bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center">
+                        <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+                          <img
+                            src={activeManualMethod.qr_url}
+                            alt={activeManualMethod.name}
+                            className="w-40 h-40 object-contain"
+                          />
+                        </div>
+                      </div>
                       <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
                         <QrCode className="w-3 h-3 text-[#8b5cf6]" />
                         Scan QR code with your {activeManualMethod.name} app

@@ -16,6 +16,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
   const [activeCategory, setActiveCategory] = useState<OtpAppCode>(() => {
     try {
       const saved = localStorage.getItem(`krish_otp_cat_s${serverId}`);
+      if (saved === 'spam') return 'snap';
       return (saved as OtpAppCode) || 'all';
     } catch {
       return 'all';
@@ -54,7 +55,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     { code: 'tg', label: 'Telegram', badge: 'Hot' },
     { code: 'ig', label: 'Instagram' },
     { code: 'go', label: 'Google / Gmail' },
-    { code: 'spam', label: 'SpamChat' },
+    { code: 'snap', label: 'Snapchat' },
   ];
 
   // Quick country shortcuts for Server 3 (where country routes exist)

@@ -60,7 +60,7 @@ export interface Server2StockItem {
 }
 
 // Server 3 & 4: Virtual OTP Numbers (Instant OTP & Fresh Carrier Numbers)
-export type OtpAppCode = 'wa' | 'tg' | 'ig' | 'spam' | 'go' | 'all';
+export type OtpAppCode = 'wa' | 'tg' | 'ig' | 'snap' | 'spam' | 'go' | 'all';
 
 export interface VirtualOtpServiceItem {
   id: string;
