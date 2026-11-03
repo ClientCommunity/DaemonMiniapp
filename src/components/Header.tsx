@@ -17,9 +17,6 @@ export const Header: React.FC = () => {
     refreshUser,
     toggleCurrency,
     addToast,
-    backendConnected,
-    isCheckingBackend,
-    recheckConnection,
     theme,
     toggleTheme,
   } = useApp();
@@ -87,15 +84,7 @@ export const Header: React.FC = () => {
                 user.firstName.substring(0, 2).toUpperCase()
               )}
             </div>
-            <div
-              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full border-2 border-[#121217] ${
-                backendConnected === true
-                  ? 'bg-[#22c55e]'
-                  : backendConnected === false
-                  ? 'bg-[#ef4444]'
-                  : 'bg-[#eab308]'
-              }`}
-            />
+
           </div>
 
           <div className="flex flex-col min-w-0">
@@ -150,44 +139,7 @@ export const Header: React.FC = () => {
             </button>
           )}
 
-          {/* Connection Status Indicator */}
-          <button
-            type="button"
-            onClick={() => {
-              hapticFeedback.light();
-              recheckConnection(true);
-            }}
-            disabled={isCheckingBackend}
-            className={`min-h-[38px] flex items-center justify-center gap-1 px-2 py-1 sm:px-2.5 rounded-full text-[10px] font-semibold border transition-all active:scale-95 shadow-sm cursor-pointer ${
-              backendConnected === true
-                ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/30 hover:bg-[#10b981]/20'
-                : backendConnected === false
-                ? 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/30 hover:bg-[#ef4444]/20'
-                : 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30'
-            }`}
-            title="Click to re-verify backend connectivity"
-            aria-label="Backend Connection Status"
-          >
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 ${
-                backendConnected === true
-                  ? 'bg-[#10b981] animate-pulse shadow-[0_0_8px_#10b981]'
-                  : backendConnected === false
-                  ? 'bg-[#ef4444]'
-                  : 'bg-[#f59e0b] animate-ping'
-              }`}
-            />
-            <span className="tracking-tight hidden md:inline">
-              {isCheckingBackend
-                ? 'Checking...'
-                : backendConnected === true
-                ? 'Connected'
-                : backendConnected === false
-                ? 'Offline'
-                : 'Connecting...'}
-            </span>
-            {isCheckingBackend && <RefreshCw className="w-2.5 h-2.5 animate-spin ml-0.5" />}
-          </button>
+
 
           {/* Assets / Balance Pill with Sync */}
           <button
