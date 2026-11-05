@@ -19,6 +19,7 @@ import {
   Minus,
   CheckCircle2,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
@@ -152,6 +153,8 @@ export const Server5Smm: React.FC = () => {
   }, [platformServices, priceSort]);
 
   const [displayCount, setDisplayCount] = useState<number>(60);
+  const observerRef = React.useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     setDisplayCount(60);
   }, [activePlatform, search, priceSort]);
@@ -159,6 +162,28 @@ export const Server5Smm: React.FC = () => {
   const visibleServices = useMemo(() => {
     return sortedServices.slice(0, displayCount);
   }, [sortedServices, displayCount]);
+
+  // Infinite scroll observer: Automatically loads more items 400px before reaching the bottom
+  useEffect(() => {
+    if (visibleServices.length >= sortedServices.length) return;
+
+    const target = observerRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setDisplayCount((prev) => Math.min(prev + 60, sortedServices.length));
+        }
+      },
+      { rootMargin: '400px' }
+    );
+
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+    };
+  }, [visibleServices.length, sortedServices.length]);
 
   const presetIncrements = [500, 1000, 2500, 5000];
 
@@ -438,21 +463,18 @@ export const Server5Smm: React.FC = () => {
               )}
             </div>
 
-            {/* Load More Pagination */}
-            {sortedServices.length > displayCount && (
-              <div className="flex flex-col items-center gap-2 pt-4 pb-2">
-                <span className="text-[11px] text-[#a1a1aa]">
-                  Showing {displayCount} of {sortedServices.length.toLocaleString()} available services
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setDisplayCount((prev) => prev + 60)}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
-                >
-                  Load More Services (+60)
-                </button>
+            {/* Infinite Scroll Sentinel & Dynamic Status */}
+            {visibleServices.length < sortedServices.length ? (
+              <div ref={observerRef} className="py-5 flex items-center justify-center gap-2 text-xs text-[#a1a1aa]">
+                <div className="w-4 h-4 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
+                <span>Loading more services ({visibleServices.length} of {sortedServices.length.toLocaleString()})...</span>
               </div>
-            )}
+            ) : sortedServices.length > 0 ? (
+              <div className="py-5 text-center text-[11px] text-[#71717a] flex items-center justify-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                <span>All {sortedServices.length.toLocaleString()} services directly displayed</span>
+              </div>
+            ) : null}
           </div>
         </>
       )}
