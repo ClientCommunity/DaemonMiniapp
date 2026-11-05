@@ -23,18 +23,18 @@ export const ServerSelector: React.FC = () => {
 
   return (
     <div className="w-full flex flex-col gap-1.5 py-1.5 select-none">
-      {/* ROW 1: Server 1 & Server 2 (with Telegram logos and red dots) */}
+      {/* ROW 1: Server 1 (Cheap Quality - Yellow dot) & Server 2 (Good Quality - Green dot) */}
       <div className="grid grid-cols-2 gap-1.5">
-        {/* Server 1: Telegram Accounts / Global 2FA */}
+        {/* Server 1: Cheap Quality */}
         <button
           onClick={() => setSelectedServer(1)}
           className={getBtnClasses(selectedServer === 1)}
           type="button"
         >
-          {/* Red Notification Dot on top right */}
+          {/* Yellow Notification Dot on top right */}
           <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 shadow-[0_0_6px_#ef4444]"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_6px_#f59e0b]"></span>
           </span>
 
           <TelegramIcon
@@ -51,21 +51,21 @@ export const ServerSelector: React.FC = () => {
                 selectedServer === 1 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
-              Global 2FA
+              Cheap Quality
             </span>
           </div>
         </button>
 
-        {/* Server 2: Telegram Sessions / Aged */}
+        {/* Server 2: Good Quality */}
         <button
           onClick={() => setSelectedServer(2)}
           className={getBtnClasses(selectedServer === 2)}
           type="button"
         >
-          {/* Red Notification Dot on top right */}
+          {/* Green Notification Dot on top right */}
           <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 shadow-[0_0_6px_#ef4444]"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_#22c55e]"></span>
           </span>
 
           <TelegramIcon
@@ -82,7 +82,7 @@ export const ServerSelector: React.FC = () => {
                 selectedServer === 2 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
-              Aged Sessions
+              Good Quality
             </span>
           </div>
         </button>
@@ -117,9 +117,9 @@ export const ServerSelector: React.FC = () => {
         </div>
       </button>
 
-      {/* ROW 3: Server 3 & Server 4 (Virtual OTP & Fresh Carrier Numbers) */}
+      {/* ROW 3: Server 3 & Server 4 (All apps) */}
       <div className="grid grid-cols-2 gap-1.5">
-        {/* Server 3: Fast OTP */}
+        {/* Server 3: All apps */}
         <button
           onClick={() => setSelectedServer(3)}
           className={getBtnClasses(selectedServer === 3)}
@@ -139,12 +139,12 @@ export const ServerSelector: React.FC = () => {
                 selectedServer === 3 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
-              Fast OTP
+              All apps
             </span>
           </div>
         </button>
 
-        {/* Server 4: Fresh Carrier Numbers */}
+        {/* Server 4: All apps */}
         <button
           onClick={() => setSelectedServer(4)}
           className={getBtnClasses(selectedServer === 4)}
@@ -164,7 +164,7 @@ export const ServerSelector: React.FC = () => {
                 selectedServer === 4 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
-              Fresh Numbers
+              All apps
             </span>
           </div>
         </button>
