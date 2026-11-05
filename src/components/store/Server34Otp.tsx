@@ -84,7 +84,8 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
       return 'default';
     }
   });
-  const [displayCount, setDisplayCount] = useState(50);
+  const [displayCount, setDisplayCount] = useState(60);
+  const observerRef = React.useRef<HTMLDivElement | null>(null);
   const [isAppPickerOpen, setIsAppPickerOpen] = useState(false);
   const [appPickerSearch, setAppPickerSearch] = useState('');
 
@@ -293,7 +294,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
   // Reset pagination window when search query, category, sort, or active server changes
   useEffect(() => {
-    setDisplayCount(50);
+    setDisplayCount(60);
   }, [search, activeCategory, priceSort, serverId]);
 
   const sorted = useMemo(() => {
@@ -311,10 +312,32 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
     return sorted.slice(0, displayCount);
   }, [sorted, displayCount]);
 
+  // Infinite scroll observer: Automatically loads more items 400px before reaching the bottom
+  useEffect(() => {
+    if (visibleItems.length >= sorted.length) return;
+
+    const target = observerRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setDisplayCount((prev) => Math.min(prev + 60, sorted.length));
+        }
+      },
+      { rootMargin: '400px' }
+    );
+
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+    };
+  }, [visibleItems.length, sorted.length]);
+
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Banner */}
-      <div className="p-3 mb-3 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between">
+      <div className="p-3 mb-2 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between">
         <div className="flex flex-col">
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-[#8b5cf6]" />
@@ -330,6 +353,19 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
           <Radio className="w-3 h-3 text-[#22c55e] animate-pulse" />
           <span>{isServer3 ? 'Fast Pool' : 'Fresh Pool'}</span>
         </div>
+      </div>
+
+      {/* 100% Refund Guarantee Pill Banner (Top-level assurance) */}
+      <div className="mb-3 px-3 py-2 bg-[#181820]/80 border border-[#262630] rounded-xl flex items-center justify-between gap-2 text-[11px] text-[#a1a1aa]">
+        <div className="flex items-center gap-2 min-w-0">
+          <ShieldCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
+          <span className="truncate">
+            Auto-refund: If no SMS arrives within 10 min, balance is 100% refunded.
+          </span>
+        </div>
+        <span className="text-[10px] font-bold text-[#22c55e] shrink-0 bg-[#22c55e]/10 border border-[#22c55e]/30 px-2 py-0.5 rounded-md">
+          Protected
+        </span>
       </div>
 
       {/* Active OTP session widget if present */}
@@ -584,30 +620,18 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
         )}
       </div>
 
-      {/* Pagination Load More Control */}
-      {filtered.length > displayCount && (
-        <div className="flex flex-col items-center justify-center py-4 px-2 gap-2">
-          <span className="text-[11px] text-[#a1a1aa]">
-            Showing {displayCount} of {filtered.length.toLocaleString()} available services
-          </span>
-          <button
-            type="button"
-            onClick={() => setDisplayCount((prev) => prev + 50)}
-            className="px-5 py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold shadow-violet-glow-sm transition-all active:scale-95 flex items-center gap-1.5"
-          >
-            <span>Load More Services</span>
-            <span className="text-[10px] opacity-80">(+{Math.min(50, filtered.length - displayCount)})</span>
-          </button>
+      {/* Infinite Scroll Sentinel & Dynamic Status */}
+      {visibleItems.length < sorted.length ? (
+        <div ref={observerRef} className="py-5 flex items-center justify-center gap-2 text-xs text-[#a1a1aa]">
+          <div className="w-4 h-4 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
+          <span>Loading more services ({visibleItems.length} of {sorted.length.toLocaleString()})...</span>
         </div>
-      )}
-
-      {/* Notice info */}
-      <div className="mt-4 p-3 bg-[#181820]/60 border border-[#262630] rounded-xl flex items-center gap-2 text-xs text-[#a1a1aa]">
-        <ShieldCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
-        <span>
-          If no SMS arrives within 10 minutes, your balance is 100% automatically refunded.
-        </span>
-      </div>
+      ) : sorted.length > 0 ? (
+        <div className="py-5 text-center text-[11px] text-[#71717a] flex items-center justify-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-[#8b5cf6]" />
+          <span>All {sorted.length.toLocaleString()} services directly displayed</span>
+        </div>
+      ) : null}
 
       {/* All Apps Search & Selection Bottom-Sheet Modal */}
       {isAppPickerOpen && (
