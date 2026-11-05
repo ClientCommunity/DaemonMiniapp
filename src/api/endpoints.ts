@@ -209,6 +209,20 @@ export interface GoogleAuthResponse {
   error?: string;
 }
 
+export interface Server1Filters {
+  spam: 'no' | 'yes' | 'any';
+  geoblock: 'no' | 'yes' | 'any';
+  login_mail: 'yes' | 'no' | 'any';
+  premium: 'yes' | 'no' | 'any';
+  offline: 'any' | '1' | '7' | '14' | '30';
+  sort?: string;
+}
+
+export interface Server1FiltersResponse {
+  success: boolean;
+  filters: Server1Filters;
+}
+
 /**
  * Authentication Endpoints
  */
@@ -219,6 +233,9 @@ export const authApi = {
   getMe: () => api.get<AuthResponse>('/api/auth/me'),
   updateCurrency: (curr: 'INR' | 'USDT') =>
     api.post<{ success: boolean; curr: string }>('/api/profile/currency', { curr }),
+  getServer1Filters: () => api.get<Server1FiltersResponse>('/api/user/server1-filters'),
+  updateServer1Filters: (filters: Partial<Server1Filters>) =>
+    api.post<Server1FiltersResponse>('/api/user/server1-filters', filters),
 };
 
 /**

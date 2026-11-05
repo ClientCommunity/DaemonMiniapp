@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { useApp } from '../../context/AppContext';
-import { otpApi, downloadApi } from '../../api/endpoints';
+import { otpApi, downloadApi, authApi, Server1Filters } from '../../api/endpoints';
 import { Server1AccountItem } from '../../types';
 import {
   Search,
@@ -15,7 +15,9 @@ import {
   Globe,
   Mail,
   RefreshCw,
-  Clock
+  Clock,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
@@ -53,6 +55,71 @@ export const Server1Lzt: React.FC = () => {
       return null;
     }
   });
+
+  const DEFAULT_FILTERS: Server1Filters = {
+    spam: 'no',
+    geoblock: 'no',
+    login_mail: 'any',
+    premium: 'any',
+    offline: 'any',
+    sort: 'az',
+  };
+
+  const [filters, setFilters] = useState<Server1Filters>(() => {
+    try {
+      const saved = localStorage.getItem('krish_s1_filters');
+      return saved ? JSON.parse(saved) : DEFAULT_FILTERS;
+    } catch {
+      return DEFAULT_FILTERS;
+    }
+  });
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [tempFilters, setTempFilters] = useState<Server1Filters>(filters);
+  const [isSavingFilters, setIsSavingFilters] = useState(false);
+
+  // Sync filters from backend
+  useEffect(() => {
+    let active = true;
+    authApi.getServer1Filters().then((res) => {
+      if (active && res.success && res.filters) {
+        setFilters(res.filters);
+        try {
+          localStorage.setItem('krish_s1_filters', JSON.stringify(res.filters));
+        } catch {}
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.spam !== 'no') count++;
+    if (filters.geoblock !== 'no') count++;
+    if (filters.login_mail !== 'any') count++;
+    if (filters.premium !== 'any') count++;
+    if (filters.offline !== 'any') count++;
+    return count;
+  }, [filters]);
+
+  const handleApplyFilters = async () => {
+    setIsSavingFilters(true);
+    try {
+      setFilters(tempFilters);
+      localStorage.setItem('krish_s1_filters', JSON.stringify(tempFilters));
+      await authApi.updateServer1Filters(tempFilters);
+      addToast('Search filters updated successfully', 'success', 'Server 1 Filters');
+      setIsFilterModalOpen(false);
+    } catch {
+      addToast('Filters applied', 'info', 'Server 1 Filters');
+      setIsFilterModalOpen(false);
+    } finally {
+      setIsSavingFilters(false);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setTempFilters(DEFAULT_FILTERS);
+  };
 
   useEffect(() => {
     try {
@@ -157,8 +224,8 @@ export const Server1Lzt: React.FC = () => {
         </div>
       </div>
 
-      {/* Search Bar & Price Sort Filter */}
-      <div className="flex items-center gap-2 mb-3">
+      {/* Search Bar, Price Sort & Filters */}
+      <div className="flex items-center gap-2 mb-2">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -170,6 +237,118 @@ export const Server1Lzt: React.FC = () => {
           />
         </div>
         <PriceSortFilter value={priceSort} onChange={setPriceSort} />
+        <button
+          type="button"
+          onClick={() => {
+            setTempFilters(filters);
+            setIsFilterModalOpen(true);
+          }}
+          className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-semibold shrink-0 transition-all active:scale-95 ${
+            activeFilterCount > 0
+              ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm'
+              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#38384a]'
+          }`}
+          title="Configure Server 1 bot search filters"
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>Filters</span>
+          {activeFilterCount > 0 && (
+            <span className="w-4 h-4 rounded-full bg-[#7c3aed] text-white text-[10px] font-extrabold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Active Filter Chips Banner */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 mb-2.5 text-[10px]">
+        <button
+          type="button"
+          onClick={() => {
+            setTempFilters(filters);
+            setIsFilterModalOpen(true);
+          }}
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+            filters.spam === 'no'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
+              : filters.spam === 'yes'
+              ? 'bg-rose-500/10 border-rose-500/30 text-[#ef4444]'
+              : 'bg-[#181820] border-[#262630] text-[#a1a1aa]'
+          }`}
+        >
+          <span>Spam:</span>
+          <span className="font-bold">{filters.spam === 'no' ? '🟢 No Spam' : filters.spam === 'yes' ? '🔴 Allow' : 'Any'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTempFilters(filters);
+            setIsFilterModalOpen(true);
+          }}
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+            filters.geoblock === 'no'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
+              : filters.geoblock === 'yes'
+              ? 'bg-rose-500/10 border-rose-500/30 text-[#ef4444]'
+              : 'bg-[#181820] border-[#262630] text-[#a1a1aa]'
+          }`}
+        >
+          <span>Geo-block:</span>
+          <span className="font-bold">{filters.geoblock === 'no' ? '🟢 No Block' : filters.geoblock === 'yes' ? '🔴 Blocked' : 'Any'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTempFilters(filters);
+            setIsFilterModalOpen(true);
+          }}
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+            filters.login_mail === 'yes'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
+              : filters.login_mail === 'no'
+              ? 'bg-rose-500/10 border-rose-500/30 text-[#ef4444]'
+              : 'bg-[#181820] border-[#262630] text-[#a1a1aa]'
+          }`}
+        >
+          <span>Mail:</span>
+          <span className="font-bold">{filters.login_mail === 'yes' ? '🟢 Included' : filters.login_mail === 'no' ? '🔴 None' : 'Any'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTempFilters(filters);
+            setIsFilterModalOpen(true);
+          }}
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+            filters.premium === 'yes'
+              ? 'bg-amber-500/10 border-amber-500/30 text-[#f59e0b]'
+              : filters.premium === 'no'
+              ? 'bg-sky-500/10 border-sky-500/30 text-[#38bdf8]'
+              : 'bg-[#181820] border-[#262630] text-[#a1a1aa]'
+          }`}
+        >
+          <span>Prem:</span>
+          <span className="font-bold">{filters.premium === 'yes' ? '⭐ Only' : filters.premium === 'no' ? 'Non-Prem' : 'Any'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTempFilters(filters);
+            setIsFilterModalOpen(true);
+          }}
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+            filters.offline !== 'any'
+              ? 'bg-[#7c3aed]/20 border-[#7c3aed]/40 text-[#c084fc]'
+              : 'bg-[#181820] border-[#262630] text-[#a1a1aa]'
+          }`}
+        >
+          <span>Offline:</span>
+          <span className="font-bold">{filters.offline !== 'any' ? `≥${filters.offline}d` : 'Any'}</span>
+        </button>
       </div>
 
       {/* Accounts Catalog Grid */}
@@ -560,6 +739,183 @@ export const Server1Lzt: React.FC = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Server 1 Search Filter Configuration Modal */}
+      <Modal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        title="Server 1 Market Filters"
+        subtitle="Configure account quality and security filters matching the Telegram bot"
+        footer={
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-bold text-[#a1a1aa] hover:text-white active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset Defaults</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyFilters}
+              disabled={isSavingFilters}
+              className="py-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white font-extrabold text-xs shadow-violet-glow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              <Check className="w-4 h-4 stroke-[3]" />
+              <span>{isSavingFilters ? 'Saving...' : 'Apply Filters'}</span>
+            </button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4 pt-1 pb-1">
+          {/* 1. Spam Filter */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">Spam Filter</span>
+              <span className="text-[10px] text-[#a1a1aa]">SpamBlock status</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { val: 'no', label: '🟢 No Spam', desc: 'Safe / Clean' },
+                { val: 'yes', label: '🔴 Allow Spam', desc: 'Any state' },
+                { val: 'any', label: '🔵 Any', desc: 'No check' },
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setTempFilters((prev) => ({ ...prev, spam: opt.val as 'no' | 'yes' | 'any' }))}
+                  className={`py-2 px-1.5 rounded-xl border text-center flex flex-col items-center justify-center transition-all ${
+                    tempFilters.spam === opt.val
+                      ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
+                      : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-bold">{opt.label}</span>
+                  <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. Geo-block Filter */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">Geo-block Filter</span>
+              <span className="text-[10px] text-[#a1a1aa]">Regional IP restriction</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { val: 'no', label: '🟢 No Block', desc: 'Unrestricted' },
+                { val: 'yes', label: '🔴 Blocked', desc: 'Geo-locked' },
+                { val: 'any', label: '🔵 Any', desc: 'No check' },
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setTempFilters((prev) => ({ ...prev, geoblock: opt.val as 'no' | 'yes' | 'any' }))}
+                  className={`py-2 px-1.5 rounded-xl border text-center flex flex-col items-center justify-center transition-all ${
+                    tempFilters.geoblock === opt.val
+                      ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
+                      : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-bold">{opt.label}</span>
+                  <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Login Mail */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">Login Mail</span>
+              <span className="text-[10px] text-[#a1a1aa]">Native email access</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { val: 'any', label: '🔵 Any', desc: 'Default' },
+                { val: 'yes', label: '🟢 Included', desc: 'Webmail bound' },
+                { val: 'no', label: '🔴 No Mail', desc: 'Telegram only' },
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setTempFilters((prev) => ({ ...prev, login_mail: opt.val as 'yes' | 'no' | 'any' }))}
+                  className={`py-2 px-1.5 rounded-xl border text-center flex flex-col items-center justify-center transition-all ${
+                    tempFilters.login_mail === opt.val
+                      ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
+                      : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-bold">{opt.label}</span>
+                  <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 4. Premium Filter */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">Telegram Premium</span>
+              <span className="text-[10px] text-[#a1a1aa]">Premium badge status</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { val: 'any', label: '🔵 Any', desc: 'Any account' },
+                { val: 'yes', label: '⭐ Premium Only', desc: 'Star badge' },
+                { val: 'no', label: 'Regular', desc: 'Non-premium' },
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setTempFilters((prev) => ({ ...prev, premium: opt.val as 'yes' | 'no' | 'any' }))}
+                  className={`py-2 px-1.5 rounded-xl border text-center flex flex-col items-center justify-center transition-all ${
+                    tempFilters.premium === opt.val
+                      ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
+                      : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-bold">{opt.label}</span>
+                  <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 5. Offline Filter */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">Offline Inactivity Duration</span>
+              <span className="text-[10px] text-[#a1a1aa]">Last seen threshold</span>
+            </div>
+            <div className="grid grid-cols-5 gap-1">
+              {[
+                { val: 'any', label: 'Any' },
+                { val: '1', label: '≥1d' },
+                { val: '7', label: '≥7d' },
+                { val: '14', label: '≥14d' },
+                { val: '30', label: '≥30d' },
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setTempFilters((prev) => ({ ...prev, offline: opt.val as any }))}
+                  className={`py-2 px-1 rounded-xl border text-center flex items-center justify-center transition-all ${
+                    tempFilters.offline === opt.val
+                      ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm font-bold'
+                      : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white text-xs'
+                  }`}
+                >
+                  <span className="text-xs">{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );

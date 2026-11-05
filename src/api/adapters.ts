@@ -385,13 +385,14 @@ export function adaptServer34Item(
 export function mapSmmPlatform(cat: string | undefined): SmmPlatform {
   if (!cat) return 'telegram';
   const c = cat.toLowerCase();
-  if (c.includes('tele')) return 'telegram';
-  if (c.includes('insta')) return 'instagram';
-  if (c.includes('you') || c.includes('yt')) return 'youtube';
+  if (c.includes('snap')) return 'snapchat';
+  if (c.includes('tele') || c.includes('tg ') || c.startsWith('tg')) return 'telegram';
+  if (c.includes('insta') || c.includes('ig ') || c.startsWith('ig')) return 'instagram';
+  if (c.includes('you') || c.includes('yt ') || c.startsWith('yt')) return 'youtube';
   if (c.includes('tik')) return 'tiktok';
-  if (c.includes('twit') || c.includes('x')) return 'twitter';
-  if (c.includes('face') || c.includes('fb')) return 'facebook';
-  if (c.includes('whats') || c.includes('wa')) return 'whatsapp';
+  if (c.includes('twit') || c.includes('twitter') || /\b(x|x\.com)\b/.test(c)) return 'twitter';
+  if (c.includes('face') || c.includes('fb ') || c.startsWith('fb')) return 'facebook';
+  if (c.includes('whats') || c.includes('wa ') || c.startsWith('wa')) return 'whatsapp';
   return 'other';
 }
 

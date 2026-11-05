@@ -110,10 +110,20 @@ export const Server5Smm: React.FC = () => {
     { id: 'twitter', label: 'Twitter (X)' },
     { id: 'facebook', label: 'Facebook' },
     { id: 'whatsapp', label: 'WhatsApp' },
+    { id: 'snapchat', label: 'Snapchat' },
   ];
 
   // Available services for chosen platform (consuming live inventory from AppContext)
   const allServices = server5Items;
+
+  const platformCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: allServices.length };
+    for (const item of allServices) {
+      counts[item.platform] = (counts[item.platform] || 0) + 1;
+    }
+    return counts;
+  }, [allServices]);
+
   const platformServices = useMemo(() => {
     let list = activePlatform === 'all'
       ? allServices
@@ -140,6 +150,15 @@ export const Server5Smm: React.FC = () => {
     }
     return platformServices;
   }, [platformServices, priceSort]);
+
+  const [displayCount, setDisplayCount] = useState<number>(60);
+  useEffect(() => {
+    setDisplayCount(60);
+  }, [activePlatform, search, priceSort]);
+
+  const visibleServices = useMemo(() => {
+    return sortedServices.slice(0, displayCount);
+  }, [sortedServices, displayCount]);
 
   const presetIncrements = [500, 1000, 2500, 5000];
 
@@ -305,7 +324,7 @@ export const Server5Smm: React.FC = () => {
                     <div className="w-5 h-5 flex items-center justify-center shrink-0">
                       <PlatformIcon platform={p.id} className="w-5 h-5" />
                     </div>
-                    <span>{p.label}</span>
+                    <span>{p.label} {platformCounts[p.id] !== undefined ? `(${platformCounts[p.id].toLocaleString()})` : ''}</span>
                     {p.badge && (
                       <span
                         className={`text-[9px] px-1 py-0.2 rounded font-extrabold uppercase ${
@@ -353,7 +372,7 @@ export const Server5Smm: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                sortedServices.map((service) => (
+                visibleServices.map((service) => (
                 <div
                   key={service.id}
                   onClick={() => handleOpenBuyModal(service)}
@@ -418,6 +437,22 @@ export const Server5Smm: React.FC = () => {
               ))
               )}
             </div>
+
+            {/* Load More Pagination */}
+            {sortedServices.length > displayCount && (
+              <div className="flex flex-col items-center gap-2 pt-4 pb-2">
+                <span className="text-[11px] text-[#a1a1aa]">
+                  Showing {displayCount} of {sortedServices.length.toLocaleString()} available services
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDisplayCount((prev) => prev + 60)}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
+                >
+                  Load More Services (+60)
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
