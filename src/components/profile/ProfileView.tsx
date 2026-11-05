@@ -57,7 +57,25 @@ export const ProfileView: React.FC = () => {
               </span>
               <BadgeCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
             </div>
-            <span className="text-xs text-[#8b5cf6] font-mono">@{user.username}</span>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="text-xs text-[#8b5cf6] font-mono">@{user.username}</span>
+              {user.telegramId && (
+                <button
+                  type="button"
+                  onClick={handleCopyId}
+                  className="inline-flex items-center gap-1 text-[11px] font-mono bg-[#1f1f2a] hover:bg-[#262635] text-[#a1a1aa] hover:text-white border border-[#262630] px-2 py-0.5 rounded-lg transition-all active:scale-95 cursor-pointer"
+                  title="Click to copy User ID"
+                >
+                  <span className="text-[#71717a]">ID:</span>
+                  <span className="font-bold text-white tracking-wide">{user.telegramId}</span>
+                  {copiedId ? (
+                    <Check className="w-3 h-3 text-[#22c55e] ml-0.5" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-[#71717a] ml-0.5" />
+                  )}
+                </button>
+              )}
+            </div>
             {user.email && (
               <div className="flex items-center gap-1 text-[11px] text-[#38bdf8] mt-0.5 truncate">
                 <Mail className="w-3 h-3 shrink-0" />
@@ -69,13 +87,24 @@ export const ProfileView: React.FC = () => {
             </div>
           </div>
 
-          {/* Copy ID button */}
+          {/* Copy User ID button */}
           <button
+            type="button"
             onClick={handleCopyId}
-            className="p-2 rounded-xl bg-[#1f1f2a] border border-[#262630] text-[#a1a1aa] hover:text-white transition-colors"
-            title="Copy Telegram ID"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1f1f2a] border border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#38384a] active:scale-95 transition-all shadow-sm shrink-0"
+            title="Copy User ID"
           >
-            {copiedId ? <Check className="w-4 h-4 text-[#22c55e]" /> : <Copy className="w-4 h-4" />}
+            {copiedId ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-[#22c55e]" />
+                <span className="text-[11px] font-bold text-[#22c55e]">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-mono font-medium">Copy ID</span>
+              </>
+            )}
           </button>
         </div>
 
