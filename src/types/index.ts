@@ -30,7 +30,7 @@ export interface Server1AccountItem {
   priceUsdt: number;
   stockCount: number;
   platform: 'Telegram';
-  format: 'Session + 2FA' | 'TData';
+  format: '2FA Account' | 'Session + 2FA' | 'TData';
   subtitle: string;
   credentialsSample?: {
     phone: string;

@@ -192,7 +192,7 @@ export function adaptServer1Item(item: BackendServer1Item, index: number): Serve
     priceUsdt: Number((price / 94.0).toFixed(2)),
     stockCount: stock,
     platform: 'Telegram',
-    format: 'Session + 2FA',
+    format: '2FA Account',
     subtitle: item.subtitle || 'Global Market 2FA',
     credentialsSample: {
       phone: item.phone || '',

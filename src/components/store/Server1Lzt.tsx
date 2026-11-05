@@ -381,9 +381,6 @@ export const Server1Lzt: React.FC = () => {
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold text-white">{item.country}</span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#7c3aed]/20 text-[#8b5cf6] font-semibold border border-[#7c3aed]/30">
-                    {item.format}
-                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa] mt-0.5">
                   <span>Stock: {item.stockCount} left</span>
@@ -462,8 +459,8 @@ export const Server1Lzt: React.FC = () => {
                   <span className="text-sm font-bold text-white">
                     {selectedForPurchase.country} Telegram
                   </span>
-                  <span className="text-[11px] text-[#a1a1aa]">
-                    Format: {selectedForPurchase.format}
+                  <span className="text-[11px] text-[#22c55e]">
+                    Instant 2FA Delivery
                   </span>
                 </div>
               </div>
