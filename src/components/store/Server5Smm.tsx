@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   ArrowRight,
   Sparkles,
+  Info,
 } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
@@ -97,6 +98,22 @@ export const Server5Smm: React.FC = () => {
     quantity: number;
     cost: number;
   } | null>(null);
+
+  const [expandedDescIds, setExpandedDescIds] = useState<Set<string>>(new Set());
+
+  const toggleExpandDesc = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    hapticFeedback.selection();
+    setExpandedDescIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const platforms: {
     id: SmmPlatform | 'all';
@@ -420,9 +437,43 @@ export const Server5Smm: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-[#a1a1aa] mt-0.5 line-clamp-1">
-                          {service.description}
-                        </span>
+                        {service.description && (
+                          <div className="mt-0.5">
+                            {expandedDescIds.has(service.id) ? (
+                              <div
+                                onClick={(e) => toggleExpandDesc(service.id, e)}
+                                className="p-2.5 rounded-xl bg-[#121217] border border-[#262630] text-[11px] text-[#d4d4d8] leading-relaxed cursor-pointer hover:border-[#8b5cf6]/50 transition-all flex flex-col gap-1 shadow-inner mt-1"
+                              >
+                                <div className="flex items-center justify-between text-[10px] text-[#8b5cf6] font-bold">
+                                  <span className="flex items-center gap-1">
+                                    <Info className="w-3 h-3 text-[#8b5cf6]" />
+                                    Full Description
+                                  </span>
+                                  <span className="hover:underline text-[9px] bg-[#8b5cf6]/10 px-1.5 py-0.5 rounded">
+                                    Collapse ▴
+                                  </span>
+                                </div>
+                                <p className="whitespace-pre-wrap break-words text-[11px] text-white/95 leading-relaxed">
+                                  {service.description}
+                                </p>
+                              </div>
+                            ) : (
+                              <div
+                                onClick={(e) => toggleExpandDesc(service.id, e)}
+                                className="flex items-center gap-1.5 text-[10px] text-[#a1a1aa] cursor-pointer group/desc hover:text-white"
+                                title="Click to read full description"
+                              >
+                                <span className="line-clamp-1 truncate flex-1 min-w-0">
+                                  {service.description}
+                                </span>
+                                <span className="shrink-0 font-bold text-[#8b5cf6] group-hover/desc:text-[#a78bfa] bg-[#8b5cf6]/15 group-hover/desc:bg-[#8b5cf6]/25 border border-[#8b5cf6]/30 px-1.5 py-0.2 rounded-md flex items-center gap-0.5 transition-colors">
+                                  <span>...</span>
+                                  <span className="text-[9px]">more</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -514,6 +565,19 @@ export const Server5Smm: React.FC = () => {
                 <span className="text-[9px] text-[#a1a1aa]">per 1,000</span>
               </div>
             </div>
+
+            {/* Full Service Description in Modal */}
+            {modalService.description && (
+              <div className="p-2.5 rounded-xl bg-[#0b0b0e] border border-[#262630] text-xs flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-[#8b5cf6] uppercase tracking-wider flex items-center gap-1">
+                  <Info className="w-3 h-3 text-[#8b5cf6]" />
+                  Service Details & Description
+                </span>
+                <p className="text-[11px] text-[#d4d4d8] leading-relaxed whitespace-pre-wrap">
+                  {modalService.description}
+                </p>
+              </div>
+            )}
 
             {/* Target Link Input */}
             <div className="flex flex-col gap-1.5">
