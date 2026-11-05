@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { storeApi, PinnedServiceItem } from '../../api/endpoints';
-import { ArrowRight, Flame, Sparkles } from 'lucide-react';
+import { ArrowRight, Flame, Sparkles, Zap } from 'lucide-react';
 
 interface PinnedDealsSectionProps {
   serverFilter?: 1 | 2 | 3 | 4 | 5;
@@ -73,7 +73,7 @@ export const PinnedDealsSection: React.FC<PinnedDealsSectionProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
-              {title || '🔥 Featured & Pinned Deals'}
+              {title ? title.replace(/^[^\w\s]+/, '').trim() : 'Featured & Pinned Deals'}
               <span className="text-[10px] font-mono text-amber-400 font-semibold px-1.5 py-0.2 rounded-full bg-amber-500/10 border border-amber-500/20">
                 {pinnedItems.length}
               </span>
@@ -88,7 +88,7 @@ export const PinnedDealsSection: React.FC<PinnedDealsSectionProps> = ({
           <div
             key={item.id}
             onClick={() => handleSelectDeal(item)}
-            className="flex-shrink-0 w-[240px] bg-gradient-to-b from-[#181822] to-[#121218] hover:from-[#1d1d2b] hover:to-[#161620] border border-[#262638] hover:border-amber-500/40 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 cursor-pointer snap-start shadow-lg shadow-black/20 group relative overflow-hidden active:scale-[0.98]"
+            className="flex-shrink-0 w-[240px] bg-gradient-to-b from-[#181820] to-[#121218] hover:from-[#1d1d2b] hover:to-[#161620] border border-[#262638] hover:border-amber-500/40 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 cursor-pointer snap-start shadow-lg shadow-black/20 group relative overflow-hidden active:scale-[0.98]"
           >
             {/* Top ambient glow */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-amber-500/10 transition-colors" />
@@ -97,13 +97,13 @@ export const PinnedDealsSection: React.FC<PinnedDealsSectionProps> = ({
               {/* Header: Server Pill + Custom Badge */}
               <div className="flex items-center justify-between gap-1 mb-2">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#20202e] border border-[#2c2c3e] text-[10px] font-medium text-[#a1a1aa]">
-                  <span>{item.server_icon || '⚡'}</span>
+                  <Zap className="w-3 h-3 text-[#8b5cf6]" />
                   <span>Server {item.server_no}</span>
                 </span>
 
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300">
                   <Sparkles className="w-2.5 h-2.5" />
-                  <span>{item.badge || '🔥 Hot'}</span>
+                  <span>{item.badge ? item.badge.replace(/[^\w\s%+-]/g, '').trim() || 'Hot' : 'Hot'}</span>
                 </span>
               </div>
 

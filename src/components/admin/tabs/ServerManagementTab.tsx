@@ -26,6 +26,7 @@ import {
   TrendingUp,
   Edit2,
   Pin,
+  X,
 } from 'lucide-react';
 const PinnedServicesTab = React.lazy(() => import('./PinnedServicesTab').then(m => ({ default: m.PinnedServicesTab })));
 
@@ -588,7 +589,7 @@ export const ServerManagementTab: React.FC = () => {
           }`}
         >
           <Pin className="w-3.5 h-3.5" />
-          <span>📌 Pinned Services</span>
+          <span>Pinned Services</span>
         </button>
       </div>
 
@@ -822,8 +823,8 @@ export const ServerManagementTab: React.FC = () => {
                       onChange={(e) => setS2SingleTier(e.target.value as 'good' | 'cheap')}
                       className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
                     >
-                      <option value="good">🟢 Good Quality Tier</option>
-                      <option value="cheap">🟡 Cheap Quality Tier</option>
+                      <option value="good">Good Quality Tier</option>
+                      <option value="cheap">Cheap Quality Tier</option>
                     </select>
                   </div>
 
@@ -918,8 +919,8 @@ export const ServerManagementTab: React.FC = () => {
                       onChange={(e) => setS2BulkTier(e.target.value as 'good' | 'cheap')}
                       className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
                     >
-                      <option value="good">🟢 Good Quality Tier</option>
-                      <option value="cheap">🟡 Cheap Quality Tier</option>
+                      <option value="good">Good Quality Tier</option>
+                      <option value="cheap">Cheap Quality Tier</option>
                     </select>
                   </div>
 
@@ -1013,7 +1014,7 @@ export const ServerManagementTab: React.FC = () => {
                       s2TierFilter === 'good' ? 'bg-[#22c55e] text-black font-bold' : 'text-[#22c55e]'
                     }`}
                   >
-                    🟢 Good
+                    Good
                   </button>
                   <button
                     onClick={() => setS2TierFilter('cheap')}
@@ -1021,7 +1022,7 @@ export const ServerManagementTab: React.FC = () => {
                       s2TierFilter === 'cheap' ? 'bg-[#eab308] text-black font-bold' : 'text-[#eab308]'
                     }`}
                   >
-                    🟡 Cheap
+                    Cheap
                   </button>
                 </div>
 
@@ -1075,7 +1076,7 @@ export const ServerManagementTab: React.FC = () => {
                                 : 'bg-[#eab308]/15 text-[#eab308] border-[#eab308]/30'
                             }`}
                           >
-                            {item.quality_tier === 'good' ? '🟢 Good' : '🟡 Cheap'}
+                            {item.quality_tier === 'good' ? 'Good' : 'Cheap'}
                           </span>
                         </td>
                         <td className="py-2 px-3 text-[#a1a1aa]">{item.country_name || 'Global'}</td>
@@ -1432,7 +1433,10 @@ export const ServerManagementTab: React.FC = () => {
                           : 'text-[#22c55e] hover:bg-[#22c55e]/10'
                       }`}
                     >
-                      🟢 Visible ({smmVisibleCount})
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span>Visible ({smmVisibleCount})</span>
+                      </span>
                     </button>
                     <button
                       onClick={() => { setSmmCatStatusFilter('hidden'); setSmmCatPage(1); }}
@@ -1442,7 +1446,10 @@ export const ServerManagementTab: React.FC = () => {
                           : 'text-[#ef4444] hover:bg-[#ef4444]/10'
                       }`}
                     >
-                      🔴 Hidden ({smmHiddenCount})
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-rose-400" />
+                        <span>Hidden ({smmHiddenCount})</span>
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -1463,7 +1470,7 @@ export const ServerManagementTab: React.FC = () => {
                       onClick={() => { setSmmCatSearch(''); setSmmCatPage(1); }}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#71717a] hover:text-white"
                     >
-                      ✕
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>

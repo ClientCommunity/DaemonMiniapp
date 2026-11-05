@@ -18,6 +18,8 @@ import {
   Clock,
   SlidersHorizontal,
   RotateCcw,
+  Star,
+  AlertTriangle,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
@@ -198,7 +200,7 @@ export const Server1Lzt: React.FC = () => {
         } catch {}
         addToast(`Telegram Login Code received: ${res.otp}`, 'success', 'Code Received!');
       } else {
-        setOtpNotice('⏳ Code not received yet. Request the login code inside official Telegram for this number, then tap Fetch again.');
+        setOtpNotice('Code not received yet. Request the login code inside official Telegram for this number, then tap Fetch again.');
         addToast('No new login code detected yet. Request code in Telegram app first.', 'info');
       }
     } catch {
@@ -268,7 +270,7 @@ export const Server1Lzt: React.FC = () => {
             setTempFilters(filters);
             setIsFilterModalOpen(true);
           }}
-          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
             filters.spam === 'no'
               ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
               : filters.spam === 'yes'
@@ -277,7 +279,11 @@ export const Server1Lzt: React.FC = () => {
           }`}
         >
           <span>Spam:</span>
-          <span className="font-bold">{filters.spam === 'no' ? '🟢 No Spam' : filters.spam === 'yes' ? '🔴 Allow' : 'Any'}</span>
+          <span className="font-bold flex items-center gap-1">
+            {filters.spam === 'no' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+            {filters.spam === 'yes' && <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />}
+            {filters.spam === 'no' ? 'No Spam' : filters.spam === 'yes' ? 'Allow' : 'Any'}
+          </span>
         </button>
 
         <button
@@ -286,7 +292,7 @@ export const Server1Lzt: React.FC = () => {
             setTempFilters(filters);
             setIsFilterModalOpen(true);
           }}
-          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
             filters.geoblock === 'no'
               ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
               : filters.geoblock === 'yes'
@@ -295,7 +301,11 @@ export const Server1Lzt: React.FC = () => {
           }`}
         >
           <span>Geo-block:</span>
-          <span className="font-bold">{filters.geoblock === 'no' ? '🟢 No Block' : filters.geoblock === 'yes' ? '🔴 Blocked' : 'Any'}</span>
+          <span className="font-bold flex items-center gap-1">
+            {filters.geoblock === 'no' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+            {filters.geoblock === 'yes' && <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />}
+            {filters.geoblock === 'no' ? 'No Block' : filters.geoblock === 'yes' ? 'Blocked' : 'Any'}
+          </span>
         </button>
 
         <button
@@ -304,7 +314,7 @@ export const Server1Lzt: React.FC = () => {
             setTempFilters(filters);
             setIsFilterModalOpen(true);
           }}
-          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
             filters.login_mail === 'yes'
               ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
               : filters.login_mail === 'no'
@@ -313,7 +323,11 @@ export const Server1Lzt: React.FC = () => {
           }`}
         >
           <span>Mail:</span>
-          <span className="font-bold">{filters.login_mail === 'yes' ? '🟢 Included' : filters.login_mail === 'no' ? '🔴 None' : 'Any'}</span>
+          <span className="font-bold flex items-center gap-1">
+            {filters.login_mail === 'yes' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+            {filters.login_mail === 'no' && <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />}
+            {filters.login_mail === 'yes' ? 'Included' : filters.login_mail === 'no' ? 'None' : 'Any'}
+          </span>
         </button>
 
         <button
@@ -322,7 +336,7 @@ export const Server1Lzt: React.FC = () => {
             setTempFilters(filters);
             setIsFilterModalOpen(true);
           }}
-          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
             filters.premium === 'yes'
               ? 'bg-amber-500/10 border-amber-500/30 text-[#f59e0b]'
               : filters.premium === 'no'
@@ -331,7 +345,10 @@ export const Server1Lzt: React.FC = () => {
           }`}
         >
           <span>Prem:</span>
-          <span className="font-bold">{filters.premium === 'yes' ? '⭐ Only' : filters.premium === 'no' ? 'Non-Prem' : 'Any'}</span>
+          <span className="font-bold flex items-center gap-1">
+            {filters.premium === 'yes' && <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
+            {filters.premium === 'yes' ? 'Only' : filters.premium === 'no' ? 'Non-Prem' : 'Any'}
+          </span>
         </button>
 
         <button
@@ -475,7 +492,10 @@ export const Server1Lzt: React.FC = () => {
 
             {user.balance < selectedForPurchase.priceInr ? (
               <div className="p-3 bg-red-950/20 border border-red-500/40 rounded-xl text-xs text-[#ef4444] flex items-center justify-between">
-                <span>⚠️ Insufficient balance for this account.</span>
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#ef4444] shrink-0" />
+                  <span>Insufficient balance for this account.</span>
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -506,7 +526,7 @@ export const Server1Lzt: React.FC = () => {
       <Modal
         isOpen={!!purchasedCredentialsModal?.isOpen}
         onClose={closeCredentialsModal}
-        title={purchasedCredentialsModal?.isLoading ? "Allocating Account..." : "🎉 Account Delivered!"}
+        title={purchasedCredentialsModal?.isLoading ? "Allocating Account..." : "Account Delivered!"}
         subtitle={
           purchasedCredentialsModal?.isLoading
             ? "Connecting to LZT Market upstream provider..."
@@ -697,7 +717,7 @@ export const Server1Lzt: React.FC = () => {
                   ) : (
                     <>
                       <Mail className="w-4 h-4" />
-                      <span>📩 Fetch Telegram Login Code</span>
+                      <span>Fetch Telegram Login Code</span>
                     </>
                   )}
                 </button>
@@ -778,9 +798,9 @@ export const Server1Lzt: React.FC = () => {
             </div>
             <div className="grid grid-cols-3 gap-1.5">
               {[
-                { val: 'no', label: '🟢 No Spam', desc: 'Safe / Clean' },
-                { val: 'yes', label: '🔴 Allow Spam', desc: 'Any state' },
-                { val: 'any', label: '🔵 Any', desc: 'No check' },
+                { val: 'no', label: 'No Spam', desc: 'Safe & Clean', dot: 'bg-emerald-400' },
+                { val: 'yes', label: 'Allow Spam', desc: 'Any state', dot: 'bg-rose-400' },
+                { val: 'any', label: 'Any', desc: 'No check' },
               ].map((opt) => (
                 <button
                   key={opt.val}
@@ -792,7 +812,10 @@ export const Server1Lzt: React.FC = () => {
                       : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
                   }`}
                 >
-                  <span className="text-xs font-bold">{opt.label}</span>
+                  <span className="text-xs font-bold flex items-center gap-1">
+                    {opt.dot && <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />}
+                    {opt.label}
+                  </span>
                   <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
                 </button>
               ))}
@@ -807,9 +830,9 @@ export const Server1Lzt: React.FC = () => {
             </div>
             <div className="grid grid-cols-3 gap-1.5">
               {[
-                { val: 'no', label: '🟢 No Block', desc: 'Unrestricted' },
-                { val: 'yes', label: '🔴 Blocked', desc: 'Geo-locked' },
-                { val: 'any', label: '🔵 Any', desc: 'No check' },
+                { val: 'no', label: 'No Block', desc: 'Unrestricted', dot: 'bg-emerald-400' },
+                { val: 'yes', label: 'Blocked', desc: 'Geo-locked', dot: 'bg-rose-400' },
+                { val: 'any', label: 'Any', desc: 'No check' },
               ].map((opt) => (
                 <button
                   key={opt.val}
@@ -821,7 +844,10 @@ export const Server1Lzt: React.FC = () => {
                       : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
                   }`}
                 >
-                  <span className="text-xs font-bold">{opt.label}</span>
+                  <span className="text-xs font-bold flex items-center gap-1">
+                    {opt.dot && <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />}
+                    {opt.label}
+                  </span>
                   <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
                 </button>
               ))}
@@ -836,9 +862,9 @@ export const Server1Lzt: React.FC = () => {
             </div>
             <div className="grid grid-cols-3 gap-1.5">
               {[
-                { val: 'any', label: '🔵 Any', desc: 'Default' },
-                { val: 'yes', label: '🟢 Included', desc: 'Webmail bound' },
-                { val: 'no', label: '🔴 No Mail', desc: 'Telegram only' },
+                { val: 'any', label: 'Any', desc: 'Default' },
+                { val: 'yes', label: 'Included', desc: 'Webmail bound', dot: 'bg-emerald-400' },
+                { val: 'no', label: 'No Mail', desc: 'Telegram only', dot: 'bg-rose-400' },
               ].map((opt) => (
                 <button
                   key={opt.val}
@@ -850,7 +876,10 @@ export const Server1Lzt: React.FC = () => {
                       : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
                   }`}
                 >
-                  <span className="text-xs font-bold">{opt.label}</span>
+                  <span className="text-xs font-bold flex items-center gap-1">
+                    {opt.dot && <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />}
+                    {opt.label}
+                  </span>
                   <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
                 </button>
               ))}
@@ -865,8 +894,8 @@ export const Server1Lzt: React.FC = () => {
             </div>
             <div className="grid grid-cols-3 gap-1.5">
               {[
-                { val: 'any', label: '🔵 Any', desc: 'Any account' },
-                { val: 'yes', label: '⭐ Premium Only', desc: 'Star badge' },
+                { val: 'any', label: 'Any', desc: 'Any account' },
+                { val: 'yes', label: 'Premium Only', desc: 'Star badge', isStar: true },
                 { val: 'no', label: 'Regular', desc: 'Non-premium' },
               ].map((opt) => (
                 <button
@@ -879,7 +908,10 @@ export const Server1Lzt: React.FC = () => {
                       : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
                   }`}
                 >
-                  <span className="text-xs font-bold">{opt.label}</span>
+                  <span className="text-xs font-bold flex items-center gap-1">
+                    {opt.isStar && <Star className="w-3 h-3 text-amber-400 fill-amber-400" />}
+                    {opt.label}
+                  </span>
                   <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
                 </button>
               ))}

@@ -9,6 +9,8 @@ import {
   RefreshCw,
   Send,
   Megaphone,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 
 export const PinnedServicesTab: React.FC = () => {
@@ -24,7 +26,7 @@ export const PinnedServicesTab: React.FC = () => {
   const [formServiceName, setFormServiceName] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formCountry, setFormCountry] = useState('');
-  const [formBadge, setFormBadge] = useState('🔥 Hot');
+  const [formBadge, setFormBadge] = useState('Hot');
   const [formOrder, setFormOrder] = useState('0');
   const [submitting, setSubmitting] = useState(false);
 
@@ -98,7 +100,7 @@ export const PinnedServicesTab: React.FC = () => {
         service_name: formServiceName.trim(),
         category_name: formCategory.trim(),
         country_name: formCountry.trim(),
-        badge: formBadge.trim() || '🔥 Hot',
+        badge: formBadge.trim() || 'Hot',
         display_order: parseInt(formOrder, 10) || 0,
       });
 
@@ -122,12 +124,13 @@ export const PinnedServicesTab: React.FC = () => {
 
   const handleOpenBroadcast = (item: PinnedServiceItem) => {
     setBroadcastTarget(item);
+    const cleanBadge = item.badge ? item.badge.replace(/[^\w\s%+-]/g, '').trim() || 'Hot' : 'Hot';
     setBroadcastMessage(
-      `<b>${item.badge || '🔥 Hot'} Featured Service Alert!</b>\n\n` +
+      `<b>${cleanBadge} Featured Service Alert!</b>\n\n` +
       `<b>${item.service_name}</b> (Server ${item.server_no}) is now available with high speed and instant fulfillment.\n` +
       `Tap the button below to buy immediately!`
     );
-    setBroadcastButtonLabel(`⚡ Buy ${item.service_name}`);
+    setBroadcastButtonLabel(`Buy ${item.service_name}`);
   };
 
   const handleSendBroadcast = async () => {
@@ -320,9 +323,9 @@ export const PinnedServicesTab: React.FC = () => {
               </h4>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-[#a1a1aa] hover:text-white text-lg font-bold"
+                className="text-[#a1a1aa] hover:text-white"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -407,7 +410,7 @@ export const PinnedServicesTab: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="🔥 Hot"
+                    placeholder="Hot"
                     value={formBadge}
                     onChange={(e) => setFormBadge(e.target.value)}
                     className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
@@ -459,9 +462,9 @@ export const PinnedServicesTab: React.FC = () => {
               </div>
               <button
                 onClick={() => setBroadcastTarget(null)}
-                className="text-[#a1a1aa] hover:text-white text-lg font-bold"
+                className="text-[#a1a1aa] hover:text-white"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -494,7 +497,10 @@ export const PinnedServicesTab: React.FC = () => {
             </div>
 
             <div className="p-3 bg-[#121217] border border-[#262630] rounded-xl text-[11px] text-[#71717a] space-y-1">
-              <div>🔗 <b>Direct Deep Links included:</b></div>
+              <div className="flex items-center gap-1.5 font-bold text-white">
+                <ExternalLink className="w-3.5 h-3.5 text-[#38bdf8]" />
+                <span>Direct Deep Links included:</span>
+              </div>
               <div>• Telegram Bot: <code>t.me/DeamonOTPbot?start=pin_{broadcastTarget.id}</code></div>
               <div>• Mini App: <code>t.me/DeamonOTPbot/deamonotp?startapp=pin_{broadcastTarget.id}</code></div>
             </div>

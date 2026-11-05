@@ -637,7 +637,7 @@ export const Server5Smm: React.FC = () => {
       <Modal
         isOpen={!!placedOrder}
         onClose={() => setPlacedOrder(null)}
-        title="🎉 SMM Order Dispatched!"
+        title="SMM Order Dispatched!"
         subtitle={placedOrder?.orderId}
         footer={
           <div className="grid grid-cols-2 gap-2">

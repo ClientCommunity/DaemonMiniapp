@@ -19,7 +19,7 @@ export const StorefrontView: React.FC = () => {
       <div className="px-1">
         <PinnedDealsSection
           serverFilter={selectedServer}
-          title={`📌 Pinned in Server ${selectedServer}`}
+          title={`Pinned in Server ${selectedServer}`}
         />
       </div>
 

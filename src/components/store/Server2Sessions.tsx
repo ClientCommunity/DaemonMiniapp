@@ -3,7 +3,7 @@ import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { useApp } from '../../context/AppContext';
 import { downloadApi } from '../../api/endpoints';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
-import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check, RefreshCw } from 'lucide-react';
+import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check, RefreshCw, User, FolderArchive, AlertTriangle } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
 export const Server2Sessions: React.FC = () => {
@@ -165,7 +165,10 @@ export const Server2Sessions: React.FC = () => {
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          👤 Single Account (OTP)
+          <span className="flex items-center justify-center gap-1.5">
+            <User className="w-3.5 h-3.5" />
+            <span>Single Account (OTP)</span>
+          </span>
         </button>
         <button
           onClick={() => setDeliveryFormat('session')}
@@ -175,7 +178,10 @@ export const Server2Sessions: React.FC = () => {
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          📁 Session (.session / ZIP)
+          <span className="flex items-center justify-center gap-1.5">
+            <FolderArchive className="w-3.5 h-3.5" />
+            <span>Session (.session / ZIP)</span>
+          </span>
         </button>
       </div>
 
@@ -309,8 +315,12 @@ export const Server2Sessions: React.FC = () => {
                   <span className="text-sm font-bold text-white">
                     {itemForPurchase.country} Telegram
                   </span>
-                  <span className="text-[11px] text-[#a1a1aa]">
-                    Tier: {itemForPurchase.qualityTier === 'good' ? '🟢 Good Quality' : '🟡 Cheap Quality'}
+                  <span className="text-[11px] text-[#a1a1aa] flex items-center gap-1">
+                    <span>Tier:</span>
+                    <span className="font-semibold text-white flex items-center gap-1">
+                      <span className={`w-1.5 h-1.5 rounded-full ${itemForPurchase.qualityTier === 'good' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                      {itemForPurchase.qualityTier === 'good' ? 'Good Quality' : 'Cheap Quality'}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -353,7 +363,7 @@ export const Server2Sessions: React.FC = () => {
                 <Package className="w-5 h-5 text-[#8b5cf6] shrink-0" />
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-white">
-                    📦 Bulk ZIP Archive Delivery
+                    Bulk ZIP Archive Delivery
                   </span>
                   <span className="text-[10px] text-[#d1d5db]">
                     Bundled .ZIP archive containing {quantity} individual session strings + 2FA keys.
@@ -387,7 +397,10 @@ export const Server2Sessions: React.FC = () => {
 
             {user.balance < itemForPurchase.priceInr * quantity && (
               <div className="p-3 bg-red-950/20 border border-red-500/40 rounded-xl text-xs text-[#ef4444] flex items-center justify-between">
-                <span>⚠️ Insufficient balance for this order.</span>
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#ef4444] shrink-0" />
+                  <span>Insufficient balance for this order.</span>
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -408,7 +421,7 @@ export const Server2Sessions: React.FC = () => {
       <Modal
         isOpen={!!purchasedServer2Modal?.isOpen}
         onClose={closeServer2Modal}
-        title="🎉 Sessions Delivered!"
+        title="Sessions Delivered!"
         subtitle={`Order ID: ${purchasedServer2Modal?.orderId || 'S2_000000'}`}
         footer={
           <button
@@ -466,8 +479,8 @@ export const Server2Sessions: React.FC = () => {
                 <Download className="w-4 h-4" />
                 <span>
                   {(purchasedServer2Modal.quantity || 1) > 1
-                    ? '⬇️ Download Bulk Sessions (.ZIP Archive)'
-                    : '⬇️ Download .Session File'}
+                    ? 'Download Bulk Sessions (.ZIP Archive)'
+                    : 'Download .Session File'}
                 </span>
               </button>
             ) : (

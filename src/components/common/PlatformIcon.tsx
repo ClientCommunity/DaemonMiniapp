@@ -431,7 +431,15 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
 
     default: {
       const cleanNorm = norm ? norm.replace(/[^a-zA-Z0-9]/g, '') : '';
-      const initial = cleanNorm.length > 0 ? cleanNorm.slice(0, cleanNorm.length >= 2 && !isNaN(Number(cleanNorm)) ? 2 : 1).toUpperCase() : '📱';
+      if (!cleanNorm) {
+        return (
+          <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+            <line x1="12" y1="18" x2="12.01" y2="18" />
+          </svg>
+        );
+      }
+      const initial = cleanNorm.slice(0, cleanNorm.length >= 2 && !isNaN(Number(cleanNorm)) ? 2 : 1).toUpperCase();
       return (
         <span
           className={`${className} inline-flex items-center justify-center rounded-md bg-[#262632] border border-[#38384a] text-[10px] font-black text-[#a78bfa] shrink-0 select-none overflow-hidden leading-none`}

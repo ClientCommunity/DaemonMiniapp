@@ -251,13 +251,19 @@ export const OverviewTab: React.FC = () => {
                 </span>
               </div>
               <div className="bg-[#121217] border border-[#22c55e]/30 rounded-xl p-3 text-center">
-                <span className="text-[10px] text-[#22c55e] block mb-0.5">🟢 Good Quality</span>
+                <span className="text-[10px] text-[#22c55e] flex items-center justify-center gap-1 mb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>Good Quality</span>
+                </span>
                 <span className="text-sm font-bold text-white">
                   {loading ? '...' : stats?.stock_good_count ?? 0}
                 </span>
               </div>
               <div className="bg-[#121217] border border-[#eab308]/30 rounded-xl p-3 text-center">
-                <span className="text-[10px] text-[#eab308] block mb-0.5">🟡 Cheap Quality</span>
+                <span className="text-[10px] text-[#eab308] flex items-center justify-center gap-1 mb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span>Cheap Quality</span>
+                </span>
                 <span className="text-sm font-bold text-white">
                   {loading ? '...' : stats?.stock_cheap_count ?? 0}
                 </span>

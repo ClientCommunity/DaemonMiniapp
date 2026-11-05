@@ -864,8 +864,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const isBulk = quantity > 1;
     const requestedFormat = format || (isBulk ? 'session' : 'account');
     const deliveryTitle = isBulk
-      ? `📦 Bulk ZIP (${quantity}x ${stockItem.country} Sessions)`
-      : `${stockItem.icon} ${stockItem.country} Telegram (${stockItem.accountYear})`;
+      ? `Bulk ZIP (${quantity}x ${stockItem.country} Sessions)`
+      : `${stockItem.country} Telegram (${stockItem.accountYear})`;
 
 
 
@@ -1463,7 +1463,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         );
       } else {
         addToast(
-          `🎉 Deposit Verified! +₹${amount.toLocaleString('en-IN')} added to your Main Balance.`,
+          `Deposit Verified! +₹${amount.toLocaleString('en-IN')} added to your Main Balance.`,
           'success',
           'Balance Credited'
         );

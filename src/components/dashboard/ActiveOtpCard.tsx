@@ -143,8 +143,9 @@ export const ActiveOtpCard: React.FC = () => {
       {/* SMS Status & Jumbo Copy Box */}
       {isReceived && otpCode ? (
         <div className="bg-[#22c55e]/10 border-2 border-dashed border-[#22c55e] rounded-xl p-3.5 text-center mb-3">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-[#22c55e] mb-1">
-            🎉 SMS Code Received
+          <div className="text-[11px] font-bold uppercase tracking-wider text-[#22c55e] mb-1 flex items-center justify-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#22c55e]" />
+            <span>SMS Code Received</span>
           </div>
           <div className="text-3xl font-mono font-black text-white tracking-widest my-1.5 drop-shadow-[0_0_12px_rgba(34,197,94,0.6)]">
             {otpCode}
@@ -163,7 +164,7 @@ export const ActiveOtpCard: React.FC = () => {
             ) : (
               <>
                 <Zap className="w-4 h-4 fill-black stroke-black" />
-                <span>⚡ Copy OTP Code ({otpCode})</span>
+                <span>Copy OTP Code ({otpCode})</span>
               </>
             )}
           </button>

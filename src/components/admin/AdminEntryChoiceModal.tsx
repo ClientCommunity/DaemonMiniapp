@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAdmin } from '../../context/AdminContext';
-import { Shield, ShoppingBag, Sliders, ArrowRight, Sparkles } from 'lucide-react';
+import { Shield, ShoppingBag, Sliders, ArrowRight, Sparkles, Info } from 'lucide-react';
 
 export interface AdminEntryChoiceModalProps {
   isOpen?: boolean;
@@ -127,8 +127,9 @@ export const AdminEntryChoiceModal: React.FC<AdminEntryChoiceModalProps> = ({
 
         {/* Persistence Notice */}
         <div className="pt-1 text-center">
-          <p className="text-[10px] text-[#71717a]">
-            💡 You can switch workspaces at any time using the Header toggle button.
+          <p className="text-[10px] text-[#71717a] flex items-center justify-center gap-1">
+            <Info className="w-3 h-3 text-[#71717a] shrink-0" />
+            <span>You can switch workspaces at any time using the Header toggle button.</span>
           </p>
         </div>
       </div>

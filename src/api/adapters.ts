@@ -181,7 +181,7 @@ export function adaptServer1Item(item: BackendServer1Item, index: number): Serve
   const price = Number(item.price || 0);
   const code = item.code || 'GL';
   const stock = Number(item.stock ?? 0);
-  const icon = item.flag || item.icon || '🌐';
+  const icon = item.flag || item.icon || '';
 
   return {
     id: String(item.id || `s1_${country.toLowerCase()}_${index}`),
@@ -215,7 +215,7 @@ export function adaptServer2Item(
   const country = item.country || item.name || 'Global';
   const price = Number(item.price || 0);
   const stock = Number(item.stock ?? 0);
-  const icon = item.flag || item.icon || (tier === 'good' ? '🟢' : '🟡');
+  const icon = item.flag || item.icon || '';
 
   return {
     id: String(item.id || `s2_${country.toLowerCase()}_${year}_${tier}`),
@@ -227,7 +227,7 @@ export function adaptServer2Item(
     priceInr: price,
     stockCount: stock,
     deliveryFormat: 'session',
-    subtitle: item.subtitle || (tier === 'good' ? '🟢 Good Quality Session' : '🟡 Cheap Quality Session'),
+    subtitle: item.subtitle || (tier === 'good' ? 'Good Quality Session' : 'Cheap Quality Session'),
     twoFaRequired: false,
     sampleSessionUrl: '',
   };

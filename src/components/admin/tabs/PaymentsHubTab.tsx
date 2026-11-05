@@ -57,7 +57,7 @@ export const PaymentsHubTab: React.FC = () => {
     try {
       const res = await adminApi.approveDeposit(depId, dep.amount);
       if (res?.success) {
-        addToast(`✅ Deposit #${depId} approved and credited ₹${dep.amount}!`, 'success');
+        addToast(`Deposit #${depId} approved and credited ₹${dep.amount}!`, 'success');
         setPendingDeposits((prev) => prev.filter((d) => (d.deposit_id ?? (d as any).id) !== depId));
       } else {
         addToast(res?.message || (res as any)?.error || 'Failed to approve deposit', 'error');
@@ -86,7 +86,7 @@ export const PaymentsHubTab: React.FC = () => {
     try {
       const res = await adminApi.rejectDeposit(depId, rejectReason.trim());
       if (res?.success) {
-        addToast(`❌ Deposit #${depId} rejected.`, 'info');
+        addToast(`Deposit #${depId} rejected.`, 'info');
         setPendingDeposits((prev) => prev.filter((d) => (d.deposit_id ?? (d as any).id) !== depId));
         setRejectModalOpen(false);
         setRejectingDeposit(null);

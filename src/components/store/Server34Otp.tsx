@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { OtpAppCode, VirtualOtpServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
 import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
-import { Search, Zap, ShoppingBag, ShieldCheck, Radio, X, Globe, Sparkles, Layers, Check } from 'lucide-react';
+import { Search, Zap, ShoppingBag, ShieldCheck, Radio, X, Globe, Sparkles, Layers, Check, Server } from 'lucide-react';
 import { ActiveOtpCard } from '../dashboard/ActiveOtpCard';
 
 interface Server34OtpProps {
@@ -225,15 +225,15 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
   // Quick country shortcuts for Server 3 (where country routes exist)
   const countrySearches = [
-    { label: '🇮🇳 India (+91)', query: 'India' },
-    { label: '🇺🇸 USA (+1)', query: 'USA' },
-    { label: '🇬🇧 UK (+44)', query: 'UK' },
-    { label: '🇳🇬 Nigeria (+234)', query: 'Nigeria' },
-    { label: '🇮🇩 Indonesia (+62)', query: 'Indonesia' },
-    { label: '🇧🇷 Brazil (+55)', query: 'Brazil' },
-    { label: '🇨🇴 Colombia (+57)', query: 'Colombia' },
-    { label: '🇳🇱 Netherlands (+31)', query: 'Netherlands' },
-    { label: '🖥️ Server 105', query: '105' },
+    { label: 'India (+91)', query: 'India' },
+    { label: 'USA (+1)', query: 'USA' },
+    { label: 'UK (+44)', query: 'UK' },
+    { label: 'Nigeria (+234)', query: 'Nigeria' },
+    { label: 'Indonesia (+62)', query: 'Indonesia' },
+    { label: 'Brazil (+55)', query: 'Brazil' },
+    { label: 'Colombia (+57)', query: 'Colombia' },
+    { label: 'Netherlands (+31)', query: 'Netherlands' },
+    { label: 'Server 105', query: '105', isServer: true },
   ];
 
   // Multi-attribute search matching: region, country, dial code, number, operator, service name
@@ -427,7 +427,10 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                   : 'bg-[#15151c] hover:bg-[#1e1e28] border-[#262630] text-[#a1a1aa] hover:text-white'
               }`}
             >
-              {qs.label}
+              <span className="flex items-center gap-1.5 text-xs">
+                {qs.isServer ? <Server className="w-3 h-3" /> : <Globe className="w-3 h-3 text-[#8b5cf6]" />}
+                <span>{qs.label}</span>
+              </span>
             </button>
           );
         })}
