@@ -9,9 +9,29 @@ const basePath =
   (typeof process !== 'undefined' && process.env?.VITE_BASE_PATH) ||
   (typeof process !== 'undefined' && process.env?.RENDER ? '/' : '/DaemonMiniapp/');
 
+const buildVersion = Date.now().toString();
+
 export default defineConfig({
   base: basePath,
-  plugins: [react()],
+  define: {
+    __APP_BUILD_VERSION__: JSON.stringify(buildVersion),
+  },
+  plugins: [
+    react(),
+    {
+      name: 'generate-version-file',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify({
+            version: buildVersion,
+            builtAt: new Date().toISOString()
+          }, null, 2)
+        });
+      }
+    }
+  ],
   server: {
     port: 3000,
     host: true,
