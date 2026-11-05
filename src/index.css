@@ -137,6 +137,63 @@ html.light .bg-\[\#1f1f2a\]\/50 {
   background-color: rgba(241, 245, 249, 0.6) !important;
 }
 
+/* Modern Dark Surfaces in Light Mode */
+html.light .bg-\[\#151520\],
+html.light .bg-\[\#151520\]\/80,
+html.light .bg-\[\#1a1a28\],
+html.light .bg-\[\#14141b\],
+html.light .bg-\[\#181822\],
+html.light .bg-\[\#1e1b2e\],
+html.light .bg-\[\#20202c\],
+html.light .bg-\[\#222230\] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light .hover\:bg-\[\#1a1a28\]:hover {
+  background-color: #f8fafc !important;
+}
+
+html.light .border-\[\#252535\],
+html.light .border-\[\#2e2e42\],
+html.light .border-\[\#383850\] {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .hover\:border-\[\#38384d\]:hover {
+  border-color: #cbd5e1 !important;
+}
+
+/* Quick App selector pill & SMM Hub badge in Light Mode */
+html.light .bg-\[\#1c1b29\],
+html.light .bg-\[\#252338\] {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+  color: #6d28d9 !important;
+}
+
+html.light .bg-\[\#1c1b29\] *,
+html.light .bg-\[\#252338\] * {
+  color: #6d28d9 !important;
+}
+
+html.light .bg-\[\#252538\] {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+  color: #6d28d9 !important;
+}
+
+/* Active Filter Pill / Chip in Light Mode: Crisp solid violet with white text */
+html.light .bg-\[\#7c3aed\]\/25 {
+  background-color: #7c3aed !important;
+  border-color: #7c3aed !important;
+  color: #ffffff !important;
+}
+
+html.light .bg-\[\#7c3aed\]\/25 * {
+  color: #ffffff !important;
+}
+
 /* Gradients */
 html.light .from-\[\#181820\] {
   --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;

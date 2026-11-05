@@ -9,12 +9,15 @@ const TelegramIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' 
 );
 
 export const ServerSelector: React.FC = () => {
-  const { selectedServer, setSelectedServer } = useApp();
+  const { selectedServer, setSelectedServer, theme } = useApp();
+  const isLight = theme === 'light';
 
   const getBtnClasses = (isActive: boolean) =>
     `relative flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl border transition-all duration-150 active:scale-[0.98] ${
       isActive
         ? 'bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] border-[#a78bfa]/60 text-white shadow-[0_0_16px_rgba(124,58,237,0.5)] font-bold'
+        : isLight
+        ? 'bg-white border-[#e2e8f0] text-[#0f172a] hover:border-[#cbd5e1] hover:bg-[#f8fafc] shadow-sm'
         : 'bg-[#151520]/80 border-[#252535] text-[#a1a1aa] hover:border-[#38384d] hover:text-white hover:bg-[#1a1a28]'
     }`;
 
@@ -40,10 +43,12 @@ export const ServerSelector: React.FC = () => {
             }`}
           />
           <div className="flex flex-col items-start min-w-0">
-            <span className="text-[12px] font-bold leading-tight truncate">Server 1</span>
+            <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 1 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+              Server 1
+            </span>
             <span
               className={`text-[9.5px] leading-tight truncate ${
-                selectedServer === 1 ? 'text-white/85' : 'text-[#71717a]'
+                selectedServer === 1 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
               Global 2FA
@@ -69,10 +74,12 @@ export const ServerSelector: React.FC = () => {
             }`}
           />
           <div className="flex flex-col items-start min-w-0">
-            <span className="text-[12px] font-bold leading-tight truncate">Server 2</span>
+            <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 2 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+              Server 2
+            </span>
             <span
               className={`text-[9.5px] leading-tight truncate ${
-                selectedServer === 2 ? 'text-white/85' : 'text-[#71717a]'
+                selectedServer === 2 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
               Aged Sessions
@@ -89,17 +96,19 @@ export const ServerSelector: React.FC = () => {
       >
         <Users
           className={`w-4 h-4 shrink-0 transition-colors ${
-            selectedServer === 5 ? 'text-white' : 'text-[#a78bfa]'
+            selectedServer === 5 ? 'text-white' : isLight ? 'text-[#7c3aed]' : 'text-[#a78bfa]'
           }`}
         />
         <div className="flex items-center gap-2">
-          <span className="text-[13px] font-bold leading-tight">
+          <span className={`text-[13px] font-bold leading-tight ${selectedServer === 5 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
             Social Media Service
           </span>
           <span
             className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium border ${
               selectedServer === 5
                 ? 'bg-white/20 text-white border-white/30'
+                : isLight
+                ? 'bg-violet-50 text-violet-700 border-violet-200'
                 : 'bg-[#252538] text-[#a78bfa] border-[#383850]'
             }`}
           >
@@ -118,14 +127,16 @@ export const ServerSelector: React.FC = () => {
         >
           <Zap
             className={`w-4 h-4 shrink-0 transition-colors ${
-              selectedServer === 3 ? 'text-white' : 'text-[#eab308]'
+              selectedServer === 3 ? 'text-white' : isLight ? 'text-amber-500' : 'text-[#eab308]'
             }`}
           />
           <div className="flex flex-col items-start min-w-0">
-            <span className="text-[12px] font-bold leading-tight truncate">Server 3</span>
+            <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 3 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+              Server 3
+            </span>
             <span
               className={`text-[9.5px] leading-tight truncate ${
-                selectedServer === 3 ? 'text-white/85' : 'text-[#71717a]'
+                selectedServer === 3 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
               Fast OTP
@@ -141,14 +152,16 @@ export const ServerSelector: React.FC = () => {
         >
           <Radio
             className={`w-4 h-4 shrink-0 transition-colors ${
-              selectedServer === 4 ? 'text-white' : 'text-[#10b981]'
+              selectedServer === 4 ? 'text-white' : isLight ? 'text-emerald-600' : 'text-[#10b981]'
             }`}
           />
           <div className="flex flex-col items-start min-w-0">
-            <span className="text-[12px] font-bold leading-tight truncate">Server 4</span>
+            <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 4 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+              Server 4
+            </span>
             <span
               className={`text-[9.5px] leading-tight truncate ${
-                selectedServer === 4 ? 'text-white/85' : 'text-[#71717a]'
+                selectedServer === 4 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
               Fresh Numbers

@@ -380,28 +380,45 @@ export function adaptServer34Item(
 }
 
 /**
- * Helper to map category name to SmmPlatform.
+ * Helper to map category name or service title to SmmPlatform.
+ * Uses strict boundaries to prevent generic delivery words like "instant" matching "instagram".
  */
-export function mapSmmPlatform(cat: string | undefined): SmmPlatform {
-  if (!cat) return 'telegram';
-  const c = cat.toLowerCase();
-  if (c.includes('snap')) return 'snapchat';
-  if (c.includes('tele') || c.includes('tg ') || c.startsWith('tg')) return 'telegram';
-  if (c.includes('insta') || c.includes('ig ') || c.startsWith('ig')) return 'instagram';
-  if (c.includes('you') || c.includes('yt ') || c.startsWith('yt')) return 'youtube';
-  if (c.includes('tik')) return 'tiktok';
-  if (c.includes('twit') || c.includes('twitter') || /\b(x|x\.com)\b/.test(c)) return 'twitter';
-  if (c.includes('face') || c.includes('fb ') || c.startsWith('fb')) return 'facebook';
-  if (c.includes('whats') || c.includes('wa ') || c.startsWith('wa')) return 'whatsapp';
+export function mapSmmPlatform(cat: string | undefined, name?: string): SmmPlatform {
+  const combined = `${cat || ''} ${name || ''}`.toLowerCase();
+  if (!combined.trim()) return 'telegram';
+
+  if (combined.includes('snapchat') || /\bsnap\b/.test(combined)) return 'snapchat';
+  if (combined.includes('tiktok') || combined.includes('tik tok') || /\btik\b/.test(combined)) return 'tiktok';
+  if (combined.includes('facebook') || /\b(fb)\b/.test(combined) || combined.startsWith('fb ')) return 'facebook';
+  if (combined.includes('youtube') || /\byt\b/.test(combined) || combined.startsWith('yt ')) return 'youtube';
+  if (combined.includes('telegram') || /\btg\b/.test(combined) || combined.startsWith('tg ')) return 'telegram';
+  if (combined.includes('whatsapp') || /\bwa\b/.test(combined) || combined.startsWith('wa ')) return 'whatsapp';
+  if (combined.includes('twitter') || /\b(twit|x\.com)\b/.test(combined) || /\b(x)\b/.test(combined)) return 'twitter';
+  if (combined.includes('instagram') || /\b(insta|ig)\b/.test(combined) || combined.startsWith('ig ')) return 'instagram';
+
   return 'other';
+}
+
+/**
+ * Clean leading provider numbering, keycap artifacts, or bullet prefixes from SMM titles.
+ * E.g. "8Instagram Likes" -> "Instagram Likes", "[104] Title" -> "Title", "8 - Title" -> "Title"
+ */
+export function cleanSmmServiceName(rawName: string | undefined): string {
+  if (!rawName) return '';
+  return rawName
+    .replace(/^\[\d+\]\s*/, '')
+    .replace(/^\d+\s*[-–—:|.]+\s*(?=[A-Za-z])/, '')
+    .replace(/^(\d+)(?=[A-Z][a-z])/, '')
+    .trim();
 }
 
 /**
  * Adapt Server 5 SMM service items.
  */
 export function adaptServer5Item(item: BackendServer5Item): SmmServiceItem {
-  const platform = mapSmmPlatform(item.category || item.name);
-  const name = item.name || `${item.category || 'SMM'} Boost Package`;
+  const platform = mapSmmPlatform(item.category, item.name);
+  const rawName = item.name || `${item.category || 'SMM'} Boost Package`;
+  const name = cleanSmmServiceName(rawName);
   const price = Number(item.price || 95);
   const minQty = Number(item.min_qty || 100);
   const maxQty = Number(item.max_qty || 10000);
