@@ -11,6 +11,23 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Deamon OTP | Store</title>
+    <script>
+      // Clear any rogue service workers or legacy caches
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (var i = 0; i < registrations.length; i++) {
+            registrations[i].unregister();
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (var i = 0; i < names.length; i++) {
+            caches.delete(names[i]);
+          }
+        });
+      }
+    </script>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Google Identity Services SDK -->
@@ -20,7 +37,7 @@
         location.replace('/DaemonMiniapp/');
       }
     </script>
-    <script type="module" crossorigin src="/DaemonMiniapp/assets/index-lmeDPUIJ.js"></script>
+    <script type="module" crossorigin src="/DaemonMiniapp/assets/index-CYYyfbsg.js"></script>
     <link rel="modulepreload" crossorigin href="/DaemonMiniapp/assets/vendor-icons-BAoucABm.js">
     <link rel="modulepreload" crossorigin href="/DaemonMiniapp/assets/vendor-react-G7Wwwzj1.js">
     <link rel="stylesheet" crossorigin href="/DaemonMiniapp/assets/index-CIJ0daYC.css">
