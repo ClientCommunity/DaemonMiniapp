@@ -472,7 +472,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Refresh store catalogues with fast-path for Servers 1, 2, 3, 5 (< 500ms) and background async streaming for Server 4
+  // Refresh store catalogues: Fast catalogues (Servers 1, 2, 3 < 900ms) with background streaming for Server 4 & Server 5
   const refreshStore = useCallback(async (forceServer4: boolean = false) => {
     if (isRefreshingStoreRef.current) return;
     isRefreshingStoreRef.current = true;
@@ -486,13 +486,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     try {
-      // 1. Fetch Fast Catalogues (Servers 1, 2, 3, 5 - completes in < 500ms)
-      const [s1, s2Good, s2Cheap, s3, s5] = await Promise.allSettled([
+      // 1. Fetch Fast Catalogues (Servers 1, 2, 3 - completes in < 900ms)
+      const [s1, s2Good, s2Cheap, s3] = await Promise.allSettled([
         storeApi.getServer1(),
         storeApi.getServer2('good'),
         storeApi.getServer2('cheap'),
         storeApi.getServer3(),
-        storeApi.getServer5(),
       ]);
 
       if (s1.status === 'fulfilled' && s1.value.success && Array.isArray(s1.value.items)) {
@@ -526,17 +525,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       setIsServerLoading((prev) => ({ ...prev, 3: false }));
 
-      if (s5.status === 'fulfilled' && s5.value.success && Array.isArray(s5.value.items)) {
-        const s5Adapted = s5.value.items.map((item) => adaptServer5Item(item));
-        setServer5Items(s5Adapted);
-        try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s5`, JSON.stringify(s5Adapted)); } catch {}
-      }
-      setIsServerLoading((prev) => ({ ...prev, 5: false }));
-
-      // Fast catalogues ready! Immediately clear loading state so UI is interactive
+      // Fast catalogues (1, 2, 3) ready! Interactive store immediately unlocked
       setIsLoadingStore(false);
 
-      // 2. Load Server 4 in background only if not yet loaded
+      // 2. Stream Server 5 in background asynchronously (due to 9,000+ SMM packages)
+      storeApi
+        .getServer5()
+        .then((s5) => {
+          if (s5?.success && Array.isArray(s5.items)) {
+            const s5Adapted = s5.items.map((item) => adaptServer5Item(item));
+            setServer5Items(s5Adapted);
+            try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s5`, JSON.stringify(s5Adapted)); } catch {}
+          }
+        })
+        .catch(() => {
+          // silent background failover
+        })
+        .finally(() => {
+          setIsServerLoading((prev) => ({ ...prev, 5: false }));
+        });
+
+      // 3. Load Server 4 in background only if not yet loaded
       if (!server4LoadedRef.current || forceServer4) {
         storeApi
           .getServer4()
@@ -633,83 +642,77 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setInitialLoadingStep(1);
       setInitialLoadingMessage('Connecting to Daemon Edge Proxy...');
 
-      let isOnline = false;
-      try {
-        const healthRes = await api.get<{ status?: string }>('/api/health');
-        isOnline = healthRes?.status === 'healthy';
-      } catch {
-        try {
-          const authRes = await authApi.authenticate();
-          isOnline = !!authRes?.success;
-        } catch {
-          isOnline = false;
-        }
-      }
-
-      if (isMounted) {
-        setBackendConnected(isOnline);
-        setIsCheckingBackend(false);
-      }
-
-      if (isOnline) {
+      // Safety timeout: dismiss initial splash screen in <= 1.6s under all conditions
+      const safetyTimeout = setTimeout(() => {
         if (isMounted) {
-          setInitialLoadingStep(2);
-          setInitialLoadingMessage(
-            isTelegramWebApp()
-              ? 'Authenticating Telegram profile & wallet...'
-              : 'Authenticating web profile & wallet...'
-          );
+          setInitialLoadingStep(3);
+          setIsInitialLoading(false);
+          setIsCheckingBackend(false);
         }
+      }, 1600);
 
-        try {
-          const authRes = await authApi.authenticate();
-          if (isMounted && authRes?.success && authRes.user) {
+      try {
+        setInitialLoadingStep(2);
+        setInitialLoadingMessage(
+          isTelegramWebApp()
+            ? 'Authenticating Telegram profile & wallet...'
+            : 'Authenticating web profile & wallet...'
+        );
+
+        // Fast Direct Auth: Authenticate user in a single round-trip (< 800ms)
+        const authRes = await authApi.authenticate().catch(() => null);
+        const isOnline = !!authRes?.success;
+
+        if (isMounted) {
+          setBackendConnected(isOnline);
+          setIsCheckingBackend(false);
+          if (authRes?.success && authRes.user) {
             setUser((prev) => adaptBackendUser(authRes.user, prev));
             if (authRes.token) {
               setWebUserToken(authRes.token);
             }
-          }
-        } catch {
-          if (!isTelegramWebApp()) {
+          } else if (!isTelegramWebApp()) {
             setWebUserToken(null);
           }
         }
 
-        try {
-          const resellerRes = await resellerApi.getStats();
-          if (isMounted && resellerRes) {
-            setResellerConfig((prev) => adaptResellerConfig(resellerRes, prev));
-          }
-        } catch {
-          // offline fallback
-        }
+        if (isOnline) {
+          // Asynchronously stream secondary profile data in parallel (non-blocking)
+          resellerApi.getStats().then((resellerRes) => {
+            if (isMounted && resellerRes) {
+              setResellerConfig((prev) => adaptResellerConfig(resellerRes, prev));
+            }
+          }).catch(() => {});
 
-        try {
-          const historyRes = await historyApi.getHistory();
-          if (isMounted && historyRes?.success && Array.isArray(historyRes.items)) {
-            setHistory(historyRes.items.map((item, idx) => adaptHistoryItem(item, idx)));
-          }
-        } catch {
-          // offline fallback
-        }
+          historyApi.getHistory().then((historyRes) => {
+            if (isMounted && historyRes?.success && Array.isArray(historyRes.items)) {
+              setHistory(historyRes.items.map((item, idx) => adaptHistoryItem(item, idx)));
+            }
+          }).catch(() => {});
 
+          // Refresh store catalogues in background - DO NOT block initial splash!
+          refreshStore().catch(() => {});
+        } else {
+          if (isMounted) {
+            addToast('Backend not connected. Running in offline/preview mode.', 'warning', 'Not Connected');
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setBackendConnected(false);
+          setIsCheckingBackend(false);
+        }
+      } finally {
         if (isMounted) {
           setInitialLoadingStep(3);
-          setInitialLoadingMessage('Loading store...');
-          await refreshStore();
+          // Graceful reveal: 120ms to allow smooth 100% transition then reveal Home dashboard
+          setTimeout(() => {
+            if (isMounted) {
+              clearTimeout(safetyTimeout);
+              setIsInitialLoading(false);
+            }
+          }, 120);
         }
-      } else {
-        if (isMounted) {
-          addToast('Backend not connected. Running in offline/preview mode.', 'warning', 'Not Connected');
-        }
-      }
-
-      if (isMounted) {
-        setTimeout(() => {
-          if (isMounted) {
-            setIsInitialLoading(false);
-          }
-        }, 350);
       }
     }
 

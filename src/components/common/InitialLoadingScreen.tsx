@@ -10,28 +10,30 @@ interface InitialLoadingScreenProps {
 export const InitialLoadingScreen: React.FC<InitialLoadingScreenProps> = ({
   step = 1,
 }) => {
-  const [progress, setProgress] = useState(15);
+  const [progress, setProgress] = useState(25);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 96) {
-          clearInterval(timer);
-          return 96;
+        if (step >= 3) {
+          if (prev >= 100) {
+            clearInterval(timer);
+            return 100;
+          }
+          return Math.min(100, prev + 12);
         }
-        const diff = 96 - prev;
-        const increment = Math.max(1, Math.floor(diff * 0.12));
-        return Math.min(96, prev + increment);
+
+        if (step === 2) {
+          if (prev >= 92) return prev;
+          return Math.min(92, prev + Math.max(1, Math.floor((92 - prev) * 0.18)));
+        }
+
+        if (prev >= 65) return prev;
+        return Math.min(65, prev + Math.max(1, Math.floor((65 - prev) * 0.16)));
       });
-    }, 45);
+    }, 30);
 
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (step && step >= 3) {
-      setProgress(100);
-    }
   }, [step]);
 
   const radius = 54;
