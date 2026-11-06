@@ -97,7 +97,7 @@ export const InitialLoadingScreen: React.FC<InitialLoadingScreenProps> = ({
           </svg>
 
           {/* Center Emblem inside the Circle */}
-          <div className="absolute w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#181820] to-[#121217] flex items-center justify-center shadow-inner border border-white/10 backdrop-blur-md p-1.5 overflow-hidden">
+          <div className="absolute w-20 h-20 rounded-full bg-gradient-to-tr from-[#181820] to-[#121217] flex items-center justify-center shadow-inner border border-white/10 backdrop-blur-md p-1.5 overflow-hidden">
             <img
               src={DEAMON_BRAND_LOGO}
               alt="Deamon OTP Logo"
