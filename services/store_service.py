@@ -169,29 +169,35 @@ def get_server3_stock() -> list[dict[str, Any]]:
     items = []
     icon_map = {
         "tg": "✈️", "wa": "💬", "wb": "💬", "go": "🔍", "ig": "📸",
-        "fb": "👥", "tw": "🐦", "tk": "🎵", "openai": "🤖", "ds": "🎮"
+        "fb": "👥", "tw": "🐦", "tk": "🎵", "openai": "🤖", "ds": "🎮",
+        "fu": "👻"
     }
 
     try:
         with connect() as conn:
             rows = conn.execute("""
-                SELECT service_code, name, provider_price
-                FROM server3_services
-                WHERE enabled = 1 AND in_stock = 1 AND provider_price > 0
-                ORDER BY name ASC
+                SELECT s.service_code, s.server_code, s.name, s.provider_price, COALESCE(v.name, 'India') as server_name
+                FROM server3_services s
+                LEFT JOIN server3_servers v ON v.code = s.server_code
+                WHERE s.enabled = 1 AND s.in_stock = 1 AND s.provider_price > 0
+                ORDER BY s.name ASC
             """).fetchall()
 
         for r in rows:
             code = r["service_code"]
             s_name = r["name"] or code.upper()
+            srv_code = r["server_code"]
+            country_name = r["server_name"] or "India"
             items.append({
-                "id": code,
+                "id": f"{code}_{srv_code}",
+                "service_code": code,
+                "server_code": srv_code,
                 "name": s_name,
-                "country": s_name,
+                "country": country_name,
                 "icon": icon_map.get(code.lower(), "⚡"),
-                "price": int(r["provider_price"] or 45),
+                "price": int(round(r["provider_price"] or 45)),
                 "stock": None,
-                "subtitle": "Instant Virtual OTP",
+                "subtitle": f"{country_name} Instant OTP",
             })
     except Exception as exc:
         logger.warning("Error querying server3_services: %s", exc)
@@ -237,7 +243,8 @@ def get_server4_stock() -> list[dict[str, Any]]:
                     WHEN LOWER(v.name) LIKE '%telegram%' THEN 2
                     WHEN LOWER(v.name) LIKE '%instagram%' THEN 3
                     WHEN LOWER(v.name) LIKE '%google%' OR LOWER(v.name) LIKE '%gmail%' THEN 4
-                    WHEN LOWER(v.name) LIKE '%facebook%' THEN 5
+                    WHEN LOWER(v.name) LIKE '%snap%' THEN 5
+                    WHEN LOWER(v.name) LIKE '%facebook%' THEN 6
                     ELSE 10
                   END ASC,
                   total_stock DESC
@@ -274,37 +281,222 @@ def get_server4_stock() -> list[dict[str, Any]]:
     return items or _SERVER4_CACHE["items"]
 
 
+_SERVER5_CACHE: dict[str, Any] = {"timestamp": 0.0, "items": []}
+
 def get_server5_stock() -> list[dict[str, Any]]:
-    """Return Server 5 catalogue (SMM Hub)."""
+    """Return Server 5 catalogue (SMM Hub) with authentic rates, markup, and enabled providers."""
+    import time
+    now = time.time()
+    if _SERVER5_CACHE["items"] and (now - _SERVER5_CACHE["timestamp"]) < 120.0:
+        return _SERVER5_CACHE["items"]
+
     items = []
     try:
         with connect() as conn:
+            cur_row = conn.execute("SELECT value FROM smm_settings WHERE key='default_currency'").fetchone()
+            selling_currency = (cur_row["value"] if cur_row and cur_row["value"] else "INR").strip().upper()
+
             rows = conn.execute("""
-                SELECT s.id, s.name, s.rate, s.minimum, s.maximum, c.display_name as category
+                SELECT
+                    s.id,
+                    s.name,
+                    s.description,
+                    s.rate,
+                    s.minimum,
+                    s.maximum,
+                    s.custom_markup,
+                    s.markup_type,
+                    s.markup_value,
+                    s.category_id,
+                    c.display_name AS category_name,
+                    p.id AS provider_id,
+                    p.currency AS provider_currency,
+                    p.percent_markup AS provider_percent_markup,
+                    p.exchange_rate AS provider_exchange_rate
                 FROM smm_services s
-                LEFT JOIN smm_categories c ON c.id = s.category_id
-                WHERE s.enabled = 1 AND s.visible = 1
-                ORDER BY s.id ASC
-                LIMIT 50
+                JOIN smm_categories c ON c.id = s.category_id
+                JOIN smm_providers p ON p.id = s.provider_id
+                WHERE s.enabled = 1
+                  AND s.visible = 1
+                  AND s.deleted_at IS NULL
+                  AND c.visible = 1
+                  AND p.enabled = 1
+                  AND p.deleted_at IS NULL
+                  AND LOWER(c.display_name) NOT LIKE '%private%'
+                  AND LOWER(c.display_name) NOT LIKE '%dont use%'
+                  AND LOWER(c.display_name) NOT LIKE '%non working%'
+                  AND LOWER(c.display_name) NOT LIKE '%disabled%'
+                ORDER BY s.featured DESC, s.popular DESC, s.sort_position ASC, s.name ASC
             """).fetchall()
 
-        for r in rows:
-            items.append({
-                "id": r["id"],
-                "name": r["name"],
-                "country": r["category"] or "SMM Hub",
-                "category": r["category"] or "SMM",
-                "icon": "🚀",
-                "price": int(r["rate"] or 10),
-                "min_qty": int(r["minimum"] or 100),
-                "max_qty": int(r["maximum"] or 10000),
-                "stock": 9999,
-                "subtitle": "Rate per 1,000",
-            })
-    except Exception as exc:
-        logger.warning("Error querying smm_services: %s", exc)
+            for r in rows:
+                p_curr = str(r["provider_currency"] or "").strip().upper()
+                exchange = 1.0 if p_curr == selling_currency else float(r["provider_exchange_rate"] or 83.0)
+                cost_inr = float(r["rate"] or 0.0) * exchange
+                percent = float(r["provider_percent_markup"] or 0.0)
+                if r["custom_markup"]:
+                    kind = r["markup_type"]
+                    val = float(r["markup_value"] or 0.0)
+                    if kind == "percentage":
+                        percent = val
+                    elif kind == "multiplier":
+                        percent = (val - 1.0) * 100.0
 
-    return items
+                charge_inr = cost_inr * (1.0 + percent / 100.0)
+                final_price = round(charge_inr, 2) if charge_inr >= 1.0 else round(charge_inr, 4)
+                if final_price <= 0:
+                    final_price = 1.0
+
+                cat = r["category_name"] or "SMM"
+                items.append({
+                    "id": r["id"],
+                    "name": r["name"],
+                    "country": cat,
+                    "category": cat,
+                    "icon": "🚀",
+                    "price": final_price,
+                    "min_qty": int(r["minimum"] or 100),
+                    "max_qty": int(r["maximum"] or 10000),
+                    "stock": 9999,
+                    "subtitle": f"{cat} · Rate per 1,000",
+                })
+
+        _SERVER5_CACHE["timestamp"] = now
+        _SERVER5_CACHE["items"] = items
+    except Exception as exc:
+        logger.warning("Error querying server5_stock: %s", exc)
+
+    return items or _SERVER5_CACHE["items"]
+
+
+def get_user_server1_filters(uid: int) -> dict[str, str]:
+    """Retrieve user-specific Server 1 filters with fallback to defaults."""
+    default = {
+        "spam": "no",
+        "geoblock": "no",
+        "login_mail": "any",
+        "premium": "any",
+        "offline": "any",
+        "sort": "az",
+    }
+    try:
+        import bot
+        if hasattr(bot, "get_user_filters"):
+            return bot.get_user_filters(uid)
+    except Exception:
+        pass
+
+    try:
+        with connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_server1_filters (
+                    user_id INTEGER PRIMARY KEY,
+                    spam TEXT DEFAULT 'no',
+                    geoblock TEXT DEFAULT 'no',
+                    login_mail TEXT DEFAULT 'any',
+                    premium TEXT DEFAULT 'any',
+                    offline TEXT DEFAULT 'any',
+                    sort TEXT DEFAULT 'az',
+                    updated_at TEXT
+                )
+            """)
+            row = conn.execute("SELECT * FROM user_server1_filters WHERE user_id = ?", (uid,)).fetchone()
+            if row:
+                return {
+                    "spam": row["spam"] or "no",
+                    "geoblock": row["geoblock"] or "no",
+                    "login_mail": row["login_mail"] or "any",
+                    "premium": row["premium"] or "any",
+                    "offline": row["offline"] or "any",
+                    "sort": row["sort"] or "az",
+                }
+    except Exception as exc:
+        logger.warning("Error reading user_server1_filters: %s", exc)
+
+    return default
+
+
+def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
+    """Persist and update user-specific Server 1 filters."""
+    allowed_spam = {"no", "yes", "any"}
+    allowed_geoblock = {"no", "yes", "any"}
+    allowed_mail = {"yes", "no", "any"}
+    allowed_premium = {"yes", "no", "any"}
+    allowed_offline = {"any", "1", "7", "14", "30"}
+    allowed_sort = {"az", "price_low", "price_high", "stock_high", "stock_low"}
+
+    cur_filters = get_user_server1_filters(uid)
+
+    spam = str(data.get("spam", cur_filters.get("spam", "no"))).lower()
+    geoblock = str(data.get("geoblock", cur_filters.get("geoblock", "no"))).lower()
+    login_mail = str(data.get("login_mail", cur_filters.get("login_mail", "any"))).lower()
+    premium = str(data.get("premium", cur_filters.get("premium", "any"))).lower()
+    offline = str(data.get("offline", cur_filters.get("offline", "any"))).lower()
+    sort = str(data.get("sort", cur_filters.get("sort", "az"))).lower()
+
+    if spam not in allowed_spam: spam = "no"
+    if geoblock not in allowed_geoblock: geoblock = "no"
+    if login_mail not in allowed_mail: login_mail = "any"
+    if premium not in allowed_premium: premium = "any"
+    if offline in allowed_offline:
+        pass
+    elif offline.isdigit() and 1 <= int(offline) <= 3650:
+        pass
+    else:
+        offline = "any"
+    if sort not in allowed_sort: sort = "az"
+
+    updated = {
+        "spam": spam,
+        "geoblock": geoblock,
+        "login_mail": login_mail,
+        "premium": premium,
+        "offline": offline,
+        "sort": sort,
+    }
+
+    try:
+        import bot
+        if hasattr(bot, "user_filters"):
+            bot.user_filters[uid] = updated.copy()
+        if hasattr(bot, "active_filter_keys") and hasattr(bot, "get_filter_key"):
+            bot.active_filter_keys.add(bot.get_filter_key(updated))
+    except Exception:
+        pass
+
+    try:
+        from database import utcnow
+        now = utcnow()
+        with connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_server1_filters (
+                    user_id INTEGER PRIMARY KEY,
+                    spam TEXT DEFAULT 'no',
+                    geoblock TEXT DEFAULT 'no',
+                    login_mail TEXT DEFAULT 'any',
+                    premium TEXT DEFAULT 'any',
+                    offline TEXT DEFAULT 'any',
+                    sort TEXT DEFAULT 'az',
+                    updated_at TEXT
+                )
+            """)
+            conn.execute("""
+                INSERT INTO user_server1_filters (user_id, spam, geoblock, login_mail, premium, offline, sort, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    spam = excluded.spam,
+                    geoblock = excluded.geoblock,
+                    login_mail = excluded.login_mail,
+                    premium = excluded.premium,
+                    offline = excluded.offline,
+                    sort = excluded.sort,
+                    updated_at = excluded.updated_at
+            """, (uid, spam, geoblock, login_mail, premium, offline, sort, now))
+            conn.commit()
+    except Exception as exc:
+        logger.warning("Error saving user_server1_filters: %s", exc)
+
+    return updated
 
 
 def get_pinned_services(server_no: int | None = None) -> list[dict[str, Any]]:

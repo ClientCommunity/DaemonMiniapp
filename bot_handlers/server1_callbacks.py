@@ -203,6 +203,24 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
         fkey = get_filter_key(flt)
         active_filter_keys.add(fkey)
 
+        try:
+            with managed_connect() as conn:
+                conn.execute("""
+                    INSERT INTO user_server1_filters (user_id, spam, geoblock, login_mail, premium, offline, sort, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    ON CONFLICT(user_id) DO UPDATE SET
+                        spam = excluded.spam,
+                        geoblock = excluded.geoblock,
+                        login_mail = excluded.login_mail,
+                        premium = excluded.premium,
+                        offline = excluded.offline,
+                        sort = excluded.sort,
+                        updated_at = excluded.updated_at
+                """, (uid, flt.get("spam", "no"), flt.get("geoblock", "no"), flt.get("login_mail", "any"), flt.get("premium", "any"), flt.get("offline", "any"), flt.get("sort", "az")))
+                conn.commit()
+        except Exception:
+            pass
+
         flt = get_user_filters(uid)
         msg = ("⚙️ <b>Server 1 Search Filter Configurations</b>\n\n"
                "Select search properties to apply on catalog lookups:")

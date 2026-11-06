@@ -67,14 +67,76 @@ class Activation:
 
 
 DGOTP_COUNTRIES = {
-    "0": "Russia", "1": "Ukraine", "2": "Kazakhstan", "3": "China", "4": "Philippines",
+    "0": "Global / India", "1": "Ukraine", "2": "Kazakhstan", "3": "China", "4": "Philippines",
     "5": "Myanmar", "6": "Indonesia", "7": "Malaysia", "8": "Vietnam", "10": "Ukraine",
     "12": "USA", "13": "Israel", "14": "Hong Kong", "15": "Poland", "16": "UK",
     "17": "Madagascar", "18": "Congo", "19": "Nigeria", "21": "Egypt", "22": "India",
     "23": "Ireland", "24": "Cambodia", "25": "Colombia", "27": "Morocco", "29": "Germany",
     "31": "South Africa", "33": "Brazil", "35": "Netherlands", "36": "Latvia", "37": "Canada",
-    "41": "Sweden", "47": "Spain", "64": "Turkey", "73": "Hong Kong", "187": "USA (Virtual)",
+    "41": "Sweden", "47": "Spain", "52": "Thailand", "57": "Denmark", "64": "Turkey",
+    "69": "Pakistan", "73": "Hong Kong", "80": "Mozambique", "175": "Benin", "187": "USA (Virtual)",
 }
+
+COUNTRY_NAME_TO_CODE = {
+    "india": "22",
+    "global": "0",
+    "global / india": "0",
+    "united states": "12",
+    "usa": "12",
+    "us": "12",
+    "united kingdom": "16",
+    "uk": "16",
+    "england": "16",
+    "philippines": "4",
+    "indonesia": "6",
+    "kazakhstan": "2",
+    "canada": "37",
+    "thailand": "52",
+    "pakistan": "69",
+    "denmark": "57",
+    "mozambique": "80",
+    "benin": "175",
+    "vietnam": "8",
+    "nigeria": "19",
+    "brazil": "33",
+    "colombia": "25",
+    "south africa": "31",
+    "spain": "47",
+    "sweden": "41",
+    "netherlands": "35",
+    "turkey": "64",
+    "egypt": "21",
+    "poland": "15",
+    "israel": "13",
+    "madagascar": "17",
+    "ireland": "23",
+    "germany": "29",
+    "morocco": "27",
+    "latvia": "36",
+    "cambodia": "24",
+    "congo": "18",
+    "hong kong": "73",
+    "china": "3",
+    "malaysia": "7",
+    "myanmar": "5",
+    "russia": "0",
+    "ukraine": "10",
+}
+
+for _code, _cname in DGOTP_COUNTRIES.items():
+    COUNTRY_NAME_TO_CODE.setdefault(_cname.lower(), _code)
+
+
+def resolve_country_code(raw_country: str | None) -> str:
+    if not raw_country:
+        return "22"
+    c_clean = str(raw_country).strip().casefold()
+    if c_clean in COUNTRY_NAME_TO_CODE:
+        return COUNTRY_NAME_TO_CODE[c_clean]
+    if c_clean.isdigit():
+        return c_clean
+    return "22"
+
 
 
 class Server3Client:
@@ -186,7 +248,7 @@ class Server3Client:
 
     async def get_number(self, service: str, server: str = "0") -> Activation:
         # Standard SMS-Activate protocol: action=getNum&service=wa&country=0
-        country_id = str(server if server and server != "None" else "0").strip()
+        country_id = resolve_country_code(server)
         body = await self.request("getNum", service=service, country=country_id)
         match = re.search(r"ACCESS_NUMBER:([^:\s]+):([^\s]+)", body)
         if not match:
@@ -218,12 +280,14 @@ class Server3Client:
     async def sync_catalogue(self) -> tuple[int, int]:
         servers = {}
         services = []
+        seen_keys = set()
+
+        cfg = self._config()
+        stored_key = cfg["api_key"]
+        api_key = decrypt_secret(stored_key[4:]) if stored_key.startswith("enc:") else stored_key
 
         # 1. Primary: DGOTP modern REST JSON service catalog /api/v1/getServices
         try:
-            cfg = self._config()
-            stored_key = cfg["api_key"]
-            api_key = decrypt_secret(stored_key[4:]) if stored_key.startswith("enc:") else stored_key
             rest_url = "https://www.dgotp.in/api/v1/getServices"
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
@@ -231,65 +295,86 @@ class Server3Client:
                     if resp.status == 200:
                         data = await resp.json()
                         if isinstance(data, list) and data:
-                            servers["0"] = "Global / India"
                             for item in data:
                                 raw_p = str(item.get("service_price", "0")).replace("\xa0", "").strip()
                                 pm = re.search(r"([0-9]+(?:\.[0-9]+)?)", raw_p)
                                 price = float(pm.group(1)) if pm else 0.0
                                 code = str(item.get("service_id", "")).strip()
                                 s_name = str(item.get("service_name", "")).strip()
-                                country = str(item.get("country", "India")).strip()
+                                raw_country = str(item.get("country", "")).strip() or "India"
                                 stock = int(item.get("stock", 0))
                                 if code and price > 0:
+                                    server_code = resolve_country_code(raw_country)
+                                    country_display = DGOTP_COUNTRIES.get(server_code, raw_country)
+                                    servers[server_code] = country_display
                                     known_name, keywords = service_metadata(code, s_name)
-                                    services.append({
-                                        "service_code": code,
-                                        "server_code": "0",
-                                        "name": f"{known_name} ({country})" if country else known_name,
-                                        "keywords": f"{keywords} {country}".casefold(),
-                                        "price": price,
-                                        "in_stock": int(stock > 0)
-                                    })
+                                    
+                                    key = (code, server_code)
+                                    if key not in seen_keys:
+                                        seen_keys.add(key)
+                                        services.append({
+                                            "service_code": code,
+                                            "server_code": server_code,
+                                            "name": f"{known_name} ({country_display})" if country_display else known_name,
+                                            "keywords": f"{keywords} {country_display} {raw_country}".casefold(),
+                                            "price": price,
+                                            "in_stock": int(stock > 0)
+                                        })
+                                    
+                                    # Also populate "Global / India" (code 0) for backward compatibility
+                                    if server_code == "22":
+                                        servers["0"] = "Global / India"
+                                        key_0 = (code, "0")
+                                        if key_0 not in seen_keys:
+                                            seen_keys.add(key_0)
+                                            services.append({
+                                                "service_code": code,
+                                                "server_code": "0",
+                                                "name": f"{known_name} (Global / India)",
+                                                "keywords": f"{keywords} global india".casefold(),
+                                                "price": price,
+                                                "in_stock": int(stock > 0)
+                                            })
         except Exception as exc:
             pass
 
-        # 2. Secondary fallback: SMS-Activate getPrices across common services
-        if not services:
-            try:
+        # 2. Secondary: SMS-Activate getPrices across common services to ensure ALL countries have stock
+        try:
+            url = cfg["api_url"] or DEFAULT_ENDPOINT
+            if "://dgotp.in" in url:
+                url = url.replace("://dgotp.in", "://www.dgotp.in")
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
                 for svc_code, (svc_name, keywords) in SERVICE_CATALOG.items():
                     try:
-                        body = await self.request("getPrices", service=svc_code, country=0)
-                        data = json.loads(body)
-                        if isinstance(data, dict):
-                            for srv_code, sdata in data.items():
-                                if isinstance(sdata, dict) and svc_code in sdata:
-                                    item = sdata[svc_code]
-                                    cost = float(item.get("cost", 0))
-                                    count = int(item.get("count", 0))
-                                    if cost > 0:
-                                        country_name = DGOTP_COUNTRIES.get(str(srv_code), f"Server {srv_code}")
-                                        servers[str(srv_code)] = country_name
-                                        services.append({
-                                            "service_code": svc_code,
-                                            "server_code": str(srv_code),
-                                            "name": f"{svc_name} ({country_name})",
-                                            "keywords": f"{keywords} {country_name}".casefold(),
-                                            "price": cost,
-                                            "in_stock": int(count > 0)
-                                        })
+                        async with session.get(url, params={"api_key": api_key, "action": "getPrices", "service": svc_code, "country": "0"}) as r:
+                            if r.status == 200:
+                                text = await r.text()
+                                data = json.loads(text)
+                                if isinstance(data, dict):
+                                    for srv_code, sdata in data.items():
+                                        if isinstance(sdata, dict) and svc_code in sdata:
+                                            item = sdata[svc_code]
+                                            cost = float(item.get("cost", 0))
+                                            count = int(item.get("count", 0))
+                                            if cost > 0:
+                                                srv_str = str(srv_code)
+                                                country_name = DGOTP_COUNTRIES.get(srv_str, f"Server {srv_str}")
+                                                servers[srv_str] = country_name
+                                                key = (svc_code, srv_str)
+                                                if key not in seen_keys:
+                                                    seen_keys.add(key)
+                                                    services.append({
+                                                        "service_code": svc_code,
+                                                        "server_code": srv_str,
+                                                        "name": f"{svc_name} ({country_name})",
+                                                        "keywords": f"{keywords} {country_name}".casefold(),
+                                                        "price": cost,
+                                                        "in_stock": int(count > 0)
+                                                    })
                     except Exception:
                         continue
-            except Exception:
-                pass
-
-        # 3. Tertiary Fallback to legacy getServers / getServices if getPrices yielded no data
-        if not services:
-            try:
-                raw_servers, raw_services = await asyncio.gather(self.get_servers(), self.get_services())
-                servers = raw_servers
-                services = raw_services
-            except Exception:
-                pass
+        except Exception:
+            pass
 
         if not services and not servers:
             return 0, 0

@@ -17,6 +17,30 @@ from database import connect, transaction, utcnow, get_admin_log_channel_id
 logger = logging.getLogger("services.fampay")
 
 
+def generate_qr_data_uri(text: str) -> str:
+    """Generate high-contrast PNG QR code and return as base64 data URI."""
+    try:
+        import qrcode
+        import io
+        import base64
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=2,
+        )
+        qr.add_data(text)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{b64}"
+    except Exception as exc:
+        logger.warning("Local QR generation error: %s, falling back to QuickChart", exc)
+        return "https://quickchart.io/qr?" + urllib.parse.urlencode({"text": text, "size": "400"})
+
+
 def create_fampay_checkout(user_id: int, amount: int) -> dict[str, Any]:
     """Create a new FamPay UPI checkout order with dynamic QR and deep link."""
     uid = int(user_id)
@@ -39,15 +63,33 @@ def create_fampay_checkout(user_id: int, amount: int) -> dict[str, Any]:
         """).fetchone()
 
         if not gw:
+            gw = conn.execute("""
+                SELECT id, upi_id, name
+                FROM fampay_gateways
+                ORDER BY id ASC
+                LIMIT 1
+            """).fetchone()
+
+        upi_id = ""
+        payment_name = "Payment"
+        gateway_id = None
+
+        if gw:
+            upi_id = (gw["upi_id"] or "").strip()
+            payment_name = (gw["name"] or "").strip() or "Payment"
+            gateway_id = gw["id"]
+
+        if not upi_id:
+            setting_upi = conn.execute("SELECT value FROM settings WHERE key = 'fampay_upi_id'").fetchone()
+            if setting_upi and setting_upi[0]:
+                upi_id = setting_upi[0].strip()
+
+        if not upi_id:
             return {
                 "success": False,
                 "code": "GATEWAY_OFFLINE",
                 "error": "FamPay QR gateway is currently offline or unconfigured. Please use Manual UPI Deposit.",
             }
-
-        upi_id = gw["upi_id"]
-        payment_name = gw["name"] or "FamPay"
-        gateway_id = gw["id"]
 
         conn.execute("""
             INSERT INTO fampay_orders (
@@ -64,7 +106,7 @@ def create_fampay_checkout(user_id: int, amount: int) -> dict[str, Any]:
         "cu": "INR",
     })
     upi_uri = f"upi://pay?{upi_query}"
-    qr_url = "https://quickchart.io/qr?" + urllib.parse.urlencode({"text": upi_uri, "size": "400"})
+    qr_url = generate_qr_data_uri(upi_uri)
 
     return {
         "success": True,
@@ -113,9 +155,12 @@ def check_fampay_order(reference: str) -> dict[str, Any]:
 
 def get_manual_methods() -> dict[str, Any]:
     """Return enabled manual deposit methods and active merchant UPI."""
+    import os, base64, html
     with connect() as conn:
-        rows = conn.execute("SELECT id, name, caption, qr_file_id FROM custom_payments ORDER BY id ASC").fetchall()
+        rows = conn.execute("SELECT id, name, caption, qr_file_id FROM custom_payments WHERE LOWER(name) NOT LIKE '%upi%' ORDER BY id ASC").fetchall()
         gw = conn.execute("SELECT upi_id FROM fampay_gateways WHERE enabled = 1 LIMIT 1").fetchone()
+        if not gw:
+            gw = conn.execute("SELECT upi_id FROM fampay_gateways ORDER BY id ASC LIMIT 1").fetchone()
         setting_upi = conn.execute("SELECT value FROM settings WHERE key = 'fampay_upi_id'").fetchone()
 
     merchant_upi = ""
@@ -124,16 +169,39 @@ def get_manual_methods() -> dict[str, Any]:
     elif setting_upi and setting_upi["value"]:
         merchant_upi = str(setting_upi["value"]).strip()
 
+    CWALLET_URL = "https://cwallet.com/recevie/application/eba662e90501fd8d472d30b0e35043b8?contract=&type=off&chain=&addr=55164887"
+    methods = []
+    for r in rows:
+        r_name = (r["name"] or "").strip()
+        r_cap = html.unescape(html.unescape((r["caption"] or "").strip()))
+        qr = (r["qr_file_id"] or "").strip()
+
+        # If Cwallet, always provide clean, high-contrast QR code instead of phone screenshots
+        if "cwallet" in r_name.lower() or "55164887" in r_cap or "x.jpg" in qr:
+            qr = generate_qr_data_uri(CWALLET_URL)
+        elif qr and not (qr.startswith("http://") or qr.startswith("https://") or qr.startswith("data:")):
+            if os.path.exists(qr):
+                try:
+                    with open(qr, "rb") as f:
+                        qr = f"data:image/png;base64,{base64.b64encode(f.read()).decode()}"
+                except Exception:
+                    qr = ""
+            else:
+                # If missing local file, auto-generate UPI QR if it's a UPI method
+                if "upi" in r_name.lower() and merchant_upi:
+                    qr = generate_qr_data_uri(f"upi://pay?pa={merchant_upi}&pn=Payment&cu=INR")
+                else:
+                    qr = ""
+
+        methods.append({
+            "id": r["id"],
+            "name": r_name,
+            "caption": r_cap,
+            "qr_url": qr,
+        })
+
     return {
-        "methods": [
-            {
-                "id": r["id"],
-                "name": r["name"],
-                "caption": r["caption"],
-                "qr_url": r["qr_file_id"] or ""
-            }
-            for r in rows
-        ],
+        "methods": methods,
         "merchant_upi": merchant_upi,
     }
 

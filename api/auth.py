@@ -144,3 +144,26 @@ def update_currency():
     updated = set_user_currency(uid, curr)
 
     return jsonify({"success": True, "curr": updated})
+
+
+@auth_bp.route("/api/user/server1-filters", methods=["GET"])
+def get_server1_filters():
+    """Fetch current user's Server 1 market search filters."""
+    uid = get_current_user_id(request)
+    from services.store_service import get_user_server1_filters
+    # Allow guest/preview to read default filters without 401
+    flt = get_user_server1_filters(uid if uid else 0)
+    return jsonify({"success": True, "filters": flt})
+
+
+@auth_bp.route("/api/user/server1-filters", methods=["POST"])
+def update_server1_filters():
+    """Update user-configured Server 1 market search filters."""
+    uid = get_current_user_id(request)
+    if not uid:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    from services.store_service import set_user_server1_filters
+    updated = set_user_server1_filters(uid, data)
+    return jsonify({"success": True, "filters": updated})

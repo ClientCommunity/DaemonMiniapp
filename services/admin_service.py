@@ -708,8 +708,29 @@ def delete_smm_provider(provider_id: int) -> dict[str, Any]:
     return {"success": True, "provider_id": provider_id}
 
 
+def detect_smm_platform(cat_name: str) -> str:
+    cn = (cat_name or "").lower()
+    if any(k in cn for k in ["tele", "tg "]): return "Telegram"
+    if any(k in cn for k in ["insta", "ig "]): return "Instagram"
+    if any(k in cn for k in ["you", "yt ", "youtube"]): return "YouTube"
+    if any(k in cn for k in ["tik", "tt "]): return "TikTok"
+    if any(k in cn for k in ["twit", "twitter", " x "]) or cn.startswith("x ") or " x -" in cn: return "Twitter / X"
+    if any(k in cn for k in ["face", "fb ", "facebook"]): return "Facebook"
+    if any(k in cn for k in ["whats", "wa ", "whatsapp"]): return "WhatsApp"
+    if "disc" in cn: return "Discord"
+    if "spot" in cn: return "Spotify"
+    if "link" in cn: return "LinkedIn"
+    if "thread" in cn: return "Threads"
+    if "reddit" in cn: return "Reddit"
+    if "snap" in cn: return "Snapchat"
+    if "twitch" in cn: return "Twitch"
+    if "pin" in cn: return "Pinterest"
+    if "web" in cn or "traffic" in cn or "seo" in cn: return "Website Traffic"
+    return "Other"
+
+
 def list_smm_categories() -> list[dict[str, Any]]:
-    """List SMM categories with visibility flags."""
+    """List SMM categories with visibility flags and platform metadata."""
     with connect() as conn:
         rows = conn.execute("""
             SELECT c.id, c.provider_id, c.display_name, c.visible, p.name as provider_name
@@ -717,14 +738,31 @@ def list_smm_categories() -> list[dict[str, Any]]:
             LEFT JOIN smm_providers p ON p.id = c.provider_id
             ORDER BY c.sort_position ASC, c.display_name ASC
         """).fetchall()
-    return [dict(r) for r in rows]
+    
+    result = []
+    for r in rows:
+        d_name = r["display_name"] or f"Category {r['id']}"
+        vis = int(r["visible"] or 0)
+        result.append({
+            "id": r["id"],
+            "provider_id": r["provider_id"],
+            "provider_name": r["provider_name"] or "SMM Provider",
+            "display_name": d_name,
+            "name": d_name,
+            "visible": vis,
+            "enabled": bool(vis),
+            "platform": detect_smm_platform(d_name),
+        })
+    return result
 
 
 def toggle_smm_category(category_id: int) -> dict[str, Any]:
     """Toggle SMM category visibility."""
     with transaction(immediate=True) as conn:
         conn.execute("UPDATE smm_categories SET visible = 1 - visible WHERE id = ?", (category_id,))
-    return {"success": True, "category_id": category_id}
+        row = conn.execute("SELECT visible FROM smm_categories WHERE id = ?", (category_id,)).fetchone()
+        new_val = int(row[0]) if row else 1
+    return {"success": True, "category_id": category_id, "enabled": bool(new_val), "visible": new_val}
 
 
 def list_smm_services(category_id: int | None = None, limit: int = 100) -> list[dict[str, Any]]:

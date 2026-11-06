@@ -382,7 +382,22 @@ def get_user_lock(uid):
 def get_user_filters(uid):
     default = {"spam": "no", "geoblock": "no", "offline": "any", "login_mail": "any", "premium": "any", "sort": "az"}
     if uid not in user_filters:
-        user_filters[uid] = default.copy()
+        try:
+            with managed_connect() as conn:
+                row = conn.execute("SELECT spam, geoblock, login_mail, premium, offline, sort FROM user_server1_filters WHERE user_id = ?", (uid,)).fetchone()
+                if row:
+                    user_filters[uid] = {
+                        "spam": row[0] or "no",
+                        "geoblock": row[1] or "no",
+                        "login_mail": row[2] or "any",
+                        "premium": row[3] or "any",
+                        "offline": row[4] or "any",
+                        "sort": row[5] or "az",
+                    }
+                else:
+                    user_filters[uid] = default.copy()
+        except Exception:
+            user_filters[uid] = default.copy()
     else:
         for key, value in default.items():
             user_filters[uid].setdefault(key, value)
