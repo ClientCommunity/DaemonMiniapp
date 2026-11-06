@@ -2056,7 +2056,8 @@ async def render_lzt_product(e, uid, item_id, country=None):
 
 
 async def get_lzt_candidate_items(uid, country, target_final_price, preferred_item_id=None, max_pages=2):
-    # Use safe default market filters and exact displayed INR price for mass-buy candidates.
+    # Enforce customer's active Server 1 filters during candidate discovery
+    flt = get_user_filters(uid)
     iso_code = COUNTRY_CODES.get(country, ("US", "🇺🇸"))[0]
     seen = set()
     candidates = []
@@ -2066,6 +2067,10 @@ async def get_lzt_candidate_items(uid, country, target_final_price, preferred_it
             return
         item_id = str(item.get('item_id') or item.get('id') or '')
         if not item_id or item_id in seen:
+            return
+        if lzt_item_requires_password(item):
+            return
+        if not lzt_item_matches_filters(item, flt):
             return
         seen.add(item_id)
         candidates.append(item)
@@ -2084,14 +2089,31 @@ async def get_lzt_candidate_items(uid, country, target_final_price, preferred_it
         "password": "no",
         "currency": LZT_PRICE_CURRENCY,
     }
+
+    if flt.get("spam") != "any":
+        params_base["spam"] = flt["spam"]
+    if flt.get("premium") != "any":
+        params_base["premium"] = flt["premium"]
+    offline_val = str(flt.get("offline", "any")).strip().lower()
+    if offline_val != "any":
+        try:
+            days = int(offline_val[:-1] if offline_val.endswith("d") else offline_val)
+            if days > 0:
+                params_base["daybreak"] = days
+        except (TypeError, ValueError):
+            pass
+
     for page in range(1, max_pages + 1):
         params = dict(params_base, page=page)
-        res = await lzt_request('GET', '/telegram', params=params, timeout_total=LZT_STOCK_TIMEOUT, max_retries=LZT_STOCK_RETRIES, notify_errors=False)
-        if isinstance(res, dict) and 'items' in res and not res.get('items') and params["country[]"] != country:
+        res = await lzt_request('GET', '/telegram', params=clean_lzt_params(params), timeout_total=LZT_STOCK_TIMEOUT, max_retries=LZT_STOCK_RETRIES, notify_errors=False)
+        if isinstance(res, dict) and 'items' in res and not res.get('items') and params.get("country[]") != country:
             params["country[]"] = country
-            res = await lzt_request('GET', '/telegram', params=params, timeout_total=LZT_STOCK_TIMEOUT, max_retries=1, notify_errors=False)
+            res = await lzt_request('GET', '/telegram', params=clean_lzt_params(params), timeout_total=LZT_STOCK_TIMEOUT, max_retries=1, notify_errors=False)
         for item in (res or {}).get('items', [])[:40]:
-            if apply_server_discount(uid, 1, lzt_final_inr_price(item, get_lzt_markup(country))) == int(target_final_price):
+            item_final_price = apply_server_discount(uid, 1, lzt_final_inr_price(item, get_lzt_markup(country)))
+            if target_final_price is None or target_final_price <= 0:
+                await add_candidate(item)
+            elif item_final_price <= int(target_final_price):
                 await add_candidate(item)
     return candidates
 

@@ -41,11 +41,51 @@ def lzt_item_matches_filters(item: dict, flt: dict) -> bool:
     mail_pref = flt.get("login_mail", "any")
     if mail_pref != "any":
         mail_value = item.get("login_mail", item.get("email", item.get("has_email", item.get("telegram_email"))))
-        has_mail = as_boolish(mail_value)
+        if isinstance(mail_value, str):
+            has_mail = mail_value.strip().lower() not in ("0", "false", "no", "none", "")
+        else:
+            has_mail = as_boolish(mail_value)
         if mail_pref == "yes" and not has_mail:
             return False
         if mail_pref == "no" and has_mail:
             return False
+
+    offline_pref = str(flt.get("offline", "any")).strip().lower()
+    if offline_pref != "any":
+        min_days = 0
+        if offline_pref.isdigit():
+            min_days = int(offline_pref)
+        elif offline_pref.endswith("d") and offline_pref[:-1].isdigit():
+            min_days = int(offline_pref[:-1])
+
+        if min_days > 0:
+            min_seconds = min_days * 86400
+            now_ts = int(datetime.now(timezone.utc).timestamp())
+
+            activity_ts = None
+            for k in ("telegram_last_activity", "last_activity", "activity_date", "last_seen", "lastActivity"):
+                val = item.get(k)
+                if val is not None and str(val).strip() != "":
+                    try:
+                        val_f = float(val)
+                        if val_f > 0:
+                            activity_ts = int(val_f)
+                            break
+                    except (TypeError, ValueError):
+                        continue
+
+            if activity_ts and activity_ts > 0:
+                if (now_ts - activity_ts) < min_seconds:
+                    return False
+
+            for dbk in ("daybreak", "telegram_daybreak", "days_offline"):
+                db_val = item.get(dbk)
+                if db_val is not None and str(db_val).strip() != "":
+                    try:
+                        if int(float(db_val)) < min_days:
+                            return False
+                    except (TypeError, ValueError):
+                        pass
 
     return True
 

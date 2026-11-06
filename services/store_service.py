@@ -70,9 +70,21 @@ def get_all_servers_overview() -> list[dict[str, Any]]:
     return servers
 
 
-def get_server1_stock() -> list[dict[str, Any]]:
+def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
     """Return Server 1 stock items (Global 2FA Accounts from live LZT Market)."""
     items = []
+    flt = get_user_server1_filters(uid if uid else 0)
+    sort_mode = flt.get("sort", "az")
+    fkey = "_".join(str(flt.get(k, "any")) for k in ("spam", "geoblock", "offline", "login_mail", "premium"))
+
+    mem_cache = {}
+    try:
+        import bot
+        if hasattr(bot, "cached_lzt_stock") and isinstance(bot.cached_lzt_stock, dict):
+            mem_cache = bot.cached_lzt_stock.get(fkey) or {}
+    except Exception:
+        pass
+
     with connect() as conn:
         # 1. Primary: live cached LZT market inventory
         rows = conn.execute("""
@@ -84,13 +96,23 @@ def get_server1_stock() -> list[dict[str, Any]]:
         """).fetchall()
 
         for r in rows:
+            c_name = r["country"]
+            stock_count = int(r["stock_count"])
+            price = int(round(r["price"] or 80))
+
+            if c_name in mem_cache:
+                mem_stock, mem_price = mem_cache[c_name]
+                stock_count = int(mem_stock)
+                if mem_price > 0:
+                    price = int(round(mem_price))
+
             items.append({
-                "id": r["country"],
-                "name": r["country"],
-                "country": r["country"],
+                "id": c_name,
+                "name": c_name,
+                "country": c_name,
                 "icon": r["flag"] or "🌐",
-                "price": int(round(r["price"] or 80)),
-                "stock": int(r["stock_count"]),
+                "price": price,
+                "stock": stock_count,
                 "subtitle": "Global Market 2FA",
             })
 
@@ -114,6 +136,17 @@ def get_server1_stock() -> list[dict[str, Any]]:
                     "stock": int(r["stock_count"]),
                     "subtitle": "Global Market 2FA",
                 })
+
+    if sort_mode == "price_low":
+        items.sort(key=lambda x: (x["price"], x["country"]))
+    elif sort_mode == "price_high":
+        items.sort(key=lambda x: (-x["price"], x["country"]))
+    elif sort_mode == "stock_high":
+        items.sort(key=lambda x: (-x["stock"], x["country"]))
+    elif sort_mode == "stock_low":
+        items.sort(key=lambda x: (x["stock"], x["country"]))
+    elif sort_mode == "az":
+        items.sort(key=lambda x: x["country"])
 
     return items
 

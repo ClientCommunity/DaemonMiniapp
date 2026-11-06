@@ -221,19 +221,30 @@ def execute_buy(
                     lzt_fast_buy_item, lzt_request, lzt_currency_params,
                     lzt_purchase_has_error, lzt_purchase_item_id, lzt_error_text,
                     lzt_market_price, lzt_item_requires_password, normalize_lzt_phone,
-                    try_lzt_reset_authorizations, get_lzt_candidate_items
+                    try_lzt_reset_authorizations, get_lzt_candidate_items, get_user_filters
                 )
+                from bot_helpers.lzt_helpers import lzt_item_matches_filters
+                flt = get_user_filters(uid)
                 candidates = []
                 if provided_item_id.isdigit():
                     res = await lzt_request('GET', f"/{provided_item_id}", params=lzt_currency_params())
                     if res and isinstance(res.get('item'), dict):
-                        candidates.append(res['item'])
+                        item = res['item']
+                        if not lzt_item_requires_password(item) and lzt_item_matches_filters(item, flt):
+                            candidates.append(item)
 
                 if not candidates:
-                    candidates = await get_lzt_candidate_items(uid, country, target_price, max_pages=2)
+                    candidates = await get_lzt_candidate_items(uid, country, target_price, max_pages=3)
 
                 if not candidates:
-                    return None, "No accounts currently available in stock for this country on Server 1."
+                    flt_parts = []
+                    if flt.get("spam") != "any": flt_parts.append("Spam: " + str(flt["spam"]))
+                    if flt.get("geoblock") != "any": flt_parts.append("Geo-block: " + str(flt["geoblock"]))
+                    if flt.get("premium") != "any": flt_parts.append("Premium: " + str(flt["premium"]))
+                    if flt.get("offline") != "any": flt_parts.append("Offline: " + str(flt["offline"]) + "d")
+                    if flt.get("login_mail") != "any": flt_parts.append("Mail: " + str(flt["login_mail"]))
+                    flt_str = " matching active filters (" + ", ".join(flt_parts) + ")" if flt_parts else ""
+                    return None, f"No accounts currently available in stock for {country} on Server 1{flt_str}."
 
                 last_err = "Purchase failed."
                 for cand in candidates:

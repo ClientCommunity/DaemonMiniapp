@@ -40,7 +40,9 @@ def list_servers():
 @store_bp.route("/api/server1/stock", methods=["GET"])
 def server1_stock():
     """Return Server 1 stock catalogue (Global 2FA Accounts)."""
-    items = get_server1_stock()
+    from services.auth_service import get_current_user_id
+    uid = get_current_user_id(request)
+    items = get_server1_stock(uid=uid)
     return jsonify({"success": True, "items": items})
 
 
