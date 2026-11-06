@@ -192,8 +192,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 shadow-lg shadow-[#7c3aed]/30 flex items-center justify-center">
-              <div className="w-full h-full bg-[#121217] rounded-[14px] flex items-center justify-center">
-                <Zap className="w-5 h-5 text-[#a78bfa]" />
+              <div className="w-full h-full bg-[#121217] rounded-[14px] flex items-center justify-center p-1">
+                <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-6 h-6 object-contain" />
               </div>
             </div>
             <div>
@@ -583,8 +583,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         <section className="py-20 border-t border-[#1f1f2a] relative overflow-hidden">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
             <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 mx-auto mb-6 shadow-xl shadow-[#7c3aed]/25 flex items-center justify-center">
-              <div className="w-full h-full bg-[#121217] rounded-[22px] flex items-center justify-center">
-                <Zap className="w-8 h-8 text-[#a78bfa]" />
+              <div className="w-full h-full bg-[#121217] rounded-[22px] flex items-center justify-center p-1.5">
+                <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-10 h-10 object-contain" />
               </div>
             </div>
 

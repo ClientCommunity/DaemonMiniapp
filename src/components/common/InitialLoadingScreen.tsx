@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Sparkles } from 'lucide-react';
+import { Zap } from 'lucide-react';
 
 interface InitialLoadingScreenProps {
   statusMessage?: string;
@@ -94,11 +94,12 @@ export const InitialLoadingScreen: React.FC<InitialLoadingScreenProps> = ({
           </svg>
 
           {/* Center Emblem inside the Circle */}
-          <div className="absolute w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#181820] to-[#121217] flex items-center justify-center shadow-inner border border-white/10 backdrop-blur-md">
-            <div className="relative">
-              <Zap className="w-9 h-9 text-[#a78bfa] fill-[#8b5cf6]/20 drop-shadow-[0_0_12px_rgba(139,92,246,0.6)] animate-pulse" />
-              <Sparkles className="w-3.5 h-3.5 text-[#38bdf8] absolute -top-1 -right-1 animate-spin [animation-duration:6s]" />
-            </div>
+          <div className="absolute w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#181820] to-[#121217] flex items-center justify-center shadow-inner border border-white/10 backdrop-blur-md p-1.5 overflow-hidden">
+            <img
+              src="/deamon-logo.png"
+              alt="Deamon OTP Logo"
+              className="w-full h-full object-contain drop-shadow-[0_0_14px_rgba(168,85,247,0.7)] animate-pulse select-none pointer-events-none"
+            />
           </div>
         </div>
 
