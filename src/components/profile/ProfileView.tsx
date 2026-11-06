@@ -13,6 +13,8 @@ import {
   Mail,
   Sun,
   Moon,
+  ShieldCheck,
+  ExternalLink,
 } from 'lucide-react';
 import { isTelegramWebApp, setWebUserToken } from '../../api/client';
 
@@ -21,6 +23,17 @@ export const ProfileView: React.FC = () => {
 
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+
+  const handleOpenTerms = () => {
+    const url = 'https://t.me/deamonotpbot/terms';
+    try {
+      if (window.Telegram?.WebApp?.openTelegramLink) {
+        window.Telegram.WebApp.openTelegramLink(url);
+        return;
+      }
+    } catch {}
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   const handleCopyId = () => {
     navigator.clipboard?.writeText(user.telegramId);
@@ -199,6 +212,29 @@ export const ProfileView: React.FC = () => {
               <span>Dark Mode</span>
             </>
           )}
+        </button>
+      </div>
+
+      {/* Official Terms & Usage Policies Card */}
+      <div className="p-4 mb-4 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#7c3aed]/15 border border-[#7c3aed]/30 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4 h-4 text-[#a78bfa]" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-white">Terms & Conditions</span>
+            <span className="text-[10px] text-[#a1a1aa]">
+              Usage policies, refund rules & warranties
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleOpenTerms}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a78bfa] hover:border-[#7c3aed]/50 transition-all active:scale-95 cursor-pointer"
+        >
+          <span>View</span>
+          <ExternalLink className="w-3 h-3" />
         </button>
       </div>
 

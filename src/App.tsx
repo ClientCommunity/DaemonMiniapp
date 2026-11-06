@@ -12,6 +12,7 @@ import { DepositHub } from './components/deposit/DepositHub';
 import { HistoryView } from './components/history/HistoryView';
 import { ProfileView } from './components/profile/ProfileView';
 import { P2PTransferModal } from './components/profile/P2PTransferModal';
+import { TermsAcceptanceModal } from './components/common/TermsAcceptanceModal';
 // Code-split heavy non-customer components
 const AdminDashboard = React.lazy(() => import('./components/admin/AdminDashboard'));
 const LandingPage = React.lazy(() =>
@@ -40,6 +41,23 @@ const AppContent: React.FC = () => {
 
   const { isAdminMode } = useAdmin();
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+
+  // First-time visitor Terms & Conditions acceptance gate
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('deamon_terms_accepted_v1') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleAcceptTerms = () => {
+    try {
+      localStorage.setItem('deamon_terms_accepted_v1', 'true');
+      localStorage.setItem('deamon_terms_accepted_at', new Date().toISOString());
+    } catch {}
+    setHasAcceptedTerms(true);
+  };
 
   const isTg = isTelegramWebApp();
   const [webToken, setWebToken] = useState<string | null>(getWebUserToken());
@@ -204,6 +222,12 @@ const AppContent: React.FC = () => {
       <P2PTransferModal
         isOpen={isTransferModalOpen}
         onClose={() => setIsTransferModalOpen(false)}
+      />
+
+      {/* First-Time User Terms & Conditions Acceptance Modal */}
+      <TermsAcceptanceModal
+        isOpen={!hasAcceptedTerms}
+        onAccept={handleAcceptTerms}
       />
     </div>
   );
