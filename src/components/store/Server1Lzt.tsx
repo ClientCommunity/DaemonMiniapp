@@ -33,6 +33,7 @@ export const Server1Lzt: React.FC = () => {
     closeCredentialsModal,
     addToast,
     server1Items,
+    refreshStore,
   } = useApp();
 
   const [search, setSearch] = useState<string>(() => {
@@ -78,6 +79,35 @@ export const Server1Lzt: React.FC = () => {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [tempFilters, setTempFilters] = useState<Server1Filters>(filters);
   const [isSavingFilters, setIsSavingFilters] = useState(false);
+  const [customOfflineDays, setCustomOfflineDays] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('krish_s1_filters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.offline && !['any', '1', '7', '14', '30'].includes(parsed.offline)) {
+          return String(parsed.offline);
+        }
+      }
+    } catch {}
+    return '';
+  });
+
+  const isCustomActive = useMemo(() => {
+    return Boolean(
+      tempFilters.offline &&
+      !['any', '1', '7', '14', '30'].includes(tempFilters.offline)
+    );
+  }, [tempFilters.offline]);
+
+  const openFilterModal = () => {
+    setTempFilters(filters);
+    if (filters.offline && !['any', '1', '7', '14', '30'].includes(filters.offline)) {
+      setCustomOfflineDays(String(filters.offline));
+    } else {
+      setCustomOfflineDays('');
+    }
+    setIsFilterModalOpen(true);
+  };
 
   // Sync filters from backend
   useEffect(() => {
@@ -111,6 +141,7 @@ export const Server1Lzt: React.FC = () => {
       await authApi.updateServer1Filters(tempFilters);
       addToast('Search filters updated successfully', 'success', 'Server 1 Filters');
       setIsFilterModalOpen(false);
+      refreshStore().catch(() => {});
     } catch {
       addToast('Filters applied', 'info', 'Server 1 Filters');
       setIsFilterModalOpen(false);
@@ -121,6 +152,7 @@ export const Server1Lzt: React.FC = () => {
 
   const handleResetFilters = () => {
     setTempFilters(DEFAULT_FILTERS);
+    setCustomOfflineDays('');
   };
 
   useEffect(() => {
@@ -241,10 +273,7 @@ export const Server1Lzt: React.FC = () => {
         <PriceSortFilter value={priceSort} onChange={setPriceSort} />
         <button
           type="button"
-          onClick={() => {
-            setTempFilters(filters);
-            setIsFilterModalOpen(true);
-          }}
+          onClick={openFilterModal}
           className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-semibold shrink-0 transition-all active:scale-95 ${
             activeFilterCount > 0
               ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm'
@@ -266,10 +295,7 @@ export const Server1Lzt: React.FC = () => {
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 mb-2.5 text-[10px]">
         <button
           type="button"
-          onClick={() => {
-            setTempFilters(filters);
-            setIsFilterModalOpen(true);
-          }}
+          onClick={openFilterModal}
           className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
             filters.spam === 'no'
               ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
@@ -288,10 +314,7 @@ export const Server1Lzt: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => {
-            setTempFilters(filters);
-            setIsFilterModalOpen(true);
-          }}
+          onClick={openFilterModal}
           className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
             filters.geoblock === 'no'
               ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
@@ -310,10 +333,7 @@ export const Server1Lzt: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => {
-            setTempFilters(filters);
-            setIsFilterModalOpen(true);
-          }}
+          onClick={openFilterModal}
           className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
             filters.login_mail === 'yes'
               ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
@@ -332,10 +352,7 @@ export const Server1Lzt: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => {
-            setTempFilters(filters);
-            setIsFilterModalOpen(true);
-          }}
+          onClick={openFilterModal}
           className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
             filters.premium === 'yes'
               ? 'bg-amber-500/10 border-amber-500/30 text-[#f59e0b]'
@@ -353,10 +370,7 @@ export const Server1Lzt: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => {
-            setTempFilters(filters);
-            setIsFilterModalOpen(true);
-          }}
+          onClick={openFilterModal}
           className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1 transition-all ${
             filters.offline !== 'any'
               ? 'bg-[#7c3aed]/20 border-[#7c3aed]/40 text-[#c084fc]'
@@ -916,11 +930,12 @@ export const Server1Lzt: React.FC = () => {
           </div>
 
           {/* 5. Offline Filter */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-white">Offline Inactivity Duration</span>
               <span className="text-[10px] text-[#a1a1aa]">Last seen threshold</span>
             </div>
+            {/* Quick Presets */}
             <div className="grid grid-cols-5 gap-1">
               {[
                 { val: 'any', label: 'Any' },
@@ -932,9 +947,12 @@ export const Server1Lzt: React.FC = () => {
                 <button
                   key={opt.val}
                   type="button"
-                  onClick={() => setTempFilters((prev) => ({ ...prev, offline: opt.val as any }))}
+                  onClick={() => {
+                    setTempFilters((prev) => ({ ...prev, offline: opt.val }));
+                    setCustomOfflineDays('');
+                  }}
                   className={`py-2 px-1 rounded-xl border text-center flex items-center justify-center transition-all ${
-                    tempFilters.offline === opt.val
+                    tempFilters.offline === opt.val && !isCustomActive
                       ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm font-bold'
                       : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white text-xs'
                   }`}
@@ -942,6 +960,42 @@ export const Server1Lzt: React.FC = () => {
                   <span className="text-xs">{opt.label}</span>
                 </button>
               ))}
+            </div>
+
+            {/* Custom Days Input */}
+            <div className="flex items-center gap-2 pt-0.5">
+              <div
+                className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                  isCustomActive
+                    ? 'bg-[#7c3aed]/20 border-[#8b5cf6] ring-1 ring-[#8b5cf6]/50'
+                    : 'bg-[#181820] border-[#262630] focus-within:border-[#8b5cf6]/60'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-[#8b5cf6] shrink-0" />
+                <span className="text-xs text-[#a1a1aa] font-medium shrink-0">Custom Days:</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="e.g. 3, 5, 60, 90..."
+                  value={customOfflineDays}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9]/g, '');
+                    setCustomOfflineDays(raw);
+                    if (raw && parseInt(raw, 10) > 0) {
+                      setTempFilters((prev) => ({ ...prev, offline: raw }));
+                    } else {
+                      setTempFilters((prev) => ({ ...prev, offline: 'any' }));
+                    }
+                  }}
+                  className="w-full bg-transparent text-xs text-white placeholder-[#52525b] outline-none font-bold"
+                />
+                {isCustomActive && (
+                  <span className="text-[11px] font-bold text-[#c084fc] bg-[#7c3aed]/25 border border-[#7c3aed]/40 px-1.5 py-0.5 rounded-md shrink-0">
+                    ≥{tempFilters.offline}d
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

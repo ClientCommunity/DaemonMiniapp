@@ -214,7 +214,7 @@ export interface Server1Filters {
   geoblock: 'no' | 'yes' | 'any';
   login_mail: 'yes' | 'no' | 'any';
   premium: 'yes' | 'no' | 'any';
-  offline: 'any' | '1' | '7' | '14' | '30';
+  offline: 'any' | '1' | '7' | '14' | '30' | string;
   sort?: string;
 }
 
