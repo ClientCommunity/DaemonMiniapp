@@ -130,59 +130,59 @@ export const Server2Sessions: React.FC = () => {
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Quality Tier Segmented Pill Control (Account Quality Split) */}
-      <div className="grid grid-cols-2 gap-2 p-1 bg-[#121217] border border-[#262630] rounded-2xl mb-3">
+      <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#121217] border border-[#262630] rounded-xl mb-2.5">
         <button
           onClick={() => setQualityTier('good')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
             qualityTier === 'good'
               ? 'bg-emerald-500/20 text-[#22c55e] border border-emerald-500/50 shadow-green-glow/20'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          <Shield className="w-4 h-4 text-[#22c55e]" />
-          <span>Good Quality Accounts</span>
+          <Shield className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
+          <span className="whitespace-nowrap">Good Quality Accounts</span>
         </button>
 
         <button
           onClick={() => setQualityTier('cheap')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
             qualityTier === 'cheap'
               ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50 shadow-amber-glow/20'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          <Zap className="w-4 h-4 text-amber-400" />
-          <span>Cheap Quality Accounts</span>
+          <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="whitespace-nowrap">Cheap Quality Accounts</span>
         </button>
       </div>
 
       {/* Delivery Format Selector */}
-      <div className="flex items-center gap-2 mb-3 bg-[#181820] p-1.5 rounded-xl border border-[#262630]">
-        <span className="text-[10px] font-bold text-[#a1a1aa] uppercase px-2">Delivery:</span>
+      <div className="flex items-center gap-1.5 mb-2.5 bg-[#181820] p-1 rounded-xl border border-[#262630]">
+        <span className="text-[9px] font-semibold text-[#71717a] uppercase px-1.5 shrink-0">Delivery:</span>
         <button
           onClick={() => setDeliveryFormat('account')}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+          className={`flex-1 py-1 px-1.5 rounded-lg text-[10px] sm:text-[11px] font-medium transition-all ${
             deliveryFormat === 'account'
               ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          <span className="flex items-center justify-center gap-1.5">
-            <User className="w-3.5 h-3.5" />
-            <span>Single Account (OTP)</span>
+          <span className="flex items-center justify-center gap-1">
+            <User className="w-3 h-3 shrink-0" />
+            <span className="whitespace-nowrap">Single Account (OTP)</span>
           </span>
         </button>
         <button
           onClick={() => setDeliveryFormat('session')}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+          className={`flex-1 py-1 px-1.5 rounded-lg text-[10px] sm:text-[11px] font-medium transition-all ${
             deliveryFormat === 'session'
               ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          <span className="flex items-center justify-center gap-1.5">
-            <FolderArchive className="w-3.5 h-3.5" />
-            <span>Session (.session / ZIP)</span>
+          <span className="flex items-center justify-center gap-1">
+            <FolderArchive className="w-3 h-3 shrink-0" />
+            <span className="whitespace-nowrap">Session (.session / ZIP)</span>
           </span>
         </button>
       </div>
