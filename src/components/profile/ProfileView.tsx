@@ -37,7 +37,7 @@ export const ProfileView: React.FC = () => {
   return (
     <div className="w-full flex flex-col pt-2 pb-12">
       {/* Profile Overview Card */}
-      <div className="p-4 mb-4 rounded-2xl bg-gradient-to-b from-[#181820] to-[#121217] border border-[#262630] relative overflow-hidden shadow-xl">
+      <div className="p-4 mb-4 rounded-2xl bg-[#181820] border border-[#262630] relative overflow-hidden shadow-sm">
         <div className="flex items-center gap-3.5">
           <div className="relative">
             <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-lg text-white shadow-lg ring-2 ring-[#262630]">
@@ -101,8 +101,8 @@ export const ProfileView: React.FC = () => {
               </>
             ) : (
               <>
-                <Copy className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-mono font-medium">Copy ID</span>
+                <Copy className="w-3.5 h-3.5 text-[#71717a]" />
+                <span className="text-[11px] font-mono font-bold text-white">Copy ID</span>
               </>
             )}
           </button>

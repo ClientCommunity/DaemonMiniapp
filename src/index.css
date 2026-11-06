@@ -243,7 +243,7 @@ html.light .text-\[\#d4d4d8\] {
 
 /* Default text-white becomes slate-900 in light mode */
 html.light .text-white {
-  color: #0f172a;
+  color: #0f172a !important;
 }
 
 /* Solid Colored Action Buttons, Pills, Badges & Alerts MUST PRESERVE White Text */
@@ -257,8 +257,6 @@ html.light .bg-\[\#6d28d9\],
 html.light .bg-\[\#6d28d9\] *,
 html.light button.bg-purple-600,
 html.light button.bg-purple-600 *,
-html.light [class*="bg-gradient-to"] button,
-html.light [class*="bg-gradient-to"] button *,
 html.light button[class*="bg-gradient-to"],
 html.light button[class*="bg-gradient-to"] *,
 html.light button.bg-red-500,
@@ -278,6 +276,15 @@ html.light .toast-container *,
 html.light [data-theme-white],
 html.light [data-theme-white] * {
   color: #ffffff !important;
+}
+
+/* Secondary & Neutral Slate buttons in Light Mode (Copy ID, filters, pills) */
+html.light button.bg-\[\#1f1f2a\],
+html.light button.bg-\[\#1f1f2a\] * {
+  color: #0f172a !important;
+}
+html.light button.bg-\[\#1f1f2a\] svg {
+  color: #64748b !important;
 }
 
 /* Green & Amber solid buttons/badges with black text */
