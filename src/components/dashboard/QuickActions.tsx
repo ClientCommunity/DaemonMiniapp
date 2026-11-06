@@ -15,7 +15,7 @@ export const QuickActions: React.FC = () => {
   const actions = [
     {
       label: 'Add Cash',
-      sub: 'FamPay & UPI',
+      sub: 'Crypto & UPI',
       icon: PlusCircle,
       iconColor: 'text-[#22c55e]',
       bgColor: 'bg-[#22c55e]/15 border-[#22c55e]/30',
