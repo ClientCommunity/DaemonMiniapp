@@ -505,6 +505,43 @@ export const Server1Lzt: React.FC = () => {
               </div>
             </div>
 
+            {/* Active Fulfillment Filter Criteria */}
+            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-1.5 text-xs">
+              <div className="flex items-center justify-between text-[#a1a1aa]">
+                <span className="font-semibold text-white flex items-center gap-1.5 text-[11px]">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                  <span>Enforced Fulfillment Criteria:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedForPurchase(null);
+                    openFilterModal();
+                  }}
+                  className="text-[10px] text-[#8b5cf6] hover:underline"
+                >
+                  Edit Filters
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-0.5 text-[10px]">
+                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.spam === 'no' ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
+                  Spam: {filters.spam === 'no' ? 'No Spam' : filters.spam === 'yes' ? 'Allow' : 'Any'}
+                </span>
+                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.geoblock === 'no' ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
+                  Geo-block: {filters.geoblock === 'no' ? 'No Block' : filters.geoblock === 'yes' ? 'Blocked' : 'Any'}
+                </span>
+                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.login_mail === 'yes' ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
+                  Mail: {filters.login_mail === 'yes' ? 'Included' : filters.login_mail === 'no' ? 'None' : 'Any'}
+                </span>
+                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.premium === 'yes' ? 'bg-amber-500/10 border-amber-500/30 text-[#f59e0b]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
+                  Prem: {filters.premium === 'yes' ? 'Premium Only' : filters.premium === 'no' ? 'Non-Prem' : 'Any'}
+                </span>
+                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.offline !== 'any' ? 'bg-[#7c3aed]/20 border-[#7c3aed]/40 text-[#c084fc]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
+                  Offline: {filters.offline !== 'any' ? `≥${filters.offline}d` : 'Any'}
+                </span>
+              </div>
+            </div>
+
             {user.balance < selectedForPurchase.priceInr ? (
               <div className="p-3 bg-red-950/20 border border-red-500/40 rounded-xl text-xs text-[#ef4444] flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
