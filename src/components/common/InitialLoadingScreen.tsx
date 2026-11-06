@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Zap } from 'lucide-react';
+import { DEAMON_BRAND_LOGO } from '../../assets/brandLogo';
 
 interface InitialLoadingScreenProps {
   statusMessage?: string;
@@ -96,7 +97,7 @@ export const InitialLoadingScreen: React.FC<InitialLoadingScreenProps> = ({
           {/* Center Emblem inside the Circle */}
           <div className="absolute w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#181820] to-[#121217] flex items-center justify-center shadow-inner border border-white/10 backdrop-blur-md p-1.5 overflow-hidden">
             <img
-              src="/deamon-logo.png"
+              src={DEAMON_BRAND_LOGO}
               alt="Deamon OTP Logo"
               className="w-full h-full object-contain drop-shadow-[0_0_14px_rgba(168,85,247,0.7)] animate-pulse select-none pointer-events-none"
             />

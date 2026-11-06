@@ -77,6 +77,7 @@ export interface AppContextType {
   server34Items: VirtualOtpServiceItem[];
   server5Items: SmmServiceItem[];
   isLoadingStore: boolean;
+  isServerLoading: Record<1 | 2 | 3 | 4 | 5, boolean>;
 
   // Modals & Navigation
   purchasedCredentialsModal: {
@@ -247,11 +248,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Live store catalog state with fallback to mock data
-  const [server1Items, setServer1Items] = useState<Server1AccountItem[]>(server1Catalog);
-  const [server2Items, setServer2Items] = useState<Server2StockItem[]>(server2Catalog);
-  const [server34Items, setServer34Items] = useState<VirtualOtpServiceItem[]>(server34Catalog);
-  const [server5Items, setServer5Items] = useState<SmmServiceItem[]>(server5Catalog);
+  const [server1Items, setServer1Items] = useState<Server1AccountItem[]>(() =>
+    getSavedState('cache_s1', server1Catalog)
+  );
+  const [server2Items, setServer2Items] = useState<Server2StockItem[]>(() =>
+    getSavedState('cache_s2', server2Catalog)
+  );
+  const [server34Items, setServer34Items] = useState<VirtualOtpServiceItem[]>(() =>
+    getSavedState('cache_s34', server34Catalog)
+  );
+  const [server5Items, setServer5Items] = useState<SmmServiceItem[]>(() =>
+    getSavedState('cache_s5', server5Catalog)
+  );
   const [isLoadingStore, setIsLoadingStore] = useState<boolean>(false);
+  const [isServerLoading, setIsServerLoading] = useState<Record<1 | 2 | 3 | 4 | 5, boolean>>({
+    1: true,
+    2: true,
+    3: true,
+    4: true,
+    5: true,
+  });
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
   const [isCheckingBackend, setIsCheckingBackend] = useState<boolean>(false);
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(() => {
@@ -461,6 +477,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (isRefreshingStoreRef.current) return;
     isRefreshingStoreRef.current = true;
     setIsLoadingStore(true);
+    setIsServerLoading({
+      1: true,
+      2: true,
+      3: true,
+      4: true,
+      5: true,
+    });
 
     try {
       // 1. Fetch Fast Catalogues (Servers 1, 2, 3, 5 - completes in < 500ms)
@@ -473,8 +496,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ]);
 
       if (s1.status === 'fulfilled' && s1.value.success && Array.isArray(s1.value.items)) {
-        setServer1Items(s1.value.items.map((item, idx) => adaptServer1Item(item, idx)));
+        const adapted = s1.value.items.map((item, idx) => adaptServer1Item(item, idx));
+        setServer1Items(adapted);
+        try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s1`, JSON.stringify(adapted)); } catch {}
       }
+      setIsServerLoading((prev) => ({ ...prev, 1: false }));
 
       const s2Combined: Server2StockItem[] = [];
       if (s2Good.status === 'fulfilled' && s2Good.value.success && Array.isArray(s2Good.value.items)) {
@@ -485,19 +511,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       if (s2Good.status === 'fulfilled' || s2Cheap.status === 'fulfilled') {
         setServer2Items(s2Combined);
+        try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s2`, JSON.stringify(s2Combined)); } catch {}
       }
+      setIsServerLoading((prev) => ({ ...prev, 2: false }));
 
       if (s3.status === 'fulfilled' && s3.value.success && Array.isArray(s3.value.items)) {
         const s3Adapted = s3.value.items.map((item, idx) => adaptServer34Item(item, 3, idx));
         setServer34Items((prev) => {
           const existingS4 = prev.filter((item) => item.server === 4);
-          return [...s3Adapted, ...existingS4];
+          const combined = [...s3Adapted, ...existingS4];
+          try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s34`, JSON.stringify(combined)); } catch {}
+          return combined;
         });
       }
+      setIsServerLoading((prev) => ({ ...prev, 3: false }));
 
       if (s5.status === 'fulfilled' && s5.value.success && Array.isArray(s5.value.items)) {
-        setServer5Items(s5.value.items.map((item) => adaptServer5Item(item)));
+        const s5Adapted = s5.value.items.map((item) => adaptServer5Item(item));
+        setServer5Items(s5Adapted);
+        try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s5`, JSON.stringify(s5Adapted)); } catch {}
       }
+      setIsServerLoading((prev) => ({ ...prev, 5: false }));
 
       // Fast catalogues ready! Immediately clear loading state so UI is interactive
       setIsLoadingStore(false);
@@ -512,16 +546,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               const s4Adapted = s4.items.map((item, idx) => adaptServer34Item(item, 4, idx));
               setServer34Items((prev) => {
                 const existingS3 = prev.filter((item) => item.server === 3);
-                return [...existingS3, ...s4Adapted];
+                const combined = [...existingS3, ...s4Adapted];
+                try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s34`, JSON.stringify(combined)); } catch {}
+                return combined;
               });
             }
           })
           .catch(() => {
             // silent background failover
+          })
+          .finally(() => {
+            setIsServerLoading((prev) => ({ ...prev, 4: false }));
           });
+      } else {
+        setIsServerLoading((prev) => ({ ...prev, 4: false }));
       }
     } catch {
       // offline fallback to default mock items
+      setIsServerLoading({ 1: false, 2: false, 3: false, 4: false, 5: false });
     } finally {
       setIsLoadingStore(false);
       isRefreshingStoreRef.current = false;
@@ -1736,6 +1778,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         server34Items,
         server5Items,
         isLoadingStore,
+        isServerLoading,
         activeInvoice,
         setActiveInvoice,
         purchasedCredentialsModal,

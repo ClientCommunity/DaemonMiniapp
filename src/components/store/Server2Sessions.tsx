@@ -5,6 +5,7 @@ import { downloadApi } from '../../api/endpoints';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
 import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check, RefreshCw, User, FolderArchive, AlertTriangle } from 'lucide-react';
 import { Modal } from '../common/Modal';
+import { Server1SkeletonList } from '../common/GlassSkeleton';
 
 export const Server2Sessions: React.FC = () => {
   const {
@@ -15,7 +16,8 @@ export const Server2Sessions: React.FC = () => {
     server2Items,
     purchasedServer2Modal,
     closeServer2Modal,
-    addToast
+    addToast,
+    isServerLoading
   } = useApp();
 
   const [qualityTier, setQualityTier] = useState<Server2QualityTier>(() => {
@@ -263,7 +265,9 @@ export const Server2Sessions: React.FC = () => {
           </div>
         ))}
 
-        {server2Items.length === 0 ? (
+        {isServerLoading[2] && server2Items.length === 0 ? (
+          <Server1SkeletonList count={6} />
+        ) : server2Items.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center gap-2 text-[#a1a1aa]">
             <Package className="w-8 h-8 text-[#8b5cf6]/50 mb-1" />
             <span className="text-sm font-bold text-white">No Server 2 accounts in stock</span>

@@ -4,6 +4,7 @@ import { SmmPlatform, SmmServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
 import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { Modal } from '../common/Modal';
+import { Server5SkeletonList } from '../common/GlassSkeleton';
 import { hapticFeedback } from '../../utils/haptics';
 import {
   Rocket,
@@ -24,7 +25,7 @@ import {
 } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
-  const { formatPrice, submitSmmOrder, server5Items, user, setActiveTab, addToast } = useApp();
+  const { formatPrice, submitSmmOrder, server5Items, user, setActiveTab, addToast, isServerLoading } = useApp();
 
   const [activePlatform, setActivePlatform] = useState<SmmPlatform | 'all'>(() => {
     try {
@@ -307,7 +308,9 @@ export const Server5Smm: React.FC = () => {
         </div>
       </div>
 
-      {allServices.length === 0 ? (
+      {isServerLoading[5] && allServices.length === 0 ? (
+        <Server5SkeletonList count={6} />
+      ) : allServices.length === 0 ? (
         <div className="p-10 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
           <Rocket className="w-8 h-8 text-[#71717a]" />
           <div className="flex flex-col gap-1">

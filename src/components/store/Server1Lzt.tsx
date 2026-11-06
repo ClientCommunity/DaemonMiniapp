@@ -22,6 +22,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
+import { Server1SkeletonList } from '../common/GlassSkeleton';
 
 export const Server1Lzt: React.FC = () => {
   const {
@@ -33,6 +34,7 @@ export const Server1Lzt: React.FC = () => {
     closeCredentialsModal,
     addToast,
     server1Items,
+    isServerLoading,
     refreshStore,
   } = useApp();
 
@@ -422,7 +424,9 @@ export const Server1Lzt: React.FC = () => {
           </div>
         ))}
 
-        {server1Items.length === 0 ? (
+        {isServerLoading[1] && server1Items.length === 0 ? (
+          <Server1SkeletonList count={6} />
+        ) : server1Items.length === 0 ? (
           <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center gap-2 text-[#a1a1aa]">
             <Globe className="w-8 h-8 text-[#8b5cf6]/50 mb-1" />
             <span className="text-sm font-bold text-white">No Server 1 stock available</span>

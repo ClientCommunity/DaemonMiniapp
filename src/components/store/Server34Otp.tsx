@@ -5,6 +5,7 @@ import { PlatformIcon } from '../common/PlatformIcon';
 import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { Search, Zap, ShoppingBag, ShieldCheck, Radio, X, Globe, Sparkles, Layers, Check, Server } from 'lucide-react';
 import { ActiveOtpCard } from '../dashboard/ActiveOtpCard';
+import { Server34SkeletonList } from '../common/GlassSkeleton';
 
 interface Server34OtpProps {
   serverId: 3 | 4;
@@ -58,7 +59,7 @@ function matchesCategory(item: VirtualOtpServiceItem, cat: string): boolean {
 }
 
 export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
-  const { formatPrice, requestVirtualOtp, server34Items } = useApp();
+  const { formatPrice, requestVirtualOtp, server34Items, isServerLoading } = useApp();
 
   const [activeCategory, setActiveCategory] = useState<OtpAppCode>(() => {
     try {
@@ -536,7 +537,9 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
       {/* Virtual Services List */}
       <div className="grid grid-cols-1 gap-2.5">
-        {serverItems.length === 0 ? (
+        {isServerLoading[serverId] && serverItems.length === 0 ? (
+          <Server34SkeletonList count={6} />
+        ) : serverItems.length === 0 ? (
           <div className="p-10 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
             <Radio className="w-8 h-8 text-[#71717a]" />
             <div className="flex flex-col gap-1">
