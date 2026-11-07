@@ -523,6 +523,14 @@ export const Server1Lzt: React.FC = () => {
                 </div>
 
                 <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Premium Status</span>
+                  <span className={`font-bold flex items-center gap-1 ${filters.premium === 'yes' ? 'text-amber-400' : filters.premium === 'no' ? 'text-sky-300' : 'text-white'}`}>
+                    {filters.premium === 'yes' && <Star className="w-3 h-3 text-amber-400 fill-amber-400" />}
+                    {filters.premium === 'yes' ? 'Premium Only ⭐' : filters.premium === 'no' ? 'Standard (Non-Prem)' : 'Any (Standard / Prem)'}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
                   <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Spam Status</span>
                   <span className="text-emerald-400 font-bold flex items-center gap-1">
                     <Check className="w-3 h-3 text-emerald-400" />
@@ -547,6 +555,14 @@ export const Server1Lzt: React.FC = () => {
                 </div>
 
                 <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Inactivity / Age</span>
+                  <span className="text-[#c084fc] font-bold flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-[#c084fc]" />
+                    {filters.offline !== 'any' ? `≥${filters.offline}d Inactive` : 'Aged Global Stock'}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
                   <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Delivery Format</span>
                   <span className="text-[#22c55e] font-bold flex items-center gap-1">
                     <Phone className="w-3 h-3 text-[#22c55e]" />
@@ -555,10 +571,10 @@ export const Server1Lzt: React.FC = () => {
                 </div>
 
                 <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
-                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Inactivity / Age</span>
-                  <span className="text-[#c084fc] font-bold flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-[#c084fc]" />
-                    {filters.offline !== 'any' ? `≥${filters.offline}d Inactive` : 'Aged Global Stock'}
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Login / Mail</span>
+                  <span className="text-white font-bold flex items-center gap-1">
+                    <Mail className="w-3 h-3 text-emerald-400" />
+                    {filters.login_mail === 'yes' ? 'Mail Bound' : filters.login_mail === 'no' ? 'Phone Only' : 'Standard'}
                   </span>
                 </div>
               </div>
