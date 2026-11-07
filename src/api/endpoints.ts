@@ -88,6 +88,16 @@ export interface PinnedServicesResponse {
 }
 
 
+export interface Server1AccountMetadata {
+  is_premium?: boolean;
+  has_spam?: boolean;
+  has_geo_block?: boolean;
+  offline_days?: number;
+  has_mail?: boolean;
+  chats_count?: number;
+  channels_count?: number;
+}
+
 export interface BuyPayload {
   server: number;
   item: Record<string, unknown>;
@@ -104,6 +114,7 @@ export interface BuyResponse {
   download_url?: string;
   count?: number;
   twofa?: string;
+  metadata?: Server1AccountMetadata;
   new_balance?: number;
   new_promo_balance?: number;
   price?: number;

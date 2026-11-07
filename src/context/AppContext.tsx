@@ -28,6 +28,7 @@ import {
   authApi,
   storeApi,
   orderApi,
+  Server1AccountMetadata,
   otpApi,
   downloadApi,
   transferApi,
@@ -87,6 +88,7 @@ export interface AppContextType {
     downloadUrl?: string;
     otpCode?: string;
     isLoading?: boolean;
+    metadata?: Server1AccountMetadata;
   } | null;
   purchasedServer2Modal: {
     isOpen: boolean;
@@ -287,6 +289,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     downloadUrl?: string;
     otpCode?: string;
     isLoading?: boolean;
+    metadata?: Server1AccountMetadata;
   } | null>(() => getSavedState('credentialsModal', null));
 
   const [purchasedServer2Modal, setPurchasedServer2Modal] = useState<{
@@ -828,6 +831,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               orderId: realOrderId,
               isLoading: false,
               downloadUrl: res.download_url,
+              metadata: res.metadata,
               account: {
                 ...currentAccount,
                 credentialsSample: {

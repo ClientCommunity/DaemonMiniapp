@@ -384,6 +384,19 @@ export const Server1Lzt: React.FC = () => {
         </button>
       </div>
 
+      {/* Active Filter Reassurance Banner */}
+      {activeFilterCount > 0 && (
+        <div className="p-2.5 mb-2.5 rounded-xl bg-[#7c3aed]/10 border border-[#7c3aed]/25 flex items-start gap-2 text-[11px] text-[#c084fc]">
+          <ShieldCheck className="w-4 h-4 text-[#8b5cf6] shrink-0 mt-0.5" />
+          <div className="flex flex-col">
+            <span className="font-semibold text-white">Active Quality Guarantee Enforced</span>
+            <span className="text-[10px] text-[#a1a1aa] mt-0.5">
+              Live accounts are verified against your exact filter criteria at checkout. If matching accounts are not available in stock, you are never charged and your balance is instantly protected.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Accounts Catalog Grid */}
       <div className="grid grid-cols-1 gap-2.5">
         {sorted.map((item) => (
@@ -397,12 +410,48 @@ export const Server1Lzt: React.FC = () => {
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold text-white">{item.country}</span>
+                  {activeFilterCount > 0 && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[#7c3aed]/20 text-[#c084fc] border border-[#7c3aed]/30 font-semibold flex items-center gap-1">
+                      <SlidersHorizontal className="w-2.5 h-2.5" />
+                      <span>{activeFilterCount} Criteria</span>
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa] mt-0.5">
                   <span>Stock: {item.stockCount} left</span>
                   <span>•</span>
                   <span className="text-[#22c55e] font-medium">Instant Delivery</span>
                 </div>
+                {activeFilterCount > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1 text-[9px]">
+                    {filters.spam === 'no' && (
+                      <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                        No Spam
+                      </span>
+                    )}
+                    {filters.premium === 'yes' && (
+                      <span className="px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium flex items-center gap-0.5">
+                        <Star className="w-2 h-2 fill-amber-400" />
+                        Premium
+                      </span>
+                    )}
+                    {filters.offline !== 'any' && (
+                      <span className="px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-medium">
+                        ≥{filters.offline}d Offline
+                      </span>
+                    )}
+                    {filters.geoblock === 'no' && (
+                      <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                        No Geo-block
+                      </span>
+                    )}
+                    {filters.login_mail === 'yes' && (
+                      <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                        Mail Bound
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -660,6 +709,50 @@ export const Server1Lzt: React.FC = () => {
               <ShieldCheck className="w-4 h-4 shrink-0" />
               <span>Ready for login. Save your credentials below!</span>
             </div>
+
+            {/* Verified Account Quality Specifications */}
+            {purchasedCredentialsModal.metadata && (
+              <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-2 text-xs">
+                <div className="flex items-center justify-between text-[#a1a1aa] pb-1 border-b border-[#262630]">
+                  <span className="font-semibold text-white flex items-center gap-1.5 text-[11px]">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#22c55e]" />
+                    <span>Verified Account Specifications:</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                    Live Verified
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-0.5">
+                  <div className="flex items-center justify-between p-1.5 rounded-lg bg-[#121217] border border-[#262630]">
+                    <span className="text-[#a1a1aa]">SpamBlock:</span>
+                    <span className={`font-bold ${purchasedCredentialsModal.metadata.has_spam ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {purchasedCredentialsModal.metadata.has_spam ? 'Flagged' : '✓ Clean (No Spam)'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-1.5 rounded-lg bg-[#121217] border border-[#262630]">
+                    <span className="text-[#a1a1aa]">Premium:</span>
+                    <span className={`font-bold flex items-center gap-1 ${purchasedCredentialsModal.metadata.is_premium ? 'text-amber-400' : 'text-[#a1a1aa]'}`}>
+                      {purchasedCredentialsModal.metadata.is_premium && <Star className="w-3 h-3 fill-amber-400" />}
+                      {purchasedCredentialsModal.metadata.is_premium ? 'Active ⭐' : 'Standard'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-1.5 rounded-lg bg-[#121217] border border-[#262630]">
+                    <span className="text-[#a1a1aa]">Inactivity:</span>
+                    <span className="font-bold text-[#c084fc]">
+                      {purchasedCredentialsModal.metadata.offline_days && purchasedCredentialsModal.metadata.offline_days > 0
+                        ? `≥${purchasedCredentialsModal.metadata.offline_days}d offline`
+                        : 'Recent'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-1.5 rounded-lg bg-[#121217] border border-[#262630]">
+                    <span className="text-[#a1a1aa]">Geo-block:</span>
+                    <span className={`font-bold ${purchasedCredentialsModal.metadata.has_geo_block ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {purchasedCredentialsModal.metadata.has_geo_block ? 'Restricted' : '✓ Clean'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Phone row */}
             <div className="p-3 bg-[#0b0b0e] border border-[#262630] rounded-xl flex items-center justify-between">
