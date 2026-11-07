@@ -248,14 +248,12 @@ export const Server1Lzt: React.FC = () => {
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Banner / Intro */}
-      <div className="p-3 mb-3 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between">
-        <div className="flex flex-col">
-          <span className="text-xs font-bold text-white">Server 1: Global 2FA Accounts</span>
-          <span className="text-[11px] text-[#a1a1aa]">
-            Global aged Telegram accounts with instant 2FA credentials
-          </span>
+      <div className="py-2 px-3 mb-2 rounded-xl bg-[#181820] border border-[#262630] flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-white">Server 1: Global 2FA Accounts</span>
+          <span className="text-[10px] text-[#71717a] hidden xs:inline">• Global Aged Stock</span>
         </div>
-        <div className="px-2 py-1 rounded-lg bg-[#22c55e]/15 border border-[#22c55e]/30 text-[#22c55e] text-[10px] font-bold">
+        <div className="px-1.5 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/25 text-[#22c55e] text-[9px] font-bold uppercase tracking-wider shrink-0">
           High Trust
         </div>
       </div>
@@ -384,18 +382,7 @@ export const Server1Lzt: React.FC = () => {
         </button>
       </div>
 
-      {/* Active Filter Reassurance Banner */}
-      {activeFilterCount > 0 && (
-        <div className="p-2.5 mb-2.5 rounded-xl bg-[#7c3aed]/10 border border-[#7c3aed]/25 flex items-start gap-2 text-[11px] text-[#c084fc]">
-          <ShieldCheck className="w-4 h-4 text-[#8b5cf6] shrink-0 mt-0.5" />
-          <div className="flex flex-col">
-            <span className="font-semibold text-white">Active Quality Guarantee Enforced</span>
-            <span className="text-[10px] text-[#a1a1aa] mt-0.5">
-              Live accounts are verified against your exact filter criteria at checkout. If matching accounts are not available in stock, you are never charged and your balance is instantly protected.
-            </span>
-          </div>
-        </div>
-      )}
+
 
       {/* Accounts Catalog Grid */}
       <div className="grid grid-cols-1 gap-2.5">
@@ -411,7 +398,7 @@ export const Server1Lzt: React.FC = () => {
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold text-white">{item.country}</span>
                   {activeFilterCount > 0 && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[#7c3aed]/20 text-[#c084fc] border border-[#7c3aed]/30 font-semibold flex items-center gap-1">
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#7c3aed]/20 text-[#c084fc] border border-[#7c3aed]/30 font-semibold flex items-center gap-0.5">
                       <SlidersHorizontal className="w-2.5 h-2.5" />
                       <span>{activeFilterCount} Criteria</span>
                     </span>
@@ -420,38 +407,8 @@ export const Server1Lzt: React.FC = () => {
                 <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa] mt-0.5">
                   <span>Stock: {item.stockCount} left</span>
                   <span>•</span>
-                  <span className="text-[#22c55e] font-medium">Instant Delivery</span>
+                  <span className="text-[#22c55e] font-medium">Instant 2FA Delivery</span>
                 </div>
-                {activeFilterCount > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1 text-[9px]">
-                    {filters.spam === 'no' && (
-                      <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                        No Spam
-                      </span>
-                    )}
-                    {filters.premium === 'yes' && (
-                      <span className="px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium flex items-center gap-0.5">
-                        <Star className="w-2 h-2 fill-amber-400" />
-                        Premium
-                      </span>
-                    )}
-                    {filters.offline !== 'any' && (
-                      <span className="px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-medium">
-                        ≥{filters.offline}d Offline
-                      </span>
-                    )}
-                    {filters.geoblock === 'no' && (
-                      <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                        No Geo-block
-                      </span>
-                    )}
-                    {filters.login_mail === 'yes' && (
-                      <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                        Mail Bound
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -488,19 +445,19 @@ export const Server1Lzt: React.FC = () => {
         ) : null}
       </div>
 
-      {/* Confirmation Purchase Modal */}
+      {/* Confirmation & Account Specifications Modal */}
       <Modal
         isOpen={!!selectedForPurchase}
         onClose={() => setSelectedForPurchase(null)}
-        title="Confirm Account Purchase"
-        subtitle="Review account details before balance deduction"
+        title="Account Details & Purchase"
+        subtitle="Full specifications and delivery overview"
         footer={
           selectedForPurchase ? (
             <div className="grid grid-cols-2 gap-3 w-full">
               <button
                 type="button"
                 onClick={() => setSelectedForPurchase(null)}
-                className="py-3.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-bold text-[#a1a1aa] hover:text-white active:scale-95 transition-all"
+                className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-bold text-[#a1a1aa] hover:text-white active:scale-95 transition-all"
               >
                 Cancel
               </button>
@@ -508,7 +465,7 @@ export const Server1Lzt: React.FC = () => {
                 type="button"
                 onClick={handleConfirmBuy}
                 disabled={user.balance < selectedForPurchase.priceInr}
-                className="py-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:grayscale"
+                className="py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:grayscale"
               >
                 <Check className="w-4 h-4 text-black stroke-[3]" />
                 <span>Confirm & Pay ({formatPrice(selectedForPurchase.priceInr)})</span>
@@ -518,17 +475,20 @@ export const Server1Lzt: React.FC = () => {
         }
       >
         {selectedForPurchase && (
-          <div className="flex flex-col gap-3.5">
-            <div className="p-3.5 rounded-2xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between">
+          <div className="flex flex-col gap-3">
+            {/* Service Title Card */}
+            <div className="p-3 rounded-2xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-3xl">{selectedForPurchase.icon}</span>
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-white">
                     {selectedForPurchase.country} Telegram
                   </span>
-                  <span className="text-[11px] text-[#22c55e]">
-                    Instant 2FA Delivery
-                  </span>
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#22c55e] font-medium">
+                    <span>Stock: {selectedForPurchase.stockCount} available</span>
+                    <span>•</span>
+                    <span>Instant Automated Delivery</span>
+                  </div>
                 </div>
               </div>
               <div className="text-lg font-extrabold text-[#22c55e] font-mono">
@@ -536,30 +496,12 @@ export const Server1Lzt: React.FC = () => {
               </div>
             </div>
 
-            {/* Wallet Balance & Deduction Breakdown */}
-            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-2 text-xs">
-              <div className="flex items-center justify-between text-[#a1a1aa]">
-                <span>Your Wallet Balance:</span>
-                <span className="text-white font-mono font-bold">{formatPrice(user.balance)}</span>
-              </div>
-              <div className="flex items-center justify-between text-[#a1a1aa]">
-                <span>Cost Deduction:</span>
-                <span className="text-[#ef4444] font-mono font-bold">-{formatPrice(selectedForPurchase.priceInr)}</span>
-              </div>
-              <div className="flex items-center justify-between pt-1.5 border-t border-[#262630] text-[#a1a1aa]">
-                <span>Balance After Purchase:</span>
-                <span className="text-[#22c55e] font-mono font-bold">
-                  {formatPrice(Math.max(0, user.balance - selectedForPurchase.priceInr))}
-                </span>
-              </div>
-            </div>
-
-            {/* Active Fulfillment Filter Criteria */}
-            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-1.5 text-xs">
-              <div className="flex items-center justify-between text-[#a1a1aa]">
-                <span className="font-semibold text-white flex items-center gap-1.5 text-[11px]">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#8b5cf6]" />
-                  <span>Enforced Fulfillment Criteria:</span>
+            {/* Comprehensive Account Specifications & Details Sheet */}
+            <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-2.5 text-xs">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#262630]">
+                <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#22c55e]" />
+                  <span>Account Specifications & Features:</span>
                 </span>
                 <button
                   type="button"
@@ -567,26 +509,75 @@ export const Server1Lzt: React.FC = () => {
                     setSelectedForPurchase(null);
                     openFilterModal();
                   }}
-                  className="text-[10px] text-[#8b5cf6] hover:underline"
+                  className="text-[10px] text-[#8b5cf6] hover:underline flex items-center gap-1"
                 >
-                  Edit Filters
+                  <SlidersHorizontal className="w-3 h-3" />
+                  <span>Configure</span>
                 </button>
               </div>
-              <div className="flex flex-wrap gap-1.5 mt-0.5 text-[10px]">
-                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.spam === 'no' ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
-                  Spam: {filters.spam === 'no' ? 'No Spam' : filters.spam === 'yes' ? 'Allow' : 'Any'}
-                </span>
-                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.geoblock === 'no' ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
-                  Geo-block: {filters.geoblock === 'no' ? 'No Block' : filters.geoblock === 'yes' ? 'Blocked' : 'Any'}
-                </span>
-                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.login_mail === 'yes' ? 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
-                  Mail: {filters.login_mail === 'yes' ? 'Included' : filters.login_mail === 'no' ? 'None' : 'Any'}
-                </span>
-                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.premium === 'yes' ? 'bg-amber-500/10 border-amber-500/30 text-[#f59e0b]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
-                  Prem: {filters.premium === 'yes' ? 'Premium Only' : filters.premium === 'no' ? 'Non-Prem' : 'Any'}
-                </span>
-                <span className={`px-2 py-0.5 rounded-md border font-medium ${filters.offline !== 'any' ? 'bg-[#7c3aed]/20 border-[#7c3aed]/40 text-[#c084fc]' : 'bg-[#1f1f2a] border-[#262630] text-[#a1a1aa]'}`}>
-                  Offline: {filters.offline !== 'any' ? `≥${filters.offline}d` : 'Any'}
+
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Account Type</span>
+                  <span className="text-white font-bold">Aged Telegram 2FA</span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Spam Status</span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    {filters.spam === 'no' ? 'Clean (No SpamBlock)' : filters.spam === 'yes' ? 'Allow Spam' : 'Standard'}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">2FA Security</span>
+                  <span className="text-amber-400 font-bold flex items-center gap-1">
+                    <Key className="w-3 h-3 text-amber-400" />
+                    2FA Password Included
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Geo Access</span>
+                  <span className="text-white font-bold flex items-center gap-1">
+                    <Globe className="w-3 h-3 text-sky-400" />
+                    {filters.geoblock === 'no' ? 'Worldwide (No Block)' : 'Universal Access'}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Delivery Format</span>
+                  <span className="text-[#22c55e] font-bold flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-[#22c55e]" />
+                    Phone + 2FA + OTP
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Inactivity / Age</span>
+                  <span className="text-[#c084fc] font-bold flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-[#c084fc]" />
+                    {filters.offline !== 'any' ? `≥${filters.offline}d Inactive` : 'Aged Global Stock'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Wallet Balance & Cost Breakdown */}
+            <div className="p-2.5 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-1.5 text-xs">
+              <div className="flex items-center justify-between text-[#a1a1aa] text-[11px]">
+                <span>Your Wallet Balance:</span>
+                <span className="text-white font-mono font-bold">{formatPrice(user.balance)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[#a1a1aa] text-[11px]">
+                <span>Cost Deduction:</span>
+                <span className="text-[#ef4444] font-mono font-bold">-{formatPrice(selectedForPurchase.priceInr)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-[#262630] text-[#a1a1aa] text-[11px]">
+                <span>Balance After Purchase:</span>
+                <span className="text-[#22c55e] font-mono font-bold">
+                  {formatPrice(Math.max(0, user.balance - selectedForPurchase.priceInr))}
                 </span>
               </div>
             </div>
