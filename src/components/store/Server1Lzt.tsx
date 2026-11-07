@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Archive,
   ChevronDown,
+  X,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Server1SkeletonList } from '../common/GlassSkeleton';
@@ -330,8 +331,23 @@ export const Server1Lzt: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search country (e.g. India, USA)..."
-            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none transition-colors"
+            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none transition-colors"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                try {
+                  localStorage.removeItem('krish_s1_search');
+                } catch {}
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#262632] hover:bg-[#323244] text-[#a1a1aa] hover:text-white flex items-center justify-center transition-colors active:scale-95"
+              title="Clear search"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
         <PriceSortFilter value={priceSort} onChange={setPriceSort} />
         <button

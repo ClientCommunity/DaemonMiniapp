@@ -3,7 +3,7 @@ import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { useApp } from '../../context/AppContext';
 import { downloadApi } from '../../api/endpoints';
 import { Server2QualityTier, Server2DeliveryFormat, Server2StockItem } from '../../types';
-import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check, RefreshCw, User, FolderArchive, AlertTriangle } from 'lucide-react';
+import { Search, ShoppingBag, Shield, Zap, Package, Plus, Minus, Download, CheckCircle2, Check, RefreshCw, User, FolderArchive, AlertTriangle, X, RotateCcw } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Server1SkeletonList } from '../common/GlassSkeleton';
 
@@ -127,6 +127,17 @@ export const Server2Sessions: React.FC = () => {
     }
   };
 
+  const handleClearSearch = () => {
+    setSearch('');
+    setSelectedYear('all');
+    setPriceSort('default');
+    try {
+      localStorage.removeItem('krish_s2_search');
+      localStorage.setItem('krish_s2_year', 'all');
+      localStorage.setItem('krish_s2_sort', 'default');
+    } catch {}
+  };
+
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Quality Tier Segmented Pill Control (Account Quality Split) */}
@@ -214,8 +225,18 @@ export const Server2Sessions: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter country (India, Vietnam, etc.)..."
-            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none transition-colors"
+            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none transition-colors"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#262632] hover:bg-[#323244] text-[#a1a1aa] hover:text-white flex items-center justify-center transition-colors active:scale-95"
+              title="Clear search and reset filters"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
         <PriceSortFilter value={priceSort} onChange={setPriceSort} />
       </div>
@@ -274,8 +295,18 @@ export const Server2Sessions: React.FC = () => {
             <span className="text-xs">Stock is uploaded periodically by administrators. Check back soon.</span>
           </div>
         ) : sorted.length === 0 ? (
-          <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
-            No accounts match current filters.
+          <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa] flex flex-col items-center gap-2.5">
+            <span>No accounts match current filters.</span>
+            {(search || selectedYear !== 'all' || priceSort !== 'default') && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="px-3.5 py-1.5 rounded-xl bg-[#262632] hover:bg-[#323244] text-xs font-bold text-white transition-all active:scale-95 flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3 h-3 text-[#a78bfa]" />
+                <span>Reset to Default</span>
+              </button>
+            )}
           </div>
         ) : null}
       </div>
