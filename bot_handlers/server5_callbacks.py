@@ -62,6 +62,10 @@ async def handle_server5_callback(e, uid: int, data: str) -> bool:
     elif data.startswith("smm_page|"):
         _, page, sort = data.split("|")
         state = smm_search_results.get(uid, {})
+        current_page = state.get('page')
+        if current_page is not None and str(page) == str(current_page):
+            await e.answer(f"Already on page {page}", alert=False)
+            return True
         await render_smm_services(e, uid, int(page), state.get('query', ''), sort, state.get('category_name', ''), back_target=state.get('back_target'))
         return True
 

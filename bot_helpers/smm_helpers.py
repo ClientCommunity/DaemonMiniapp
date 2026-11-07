@@ -102,15 +102,15 @@ async def render_smm_services(e, uid: int, page: int = 1, query: str = "", sort:
     for row, q in items[(page - 1) * limit:page * limit]:
         s_name = clean_text(row['name'])
         buttons.append([p_btn(f"{row['emoji']} {s_name} | ₹{format_smm_money(q.charge)}/1K", f"smm_view|{row['id']}", style="success")])
-    nav = []
-    if page > 1:
-        nav.append(p_btn("◀ Prev", f"smm_page|{page-1}|{sort}"))
-    nav.append(p_btn("🔃 Sort", f"smm_sort|{page}"))
-    if page < pages:
-        nav.append(p_btn("Next ▶", f"smm_page|{page+1}|{sort}"))
-    if nav:
-        buttons.append(nav)
-    buttons.extend([[p_btn("🔍 Search Again", "smm_search", style="primary"), p_btn("📦 My Orders", "smm_orders|1")]])
+    page_row = []
+    window_start = max(1, min(page - 2, pages - 4))
+    window_end = min(pages, window_start + 4)
+    for pg in range(window_start, window_end + 1):
+        btn_txt = f"[{pg}]" if pg != page else f"·{pg}·"
+        page_row.append(p_btn(btn_txt, f"smm_page|{pg}|{sort}"))
+    if page_row:
+        buttons.append(page_row)
+    buttons.append([p_btn("🔃 Sort", f"smm_sort|{page}"), p_btn("🔍 Search Again", "smm_search", style="primary"), p_btn("📦 My Orders", "smm_orders|1")])
     resolved_back = back_target or smm_search_results.get(uid, {}).get("back_target") or "smm_cats|1"
     buttons.append([p_btn("Back", resolved_back), p_btn("🏠 Home", "menu_buy")])
     clean_cat_name = clean_text(category_name)
@@ -118,10 +118,13 @@ async def render_smm_services(e, uid: int, page: int = 1, query: str = "", sort:
     caption = (
         f"🔎 <b>{'Search Results' if query else 'Available Services'}</b>\n\n"
         f"Query : <code>{html.escape(clean_query or clean_cat_name or 'All services')}</code>\nResults Found : <b>{len(items)}</b>\n"
-        f"Sort : <b>{sort.replace('_',' ').title()}</b>\nShowing : <b>{(page-1)*limit+1 if items else 0}–{min(page*limit,len(items))} of {len(items)}</b>\n\nSelect a service below."
+        f"Sort : <b>{sort.replace('_',' ').title()}</b>\nPage : <b>{page} of {pages}</b>\nShowing : <b>{(page-1)*limit+1 if items else 0}–{min(page*limit,len(items))} of {len(items)}</b>\n\nSelect a service below."
     )
-    smm_search_results[uid] = {"query": query, "sort": sort, "category_name": category_name, "back_target": resolved_back}
-    return await e.edit(caption, buttons=buttons)
+    smm_search_results[uid] = {"query": query, "sort": sort, "category_name": category_name, "back_target": resolved_back, "page": page}
+    try:
+        return await e.edit(caption, buttons=buttons)
+    except Exception:
+        pass
 
 
 async def render_smm_categories(e, page: int = 1, brand: str = ""):
@@ -129,24 +132,35 @@ async def render_smm_categories(e, page: int = 1, brand: str = ""):
     offset = (max(1, page) - 1) * limit
     pattern = f"%{brand.casefold()}%"
     with managed_connect() as conn:
+        total_row = conn.execute("""SELECT COUNT(*) FROM (
+            SELECT 1 FROM smm_categories WHERE visible=1 AND LOWER(display_name) LIKE ? GROUP BY LOWER(display_name)
+        )""", (pattern,)).fetchone()
+        total_cats = total_row[0] if total_row else 0
+        pages = max(1, (total_cats + limit - 1) // limit)
+        page = max(1, min(page, pages))
+        offset = (page - 1) * limit
         rows = conn.execute("""SELECT MIN(id) id,display_name,COUNT(*) provider_count FROM smm_categories
           WHERE visible=1 AND LOWER(display_name) LIKE ? GROUP BY LOWER(display_name),display_name
-          ORDER BY LOWER(display_name) LIMIT ? OFFSET ?""", (pattern, limit + 1, offset)).fetchall()
+          ORDER BY LOWER(display_name) LIMIT ? OFFSET ?""", (pattern, limit, offset)).fetchall()
     buttons = [[p_btn("🔍 Search Categories & Services", "smm_search", style="success")]]
     buttons.append([p_btn(name.title(), f"smm_brand|{name}|1", style="danger") for name in SMM_BRANDS[:3]])
     buttons.append([p_btn(name.title(), f"smm_brand|{name}|1", style="danger") for name in SMM_BRANDS[3:]])
     suffix = f"|{brand}" if brand else ""
     buttons += [[p_btn(clean_text(r['display_name']), f"smm_cat|{r['id']}|1|{page}{suffix}", style="primary")] for r in rows[:limit]]
-    nav = []
-    if page > 1:
-        nav.append(p_btn("◀ Previous", f"smm_cats|{page-1}{suffix}"))
-    if len(rows) > limit:
-        nav.append(p_btn("Next ▶", f"smm_cats|{page+1}{suffix}"))
-    if nav:
-        buttons.append(nav)
+    page_row = []
+    window_start = max(1, min(page - 2, pages - 4))
+    window_end = min(pages, window_start + 4)
+    for pg in range(window_start, window_end + 1):
+        btn_txt = f"[{pg}]" if pg != page else f"·{pg}·"
+        page_row.append(p_btn(btn_txt, f"smm_cats|{pg}{suffix}"))
+    if page_row:
+        buttons.append(page_row)
     buttons.append([p_btn("📦 My Orders", "smm_orders|1"), p_btn("Back", "menu_buy")])
-    caption = f"📂 <b>{html.escape(brand.title())+' ' if brand else ''}Categories</b>\n\nSorted A → Z · Page {page}\nSelect a category to view its services."
-    await e.edit(caption, buttons=buttons)
+    caption = f"📂 <b>{html.escape(brand.title())+' ' if brand else ''}Categories</b>\n\nSorted A → Z · Page {page} of {pages}\nSelect a category to view its services."
+    try:
+        await e.edit(caption, buttons=buttons)
+    except Exception:
+        pass
 
 
 async def render_smm_search(e, uid: int, query: str, page: int = 1):
@@ -158,23 +172,34 @@ async def render_smm_search(e, uid: int, query: str, page: int = 1):
     with managed_connect() as conn:
         categories = conn.execute("""SELECT MIN(id) id,display_name FROM smm_categories WHERE visible=1
           AND LOWER(display_name) LIKE ? GROUP BY LOWER(display_name),display_name ORDER BY LOWER(display_name) LIMIT 20""", (pattern,)).fetchall()
+        total_row = conn.execute("""SELECT COUNT(*) FROM smm_services s JOIN smm_categories c ON c.id=s.category_id
+          JOIN smm_providers p ON p.id=s.provider_id WHERE s.enabled=1 AND s.visible=1 AND c.visible=1 AND p.enabled=1
+          AND (LOWER(s.name) LIKE ? OR s.remote_service_id=?)""", (pattern, query)).fetchone()
+        total_svc = total_row[0] if total_row else 0
+        pages = max(1, (total_svc + limit - 1) // limit)
+        page = max(1, min(page, pages))
+        offset = (page - 1) * limit
         services = conn.execute("""SELECT s.id,s.name,s.emoji FROM smm_services s JOIN smm_categories c ON c.id=s.category_id
           JOIN smm_providers p ON p.id=s.provider_id WHERE s.enabled=1 AND s.visible=1 AND c.visible=1 AND p.enabled=1
-          AND (LOWER(s.name) LIKE ? OR s.remote_service_id=?) ORDER BY LOWER(s.name) LIMIT ? OFFSET ?""", (pattern, query, limit + 1, offset)).fetchall()
+          AND (LOWER(s.name) LIKE ? OR s.remote_service_id=?) ORDER BY LOWER(s.name) LIMIT ? OFFSET ?""", (pattern, query, limit, offset)).fetchall()
     buttons = []
     if page == 1:
         buttons += [[p_btn(f"📂 {clean_text(r['display_name'])}", f"smm_cat|{r['id']}|1|search|{page}", style="primary")] for r in categories]
     buttons += [[p_btn(f"{r['emoji']} {clean_text(r['name'])}", f"smm_view|{r['id']}", style="success")] for r in services[:limit]]
-    nav = []
-    if page > 1:
-        nav.append(p_btn("◀ Previous", f"smm_searchpage|{page-1}"))
-    if len(services) > limit:
-        nav.append(p_btn("Next ▶", f"smm_searchpage|{page+1}"))
-    if nav:
-        buttons.append(nav)
+    page_row = []
+    window_start = max(1, min(page - 2, pages - 4))
+    window_end = min(pages, window_start + 4)
+    for pg in range(window_start, window_end + 1):
+        btn_txt = f"[{pg}]" if pg != page else f"·{pg}·"
+        page_row.append(p_btn(btn_txt, f"smm_searchpage|{pg}"))
+    if page_row:
+        buttons.append(page_row)
     buttons += [[p_btn("🔍 Search Again", "smm_search"), p_btn("Back", "smm_cats|1")]]
     smm_search_results[uid] = {"query": query, "search_page": page, "back_target": f"smm_searchpage|{page}"}
-    await e.edit(f"🔎 <b>Search Results</b>\n\nQuery: <code>{html.escape(query)}</code>\nCategories: {len(categories)}\nServices on this page: {len(services[:limit])}\nPage: {page}\n\nChoose a category or service.", buttons=buttons)
+    try:
+        await e.edit(f"🔎 <b>Search Results</b>\n\nQuery: <code>{html.escape(query)}</code>\nCategories: {len(categories)}\nServices on this page: {len(services[:limit])}\nPage: {page} of {pages}\n\nChoose a category or service.", buttons=buttons)
+    except Exception:
+        pass
 
 
 async def render_admin_smm_orders(e, page: int = 1):
