@@ -266,10 +266,53 @@ def execute_buy(
                         display_phone = normalize_lzt_phone(raw_phone, purchased_id)
                         twofa_pw = item.get('password') or item.get('twofa') or item.get('telegram_password') or "None"
                         await try_lzt_reset_authorizations(purchased_id)
+
+                        # Extract verified quality specifications
+                        now_ts = int(time.time())
+                        activity_ts = None
+                        for k in ("telegram_last_activity", "last_activity", "activity_date", "last_seen"):
+                            val = item.get(k)
+                            if val:
+                                try:
+                                    val_f = float(val)
+                                    if val_f > 0:
+                                        activity_ts = int(val_f)
+                                        break
+                                except (TypeError, ValueError):
+                                    continue
+
+                        offline_days = 0
+                        if activity_ts and activity_ts > 0:
+                            offline_days = max(0, (now_ts - activity_ts) // 86400)
+                        elif item.get("daybreak"):
+                            try:
+                                offline_days = int(item.get("daybreak"))
+                            except Exception:
+                                pass
+
+                        spam_val = item.get("telegram_spam_block", item.get("spam", -1))
+                        has_spam = str(spam_val) not in ("-1", "0", "False", "false", "None", "")
+                        has_premium = bool(item.get("telegram_premium", item.get("premium", 0)))
+                        geo_val = item.get("telegram_geo_block", item.get("geo_block", 0))
+                        has_geo_block = bool(geo_val and str(geo_val) not in ("0", "False", "false", "None", ""))
+                        mail_val = item.get("login_mail", item.get("email", item.get("has_email", item.get("telegram_email"))))
+                        has_mail = bool(mail_val and str(mail_val).strip().lower() not in ("0", "false", "no", "none", ""))
+
+                        metadata = {
+                            "is_premium": has_premium,
+                            "has_spam": has_spam,
+                            "has_geo_block": has_geo_block,
+                            "offline_days": int(offline_days),
+                            "has_mail": has_mail,
+                            "chats_count": int(item.get("telegram_chats_count", item.get("chats_count", 0)) or 0),
+                            "channels_count": int(item.get("telegram_channels_count", item.get("channels_count", 0)) or 0),
+                        }
+
                         return {
                             "item_id": purchased_id,
                             "phone": display_phone,
                             "twofa": twofa_pw,
+                            "metadata": metadata,
                         }, None
                     last_err = lzt_error_text(buy_res) or "Account was already sold or provider busy."
 
@@ -316,6 +359,7 @@ def execute_buy(
                 "phone": purchased_phone,
                 "twofa": purchased_twofa,
                 "delivery_type": "account_live",
+                "metadata": lzt_res.get("metadata", {}),
                 "new_balance": int(new_bal[0] or 0),
                 "new_promo_balance": int(new_bal[1] or 0),
             }
