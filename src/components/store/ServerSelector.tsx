@@ -1,10 +1,16 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { Users, Zap, Radio } from 'lucide-react';
+import { Users, Zap } from 'lucide-react';
 
 const TelegramIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+  </svg>
+);
+
+const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm5.79 14.15c-.24.68-1.39 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.42-.14-.96-.32-1.65-.62-2.91-1.26-4.81-4.2-4.96-4.4-.14-.19-1.19-1.58-1.19-3.02 0-1.44.75-2.14 1.02-2.43.27-.29.58-.36.78-.36.19 0 .39 0 .56.01.18.01.42-.07.65.49.24.58.82 2 .89 2.15.07.15.12.33.02.53-.1.19-.15.31-.3.48-.15.17-.31.38-.45.51-.15.14-.3.3-.13.6.17.29.77 1.27 1.65 2.05 1.13 1 2.08 1.31 2.38 1.45.29.15.46.13.63-.07.17-.2.73-.85.93-1.14.19-.29.39-.24.66-.14.27.1 1.7.8 1.99.95.29.14.49.22.56.34.07.12.07.72-.17 1.4z" />
   </svg>
 );
 
@@ -150,9 +156,9 @@ export const ServerSelector: React.FC = () => {
           className={getBtnClasses(selectedServer === 4)}
           type="button"
         >
-          <Radio
+          <WhatsAppIcon
             className={`w-4 h-4 shrink-0 transition-colors ${
-              selectedServer === 4 ? 'text-white' : isLight ? 'text-emerald-600' : 'text-[#10b981]'
+              selectedServer === 4 ? 'text-white' : 'text-[#25D366]'
             }`}
           />
           <div className="flex flex-col items-start min-w-0">
