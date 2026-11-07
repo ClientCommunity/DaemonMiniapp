@@ -255,6 +255,18 @@ export const authApi = {
 export const storeApi = {
   getServers: () => api.get<ServersOverviewResponse>('/api/store/servers'),
   getServer1: () => api.get<Server1StockResponse>('/api/store/server1'),
+  checkServer1Country: (country: string) =>
+    api.get<{
+      success: boolean;
+      country: string;
+      iso_code: string;
+      flag: string;
+      stock: number;
+      price: number;
+      has_stock: boolean;
+      filters: Server1Filters;
+      live?: boolean;
+    }>('/api/store/server1/check', { country }),
   getServer2: (tier: 'good' | 'cheap' = 'good') =>
     api.get<Server2StockResponse>('/api/store/server2', { tier }),
   getServer3: () => api.get<Server3StockResponse>('/api/store/server3'),

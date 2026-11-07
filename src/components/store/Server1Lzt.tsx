@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { useApp } from '../../context/AppContext';
-import { otpApi, downloadApi, authApi, Server1Filters } from '../../api/endpoints';
+import { otpApi, downloadApi, authApi, storeApi, Server1Filters } from '../../api/endpoints';
 import { Server1AccountItem } from '../../types';
 import {
   Search,
@@ -79,6 +79,44 @@ export const Server1Lzt: React.FC = () => {
     }
   });
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isVerifyingStock, setIsVerifyingStock] = useState(false);
+  const [liveStockInfo, setLiveStockInfo] = useState<{
+    stock: number;
+    price: number;
+    hasStock: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!selectedForPurchase) {
+      setLiveStockInfo(null);
+      setIsVerifyingStock(false);
+      return;
+    }
+    let cancelled = false;
+    setIsVerifyingStock(true);
+    storeApi
+      .checkServer1Country(selectedForPurchase.country)
+      .then((res) => {
+        if (!cancelled && res.success) {
+          setLiveStockInfo({
+            stock: res.stock,
+            price: res.price,
+            hasStock: res.has_stock,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsVerifyingStock(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedForPurchase]);
+
+  const effectiveStock = liveStockInfo !== null ? liveStockInfo.stock : selectedForPurchase?.stockCount ?? 0;
+  const effectivePrice = liveStockInfo !== null ? liveStockInfo.price : selectedForPurchase?.priceInr ?? 0;
+  const isOutOfStock = liveStockInfo !== null ? !liveStockInfo.hasStock : effectiveStock <= 0;
   const [tempFilters, setTempFilters] = useState<Server1Filters>(filters);
   const [isSavingFilters, setIsSavingFilters] = useState(false);
   const [customOfflineDays, setCustomOfflineDays] = useState<string>(() => {
@@ -143,7 +181,7 @@ export const Server1Lzt: React.FC = () => {
       await authApi.updateServer1Filters(tempFilters);
       addToast('Search filters updated successfully', 'success', 'Server 1 Filters');
       setIsFilterModalOpen(false);
-      refreshStore().catch(() => {});
+      await refreshStore();
     } catch {
       addToast('Filters applied', 'info', 'Server 1 Filters');
       setIsFilterModalOpen(false);
@@ -206,8 +244,13 @@ export const Server1Lzt: React.FC = () => {
   }, [purchasedCredentialsModal?.isOpen, purchasedCredentialsModal?.orderId, purchasedCredentialsModal?.otpCode]);
 
   const handleConfirmBuy = () => {
-    if (!selectedForPurchase) return;
-    const success = purchaseServer1Account(selectedForPurchase);
+    if (!selectedForPurchase || isOutOfStock || isVerifyingStock) return;
+    const itemToBuy = {
+      ...selectedForPurchase,
+      priceInr: effectivePrice,
+      stockCount: effectiveStock,
+    };
+    const success = purchaseServer1Account(itemToBuy);
     if (success) {
       setSelectedForPurchase(null);
     }
@@ -464,11 +507,25 @@ export const Server1Lzt: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmBuy}
-                disabled={user.balance < selectedForPurchase.priceInr}
+                disabled={isVerifyingStock || isOutOfStock || user.balance < effectivePrice}
                 className="py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:grayscale"
               >
-                <Check className="w-4 h-4 text-black stroke-[3]" />
-                <span>Confirm & Pay ({formatPrice(selectedForPurchase.priceInr)})</span>
+                {isVerifyingStock ? (
+                  <span className="flex items-center gap-1.5 text-black">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Verifying Stock...</span>
+                  </span>
+                ) : isOutOfStock ? (
+                  <span className="flex items-center gap-1.5 text-black">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>Out of Stock for Selected Criteria</span>
+                  </span>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 text-black stroke-[3]" />
+                    <span>Confirm & Pay ({formatPrice(effectivePrice)})</span>
+                  </>
+                )}
               </button>
             </div>
           ) : undefined
@@ -484,17 +541,56 @@ export const Server1Lzt: React.FC = () => {
                   <span className="text-sm font-bold text-white">
                     {selectedForPurchase.country} Telegram
                   </span>
-                  <div className="flex items-center gap-1.5 text-[11px] text-[#22c55e] font-medium">
-                    <span>Stock: {selectedForPurchase.stockCount} available</span>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                    {isVerifyingStock ? (
+                      <span className="text-[#a1a1aa] flex items-center gap-1">
+                        <RefreshCw className="w-3 h-3 animate-spin text-[#8b5cf6]" />
+                        <span>Verifying live market availability...</span>
+                      </span>
+                    ) : isOutOfStock ? (
+                      <span className="text-red-400 font-bold flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>0 in stock for your filters</span>
+                      </span>
+                    ) : (
+                      <span className="text-[#22c55e] flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        <span>Stock: {effectiveStock} available</span>
+                      </span>
+                    )}
                     <span>•</span>
-                    <span>Instant Automated Delivery</span>
+                    <span className="text-[#a1a1aa]">Instant Delivery</span>
                   </div>
                 </div>
               </div>
               <div className="text-lg font-extrabold text-[#22c55e] font-mono">
-                {formatPrice(selectedForPurchase.priceInr)}
+                {formatPrice(effectivePrice)}
               </div>
             </div>
+
+            {/* Out of Stock Alert Banner */}
+            {isOutOfStock && !isVerifyingStock && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2.5 text-xs text-red-200">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1 w-full">
+                  <span className="font-bold text-white">No accounts match your active filters</span>
+                  <span className="text-[11px] text-[#a1a1aa]">
+                    There are currently 0 active listings in <b>{selectedForPurchase.country}</b> matching your criteria ({activeFilterCount} active filters).
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedForPurchase(null);
+                      openFilterModal();
+                    }}
+                    className="mt-1 text-xs text-[#c084fc] font-bold hover:underline flex items-center gap-1 self-start"
+                  >
+                    <SlidersHorizontal className="w-3 h-3" />
+                    <span>Adjust or Relax Filters</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Comprehensive Account Specifications & Details Sheet */}
             <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl flex flex-col gap-2.5 text-xs">
