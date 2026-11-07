@@ -1466,7 +1466,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const orderId = `DEP_${Date.now().toString().slice(-6)}`;
     const methodNames: Record<PaymentMethodType, string> = {
-      fampay: 'FamPay Instant UPI',
+      fampay: 'UPI Auto Instant',
       upi_direct: 'Manual UPI Direct',
       usdt_bep20: 'USDT BEP20 Crypto',
     };

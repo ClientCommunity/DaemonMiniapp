@@ -168,7 +168,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     },
     {
       q: 'Which payment methods are accepted for top-ups?',
-      a: 'We support instant zero-fee UPI QR codes, FamPay, and Cryptocurrency USDT (TRC-20 & BEP-20). Deposits are credited automatically within seconds.',
+      a: 'We support instant zero-fee UPI QR codes and Cryptocurrency USDT (TRC-20 & BEP-20). Deposits are credited automatically within seconds.',
     },
     {
       q: 'Can I access the same services on Telegram?',
@@ -478,7 +478,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     INR &amp; USDT
                   </span>
                   <p className="text-xs text-[#a1a1aa] mt-3 leading-relaxed">
-                    Zero-fee deposits using any UPI app (GPay, PhonePe, Paytm, FamPay) or USDT Crypto with instant P2P transfer.
+                    Zero-fee deposits using any UPI app (GPay, PhonePe, Paytm) or USDT Crypto with instant P2P transfer.
                   </p>
                 </div>
                 <div className="mt-5 pt-4 border-t border-[#20202c] text-[11px] font-medium text-[#facc15] flex items-center gap-1">

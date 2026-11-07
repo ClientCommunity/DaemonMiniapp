@@ -329,8 +329,8 @@ export const DepositHub: React.FC = () => {
           <div className="w-8 h-8 rounded-xl bg-[#7c3aed]/20 flex items-center justify-center mb-1.5">
             <Zap className="w-4 h-4 text-[#8b5cf6]" />
           </div>
-          <span className="text-xs font-bold leading-tight">FamPay QR</span>
-          <span className="text-[9px] text-[#22c55e] mt-0.5 font-medium">Auto QR</span>
+          <span className="text-xs font-bold leading-tight">UPI Auto</span>
+          <span className="text-[9px] text-[#22c55e] mt-0.5 font-medium">Instant QR</span>
         </button>
 
         {/* UPI Direct */}
@@ -529,7 +529,7 @@ export const DepositHub: React.FC = () => {
                     {!qrImgError && activeInvoice.qrUrl ? (
                       <img
                         src={activeInvoice.qrUrl}
-                        alt={`FamPay ₹${activeInvoice.amount}`}
+                        alt={`UPI Auto ₹${activeInvoice.amount}`}
                         className="w-40 h-40 object-contain"
                         onError={() => setQrImgError(true)}
                       />
@@ -547,7 +547,7 @@ export const DepositHub: React.FC = () => {
                 </div>
 
                 <div className="text-center text-[10px] text-[#71717a] my-1.5">
-                  Scan using GPay, PhonePe, Paytm, CRED, FamPay or any UPI app
+                  Scan using GPay, PhonePe, Paytm, CRED or any UPI app
                 </div>
 
                 {/* UPI ID Copy Box */}
@@ -789,7 +789,7 @@ export const DepositHub: React.FC = () => {
               </div>
               <span className="text-sm font-bold text-white">No Crypto Gateways Active</span>
               <p className="text-xs text-[#a1a1aa] mt-1 max-w-xs">
-                Custom crypto payment methods (Cwallet / USDT) are currently not configured. Please use FamPay QR or contact support @DeamonOTPbot.
+                Custom crypto payment methods (Cwallet / USDT) are currently not configured. Please use UPI Auto or contact support @DeamonOTPbot.
               </p>
             </div>
           ) : (
