@@ -101,17 +101,18 @@ async def handle_server5_callback(e, uid: int, data: str) -> bool:
         q = smm_quote(sid, 1000, enforce_limits=False)
         back_target = smm_search_results.get(uid, {}).get("back_target")
         smm_state[uid] = {"step": "link", "service_id": sid, "category_name": r['category_name'], "back_target": back_target}
-        raw_description = ' '.join(str(r['description'] or '').split())
+        clean_svc_name = html.unescape(html.unescape(str(r['name'] or ''))).strip()
+        raw_description = ' '.join(html.unescape(html.unescape(str(r['description'] or ''))).split())
         description = raw_description[:700]
         description_block = (f"<blockquote expandable>{html.escape(description)}{'…' if len(raw_description) > 700 else ''}</blockquote>\n\n" if description else "")
         detail_text = (
-            f"{r['emoji']} <b>{html.escape(r['name'])}</b>\n\n{description_block}"
+            f"{r['emoji']} <b>{html.escape(clean_svc_name)}</b>\n\n{description_block}"
             f"Price: <b>₹{format_smm_money(q.charge)} per 1000</b>\nMinimum: <b>{r['minimum']}</b>\nMaximum: <b>{r['maximum']}</b>\n"
             f"Average time: <b>{html.escape(r['average_time'] or 'Not specified')}</b>\nRefill: {'✅' if r['refill'] else '❌'} · Cancel: {'✅' if r['cancellable'] else '❌'}\n\nSend the target link."
         )
         if not await bot_api_edit_text(e, detail_text, [[{"text": "↩ Back to Services", "callback_data": "smm_back_services", "style": "danger"}]]):
             await e.edit(
-                f"{r['emoji']} <b>{html.escape(r['name'])}</b>\n\nPrice: <b>₹{format_smm_money(q.charge)} per 1000</b>\nMinimum: <b>{r['minimum']}</b>\nMaximum: <b>{r['maximum']}</b>\nAverage time: <b>{html.escape(r['average_time'] or 'Not specified')}</b>\n\nSend the target link.",
+                f"{r['emoji']} <b>{html.escape(clean_svc_name)}</b>\n\nPrice: <b>₹{format_smm_money(q.charge)} per 1000</b>\nMinimum: <b>{r['minimum']}</b>\nMaximum: <b>{r['maximum']}</b>\nAverage time: <b>{html.escape(r['average_time'] or 'Not specified')}</b>\n\nSend the target link.",
                 buttons=[[p_btn("↩ Back to Services", "smm_back_services", style="danger")]]
             )
         return True

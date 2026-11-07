@@ -380,10 +380,12 @@ def get_server5_stock() -> list[dict[str, Any]]:
                 if final_price <= 0:
                     final_price = 1.0
 
-                cat = r["category_name"] or "SMM"
+                cat_raw = r["category_name"] or "SMM"
+                cat = html.unescape(html.unescape(str(cat_raw))).strip()
+                s_name = html.unescape(html.unescape(str(r["name"] or ""))).strip()
                 items.append({
                     "id": r["id"],
-                    "name": r["name"],
+                    "name": s_name,
                     "country": cat,
                     "category": cat,
                     "icon": "🚀",

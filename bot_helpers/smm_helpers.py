@@ -14,6 +14,19 @@ from server5 import service_rows as smm_service_rows, quote as smm_quote
 SMM_BRANDS = ("telegram", "instagram", "whatsapp", "youtube", "snapchat")
 
 
+def clean_text(value: Any) -> str:
+    """Iteratively unescape HTML entities and normalize text."""
+    if not value:
+        return ""
+    cur = str(value).strip()
+    for _ in range(3):
+        prev = cur
+        cur = html.unescape(cur)
+        if cur == prev:
+            break
+    return cur.strip()
+
+
 def get_bot_module():
     return sys.modules.get("bot")
 
@@ -87,7 +100,8 @@ async def render_smm_services(e, uid: int, page: int = 1, query: str = "", sort:
     page = max(1, min(page, pages))
     buttons = []
     for row, q in items[(page - 1) * limit:page * limit]:
-        buttons.append([p_btn(f"{row['emoji']} {row['name']} | ₹{format_smm_money(q.charge)}/1K", f"smm_view|{row['id']}", style="success")])
+        s_name = clean_text(row['name'])
+        buttons.append([p_btn(f"{row['emoji']} {s_name} | ₹{format_smm_money(q.charge)}/1K", f"smm_view|{row['id']}", style="success")])
     nav = []
     if page > 1:
         nav.append(p_btn("◀ Prev", f"smm_page|{page-1}|{sort}"))
@@ -99,9 +113,11 @@ async def render_smm_services(e, uid: int, page: int = 1, query: str = "", sort:
     buttons.extend([[p_btn("🔍 Search Again", "smm_search", style="primary"), p_btn("📦 My Orders", "smm_orders|1")]])
     resolved_back = back_target or smm_search_results.get(uid, {}).get("back_target") or "smm_cats|1"
     buttons.append([p_btn("Back", resolved_back), p_btn("🏠 Home", "menu_buy")])
+    clean_cat_name = clean_text(category_name)
+    clean_query = clean_text(query)
     caption = (
         f"🔎 <b>{'Search Results' if query else 'Available Services'}</b>\n\n"
-        f"Query : <code>{html.escape(query or category_name or 'All services')}</code>\nResults Found : <b>{len(items)}</b>\n"
+        f"Query : <code>{html.escape(clean_query or clean_cat_name or 'All services')}</code>\nResults Found : <b>{len(items)}</b>\n"
         f"Sort : <b>{sort.replace('_',' ').title()}</b>\nShowing : <b>{(page-1)*limit+1 if items else 0}–{min(page*limit,len(items))} of {len(items)}</b>\n\nSelect a service below."
     )
     smm_search_results[uid] = {"query": query, "sort": sort, "category_name": category_name, "back_target": resolved_back}
@@ -120,7 +136,7 @@ async def render_smm_categories(e, page: int = 1, brand: str = ""):
     buttons.append([p_btn(name.title(), f"smm_brand|{name}|1", style="danger") for name in SMM_BRANDS[:3]])
     buttons.append([p_btn(name.title(), f"smm_brand|{name}|1", style="danger") for name in SMM_BRANDS[3:]])
     suffix = f"|{brand}" if brand else ""
-    buttons += [[p_btn(r['display_name'], f"smm_cat|{r['id']}|1|{page}{suffix}", style="primary")] for r in rows[:limit]]
+    buttons += [[p_btn(clean_text(r['display_name']), f"smm_cat|{r['id']}|1|{page}{suffix}", style="primary")] for r in rows[:limit]]
     nav = []
     if page > 1:
         nav.append(p_btn("◀ Previous", f"smm_cats|{page-1}{suffix}"))
@@ -147,8 +163,8 @@ async def render_smm_search(e, uid: int, query: str, page: int = 1):
           AND (LOWER(s.name) LIKE ? OR s.remote_service_id=?) ORDER BY LOWER(s.name) LIMIT ? OFFSET ?""", (pattern, query, limit + 1, offset)).fetchall()
     buttons = []
     if page == 1:
-        buttons += [[p_btn(f"📂 {r['display_name']}", f"smm_cat|{r['id']}|1|search|{page}", style="primary")] for r in categories]
-    buttons += [[p_btn(f"{r['emoji']} {r['name']}", f"smm_view|{r['id']}", style="success")] for r in services[:limit]]
+        buttons += [[p_btn(f"📂 {clean_text(r['display_name'])}", f"smm_cat|{r['id']}|1|search|{page}", style="primary")] for r in categories]
+    buttons += [[p_btn(f"{r['emoji']} {clean_text(r['name'])}", f"smm_view|{r['id']}", style="success")] for r in services[:limit]]
     nav = []
     if page > 1:
         nav.append(p_btn("◀ Previous", f"smm_searchpage|{page-1}"))
@@ -195,7 +211,7 @@ async def render_admin_smm_categories(e, page: int = 1, query: str = ""):
           FROM smm_categories c JOIN smm_providers p ON p.id=c.provider_id
           WHERE p.deleted_at IS NULL AND LOWER(c.display_name) LIKE ? ORDER BY LOWER(c.display_name),p.priority LIMIT ? OFFSET ?""", (pattern, limit + 1, offset)).fetchall()
     buttons = [[p_btn("🔍 Search", "adm_smm_catsearch", style="success")]]
-    buttons += [[p_btn(f"{'✅' if r['visible'] else '❌'} {r['display_name']} · {r['service_count']}", f"adm_smm_cat|{r['id']}|1")] for r in rows[:limit]]
+    buttons += [[p_btn(f"{'✅' if r['visible'] else '❌'} {clean_text(r['display_name'])} · {r['service_count']}", f"adm_smm_cat|{r['id']}|1")] for r in rows[:limit]]
     nav = []
     if page > 1:
         nav.append(p_btn("◀ Previous", f"adm_smm_catpage|{page-1}"))
@@ -216,7 +232,7 @@ async def render_admin_smm_services(e, category_id: int, page: int = 1):
         rows = conn.execute("SELECT id,name,enabled,visible FROM smm_services WHERE category_id=? AND deleted_at IS NULL ORDER BY LOWER(name) LIMIT ? OFFSET ?", (category_id, limit + 1, offset)).fetchall()
     if not cat:
         return await e.edit("Category no longer exists.", buttons=[[p_btn("Back", "adm_smm_categories")]])
-    buttons = [[p_btn(f"{'✅' if r['enabled'] and r['visible'] else '❌'} {r['name']}", f"adm_smm_service|{r['id']}|{category_id}")] for r in rows[:limit]]
+    buttons = [[p_btn(f"{'✅' if r['enabled'] and r['visible'] else '❌'} {clean_text(r['name'])}", f"adm_smm_service|{r['id']}|{category_id}")] for r in rows[:limit]]
     nav = []
     if page > 1:
         nav.append(p_btn("◀ Previous", f"adm_smm_cat|{category_id}|{page-1}"))
@@ -225,4 +241,4 @@ async def render_admin_smm_services(e, category_id: int, page: int = 1):
     if nav:
         buttons.append(nav)
     buttons.append([p_btn("Back", "adm_smm_categories")])
-    await e.edit(f"🛒 <b>{html.escape(cat['display_name'])} Services</b>\n\nSorted A → Z", buttons=buttons)
+    await e.edit(f"🛒 <b>{html.escape(clean_text(cat['display_name']))} Services</b>\n\nSorted A → Z", buttons=buttons)

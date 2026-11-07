@@ -42,6 +42,18 @@ def normalize_api_url(value):
 class Quote:
     service_id:int; provider_id:int; quantity:int; cost:float; charge:float; profit:float
 
+def clean_html_entities(text) -> str:
+    """Safely and recursively unescape HTML entities like &amp;, &#039;, &quot;, etc."""
+    if not text:
+        return ""
+    cur = str(text).strip()
+    for _ in range(3):
+        prev = cur
+        cur = html_lib.unescape(cur)
+        if cur == prev:
+            break
+    return cur.strip()
+
 def log(action, detail, provider_id=None, order_id=None, level="info", admin_id=None):
     with transaction() as db:
         db.execute("INSERT INTO smm_logs(provider_id,order_id,admin_id,action,level,detail,created_at) VALUES(?,?,?,?,?,?,?)",
@@ -181,14 +193,17 @@ async def sync_provider(pid):
                     rate=float(item["rate"]);minimum=int(item["min"]);maximum=int(item["max"])
                     if not rid or not name or rate<0 or minimum<1 or maximum<minimum:continue
                 except (KeyError,TypeError,ValueError):continue
-                cats.add(cat);seen.append(rid)
-                db.execute("INSERT INTO smm_categories(provider_id,remote_name,display_name) VALUES(?,?,?) ON CONFLICT(provider_id,remote_name) DO NOTHING",(pid,cat,cat))
+                clean_name=clean_html_entities(name)
+                clean_cat=clean_html_entities(cat)
+                clean_desc=clean_html_entities(str(item.get("description",'')))
+                cats.add(clean_cat);seen.append(rid)
+                db.execute("INSERT INTO smm_categories(provider_id,remote_name,display_name) VALUES(?,?,?) ON CONFLICT(provider_id,remote_name) DO UPDATE SET display_name=excluded.display_name",(pid,cat,clean_cat))
                 cid=db.execute("SELECT id FROM smm_categories WHERE provider_id=? AND remote_name=?",(pid,cat)).fetchone()[0]
                 db.execute("""INSERT INTO smm_services(provider_id,category_id,remote_service_id,name,description,service_type,rate,minimum,maximum,average_time,refill,cancellable,dripfeed,provider_updated_at)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(provider_id,remote_service_id) DO UPDATE SET category_id=excluded.category_id,name=excluded.name,
                  description=excluded.description,service_type=excluded.service_type,rate=excluded.rate,minimum=excluded.minimum,maximum=excluded.maximum,
                  average_time=excluded.average_time,refill=excluded.refill,cancellable=excluded.cancellable,dripfeed=excluded.dripfeed,enabled=CASE WHEN smm_services.deleted_at IS NULL THEN 1 ELSE smm_services.enabled END,provider_updated_at=excluded.provider_updated_at WHERE smm_services.deleted_at IS NULL""",
-                 (pid,cid,rid,name,str(item.get("description",'')),str(item.get("type","Default")),rate,minimum,maximum,str(item.get("average_time",'')),int(bool(item.get("refill"))),int(bool(item.get("cancel"))),int(bool(item.get("dripfeed"))),now))
+                 (pid,cid,rid,clean_name,clean_desc,str(item.get("type","Default")),rate,minimum,maximum,str(item.get("average_time",'')),int(bool(item.get("refill"))),int(bool(item.get("cancel"))),int(bool(item.get("dripfeed"))),now))
             if seen:
                 marks=','.join('?'*len(seen));db.execute(f"UPDATE smm_services SET enabled=0 WHERE deleted_at IS NULL AND provider_id=? AND remote_service_id NOT IN ({marks})",(pid,*seen))
         log("sync_finished",f"categories={len(cats)} services={len(seen)}",pid);return len(cats),len(seen)
