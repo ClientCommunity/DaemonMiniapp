@@ -84,7 +84,7 @@ async def handle_deposit_callback(e, uid: int, data: str) -> bool:
             maximum = int(fampay_setting("fampay_max_dep", "50000"))
             fampay_gateway_selection.pop(uid, None)
             fampay_deposit_state.add(uid)
-            await e.edit(f"⚡ <b>FamPay Automatic Deposit</b>\n\nSend an amount from ₹{minimum} to ₹{maximum}.", buttons=[[p_btn("Cancel", "menu_deposit", style="danger")]])
+            await e.edit(f"⚡ <b>UPI Auto Deposit</b>\n\nSend an amount from ₹{minimum} to ₹{maximum}.", buttons=[[p_btn("Cancel", "menu_deposit", style="danger")]])
         return True
 
     elif data.startswith("fampay_gateway|"):
