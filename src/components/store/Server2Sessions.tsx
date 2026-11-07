@@ -130,58 +130,58 @@ export const Server2Sessions: React.FC = () => {
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Quality Tier Segmented Pill Control (Account Quality Split) */}
-      <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#121217] border border-[#262630] rounded-xl mb-2.5">
+      <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#121217] border border-[#262630] rounded-lg mb-1.5">
         <button
           onClick={() => setQualityTier('good')}
-          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
+          className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[10px] font-medium transition-all ${
             qualityTier === 'good'
               ? 'bg-emerald-500/20 text-[#22c55e] border border-emerald-500/50 shadow-green-glow/20'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          <Shield className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
+          <Shield className="w-3 h-3 text-[#22c55e] shrink-0" />
           <span className="whitespace-nowrap">Good Quality Accounts</span>
         </button>
 
         <button
           onClick={() => setQualityTier('cheap')}
-          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
+          className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[10px] font-medium transition-all ${
             qualityTier === 'cheap'
               ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50 shadow-amber-glow/20'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <Zap className="w-3 h-3 text-amber-400 shrink-0" />
           <span className="whitespace-nowrap">Cheap Quality Accounts</span>
         </button>
       </div>
 
       {/* Delivery Format Selector */}
-      <div className="flex items-center gap-1.5 mb-2.5 bg-[#181820] p-1 rounded-xl border border-[#262630]">
-        <span className="text-[9px] font-semibold text-[#71717a] uppercase px-1.5 shrink-0">Delivery:</span>
+      <div className="flex items-center gap-1 mb-2 bg-[#181820] p-0.5 rounded-lg border border-[#262630]">
+        <span className="text-[8.5px] font-semibold text-[#71717a] uppercase px-1 shrink-0 tracking-wider">Delivery:</span>
         <button
           onClick={() => setDeliveryFormat('account')}
-          className={`flex-1 py-1 px-1.5 rounded-lg text-[10px] sm:text-[11px] font-medium transition-all ${
+          className={`flex-1 py-0.5 px-1 rounded-md text-[9.5px] font-medium transition-all ${
             deliveryFormat === 'account'
               ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
           <span className="flex items-center justify-center gap-1">
-            <User className="w-3 h-3 shrink-0" />
+            <User className="w-2.5 h-2.5 shrink-0" />
             <span className="whitespace-nowrap">Single Account (OTP)</span>
           </span>
         </button>
         <button
           onClick={() => setDeliveryFormat('session')}
-          className={`flex-1 py-1 px-1.5 rounded-lg text-[10px] sm:text-[11px] font-medium transition-all ${
+          className={`flex-1 py-0.5 px-1 rounded-md text-[9.5px] font-medium transition-all ${
             deliveryFormat === 'session'
               ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
           <span className="flex items-center justify-center gap-1">
-            <FolderArchive className="w-3 h-3 shrink-0" />
+            <FolderArchive className="w-2.5 h-2.5 shrink-0" />
             <span className="whitespace-nowrap">Session (.session / ZIP)</span>
           </span>
         </button>
