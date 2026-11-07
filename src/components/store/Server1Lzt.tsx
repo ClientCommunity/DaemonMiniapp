@@ -69,6 +69,7 @@ export const Server1Lzt: React.FC = () => {
     login_mail: 'any',
     premium: 'any',
     offline: 'any',
+    twofa: 'no',
     sort: 'az',
   };
 
@@ -172,6 +173,7 @@ export const Server1Lzt: React.FC = () => {
     if (filters.login_mail !== 'any') count++;
     if (filters.premium !== 'any') count++;
     if (filters.offline !== 'any') count++;
+    if (filters.twofa && filters.twofa !== 'no') count++;
     return count;
   }, [filters]);
 
@@ -440,6 +442,25 @@ export const Server1Lzt: React.FC = () => {
         >
           <span>Offline:</span>
           <span className="font-bold">{filters.offline !== 'any' ? `≥${filters.offline}d` : 'Any'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={openFilterModal}
+          className={`px-2 py-1 rounded-lg border font-medium shrink-0 flex items-center gap-1.5 transition-all ${
+            filters.twofa === 'yes'
+              ? 'bg-amber-500/10 border-amber-500/30 text-[#f59e0b]'
+              : filters.twofa === 'any'
+              ? 'bg-sky-500/10 border-sky-500/30 text-[#38bdf8]'
+              : 'bg-emerald-500/10 border-emerald-500/30 text-[#22c55e]'
+          }`}
+        >
+          <span>2FA:</span>
+          <span className="font-bold flex items-center gap-1">
+            {(!filters.twofa || filters.twofa === 'no') && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+            {filters.twofa === 'yes' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+            {filters.twofa === 'yes' ? 'With 2FA' : filters.twofa === 'any' ? 'Any' : 'Without 2FA'}
+          </span>
         </button>
       </div>
 
@@ -736,10 +757,10 @@ export const Server1Lzt: React.FC = () => {
                 </div>
 
                 <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
-                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Delivery Format</span>
-                  <span className="text-[#22c55e] font-bold flex items-center gap-1">
-                    <Phone className="w-3 h-3 text-[#22c55e]" />
-                    Phone + 2FA + OTP
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">2FA Security</span>
+                  <span className="text-amber-400 font-bold flex items-center gap-1">
+                    <Key className="w-3 h-3 text-amber-400" />
+                    {filters.twofa === 'yes' ? 'With 2FA Password' : filters.twofa === 'any' ? 'Any 2FA Status' : 'Without 2FA (Clean)'}
                   </span>
                 </div>
 
@@ -1235,6 +1256,38 @@ export const Server1Lzt: React.FC = () => {
                 >
                   <span className="text-xs font-bold flex items-center gap-1">
                     {opt.isStar && <Star className="w-3 h-3 text-amber-400 fill-amber-400" />}
+                    {opt.label}
+                  </span>
+                  <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 5. 2FA (Two-Step Verification) Filter */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">2FA (Cloud Password)</span>
+              <span className="text-[10px] text-[#a1a1aa]">Two-step verification status</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { val: 'no', label: 'Without 2fa', desc: 'No password', dot: 'bg-emerald-400' },
+                { val: 'yes', label: 'With 2fa', desc: 'Password provided', dot: 'bg-amber-400' },
+                { val: 'any', label: 'Any', desc: 'Any 2FA status' },
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setTempFilters((prev) => ({ ...prev, twofa: opt.val as 'no' | 'yes' | 'any' }))}
+                  className={`py-2 px-1.5 rounded-xl border text-center flex flex-col items-center justify-center transition-all ${
+                    (tempFilters.twofa || 'no') === opt.val
+                      ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
+                      : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-bold flex items-center gap-1">
+                    {opt.dot && <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />}
                     {opt.label}
                   </span>
                   <span className="text-[9px] text-[#71717a]">{opt.desc}</span>
