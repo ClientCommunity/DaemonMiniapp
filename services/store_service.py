@@ -643,7 +643,7 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
                 import threading
                 def _bg_prepopulate(target_fkey, filter_dict):
                     try:
-                        from services.order_service import run_sync
+                        import asyncio
                         fetch_lzt = getattr(bot, "fetch_lzt_country_data_with_filters", None)
                         if fetch_lzt:
                             async def _do_fetch():
@@ -683,9 +683,8 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
                                                 conn.commit()
                                     except Exception:
                                         pass
-                                    import asyncio
                                     await asyncio.sleep(0.4)
-                            run_sync(_do_fetch())
+                            asyncio.run(_do_fetch())
                     except Exception as e:
                         logger.warning("Error in _bg_prepopulate for %s: %s", target_fkey, e)
                 threading.Thread(target=_bg_prepopulate, args=(fkey_val, updated.copy()), daemon=True).start()
