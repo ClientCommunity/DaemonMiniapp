@@ -20,6 +20,8 @@ import {
   RotateCcw,
   Star,
   AlertTriangle,
+  Archive,
+  ChevronDown,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Server1SkeletonList } from '../common/GlassSkeleton';
@@ -224,6 +226,22 @@ export const Server1Lzt: React.FC = () => {
     return filtered;
   }, [filtered, priceSort]);
 
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Cleanly archive 0-stock items so users never browse among stock-0 listings
+  const { inStockItems, archivedItems } = useMemo(() => {
+    const inStock: Server1AccountItem[] = [];
+    const archived: Server1AccountItem[] = [];
+    for (const item of sorted) {
+      if (item.stockCount > 0) {
+        inStock.push(item);
+      } else {
+        archived.push(item);
+      }
+    }
+    return { inStockItems: inStock, archivedItems: archived };
+  }, [sorted]);
+
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copied2Fa, setCopied2Fa] = useState(false);
   const [copiedOtp, setCopiedOtp] = useState(false);
@@ -427,9 +445,9 @@ export const Server1Lzt: React.FC = () => {
 
 
 
-      {/* Accounts Catalog Grid */}
+      {/* Accounts Catalog Grid (Active in-stock listings only) */}
       <div className="grid grid-cols-1 gap-2.5">
-        {sorted.map((item) => (
+        {inStockItems.map((item) => (
           <div
             key={item.id}
             onClick={() => setSelectedForPurchase(item)}
@@ -481,12 +499,71 @@ export const Server1Lzt: React.FC = () => {
             <span className="text-sm font-bold text-white">No Server 1 stock available</span>
             <span className="text-xs">Market inventory is refreshing or currently out of stock.</span>
           </div>
-        ) : sorted.length === 0 ? (
-          <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
-            No accounts match your search query.
+        ) : inStockItems.length === 0 ? (
+          <div className="p-7 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center gap-2 text-[#a1a1aa]">
+            <SlidersHorizontal className="w-7 h-7 text-[#8b5cf6]/60 mb-0.5" />
+            <span className="text-sm font-bold text-white">No active stock matching your criteria</span>
+            <span className="text-xs max-w-xs text-[#a1a1aa]">
+              {search
+                ? `No in-stock listings match "${search}" with current filters.`
+                : 'All matching listings are currently out of stock. Adjust or relax your filters to see more results.'}
+            </span>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={openFilterModal}
+                className="mt-1 text-xs bg-[#7c3aed]/20 hover:bg-[#7c3aed]/30 border border-[#7c3aed]/40 text-[#c084fc] font-semibold px-3 py-1.5 rounded-xl transition-all"
+              >
+                Adjust Filters
+              </button>
+            )}
           </div>
         ) : null}
       </div>
+
+      {/* Collapsed Archived / Out of Stock Drawer (Keeps 0-stock items out of the main shopping grid) */}
+      {archivedItems.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-[#262630]/60 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setShowArchived((prev) => !prev)}
+            className="flex items-center justify-between p-3 rounded-xl bg-[#14141c] border border-[#262630] text-xs text-[#a1a1aa] hover:text-white transition-all active:scale-[0.99]"
+          >
+            <span className="flex items-center gap-2 font-semibold">
+              <Archive className="w-3.5 h-3.5 text-[#8b5cf6]" />
+              <span>Archived / Out of Stock ({archivedItems.length})</span>
+            </span>
+            <div className="flex items-center gap-1.5 text-[11px] text-[#71717a]">
+              <span>{showArchived ? 'Hide' : 'Show'}</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showArchived ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+
+          {showArchived && (
+            <div className="grid grid-cols-1 gap-2">
+              {archivedItems.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedForPurchase(item)}
+                  className="flex items-center justify-between p-3 rounded-2xl bg-[#121217] border border-[#22222b] hover:border-[#3f3f4e] transition-all cursor-pointer opacity-70 hover:opacity-100"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl grayscale">{item.icon}</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-white/80">{item.country}</span>
+                      <span className="text-[11px] text-red-400/90 font-medium">Out of Stock for selected criteria</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#71717a] font-mono">{formatPrice(item.priceInr)}</span>
+                    <span className="text-[10px] px-2 py-1 rounded-lg bg-[#22222b] text-[#a1a1aa] border border-[#2f2f3d]">Details</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Confirmation & Account Specifications Modal */}
       <Modal
