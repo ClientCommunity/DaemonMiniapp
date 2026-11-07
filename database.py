@@ -1024,6 +1024,24 @@ def migrate() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_pinned_active_order ON pinned_services(is_active, display_order)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_pinned_server_active ON pinned_services(server_no, is_active)")
 
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_server1_filters (
+            user_id INTEGER PRIMARY KEY,
+            spam TEXT DEFAULT 'no',
+            geoblock TEXT DEFAULT 'no',
+            login_mail TEXT DEFAULT 'any',
+            premium TEXT DEFAULT 'any',
+            offline TEXT DEFAULT 'any',
+            twofa TEXT DEFAULT 'no',
+            sort TEXT DEFAULT 'az',
+            updated_at TEXT
+        )
+        """)
+        try:
+            conn.execute("ALTER TABLE user_server1_filters ADD COLUMN twofa TEXT DEFAULT 'no'")
+        except Exception:
+            pass
+
         # 5. Initialize/Self-heal Server 3, 4, 5 credentials
         try:
             from secrets_manager import encrypt_secret, decrypt_secret

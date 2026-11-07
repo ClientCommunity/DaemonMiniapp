@@ -50,6 +50,14 @@ def lzt_item_matches_filters(item: dict, flt: dict) -> bool:
         if mail_pref == "no" and has_mail:
             return False
 
+    twofa_pref = str(flt.get("twofa", "no")).strip().lower()
+    if twofa_pref != "any":
+        has_2fa = lzt_item_requires_password(item)
+        if twofa_pref == "no" and has_2fa:
+            return False
+        if twofa_pref == "yes" and not has_2fa:
+            return False
+
     offline_pref = str(flt.get("offline", "any")).strip().lower()
     if offline_pref != "any":
         min_days = 0

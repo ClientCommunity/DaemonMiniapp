@@ -85,7 +85,7 @@ def check_server1_country_stock(country: str, uid: int | None = None) -> dict[st
                 iso_code, flag = code, cflag
                 break
 
-    fkey = "_".join(str(flt.get(k, "any")) for k in ("spam", "geoblock", "offline", "login_mail", "premium"))
+    fkey = "_".join(str(flt.get(k, "any" if k != "twofa" else "no")) for k in ("spam", "geoblock", "offline", "login_mail", "premium", "twofa"))
 
     async def _fetch():
         fetch_lzt = getattr(bot, "fetch_lzt_country_data_with_filters", None)
@@ -97,6 +97,7 @@ def check_server1_country_stock(country: str, uid: int | None = None) -> dict[st
                 flt.get("offline", "any"),
                 flt.get("login_mail", "any"),
                 flt.get("premium", "any"),
+                flt.get("twofa", "no"),
             )
         return None
 
@@ -199,11 +200,12 @@ def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
     items = []
     flt = get_user_server1_filters(uid if uid else 0)
     sort_mode = flt.get("sort", "az")
-    fkey = "_".join(str(flt.get(k, "any")) for k in ("spam", "geoblock", "offline", "login_mail", "premium"))
+    fkey = "_".join(str(flt.get(k, "any" if k != "twofa" else "no")) for k in ("spam", "geoblock", "offline", "login_mail", "premium", "twofa"))
+    default_fkeys = {"no_no_any_any_any", "no_no_any_any_any_no"}
 
     filtered_map = {}
     with connect() as conn:
-        if fkey != "no_no_any_any_any":
+        if fkey not in default_fkeys:
             try:
                 for fr in conn.execute(
                     "SELECT country, stock_count, price FROM lzt_filtered_cache WHERE filter_key = ?",
@@ -241,10 +243,10 @@ def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
                 stock_count = int(mem_stock)
                 if mem_price > 0:
                     price = int(round(mem_price))
-            elif fkey != "no_no_any_any_any":
+            elif fkey not in default_fkeys:
                 # When non-default filters are active and this country has not yet been verified to have matching stock,
-                # if filter is strict (e.g. premium=yes), do not promise old un-filtered stock.
-                if flt.get("premium") == "yes":
+                # if filter is strict (e.g. premium=yes or twofa=yes), do not promise old un-filtered stock.
+                if flt.get("premium") == "yes" or flt.get("twofa") == "yes":
                     stock_count = 0
 
             items.append({
@@ -553,6 +555,7 @@ def get_user_server1_filters(uid: int) -> dict[str, str]:
         "login_mail": "any",
         "premium": "any",
         "offline": "any",
+        "twofa": "no",
         "sort": "az",
     }
     try:
@@ -572,18 +575,29 @@ def get_user_server1_filters(uid: int) -> dict[str, str]:
                     login_mail TEXT DEFAULT 'any',
                     premium TEXT DEFAULT 'any',
                     offline TEXT DEFAULT 'any',
+                    twofa TEXT DEFAULT 'no',
                     sort TEXT DEFAULT 'az',
                     updated_at TEXT
                 )
             """)
+            try:
+                conn.execute("ALTER TABLE user_server1_filters ADD COLUMN twofa TEXT DEFAULT 'no'")
+            except Exception:
+                pass
             row = conn.execute("SELECT * FROM user_server1_filters WHERE user_id = ?", (uid,)).fetchone()
             if row:
+                twofa_val = "no"
+                try:
+                    twofa_val = row["twofa"] or "no"
+                except Exception:
+                    pass
                 return {
                     "spam": row["spam"] or "no",
                     "geoblock": row["geoblock"] or "no",
                     "login_mail": row["login_mail"] or "any",
                     "premium": row["premium"] or "any",
                     "offline": row["offline"] or "any",
+                    "twofa": twofa_val,
                     "sort": row["sort"] or "az",
                 }
     except Exception as exc:
@@ -598,6 +612,7 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
     allowed_geoblock = {"no", "yes", "any"}
     allowed_mail = {"yes", "no", "any"}
     allowed_premium = {"yes", "no", "any"}
+    allowed_twofa = {"no", "yes", "any"}
     allowed_offline = {"any", "1", "7", "14", "30"}
     allowed_sort = {"az", "price_low", "price_high", "stock_high", "stock_low"}
 
@@ -607,6 +622,7 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
     geoblock = str(data.get("geoblock", cur_filters.get("geoblock", "no"))).lower()
     login_mail = str(data.get("login_mail", cur_filters.get("login_mail", "any"))).lower()
     premium = str(data.get("premium", cur_filters.get("premium", "any"))).lower()
+    twofa = str(data.get("twofa", cur_filters.get("twofa", "no"))).lower()
     offline = str(data.get("offline", cur_filters.get("offline", "any"))).lower()
     sort = str(data.get("sort", cur_filters.get("sort", "az"))).lower()
 
@@ -614,6 +630,7 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
     if geoblock not in allowed_geoblock: geoblock = "no"
     if login_mail not in allowed_mail: login_mail = "any"
     if premium not in allowed_premium: premium = "any"
+    if twofa not in allowed_twofa: twofa = "no"
     if offline in allowed_offline:
         pass
     elif offline.isdigit() and 1 <= int(offline) <= 3650:
@@ -628,6 +645,7 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
         "login_mail": login_mail,
         "premium": premium,
         "offline": offline,
+        "twofa": twofa,
         "sort": sort,
     }
 
@@ -639,7 +657,7 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
             fkey_val = bot.get_filter_key(updated)
             bot.active_filter_keys.add(fkey_val)
             # Background pre-populate priority countries for this filter key
-            if fkey_val != "no_no_any_any_any":
+            if fkey_val not in ("no_no_any_any_any", "no_no_any_any_any_no"):
                 import threading
                 def _bg_prepopulate(target_fkey, filter_dict):
                     try:
@@ -656,7 +674,8 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
                                             filter_dict.get("geoblock", "no"),
                                             filter_dict.get("offline", "any"),
                                             filter_dict.get("login_mail", "any"),
-                                            filter_dict.get("premium", "any")
+                                            filter_dict.get("premium", "any"),
+                                            filter_dict.get("twofa", "no"),
                                         )
                                         if res and isinstance(res, (tuple, list)) and len(res) >= 3:
                                             cname, count, price = res
@@ -703,22 +722,28 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
                     login_mail TEXT DEFAULT 'any',
                     premium TEXT DEFAULT 'any',
                     offline TEXT DEFAULT 'any',
+                    twofa TEXT DEFAULT 'no',
                     sort TEXT DEFAULT 'az',
                     updated_at TEXT
                 )
             """)
+            try:
+                conn.execute("ALTER TABLE user_server1_filters ADD COLUMN twofa TEXT DEFAULT 'no'")
+            except Exception:
+                pass
             conn.execute("""
-                INSERT INTO user_server1_filters (user_id, spam, geoblock, login_mail, premium, offline, sort, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO user_server1_filters (user_id, spam, geoblock, login_mail, premium, offline, twofa, sort, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
                     spam = excluded.spam,
                     geoblock = excluded.geoblock,
                     login_mail = excluded.login_mail,
                     premium = excluded.premium,
                     offline = excluded.offline,
+                    twofa = excluded.twofa,
                     sort = excluded.sort,
                     updated_at = excluded.updated_at
-            """, (uid, spam, geoblock, login_mail, premium, offline, sort, now))
+            """, (uid, spam, geoblock, login_mail, premium, offline, twofa, sort, now))
             conn.commit()
     except Exception as exc:
         logger.warning("Error saving user_server1_filters: %s", exc)

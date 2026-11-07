@@ -337,7 +337,8 @@ promo_state = PersistentState("promo", ttl=1800)
 payment_admin_state = PersistentState("payment_admin", ttl=1800)
 selling_accounts = {}
 cached_lzt_stock = {}
-active_filter_keys = {"no_no_any_any_any"}
+DEFAULT_FILTER_KEY = "no_no_any_any_any_no"
+active_filter_keys = {DEFAULT_FILTER_KEY, "no_no_any_any_any"}
 active_fights = {}
 active_giveaways = {}
 error_cooldowns = {}
@@ -380,11 +381,11 @@ def get_user_lock(uid):
     return user_locks[uid]
 
 def get_user_filters(uid):
-    default = {"spam": "no", "geoblock": "no", "offline": "any", "login_mail": "any", "premium": "any", "sort": "az"}
+    default = {"spam": "no", "geoblock": "no", "offline": "any", "login_mail": "any", "premium": "any", "twofa": "no", "sort": "az"}
     if uid not in user_filters:
         try:
             with managed_connect() as conn:
-                row = conn.execute("SELECT spam, geoblock, login_mail, premium, offline, sort FROM user_server1_filters WHERE user_id = ?", (uid,)).fetchone()
+                row = conn.execute("SELECT spam, geoblock, login_mail, premium, offline, sort, twofa FROM user_server1_filters WHERE user_id = ?", (uid,)).fetchone()
                 if row:
                     user_filters[uid] = {
                         "spam": row[0] or "no",
@@ -393,6 +394,7 @@ def get_user_filters(uid):
                         "premium": row[3] or "any",
                         "offline": row[4] or "any",
                         "sort": row[5] or "az",
+                        "twofa": (row[6] if len(row) > 6 and row[6] else "no"),
                     }
                 else:
                     user_filters[uid] = default.copy()
@@ -404,7 +406,7 @@ def get_user_filters(uid):
     return user_filters[uid]
 
 def get_filter_key(flt):
-    return "_".join(str(flt.get(k, "any")) for k in ("spam", "geoblock", "offline", "login_mail", "premium"))
+    return "_".join(str(flt.get(k, "any" if k != "twofa" else "no")) for k in ("spam", "geoblock", "offline", "login_mail", "premium", "twofa"))
 
 def lzt_currency_to_inr_rate(currency):
     currency = str(currency or LZT_PRICE_CURRENCY).strip().lower()
@@ -1318,7 +1320,7 @@ async def lzt_request(method, endpoint, params=None, data=None, return_error=Fal
             return {"error": detail, "exception": type(e).__name__}
         return None
 
-async def fetch_lzt_country_data_with_filters(country_name, spam, geoblock, offline, login_mail, premium):
+async def fetch_lzt_country_data_with_filters(country_name, spam, geoblock, offline, login_mail, premium, twofa="no"):
     iso_code = COUNTRY_CODES.get(country_name, ("US", "🇺🇸"))[0]
     params = {
         "country[]": iso_code,
@@ -1328,9 +1330,15 @@ async def fetch_lzt_country_data_with_filters(country_name, spam, geoblock, offl
         "pmax": 1000,
         "page": 1,
         "per_page": 40,
-        "password": "no",
         "currency": LZT_PRICE_CURRENCY
     }
+    twofa_str = str(twofa or "no").strip().lower()
+    if twofa_str == "yes":
+        params["password"] = "yes"
+    elif twofa_str == "no":
+        params["password"] = "no"
+    elif twofa_str == "any":
+        params["password"] = "nomatter"
     if offline != "any":
         params["daybreak"] = int(offline)
     if premium != "any":
@@ -1346,7 +1354,7 @@ async def fetch_lzt_country_data_with_filters(country_name, spam, geoblock, offl
     if len(res.get('items') or []) == 0:
         return (country_name, 0, 0.0)
 
-    flt = {"spam": spam, "geoblock": geoblock, "offline": offline, "login_mail": login_mail, "premium": premium}
+    flt = {"spam": spam, "geoblock": geoblock, "offline": offline, "login_mail": login_mail, "premium": premium, "twofa": twofa_str}
     filtered_items = filter_lzt_items(res['items'], flt)
     if not filtered_items:
         return (country_name, 0, 0.0)
@@ -2071,6 +2079,7 @@ async def render_lzt_product(e, uid, item_id, country=None):
 async def get_lzt_candidate_items(uid, country, target_final_price, preferred_item_id=None, max_pages=2):
     # Enforce customer's active Server 1 filters during candidate discovery
     flt = get_user_filters(uid)
+    twofa_pref = str(flt.get("twofa", "no")).strip().lower()
     iso_code = COUNTRY_CODES.get(country, ("US", "🇺🇸"))[0]
     seen = set()
     candidates = []
@@ -2081,7 +2090,10 @@ async def get_lzt_candidate_items(uid, country, target_final_price, preferred_it
         item_id = str(item.get('item_id') or item.get('id') or '')
         if not item_id or item_id in seen:
             return
-        if lzt_item_requires_password(item):
+        has_pwd = lzt_item_requires_password(item)
+        if twofa_pref == "no" and has_pwd:
+            return
+        if twofa_pref == "yes" and not has_pwd:
             return
         if not lzt_item_matches_filters(item, flt):
             return
@@ -2099,9 +2111,14 @@ async def get_lzt_candidate_items(uid, country, target_final_price, preferred_it
         "pmin": 0.01,
         "pmax": 1000,
         "per_page": 40,
-        "password": "no",
         "currency": LZT_PRICE_CURRENCY,
     }
+    if twofa_pref == "yes":
+        params_base["password"] = "yes"
+    elif twofa_pref == "no":
+        params_base["password"] = "no"
+    elif twofa_pref == "any":
+        params_base["password"] = "nomatter"
 
     if flt.get("spam") != "any":
         params_base["spam"] = flt["spam"]

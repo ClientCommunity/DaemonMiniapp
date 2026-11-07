@@ -233,12 +233,18 @@ def execute_buy(
                 )
                 from bot_helpers.lzt_helpers import lzt_item_matches_filters
                 flt = get_user_filters(uid)
+                twofa_pref = str(flt.get("twofa", "no")).strip().lower()
                 candidates = []
                 if provided_item_id.isdigit():
                     res = await lzt_request('GET', f"/{provided_item_id}", params=lzt_currency_params())
                     if res and isinstance(res.get('item'), dict):
                         item = res['item']
-                        if not lzt_item_requires_password(item) and lzt_item_matches_filters(item, flt):
+                        has_pw = lzt_item_requires_password(item)
+                        if twofa_pref == "no" and has_pw:
+                            pass
+                        elif twofa_pref == "yes" and not has_pw:
+                            pass
+                        elif lzt_item_matches_filters(item, flt):
                             candidates.append(item)
 
                 if not candidates:
@@ -251,6 +257,7 @@ def execute_buy(
                     if flt.get("premium") != "any": flt_parts.append("Premium: " + str(flt["premium"]))
                     if flt.get("offline") != "any": flt_parts.append("Offline: " + str(flt["offline"]) + "d")
                     if flt.get("login_mail") != "any": flt_parts.append("Mail: " + str(flt["login_mail"]))
+                    if flt.get("twofa") != "any": flt_parts.append("2FA: " + ("With 2FA" if flt["twofa"] == "yes" else "Without 2FA"))
                     flt_str = " matching active filters (" + ", ".join(flt_parts) + ")" if flt_parts else ""
                     return None, f"No accounts currently available in stock for {country} on Server 1{flt_str}."
 
@@ -262,7 +269,10 @@ def execute_buy(
                     m_price = lzt_market_price(cand)
                     if m_price is None:
                         continue
-                    if lzt_item_requires_password(cand):
+                    has_pwd = lzt_item_requires_password(cand)
+                    if twofa_pref == "no" and has_pwd:
+                        continue
+                    if twofa_pref == "yes" and not has_pwd:
                         continue
 
                     buy_res = await lzt_fast_buy_item(cand_id, m_price)

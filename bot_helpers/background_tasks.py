@@ -482,15 +482,19 @@ async def cache_lzt_stock_loop():
 
                 # 2. Second: sync active user filter keys for top priority countries
                 for fkey in list(active_filter_keys):
-                    if fkey == "no_no_any_any_any":
+                    if fkey in ("no_no_any_any_any", "no_no_any_any_any_no"):
                         continue
                     parts = fkey.split("_")
-                    if len(parts) != 5:
+                    if len(parts) == 6:
+                        f_spam, f_geo, f_offline, f_mail, f_prem, f_twofa = parts
+                    elif len(parts) == 5:
+                        f_spam, f_geo, f_offline, f_mail, f_prem = parts
+                        f_twofa = "no"
+                    else:
                         continue
-                    f_spam, f_geo, f_offline, f_mail, f_prem = parts
                     for c in priority_countries[:10]:
                         try:
-                            res = await fetch_lzt(c, f_spam, f_geo, f_offline, f_mail, f_prem)
+                            res = await fetch_lzt(c, f_spam, f_geo, f_offline, f_mail, f_prem, f_twofa)
                             if res and isinstance(res, (tuple, list)) and len(res) >= 3:
                                 country_name, count, price = res[0], res[1], res[2]
                                 if cached_lzt_stock is not None:

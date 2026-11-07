@@ -143,12 +143,14 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
         mail_st = "🟢 MAIL INCLUDED" if flt["login_mail"] == "yes" else ("🔴 NO MAIL" if flt["login_mail"] == "no" else "🔵 ANY")
         offline_st = f"🔵 ≥{flt['offline']} Days" if flt['offline'] != "any" else "🔵 ANY"
         prem_st = "🟢 PREMIUM ONLY" if flt["premium"] == "yes" else ("🔴 NON-PREMIUM ONLY" if flt["premium"] == "no" else "🔵 ANY")
+        twofa_st = "🟢 WITHOUT 2FA" if flt.get("twofa", "no") == "no" else ("🟡 WITH 2FA" if flt["twofa"] == "yes" else "🔵 ANY")
 
         btns = [
             [p_btn(f"Spam filter: {spam_st}", "flt_chg|spam")],
             [p_btn(f"Geo-block filter: {geo_st}", "flt_chg|geoblock")],
             [p_btn(f"Login Mail: {mail_st}", "flt_chg|login_mail")],
             [p_btn(f"Premium filter: {prem_st}", "flt_chg|premium")],
+            [p_btn(f"2FA filter: {twofa_st}", "flt_chg|twofa")],
             [p_btn(f"Offline filter: {offline_st}", "flt_chg|offline")],
             [p_btn("✅ Apply Filters and Back", "srv_1_pg|1"), p_btn("🔄 Refresh", "lzt_refresh_cache")]
         ]
@@ -194,6 +196,9 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
             flt["login_mail"] = "no" if flt["login_mail"] == "yes" else ("any" if flt["login_mail"] == "no" else "yes")
         elif attrib == "premium":
             flt["premium"] = "no" if flt["premium"] == "yes" else ("any" if flt["premium"] == "no" else "yes")
+        elif attrib == "twofa":
+            cur_2fa = flt.get("twofa", "no")
+            flt["twofa"] = "yes" if cur_2fa == "no" else ("any" if cur_2fa == "yes" else "no")
         elif attrib == "offline":
             flt["offline"] = "7" if flt["offline"] == "1" else ("14" if flt["offline"] == "7" else ("30" if flt["offline"] == "14" else ("any" if flt["offline"] == "30" else "1")))
         elif attrib == "sort":
@@ -205,18 +210,23 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
 
         try:
             with managed_connect() as conn:
+                try:
+                    conn.execute("ALTER TABLE user_server1_filters ADD COLUMN twofa TEXT DEFAULT 'no'")
+                except Exception:
+                    pass
                 conn.execute("""
-                    INSERT INTO user_server1_filters (user_id, spam, geoblock, login_mail, premium, offline, sort, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    INSERT INTO user_server1_filters (user_id, spam, geoblock, login_mail, premium, offline, twofa, sort, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     ON CONFLICT(user_id) DO UPDATE SET
                         spam = excluded.spam,
                         geoblock = excluded.geoblock,
                         login_mail = excluded.login_mail,
                         premium = excluded.premium,
                         offline = excluded.offline,
+                        twofa = excluded.twofa,
                         sort = excluded.sort,
                         updated_at = excluded.updated_at
-                """, (uid, flt.get("spam", "no"), flt.get("geoblock", "no"), flt.get("login_mail", "any"), flt.get("premium", "any"), flt.get("offline", "any"), flt.get("sort", "az")))
+                """, (uid, flt.get("spam", "no"), flt.get("geoblock", "no"), flt.get("login_mail", "any"), flt.get("premium", "any"), flt.get("offline", "any"), flt.get("twofa", "no"), flt.get("sort", "az")))
                 conn.commit()
         except Exception:
             pass
@@ -230,12 +240,14 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
         mail_st = "🟢 MAIL INCLUDED" if flt["login_mail"] == "yes" else ("🔴 NO MAIL" if flt["login_mail"] == "no" else "🔵 ANY")
         offline_st = f"🔵 ≥{flt['offline']} Days" if flt['offline'] != "any" else "🔵 ANY"
         prem_st = "🟢 PREMIUM ONLY" if flt["premium"] == "yes" else ("🔴 NON-PREMIUM ONLY" if flt["premium"] == "no" else "🔵 ANY")
+        twofa_st = "🟢 WITHOUT 2FA" if flt.get("twofa", "no") == "no" else ("🟡 WITH 2FA" if flt["twofa"] == "yes" else "🔵 ANY")
 
         btns = [
             [p_btn(f"Spam filter: {spam_st}", "flt_chg|spam")],
             [p_btn(f"Geo-block filter: {geo_st}", "flt_chg|geoblock")],
             [p_btn(f"Login Mail: {mail_st}", "flt_chg|login_mail")],
             [p_btn(f"Premium filter: {prem_st}", "flt_chg|premium")],
+            [p_btn(f"2FA filter: {twofa_st}", "flt_chg|twofa")],
             [p_btn(f"Offline filter: {offline_st}", "flt_chg|offline")],
             [p_btn("✅ Apply Filters and Back", "srv_1_pg|1"), p_btn("🔄 Refresh", "lzt_refresh_cache")]
         ]
@@ -253,6 +265,7 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
         flag = COUNTRY_CODES.get(country, ("US", "🇺🇸"))[1]
 
         flt = get_user_filters(uid)
+        twofa_pref = flt.get("twofa", "no")
         params = {
             "country[]": iso_code,
             "spam": flt["spam"] if flt["spam"] != "any" else None,
@@ -261,9 +274,18 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
             "pmax": 1000,
             "page": page,
             "per_page": 40,
-            "password": "no",
             "currency": LZT_PRICE_CURRENCY
         }
+        if twofa_pref == "yes":
+            params["password"] = "yes"
+        elif twofa_pref == "no":
+            params["password"] = "no"
+        elif twofa_pref == "any":
+            params["password"] = "nomatter"
+        if flt["offline"] != "any":
+            params["daybreak"] = int(flt["offline"])
+        if flt["premium"] != "any":
+            params["premium"] = flt["premium"]
         if flt["offline"] != "any":
             params["daybreak"] = int(flt["offline"])
         if flt["premium"] != "any":
@@ -405,9 +427,15 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
                     continue
                 latest_res = await lzt_request('GET', f"/{candidate_id}", params=lzt_currency_params())
                 latest_item = latest_res.get('item') if isinstance(latest_res, dict) else item
-                if not latest_item or lzt_item_requires_password(latest_item):
+                twofa_pref = flt.get("twofa", "no")
+                has_pwd = lzt_item_requires_password(latest_item)
+                if twofa_pref == "no" and has_pwd:
                     skipped += 1
                     last_error = "Skipped password-required account."
+                    continue
+                if twofa_pref == "yes" and not has_pwd:
+                    skipped += 1
+                    last_error = "Skipped account without 2FA password."
                     continue
                 candidate_price = apply_server_discount(uid, 1, lzt_final_inr_price(latest_item, get_lzt_markup(country)))
                 if candidate_price != target_price:
@@ -491,9 +519,17 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
             if not latest_item or market_price is None:
                 await e.edit(f"{P_WARN} <b>Unable to load latest Server 1 price.</b>\nPlease refresh the stock and try again.", buttons=[[p_btn("Back", f"lzt_chk|{iso_code}|1")]])
                 return True
-            if lzt_item_requires_password(latest_item):
+            twofa_pref = flt.get("twofa", "no")
+            has_pwd = lzt_item_requires_password(latest_item)
+            if twofa_pref == "no" and has_pwd:
                 await e.edit(
-                    f"{P_WARN} <b>Cannot buy this Server 1 account.</b>\nThis listing requires a seller login password, so the bot skipped it before charging your wallet.",
+                    f"{P_WARN} <b>Cannot buy this Server 1 account.</b>\nThis listing requires a 2FA password, and your active filter is set to 'Without 2FA'.",
+                    buttons=[[p_btn("Back", f"lzt_chk|{iso_code}|1")], [p_btn("Change Country", "srv_1_pg|1")]]
+                )
+                return True
+            if twofa_pref == "yes" and not has_pwd:
+                await e.edit(
+                    f"{P_WARN} <b>Cannot buy this Server 1 account.</b>\nThis listing does not have a 2FA password, and your active filter is set to 'With 2FA'.",
                     buttons=[[p_btn("Back", f"lzt_chk|{iso_code}|1")], [p_btn("Change Country", "srv_1_pg|1")]]
                 )
                 return True
@@ -535,26 +571,30 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
             item_id = lzt_purchase_item_id(buy_res, item_id)
             res = await lzt_request('GET', f"/{item_id}", params=lzt_currency_params())
             phone_num = f"LZT_{item_id}"
+            twofa_pw = "None"
             if res and 'item' in res:
                 item = res['item']
                 phone_num = item.get('phone') or item.get('telegram_phone') or item.get('login') or f"LZT_{item_id}"
+                twofa_pw = item.get('password') or item.get('twofa') or item.get('telegram_password') or "None"
 
             display_phone = normalize_lzt_phone(phone_num, item_id)
             phone = f"LZT_{item_id}"
 
             async with get_user_lock(uid):
                 cur.execute(
-                    "INSERT INTO orders (user_id, country, year, price, phone, otp, server) VALUES (?,?,?,?,?,?,?)",
-                    (uid, country, 2024, final_price, display_phone, None, "Server 1")
+                    "INSERT INTO orders (user_id, country, year, price, phone, otp, server, twofa) VALUES (?,?,?,?,?,?,?,?)",
+                    (uid, country, 2024, final_price, display_phone, None, "Server 1", twofa_pw)
                 )
                 local_order_id = cur.lastrowid
                 db.commit()
             await log_primary_purchase(uid, country, final_price, final_price, 2024, 1, display_phone, "Server 1", local_order_id or item_id)
             await try_lzt_reset_authorizations(item_id)
 
+            twofa_line = f"🔑 <b>2FA Password:</b> <code>{twofa_pw}</code>\n" if twofa_pw and twofa_pw != "None" else ""
             msg = (f"{P_YES} <b>Account Purchased (Server 1)!</b>\n\n"
                    f"{P_PHONE} <b>Phone:</b> <code>{display_phone}</code>\n"
-                   f"🏳️ <b>Country:</b> {country}\n\n"
+                   f"🏳️ <b>Country:</b> {country}\n"
+                   f"{twofa_line}\n"
                    f"<i>Click Get OTP when you need the latest login code.</i>")
 
             btns = [
