@@ -46,6 +46,19 @@ def server1_stock():
     return jsonify({"success": True, "items": items})
 
 
+@store_bp.route("/api/store/server1/check", methods=["GET"])
+def server1_check_country():
+    """Return live filtered stock count and price for a specific country matching active user filters."""
+    from services.auth_service import get_current_user_id
+    from services.store_service import check_server1_country_stock
+    uid = get_current_user_id(request)
+    country = (request.args.get("country") or request.args.get("c") or "").strip()
+    if not country:
+        return jsonify({"success": False, "error": "Country parameter is required"}), 400
+    res = check_server1_country_stock(country, uid=uid)
+    return jsonify(res)
+
+
 @store_bp.route("/api/store/server2", methods=["GET"])
 @store_bp.route("/api/server2/stock", methods=["GET"])
 def server2_stock():

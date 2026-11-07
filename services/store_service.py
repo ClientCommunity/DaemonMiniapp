@@ -70,6 +70,130 @@ def get_all_servers_overview() -> list[dict[str, Any]]:
     return servers
 
 
+def check_server1_country_stock(country: str, uid: int | None = None) -> dict[str, Any]:
+    """Check live filtered stock and price for a specific country from LZT."""
+    from bot_helpers.constants import COUNTRY_CODES
+    import bot
+    flt = get_user_server1_filters(uid if uid else 0)
+    iso_code, flag = COUNTRY_CODES.get(country, ("US", "🌐"))
+
+    # Resolve if input was iso_code instead of full country name
+    if country in [v[0] for v in COUNTRY_CODES.values()]:
+        for cname, (code, cflag) in COUNTRY_CODES.items():
+            if code == country:
+                country = cname
+                iso_code, flag = code, cflag
+                break
+
+    fkey = "_".join(str(flt.get(k, "any")) for k in ("spam", "geoblock", "offline", "login_mail", "premium"))
+
+    async def _fetch():
+        fetch_lzt = getattr(bot, "fetch_lzt_country_data_with_filters", None)
+        if fetch_lzt:
+            return await fetch_lzt(
+                country,
+                flt.get("spam", "no"),
+                flt.get("geoblock", "no"),
+                flt.get("offline", "any"),
+                flt.get("login_mail", "any"),
+                flt.get("premium", "any"),
+            )
+        return None
+
+    res = None
+    try:
+        from services.order_service import run_sync
+        res = run_sync(_fetch())
+    except Exception as exc:
+        logger.warning("Error checking live stock for %s: %s", country, exc)
+
+    if res and isinstance(res, (tuple, list)) and len(res) >= 3:
+        _, count, price = res
+        count = int(count)
+        price_val = int(round(price or 80)) if price > 0 else 80
+
+        # Update in-memory cache
+        if hasattr(bot, "cached_lzt_stock") and isinstance(bot.cached_lzt_stock, dict):
+            if fkey not in bot.cached_lzt_stock:
+                bot.cached_lzt_stock[fkey] = {}
+            bot.cached_lzt_stock[fkey][country] = (count, price_val)
+
+        # Save to SQLite table
+        try:
+            from database import utcnow
+            with connect() as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS lzt_filtered_cache (
+                        country TEXT NOT NULL,
+                        filter_key TEXT NOT NULL,
+                        stock_count INTEGER DEFAULT 0,
+                        price REAL DEFAULT 0,
+                        updated_at TEXT NOT NULL,
+                        PRIMARY KEY (country, filter_key)
+                    )
+                """)
+                conn.execute("""
+                    INSERT OR REPLACE INTO lzt_filtered_cache (country, filter_key, stock_count, price, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (country, fkey, count, float(price_val), utcnow()))
+                conn.commit()
+        except Exception:
+            pass
+
+        return {
+            "success": True,
+            "country": country,
+            "iso_code": iso_code,
+            "flag": flag,
+            "stock": count,
+            "price": price_val,
+            "has_stock": count > 0,
+            "filters": flt,
+            "live": True,
+        }
+
+    # Fallback to cached value
+    with connect() as conn:
+        try:
+            f_row = conn.execute(
+                "SELECT stock_count, price FROM lzt_filtered_cache WHERE (country = ? OR country = ?) AND filter_key = ?",
+                (country, iso_code, fkey)
+            ).fetchone()
+            if f_row:
+                return {
+                    "success": True,
+                    "country": country,
+                    "iso_code": iso_code,
+                    "flag": flag,
+                    "stock": int(f_row["stock_count"]),
+                    "price": int(round(f_row["price"] or 80)),
+                    "has_stock": int(f_row["stock_count"]) > 0,
+                    "filters": flt,
+                    "live": False,
+                }
+        except Exception:
+            pass
+
+        row = conn.execute(
+            "SELECT stock_count, price FROM lzt_stock_cache WHERE country = ? OR iso_code = ?",
+            (country, iso_code)
+        ).fetchone()
+        fallback_stock = int(row["stock_count"] or 0) if row else 0
+        fallback_price = int(round(row["price"] or 80)) if row else 80
+
+        return {
+            "success": True,
+            "country": country,
+            "iso_code": iso_code,
+            "flag": flag,
+            "stock": fallback_stock,
+            "price": fallback_price,
+            "has_stock": fallback_stock > 0,
+            "filters": flt,
+            "live": False,
+        }
+
+
 def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
     """Return Server 1 stock items (Global 2FA Accounts from live LZT Market)."""
     items = []
@@ -77,11 +201,23 @@ def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
     sort_mode = flt.get("sort", "az")
     fkey = "_".join(str(flt.get(k, "any")) for k in ("spam", "geoblock", "offline", "login_mail", "premium"))
 
-    mem_cache = {}
+    filtered_map = {}
+    with connect() as conn:
+        if fkey != "no_no_any_any_any":
+            try:
+                for fr in conn.execute(
+                    "SELECT country, stock_count, price FROM lzt_filtered_cache WHERE filter_key = ?",
+                    (fkey,)
+                ).fetchall():
+                    filtered_map[fr["country"]] = (int(fr["stock_count"]), float(fr["price"]))
+            except Exception:
+                pass
+
     try:
         import bot
         if hasattr(bot, "cached_lzt_stock") and isinstance(bot.cached_lzt_stock, dict):
-            mem_cache = bot.cached_lzt_stock.get(fkey) or {}
+            mem = bot.cached_lzt_stock.get(fkey) or {}
+            filtered_map.update(mem)
     except Exception:
         pass
 
@@ -100,11 +236,16 @@ def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
             stock_count = int(r["stock_count"])
             price = int(round(r["price"] or 80))
 
-            if c_name in mem_cache:
-                mem_stock, mem_price = mem_cache[c_name]
+            if c_name in filtered_map:
+                mem_stock, mem_price = filtered_map[c_name]
                 stock_count = int(mem_stock)
                 if mem_price > 0:
                     price = int(round(mem_price))
+            elif fkey != "no_no_any_any_any":
+                # When non-default filters are active and this country has not yet been verified to have matching stock,
+                # if filter is strict (e.g. premium=yes), do not promise old un-filtered stock.
+                if flt.get("premium") == "yes":
+                    stock_count = 0
 
             items.append({
                 "id": c_name,
@@ -495,7 +636,59 @@ def set_user_server1_filters(uid: int, data: dict[str, Any]) -> dict[str, str]:
         if hasattr(bot, "user_filters"):
             bot.user_filters[uid] = updated.copy()
         if hasattr(bot, "active_filter_keys") and hasattr(bot, "get_filter_key"):
-            bot.active_filter_keys.add(bot.get_filter_key(updated))
+            fkey_val = bot.get_filter_key(updated)
+            bot.active_filter_keys.add(fkey_val)
+            # Background pre-populate priority countries for this filter key
+            if fkey_val != "no_no_any_any_any":
+                import threading
+                def _bg_prepopulate(target_fkey, filter_dict):
+                    try:
+                        from services.order_service import run_sync
+                        fetch_lzt = getattr(bot, "fetch_lzt_country_data_with_filters", None)
+                        if fetch_lzt:
+                            async def _do_fetch():
+                                top_priority = ["India", "United States", "Canada", "United Kingdom", "Indonesia", "Russia", "Philippines", "Turkey", "Germany", "Vietnam"]
+                                for c in top_priority:
+                                    try:
+                                        res = await fetch_lzt(
+                                            c,
+                                            filter_dict.get("spam", "no"),
+                                            filter_dict.get("geoblock", "no"),
+                                            filter_dict.get("offline", "any"),
+                                            filter_dict.get("login_mail", "any"),
+                                            filter_dict.get("premium", "any")
+                                        )
+                                        if res and isinstance(res, (tuple, list)) and len(res) >= 3:
+                                            cname, count, price = res
+                                            if hasattr(bot, "cached_lzt_stock") and isinstance(bot.cached_lzt_stock, dict):
+                                                if target_fkey not in bot.cached_lzt_stock:
+                                                    bot.cached_lzt_stock[target_fkey] = {}
+                                                bot.cached_lzt_stock[target_fkey][cname] = (int(count), float(price))
+                                            from database import connect, utcnow
+                                            with connect() as conn:
+                                                conn.execute("""
+                                                    CREATE TABLE IF NOT EXISTS lzt_filtered_cache (
+                                                        country TEXT NOT NULL,
+                                                        filter_key TEXT NOT NULL,
+                                                        stock_count INTEGER DEFAULT 0,
+                                                        price REAL DEFAULT 0,
+                                                        updated_at TEXT NOT NULL,
+                                                        PRIMARY KEY (country, filter_key)
+                                                    )
+                                                """)
+                                                conn.execute("""
+                                                    INSERT OR REPLACE INTO lzt_filtered_cache (country, filter_key, stock_count, price, updated_at)
+                                                    VALUES (?, ?, ?, ?, ?)
+                                                """, (cname, target_fkey, int(count), float(price), utcnow()))
+                                                conn.commit()
+                                    except Exception:
+                                        pass
+                                    import asyncio
+                                    await asyncio.sleep(0.4)
+                            run_sync(_do_fetch())
+                    except Exception as e:
+                        logger.warning("Error in _bg_prepopulate for %s: %s", target_fkey, e)
+                threading.Thread(target=_bg_prepopulate, args=(fkey_val, updated.copy()), daemon=True).start()
     except Exception:
         pass
 

@@ -30,6 +30,14 @@ logger = logging.getLogger("services.order")
 
 def run_sync(coro):
     """Safely execute an asyncio coroutine from synchronous Flask request threads."""
+    try:
+        import bot
+        bot_loop = getattr(bot, "loop", None)
+        if bot_loop and bot_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(coro, bot_loop)
+            return future.result(timeout=25)
+    except Exception:
+        pass
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
         return pool.submit(asyncio.run, coro).result()
 

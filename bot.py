@@ -639,6 +639,12 @@ async def render_server1_country_page(e, uid, page):
         with managed_connect() as conn:
             for r in conn.execute("SELECT country, stock_count, price FROM lzt_stock_cache").fetchall():
                 merged_stock[r[0]] = (int(r[1]), float(r[2]))
+            if fkey != "no_no_any_any_any":
+                try:
+                    for r in conn.execute("SELECT country, stock_count, price FROM lzt_filtered_cache WHERE filter_key = ?", (fkey,)).fetchall():
+                        merged_stock[r[0]] = (int(r[1]), float(r[2]))
+                except Exception:
+                    pass
     except Exception:
         pass
     merged_stock.update(cached_lzt_stock.get(fkey, cached_lzt_stock.get("no_no_any_any_any", {})))
@@ -1058,7 +1064,11 @@ async def inspect_and_add_server2_session(uid, message):
 # ================= API REQUESTS & MARKUP LOGIC =================
 async def wait_lzt_rate_limit():
     """Throttle all LZT requests so one VPS/IP never exceeds market limits."""
-    global _lzt_last_request_at
+    global _lzt_last_request_at, _lzt_rate_lock
+    current_loop = asyncio.get_running_loop()
+    lock_loop = getattr(_lzt_rate_lock, "_loop", None)
+    if lock_loop is not None and lock_loop is not current_loop:
+        _lzt_rate_lock = asyncio.Lock()
     async with _lzt_rate_lock:
         now = time.monotonic()
         cooldown_rem = get_cooldown_remaining(LZT_BASE_URL)
@@ -1083,7 +1093,10 @@ async def get_lzt_session():
     session_loop = getattr(_lzt_session, "_loop", None) if _lzt_session is not None else None
     if _lzt_session is None or _lzt_session.closed or session_loop is not current_loop:
         if _lzt_session is not None and not _lzt_session.closed:
-            await close_lzt_session()
+            if session_loop == current_loop:
+                await close_lzt_session()
+            else:
+                _lzt_session = None
         connector_kwargs = {
             "limit": 5,
             "ttl_dns_cache": 300,

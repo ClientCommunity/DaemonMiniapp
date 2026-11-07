@@ -995,6 +995,18 @@ def migrate() -> None:
         """)
 
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS lzt_filtered_cache (
+            country TEXT NOT NULL,
+            filter_key TEXT NOT NULL,
+            stock_count INTEGER DEFAULT 0,
+            price REAL DEFAULT 0,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (country, filter_key)
+        )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lzt_filtered_fkey ON lzt_filtered_cache(filter_key)")
+
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS pinned_services (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             server_no INTEGER NOT NULL CHECK(server_no BETWEEN 1 AND 5),

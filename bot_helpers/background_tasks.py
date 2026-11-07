@@ -451,17 +451,18 @@ async def cache_lzt_stock_loop():
         "Philippines", "Malaysia", "Nigeria", "Pakistan", "France", "Canada"
     ]
     other_countries = [c for c in COUNTRY_CODES.keys() if c not in priority_countries]
-    all_ordered = priority_countries + other_countries
 
     while True:
         try:
             fetch_lzt = get_bot_attr("fetch_lzt_country_data_with_filters")
             cached_lzt_stock = get_bot_attr("cached_lzt_stock")
+            active_filter_keys = get_bot_attr("active_filter_keys") or {"no_no_any_any_any"}
             managed_connect = get_bot_attr("managed_connect")
             if fetch_lzt and managed_connect:
-                for c in all_ordered:
+                # 1. First: always sync high-volume priority countries for baseline
+                for c in priority_countries:
                     try:
-                        iso_code, flag = COUNTRY_CODES.get(c, ("US", "🇺🇸"))
+                        iso_code, flag = COUNTRY_CODES.get(c, ("US", "🌐"))
                         res = await fetch_lzt(c, "no", "no", "any", "any", "any")
                         if res and isinstance(res, (tuple, list)) and len(res) >= 3:
                             country_name, count, price = res[0], res[1], res[2]
@@ -477,7 +478,55 @@ async def cache_lzt_stock_loop():
                                 conn.commit()
                     except Exception as err:
                         logger.debug("LZT background sync for %s: %s", c, err)
-                    await asyncio.sleep(2.5)
+                    await asyncio.sleep(1.0)
+
+                # 2. Second: sync active user filter keys for top priority countries
+                for fkey in list(active_filter_keys):
+                    if fkey == "no_no_any_any_any":
+                        continue
+                    parts = fkey.split("_")
+                    if len(parts) != 5:
+                        continue
+                    f_spam, f_geo, f_offline, f_mail, f_prem = parts
+                    for c in priority_countries[:10]:
+                        try:
+                            res = await fetch_lzt(c, f_spam, f_geo, f_offline, f_mail, f_prem)
+                            if res and isinstance(res, (tuple, list)) and len(res) >= 3:
+                                country_name, count, price = res[0], res[1], res[2]
+                                if cached_lzt_stock is not None:
+                                    if fkey not in cached_lzt_stock:
+                                        cached_lzt_stock[fkey] = {}
+                                    cached_lzt_stock[fkey][country_name] = (count, price)
+                                with managed_connect() as conn:
+                                    conn.execute("""
+                                        INSERT OR REPLACE INTO lzt_filtered_cache (country, filter_key, stock_count, price, updated_at)
+                                        VALUES (?, ?, ?, ?, ?)
+                                    """, (country_name, fkey, int(count), float(price), utcnow()))
+                                    conn.commit()
+                        except Exception as err:
+                            logger.debug("LZT background sync for filter %s (%s): %s", fkey, c, err)
+                        await asyncio.sleep(1.0)
+
+                # 3. Third: incrementally sync remaining global countries
+                for c in other_countries:
+                    try:
+                        iso_code, flag = COUNTRY_CODES.get(c, ("US", "🌐"))
+                        res = await fetch_lzt(c, "no", "no", "any", "any", "any")
+                        if res and isinstance(res, (tuple, list)) and len(res) >= 3:
+                            country_name, count, price = res[0], res[1], res[2]
+                            if cached_lzt_stock is not None:
+                                if "no_no_any_any_any" not in cached_lzt_stock:
+                                    cached_lzt_stock["no_no_any_any_any"] = {}
+                                cached_lzt_stock["no_no_any_any_any"][country_name] = (count, price)
+                            with managed_connect() as conn:
+                                conn.execute(
+                                    "INSERT OR REPLACE INTO lzt_stock_cache (country, iso_code, flag, stock_count, price, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                                    (country_name, iso_code, flag, int(count), float(price), utcnow())
+                                )
+                                conn.commit()
+                    except Exception as err:
+                        logger.debug("LZT background sync for %s: %s", c, err)
+                    await asyncio.sleep(2.0)
         except Exception as ex:
             logger.debug("LZT cache loop note: %s", ex)
         try:
@@ -485,4 +534,4 @@ async def cache_lzt_stock_loop():
             cleanup_expired_conversations()
         except Exception:
             pass
-        await asyncio.sleep(120)
+        await asyncio.sleep(60)
