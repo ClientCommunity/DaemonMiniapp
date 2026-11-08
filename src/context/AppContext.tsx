@@ -246,8 +246,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const saved = getSavedState<ActiveNumberItem[]>('activeNumbers', []);
     if (!Array.isArray(saved)) return [];
     return saved.filter((item) => {
-      const ageHours = (Date.now() - (item.createdAt || 0)) / (1000 * 3600);
-      return ageHours < 24 && item.status !== 'expired';
+      if (!item) return false;
+      const ts =
+        typeof item.createdAt === 'number'
+          ? item.createdAt
+          : item.createdAt
+          ? new Date(item.createdAt).getTime()
+          : 0;
+      if (!ts || isNaN(ts)) return false;
+      const ageHours = (Date.now() - ts) / (1000 * 3600);
+      return ageHours < 48 && item.status !== 'expired';
     });
   });
   const [activeInvoice, setActiveInvoice] = useState<ActiveInvoice | null>(() => {
@@ -381,12 +389,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [activeTab, selectedServer, activeOtpSession, activeInvoice]);
 
-  // Toast System
+  // Toast System (capped to maximum 2 concurrent toasts to prevent Android WebView GPU crash)
   const addToast = useCallback(
     (message: string, type: ToastType = 'info', title?: string, durationMs: number = 3000) => {
       const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       const newToast: ToastMessage = { id, type, title, message, durationMs };
-      setToasts((prev) => [...prev, newToast]);
+      setToasts((prev) => [...prev.slice(-1), newToast]);
 
       if (durationMs > 0) {
         setTimeout(() => {

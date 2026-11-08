@@ -347,13 +347,36 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
   );
 };
 
-export const ActiveNumbersSection: React.FC = () => {
+interface ActiveNumbersSectionProps {
+  expandAll?: boolean;
+  showEmptyState?: boolean;
+}
+
+export const ActiveNumbersSection: React.FC<ActiveNumbersSectionProps> = ({
+  expandAll = false,
+  showEmptyState = false,
+}) => {
   const { activeNumbers, archiveAllActiveNumbers } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  if (!activeNumbers || activeNumbers.length === 0) return null;
+  if (!activeNumbers || activeNumbers.length === 0) {
+    if (!showEmptyState) return null;
+    return (
+      <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3 my-2">
+        <div className="w-12 h-12 rounded-2xl bg-[#121217] border border-[#262630] flex items-center justify-center">
+          <ShieldCheck className="w-6 h-6 text-[#71717a]" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-semibold text-white">No Active Numbers</span>
+          <span className="text-xs text-[#a1a1aa] max-w-[280px]">
+            Any virtual numbers you purchase awaiting OTP will appear here with live polling and instant copy.
+          </span>
+        </div>
+      </div>
+    );
+  }
 
-  const visibleNumbers = isExpanded || activeNumbers.length <= 2 ? activeNumbers : activeNumbers.slice(0, 2);
+  const visibleNumbers = expandAll || isExpanded || activeNumbers.length <= 2 ? activeNumbers : activeNumbers.slice(0, 2);
 
   return (
     <section className="w-full flex flex-col gap-2.5 my-3 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -387,7 +410,7 @@ export const ActiveNumbersSection: React.FC = () => {
         ))}
       </div>
 
-      {activeNumbers.length > 2 && (
+      {!expandAll && activeNumbers.length > 2 && (
         <button
           onClick={() => {
             hapticFeedback.selection();

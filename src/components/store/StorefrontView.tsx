@@ -6,7 +6,6 @@ import { Server2Sessions } from './Server2Sessions';
 import { Server34Otp } from './Server34Otp';
 import { Server5Smm } from './Server5Smm';
 import { PinnedDealsSection } from '../dashboard/PinnedDealsSection';
-import { ActiveNumbersSection } from '../common/ActiveNumbersSection';
 
 export const StorefrontView: React.FC = () => {
   const { selectedServer } = useApp();
@@ -15,9 +14,6 @@ export const StorefrontView: React.FC = () => {
     <div className="w-full flex flex-col pb-8">
       {/* 5 Server Navigation Header */}
       <ServerSelector />
-
-      {/* Persistent Active Numbers Section */}
-      <ActiveNumbersSection />
 
       {/* Pinned / Featured Services for this active server */}
       <div className="px-1">
@@ -36,3 +32,4 @@ export const StorefrontView: React.FC = () => {
     </div>
   );
 };
+
