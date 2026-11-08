@@ -207,16 +207,20 @@ export const PinnedServicesTab: React.FC = () => {
       {pinnedItems.length === 0 ? (
         <div className="bg-[#181820] border border-[#262630] rounded-2xl p-10 text-center">
           <Pin className="w-8 h-8 text-[#71717a] mx-auto mb-2 opacity-50" />
-          <h4 className="text-sm font-bold text-white mb-1">No Pinned Services</h4>
+          <h4 className="text-sm font-bold text-white mb-1">
+            {serverFilter ? `No Services Pinned for Server ${serverFilter}` : 'No Pinned Services Yet'}
+          </h4>
           <p className="text-xs text-[#a1a1aa] max-w-sm mx-auto mb-4">
-            You haven't pinned any services yet. Click the button below to feature services from any server.
+            {serverFilter
+              ? `You haven't pinned any services from Server ${serverFilter} yet. Click the button below to pick and pin a service from Server ${serverFilter}.`
+              : "This section shows services you've pinned to the storefront. Click below to choose services from Server 1–5 to pin."}
           </p>
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 bg-amber-500 text-black font-bold px-4 py-2 rounded-xl text-xs"
+            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold px-5 py-2.5 rounded-xl text-xs shadow-md transition-all active:scale-95"
           >
-            <Plus className="w-4 h-4" />
-            <span>Pin First Service</span>
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>{serverFilter ? `+ Pin a Service from Server ${serverFilter}` : '+ Pin New Service'}</span>
           </button>
         </div>
       ) : (
@@ -307,6 +311,7 @@ export const PinnedServicesTab: React.FC = () => {
             loadPinned();
           }}
           initialService={editingService}
+          defaultServer={serverFilter || 1}
           pinnedList={pinnedItems}
         />
       )}
