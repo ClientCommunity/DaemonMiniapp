@@ -385,7 +385,11 @@ def migrate() -> None:
             otp TEXT,
             server TEXT DEFAULT 'Local',
             date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            promo_deducted INTEGER DEFAULT 0
+            promo_deducted INTEGER DEFAULT 0,
+            refunded INTEGER DEFAULT 0,
+            twofa TEXT,
+            provider_item_id TEXT,
+            is_active INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS deposits (
@@ -815,6 +819,12 @@ def migrate() -> None:
             conn.execute("ALTER TABLE orders ADD COLUMN promo_deducted INTEGER DEFAULT 0")
         if "refunded" not in order_columns:
             conn.execute("ALTER TABLE orders ADD COLUMN refunded INTEGER DEFAULT 0")
+        if "twofa" not in order_columns:
+            conn.execute("ALTER TABLE orders ADD COLUMN twofa TEXT")
+        if "provider_item_id" not in order_columns:
+            conn.execute("ALTER TABLE orders ADD COLUMN provider_item_id TEXT")
+        if "is_active" not in order_columns:
+            conn.execute("ALTER TABLE orders ADD COLUMN is_active INTEGER DEFAULT 1")
 
         deposit_columns = {row[1] for row in conn.execute("PRAGMA table_info(deposits)")}
         if "utr" not in deposit_columns:
@@ -1606,27 +1616,35 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
     off = max(0, int(offset))
 
     sql = """
-    SELECT id, country, year, price, phone, otp, server, date
+    SELECT id, country, year, price, phone, otp, server, date, twofa, provider_item_id, is_active
     FROM (
-        SELECT id, country, year, price, phone, otp, COALESCE(server, 'Server 1') as server, date
+        SELECT id, country, year, price, phone, otp, COALESCE(server, 'Server 1') as server, date,
+               COALESCE(twofa, '') as twofa, COALESCE(provider_item_id, '') as provider_item_id,
+               COALESCE(is_active, 1) as is_active
         FROM orders
         WHERE user_id = ? AND (server IS NULL OR server NOT IN ('Server 3', 'Server 4', 'Server 5'))
 
         UNION ALL
 
-        SELECT id, server_code as country, 2024 as year, charged_price as price, phone, COALESCE(sms_code, status) as otp, 'Server 3' as server, created_at as date
+        SELECT id, server_code as country, 2024 as year, charged_price as price, phone, COALESCE(sms_code, status) as otp,
+               'Server 3' as server, created_at as date, '' as twofa, provider_order_id as provider_item_id,
+               CASE WHEN status IN ('waiting', 'completed') THEN 1 ELSE 0 END as is_active
         FROM server3_orders
         WHERE user_id = ?
 
         UNION ALL
 
-        SELECT id, service_code as country, 2024 as year, charged_price as price, phone, COALESCE(sms_code, status) as otp, 'Server 4' as server, created_at as date
+        SELECT id, service_code as country, 2024 as year, charged_price as price, phone, COALESCE(sms_code, status) as otp,
+               'Server 4' as server, created_at as date, '' as twofa, provider_order_id as provider_item_id,
+               CASE WHEN status IN ('waiting', 'completed') THEN 1 ELSE 0 END as is_active
         FROM server4_orders
         WHERE user_id = ?
 
         UNION ALL
 
-        SELECT id, link as country, quantity as year, CAST(charge AS INT) as price, link as phone, status as otp, 'Server 5' as server, created_at as date
+        SELECT id, link as country, quantity as year, CAST(charge AS INT) as price, link as phone, status as otp,
+               'Server 5' as server, created_at as date, '' as twofa, CAST(provider_order_id AS TEXT) as provider_item_id,
+               0 as is_active
         FROM smm_orders
         WHERE user_id = ?
     )
@@ -1649,6 +1667,9 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
                     "otp": r[5],
                     "server": r[6],
                     "date": r[7],
+                    "twofa": r[8] if len(r) > 8 else "",
+                    "provider_item_id": r[9] if len(r) > 9 else "",
+                    "is_active": r[10] if len(r) > 10 else 1,
                 })
         return result
     except Exception as ex:
@@ -1656,10 +1677,14 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
         # Fallback to standard orders table
         try:
             fb = conn_or_cur.execute(
-                "SELECT id, country, year, price, phone, otp, server, date FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+                "SELECT id, country, year, price, phone, otp, server, date, twofa, provider_item_id, is_active FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
                 (uid, lim, off)
             ).fetchall()
-            return [dict(r) if isinstance(r, dict) or hasattr(r, 'keys') else {"id": r[0], "country": r[1], "year": r[2], "price": r[3], "phone": r[4], "otp": r[5], "server": r[6], "date": r[7]} for r in fb]
+            return [dict(r) if isinstance(r, dict) or hasattr(r, 'keys') else {
+                "id": r[0], "country": r[1], "year": r[2], "price": r[3], "phone": r[4],
+                "otp": r[5], "server": r[6], "date": r[7], "twofa": r[8] if len(r) > 8 else "",
+                "provider_item_id": r[9] if len(r) > 9 else "", "is_active": r[10] if len(r) > 10 else 1
+            } for r in fb]
 
 
         except Exception:

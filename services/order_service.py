@@ -194,11 +194,12 @@ def execute_buy(
                 return {"success": False, "error": "This item is currently out of stock."}
 
             phone = cand["phone"]
+            twofa_val = cand["twofa"] or "None"
             conn.execute("UPDATE stock SET available = 0 WHERE phone = ?", (phone,))
             conn.execute("""
-                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
-                VALUES (?, ?, ?, ?, ?, 'WAITING', 'Server 2', ?, ?)
-            """, (uid, country, year, total_price, phone, utcnow(), promo_deducted))
+                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted, twofa, provider_item_id, is_active)
+                VALUES (?, ?, ?, ?, ?, 'WAITING', 'Server 2', ?, ?, ?, ?, 1)
+            """, (uid, country, year, total_price, phone, utcnow(), promo_deducted, twofa_val, phone))
             conn.commit()
 
             process_reseller_commission(uid, total_price, f"Server 2 ({phone})")
@@ -364,9 +365,9 @@ def execute_buy(
             order_key = f"LZT_{purchased_id}"
 
             conn.execute("""
-                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
-                VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 1', ?, ?)
-            """, (uid, country, total_price, purchased_phone, utcnow(), promo_deducted))
+                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted, twofa, provider_item_id, is_active)
+                VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 1', ?, ?, ?, ?, 1)
+            """, (uid, country, total_price, purchased_phone, utcnow(), promo_deducted, purchased_twofa, order_key))
             conn.commit()
 
             process_reseller_commission(uid, total_price, f"Server 1 ({country})")
@@ -441,9 +442,9 @@ def execute_buy(
 
             # Record in main orders table for Mini App UI & history
             conn.execute("""
-                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
-                VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 3', ?, ?)
-            """, (uid, service_name, total_price, clean_phone, now, promo_deducted))
+                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted, twofa, provider_item_id, is_active)
+                VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 3', ?, ?, '', ?, 1)
+            """, (uid, service_name, total_price, clean_phone, now, promo_deducted, order_id))
             conn.commit()
 
             process_reseller_commission(uid, total_price, f"Server 3 ({service_name})")
@@ -518,9 +519,9 @@ def execute_buy(
 
             # Record in main orders table for Mini App UI & history
             conn.execute("""
-                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted)
-                VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 4', ?, ?)
-            """, (uid, service_name, total_price, clean_phone, now, promo_deducted))
+                INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted, twofa, provider_item_id, is_active)
+                VALUES (?, ?, 2024, ?, ?, 'WAITING', 'Server 4', ?, ?, '', ?, 1)
+            """, (uid, service_name, total_price, clean_phone, now, promo_deducted, order_id))
             conn.commit()
 
             process_reseller_commission(uid, total_price, f"Server 4 ({service_name})")
@@ -660,11 +661,11 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
 
     with connect() as conn:
         row = conn.execute("""
-            SELECT id, user_id, price, phone, otp, server, date
+            SELECT id, user_id, price, phone, otp, server, date, twofa, provider_item_id, is_active
             FROM orders
-            WHERE phone LIKE ? OR id = ? OR phone = ?
+            WHERE phone LIKE ? OR id = ? OR phone = ? OR provider_item_id = ?
             ORDER BY id DESC LIMIT 1
-        """, (f"%{clean_id}%", clean_id if clean_id.isdigit() else -1, clean_id)).fetchone()
+        """, (f"%{clean_id}%", clean_id if clean_id.isdigit() else -1, clean_id, clean_id)).fetchone()
 
     if not row:
         with connect() as conn:
@@ -683,6 +684,9 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
                     "otp": s3_fb["sms_code"] or ("WAITING" if s3_fb["status"] == "waiting" else s3_fb["status"].upper()),
                     "server": "Server 3",
                     "date": s3_fb["date"],
+                    "twofa": "",
+                    "provider_item_id": s3_fb["provider_order_id"],
+                    "is_active": 1,
                 }
             else:
                 s4_fb = conn.execute("""
@@ -700,11 +704,15 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
                         "otp": s4_fb["sms_code"] or ("WAITING" if s4_fb["status"] == "waiting" else s4_fb["status"].upper()),
                         "server": "Server 4",
                         "date": s4_fb["date"],
+                        "twofa": "",
+                        "provider_item_id": s4_fb["provider_order_id"],
+                        "is_active": 1,
                     }
 
     if not row:
         return {"status": "not_found", "otp": None}
 
+    twofa_val = row["twofa"] if ("twofa" in row.keys() and row["twofa"] and row["twofa"] != "None") else ""
     raw_otp = row["otp"]
     if raw_otp and raw_otp not in ("WAITING", "ZIP DELIVERED", "IN_PROGRESS"):
         return {
@@ -712,13 +720,15 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
             "otp": raw_otp,
             "phone": row["phone"],
             "server": row["server"],
+            "twofa": twofa_val,
         }
 
     server_label = str(row["server"] or "").strip()
 
     # 1. Server 1: Query upstream LZT Market
     if server_label == "Server 1":
-        fetched = check_lzt_code(row["phone"] or clean_id)
+        item_id_to_check = (row["provider_item_id"] if "provider_item_id" in row.keys() else None) or row["phone"] or clean_id
+        fetched = check_lzt_code(item_id_to_check)
         if fetched:
             with connect() as conn:
                 conn.execute("UPDATE orders SET otp = ? WHERE id = ?", (fetched, row["id"]))
@@ -727,6 +737,7 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
                 "otp": fetched,
                 "phone": row["phone"],
                 "server": row["server"],
+                "twofa": twofa_val,
             }
 
     # 2. Server 3: Query DGOTP live status
@@ -820,9 +831,9 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
         row = conn.execute("""
             SELECT id, price, phone, otp, server, promo_deducted
             FROM orders
-            WHERE user_id = ? AND (phone LIKE ? OR id = ? OR phone = ?) AND otp = 'WAITING'
+            WHERE user_id = ? AND (phone LIKE ? OR id = ? OR phone = ? OR provider_item_id = ?) AND otp = 'WAITING'
             ORDER BY id DESC LIMIT 1
-        """, (uid, f"%{clean_id}%", clean_id if clean_id.isdigit() else -1, clean_id)).fetchone()
+        """, (uid, f"%{clean_id}%", clean_id if clean_id.isdigit() else -1, clean_id, clean_id)).fetchone()
 
         if not row:
             s3_wait = conn.execute("""

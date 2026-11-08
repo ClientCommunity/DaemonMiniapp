@@ -33,12 +33,18 @@ def get_user_history():
             server_str = o["server"] or "Store"
             phone_str = o["phone"] or "N/A"
             otp_str = o["otp"] or "None"
+            twofa_str = o.get("twofa") or ""
+            provider_oid = o.get("provider_item_id") or ""
             items.append({
                 "type": "order",
+                "order_id": provider_oid or f"ORD_{o['id']}",
                 "title": f"🛒 {o['country']} ({server_str})",
                 "amount": f"-₹{o['price']}",
                 "date": str(o["date"])[:19],
-                "details": f"Number: {phone_str} · OTP: {otp_str}",
+                "details": f"Number: {phone_str} · OTP: {otp_str}" + (f" · 2FA: {twofa_str}" if twofa_str and twofa_str != "None" else ""),
+                "phone": phone_str if phone_str != "N/A" else None,
+                "otp": otp_str if otp_str != "None" else None,
+                "twofa": twofa_str if twofa_str != "None" else "",
                 "download_url": (
                     f"/api/session/download/{phone_str}"
                     if server_str == "Server 2" and phone_str != "N/A"
