@@ -38,7 +38,7 @@ def get_user_history():
             items.append({
                 "type": "order",
                 "order_id": provider_oid or f"ORD_{o['id']}",
-                "title": f"🛒 {o['country']} ({server_str})",
+                "title": f"{o['country']} ({server_str})",
                 "amount": f"-₹{o['price']}",
                 "date": str(o["date"])[:19],
                 "details": f"Number: {phone_str} · OTP: {otp_str}" + (f" · 2FA: {twofa_str}" if twofa_str and twofa_str != "None" else ""),
@@ -64,7 +64,7 @@ def get_user_history():
             status_text = (d["status"] or "pending").title()
             items.append({
                 "type": "deposit",
-                "title": f"💳 {d['method_name']}",
+                "title": f"{d['method_name']}",
                 "amount": f"+₹{d['amount']}",
                 "date": str(d["date"])[:19],
                 "details": f"Status: {status_text}",
@@ -82,7 +82,7 @@ def get_user_history():
         for t in transfers_sent:
             items.append({
                 "type": "transfer_sent",
-                "title": f"📤 Transfer to User {t['recipient_id']}",
+                "title": f"Transfer to User {t['recipient_id']}",
                 "amount": f"-₹{t['amount']}",
                 "date": str(t["created_at"])[:19],
                 "details": f"P2P Transfer ID #{t['id']}",
@@ -99,7 +99,7 @@ def get_user_history():
         for t in transfers_received:
             items.append({
                 "type": "transfer_received",
-                "title": f"📥 Transfer from User {t['sender_id']}",
+                "title": f"Transfer from User {t['sender_id']}",
                 "amount": f"+₹{t['amount']}",
                 "date": str(t["created_at"])[:19],
                 "details": f"P2P Transfer ID #{t['id']}",
