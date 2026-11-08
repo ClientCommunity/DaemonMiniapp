@@ -119,7 +119,7 @@ RESELLER_MAX_MARGIN = int(os.getenv("RESELLER_MAX_MARGIN", "100"))
 
 # Provider Sanitization Names (Zero upstream vendor leaks to client)
 SERVER_NAMES = {
-    1: {"name": "Global 2FA Accounts", "subtitle": "Instant 2FA Telegram sessions", "icon": "🌐"},
+    1: {"name": "Global Accounts", "subtitle": "Instant Delivery Telegram sessions", "icon": "🌐"},
     2: {"name": "Fresh Session Accounts", "subtitle": "Good & Cheap quality tiers", "icon": "📱"},
     3: {"name": "Instant Virtual OTP", "subtitle": "Fast virtual SMS activations", "icon": "⚡"},
     4: {"name": "Fresh Carrier Numbers", "subtitle": "Real carrier virtual numbers", "icon": "📶"},

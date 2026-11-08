@@ -254,10 +254,12 @@ def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
                 "id": c_name,
                 "name": c_name,
                 "country": c_name,
+                "code": r["iso_code"] or "GL",
+                "iso_code": r["iso_code"] or "GL",
                 "icon": r["flag"] or "🌐",
                 "price": price,
                 "stock": stock_count,
-                "subtitle": "Global Market 2FA",
+                "subtitle": "Global Market",
             })
 
         # 2. Secondary fallback: local stock table if populated strictly for Server 1
@@ -275,10 +277,12 @@ def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
                     "id": r["country_name"],
                     "name": r["country_name"],
                     "country": r["country_name"],
+                    "code": "GL",
+                    "iso_code": "GL",
                     "icon": r["country_icon"] or "🌍",
                     "price": int(r["price"] or 80),
                     "stock": int(r["stock_count"]),
-                    "subtitle": "Global Market 2FA",
+                    "subtitle": "Global Market",
                 })
 
     if sort_mode == "price_low":
