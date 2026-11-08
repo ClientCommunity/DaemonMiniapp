@@ -1,19 +1,62 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { ShoppingBag, Smartphone, Rocket, Wallet, Send, ChevronRight } from 'lucide-react';
+import {
+  ShoppingBag,
+  ShoppingCart,
+  CreditCard,
+  Zap,
+  Smartphone,
+  Rocket,
+  Wallet,
+  Send,
+  ChevronRight,
+  ArrowDownLeft,
+} from 'lucide-react';
 import { HistoryItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
 
 export const RecentActivity: React.FC = () => {
   const { history, formatPrice, setActiveTab, openReceiptDrawer } = useApp();
 
+  const getCleanTitle = (title: string): string => {
+    return title.replace(/^[\s\uFE0F]*[🛒💳📤📥⚡🚀📱💰🛍️]\s*/u, '').trim();
+  };
+
+  const getTitleIcon = (item: HistoryItem) => {
+    const raw = item.title;
+    if (raw.includes('💳') || item.category === 'deposit') {
+      return <CreditCard className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />;
+    }
+    if (raw.includes('📤') || (item.category === 'transfer' && item.amountInr < 0)) {
+      return <Send className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
+    }
+    if (raw.includes('📥') || (item.category === 'transfer' && item.amountInr > 0)) {
+      return <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+    }
+    if (raw.includes('🚀') || item.category === 'smm_order') {
+      return <Rocket className="w-3.5 h-3.5 text-[#f59e0b] shrink-0" />;
+    }
+    if (item.category === 'otp_activation' || raw.includes('Server 3') || raw.includes('Server 4')) {
+      return <Zap className="w-3.5 h-3.5 text-[#8b5cf6] shrink-0" />;
+    }
+    return <ShoppingCart className="w-3.5 h-3.5 text-[#a78bfa] shrink-0" />;
+  };
+
   const getItemIcon = (item: HistoryItem) => {
     const t = (item.title + ' ' + (item.subtitle || '')).toLowerCase();
-    if (t.includes('telegram')) return <PlatformIcon platform="tg" className="w-5 h-5" />;
-    if (t.includes('whatsapp')) return <PlatformIcon platform="wa" className="w-5 h-5" />;
-    if (t.includes('instagram')) return <PlatformIcon platform="ig" className="w-5 h-5" />;
-    if (t.includes('youtube')) return <PlatformIcon platform="yt" className="w-5 h-5" />;
-    if (t.includes('tiktok')) return <PlatformIcon platform="tk" className="w-5 h-5" />;
+    if (
+      t.includes('telegram') ||
+      t.includes('teleg') ||
+      t.includes('tg') ||
+      t.includes('server 1') ||
+      t.includes('server 2')
+    ) {
+      return <PlatformIcon platform="tg" className="w-5 h-5" />;
+    }
+    if (t.includes('whatsapp') || t.includes('wa')) return <PlatformIcon platform="wa" className="w-5 h-5" />;
+    if (t.includes('instagram') || t.includes('instag') || t.includes('ig')) return <PlatformIcon platform="ig" className="w-5 h-5" />;
+    if (t.includes('youtube') || t.includes('yt')) return <PlatformIcon platform="yt" className="w-5 h-5" />;
+    if (t.includes('tiktok') || t.includes('tk')) return <PlatformIcon platform="tk" className="w-5 h-5" />;
     if (t.includes('twitter') || t.includes(' x ')) return <PlatformIcon platform="tw" className="w-5 h-5" />;
     if (t.includes('google') || t.includes('gmail')) return <PlatformIcon platform="go" className="w-5 h-5" />;
 
@@ -69,9 +112,12 @@ export const RecentActivity: React.FC = () => {
                     {getItemIcon(item)}
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-semibold text-white truncate">
-                      {item.title}
-                    </span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {getTitleIcon(item)}
+                      <span className="text-xs font-semibold text-white truncate">
+                        {getCleanTitle(item.title)}
+                      </span>
+                    </div>
                     <span className="text-[10px] text-[#a1a1aa] truncate">
                       {item.subtitle}
                     </span>

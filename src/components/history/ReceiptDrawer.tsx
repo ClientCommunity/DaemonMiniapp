@@ -131,14 +131,14 @@ export const ReceiptDrawer: React.FC = () => {
           <div className="flex items-center justify-between pb-2 border-b border-[#262630]">
             <span className="text-[#a1a1aa]">Product / Service</span>
             <div className="flex items-center gap-1.5 justify-end">
-              {['telegram', 'whatsapp', 'instagram', 'youtube', 'tiktok', 'twitter', 'google'].some(p => item.title.toLowerCase().includes(p)) && (
+              {['telegram', 'teleg', 'server 1', 'server 2', 'whatsapp', 'wa', 'instagram', 'insta', 'youtube', 'tiktok', 'twitter', 'google'].some(p => item.title.toLowerCase().includes(p)) && (
                 <PlatformIcon
                   platform={
-                    item.title.toLowerCase().includes('telegram')
+                    item.title.toLowerCase().includes('telegram') || item.title.toLowerCase().includes('teleg') || item.title.toLowerCase().includes('server 1') || item.title.toLowerCase().includes('server 2')
                       ? 'tg'
-                      : item.title.toLowerCase().includes('whatsapp')
+                      : item.title.toLowerCase().includes('whatsapp') || item.title.toLowerCase().includes('wa')
                       ? 'wa'
-                      : item.title.toLowerCase().includes('instagram')
+                      : item.title.toLowerCase().includes('instagram') || item.title.toLowerCase().includes('insta')
                       ? 'ig'
                       : item.title.toLowerCase().includes('youtube')
                       ? 'yt'
@@ -152,7 +152,7 @@ export const ReceiptDrawer: React.FC = () => {
                 />
               )}
               <span className="font-bold text-white text-right max-w-[180px] truncate">
-                {item.title}
+                {item.title.replace(/^[\s\uFE0F]*[🛒💳📤📥⚡🚀📱💰🛍️]\s*/u, '').trim()}
               </span>
             </div>
           </div>

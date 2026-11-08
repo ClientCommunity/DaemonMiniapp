@@ -462,7 +462,7 @@ export function parseSignedAmount(amountRaw: string | number | undefined): numbe
  */
 export function adaptHistoryItem(item: BackendHistoryItem, index: number): HistoryItem {
   const type = (item.type || 'order').toLowerCase();
-  const rawTitle = item.title || 'Transaction';
+  const rawTitle = (item.title || 'Transaction').replace(/^[\s\uFE0F]*[🛒💳📤📥⚡🚀📱💰🛍️]\s*/u, '').trim();
   const details = item.details || '';
   const amountInr = parseSignedAmount(item.amount);
   const date = item.date || 'Recently';
