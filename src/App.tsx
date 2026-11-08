@@ -37,6 +37,12 @@ const AppContent: React.FC = () => {
     refreshHistory,
     refreshReseller,
     theme,
+    purchasedCredentialsModal,
+    purchasedServer2Modal,
+    selectedReceiptItem,
+    closeCredentialsModal,
+    closeServer2Modal,
+    closeReceiptDrawer,
   } = useApp();
 
   const { isAdminMode } = useAdmin();
@@ -122,14 +128,41 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Sync Telegram native BackButton with active tab
+  const hasOpenModal = !!(
+    purchasedCredentialsModal?.isOpen ||
+    purchasedServer2Modal?.isOpen ||
+    selectedReceiptItem ||
+    isTransferModalOpen
+  );
+
+  // Sync Telegram native BackButton with active tab and open modals (prevents accidental loss of numbers)
   useEffect(() => {
     try {
       const backButton = window.Telegram?.WebApp?.BackButton;
       if (backButton) {
-        if (activeTab !== 'home' && !isAdminMode) {
+        if ((activeTab !== 'home' || hasOpenModal) && !isAdminMode) {
           backButton.show();
-          const handleBack = () => setActiveTab('home');
+          const handleBack = () => {
+            if (purchasedCredentialsModal?.isOpen) {
+              closeCredentialsModal();
+              return;
+            }
+            if (purchasedServer2Modal?.isOpen) {
+              closeServer2Modal();
+              return;
+            }
+            if (selectedReceiptItem) {
+              closeReceiptDrawer();
+              return;
+            }
+            if (isTransferModalOpen) {
+              setIsTransferModalOpen(false);
+              return;
+            }
+            if (activeTab !== 'home') {
+              setActiveTab('home');
+            }
+          };
           backButton.onClick(handleBack);
           return () => {
             backButton.offClick(handleBack);
@@ -141,7 +174,19 @@ const AppContent: React.FC = () => {
     } catch {
       // not in telegram webview
     }
-  }, [activeTab, setActiveTab, isAdminMode]);
+  }, [
+    activeTab,
+    setActiveTab,
+    isAdminMode,
+    hasOpenModal,
+    purchasedCredentialsModal?.isOpen,
+    purchasedServer2Modal?.isOpen,
+    selectedReceiptItem,
+    isTransferModalOpen,
+    closeCredentialsModal,
+    closeServer2Modal,
+    closeReceiptDrawer,
+  ]);
 
   // 1. When accessed via website without an authenticated Google session, present full responsive Landing Page
   if (!isTg && !webToken) {

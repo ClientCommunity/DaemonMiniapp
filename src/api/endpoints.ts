@@ -127,9 +127,30 @@ export interface OtpStatusResponse {
   status: 'waiting' | 'completed' | 'delivered' | 'not_found' | string;
   otp: string | null;
   phone?: string;
+  twofa?: string;
   server?: string;
   time_left?: number;
   order_id?: string | number;
+}
+
+export interface BackendActiveNumber {
+  order_id: string;
+  db_id?: number;
+  server: number;
+  service_name: string;
+  country: string;
+  phone: string;
+  twofa?: string;
+  otp_code?: string | null;
+  status: 'waiting' | 'received' | 'completed' | string;
+  can_fetch_otp: boolean;
+  is_auto_polling: boolean;
+  created_at: string;
+}
+
+export interface ActiveNumbersResponse {
+  success: boolean;
+  items: BackendActiveNumber[];
 }
 
 export interface OtpCancelResponse {
@@ -295,6 +316,10 @@ export const otpApi = {
     }),
   cancel: (phoneOrOrderId: string) =>
     api.post<OtpCancelResponse>('/api/otp/cancel', { phone: phoneOrOrderId }),
+  getActiveNumbers: () =>
+    api.get<ActiveNumbersResponse>('/api/user/active-numbers'),
+  archive: (orderIdOrPhone: string) =>
+    api.post<{ success: boolean; message?: string }>('/api/otp/archive', { order_id: orderIdOrPhone }),
 };
 
 /**

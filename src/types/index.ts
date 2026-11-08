@@ -99,6 +99,24 @@ export interface ActiveOtpSession {
   remainingSeconds: number;
 }
 
+export interface ActiveNumberItem {
+  orderId: string;
+  dbId?: number;
+  server: 1 | 2 | 3 | 4;
+  country: string;
+  serviceName: string;
+  phone: string;
+  twoFa?: string;
+  otpCode?: string | null;
+  status: 'waiting' | 'received' | 'completed' | 'expired';
+  createdAt: number;
+  totalDurationSeconds?: number;
+  remainingSeconds?: number;
+  canFetchOtp: boolean; // true for Server 1 / 2 (presents live 'Get OTP' button)
+  isAutoPolling?: boolean; // true for Server 3 / 4
+  downloadUrl?: string;
+}
+
 // Server 5: SMM Services
 export type SmmPlatform = 'instagram' | 'telegram' | 'youtube' | 'tiktok' | 'twitter' | 'facebook' | 'whatsapp' | 'snapchat' | 'other';
 

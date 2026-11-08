@@ -1,7 +1,7 @@
 import React from 'react';
 import { DualBalanceCard } from './DualBalanceCard';
 import { QuickActions } from './QuickActions';
-import { ActiveOtpCard } from './ActiveOtpCard';
+import { ActiveNumbersSection } from '../common/ActiveNumbersSection';
 import { RecentActivity } from './RecentActivity';
 import { PinnedDealsSection } from './PinnedDealsSection';
 
@@ -15,8 +15,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenTransferModa
       {/* Dual Balance Hero Card */}
       <DualBalanceCard onOpenTransferModal={onOpenTransferModal} />
 
-      {/* Active OTP listener if any */}
-      <ActiveOtpCard />
+      {/* Persistent Active Numbers & Live OTP Retrieval Section */}
+      <ActiveNumbersSection />
 
       {/* Featured & Pinned Hot Deals */}
       <PinnedDealsSection />

@@ -4,6 +4,7 @@ import { OrderCategory, HistoryItem } from '../../types';
 import { Search, ShoppingBag, Smartphone, Rocket, Wallet, Send, ChevronRight } from 'lucide-react';
 import { PlatformIcon } from '../common/PlatformIcon';
 import { ReceiptDrawer } from './ReceiptDrawer';
+import { ActiveNumbersSection } from '../common/ActiveNumbersSection';
 
 export const HistoryView: React.FC = () => {
   const { history, formatPrice, openReceiptDrawer } = useApp();
@@ -68,6 +69,9 @@ export const HistoryView: React.FC = () => {
           {history.length} Records
         </span>
       </div>
+
+      {/* Persistent Active Numbers Section (if any live active numbers) */}
+      <ActiveNumbersSection />
 
       {/* Filterable Segmented Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-4 px-4">

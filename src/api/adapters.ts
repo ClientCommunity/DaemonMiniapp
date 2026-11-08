@@ -11,7 +11,9 @@ import {
   OrderCategory,
   OrderStatus,
   ResellerConfig,
+  ActiveNumberItem,
 } from '../types';
+import { BackendActiveNumber } from './endpoints';
 
 export interface BackendUserPayload {
   id?: number;
@@ -504,13 +506,28 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
   }
 
   // Extract OTP code from details if present (e.g., "OTP: 48192")
-  let otpCode: string | undefined;
-  const otpMatch = details.match(/(?:OTP:\s*)([0-9A-Za-z-]+)/i);
-  if (otpMatch && otpMatch[1] && otpMatch[1].toLowerCase() !== 'none') {
-    otpCode = otpMatch[1].trim();
+  let otpCode: string | undefined = (item as any).otp;
+  if (!otpCode || otpCode === 'None' || otpCode === 'WAITING') {
+    const otpMatch = details.match(/(?:OTP:\s*)([0-9A-Za-z-]+)/i);
+    if (otpMatch && otpMatch[1] && otpMatch[1].toLowerCase() !== 'none' && otpMatch[1].toUpperCase() !== 'WAITING') {
+      otpCode = otpMatch[1].trim();
+    } else {
+      otpCode = undefined;
+    }
   }
 
-  const id = `hist_${Date.now().toString().slice(-4)}_${index}`;
+  // Extract 2FA password if present
+  let twoFa: string | undefined = (item as any).twofa;
+  if (!twoFa || twoFa === 'None') {
+    const twoFaMatch = details.match(/(?:2FA:\s*)([^\s·]+)/i);
+    if (twoFaMatch && twoFaMatch[1] && twoFaMatch[1].toLowerCase() !== 'none') {
+      twoFa = twoFaMatch[1].trim();
+    } else {
+      twoFa = undefined;
+    }
+  }
+
+  const id = (item as any).order_id || `hist_${Date.now().toString().slice(-4)}_${index}`;
 
   return {
     id,
@@ -522,8 +539,48 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
     status,
     phone,
     otpCode,
+    twoFa,
     sessionDownloadUrl: item.download_url || undefined,
     refunded: status === 'refunded',
+  };
+}
+
+/**
+ * Adapt backend active number item into frontend ActiveNumberItem.
+ */
+export function adaptActiveNumberItem(item: BackendActiveNumber): ActiveNumberItem {
+  const sNum = (item.server === 1 || item.server === 2 || item.server === 3 || item.server === 4
+    ? item.server
+    : 1) as 1 | 2 | 3 | 4;
+  const status =
+    item.status === 'received' || item.status === 'completed' || item.otp_code
+      ? ('received' as const)
+      : ('waiting' as const);
+
+  let createdMs = Date.now();
+  if (item.created_at) {
+    const parsed = Date.parse(item.created_at);
+    if (!isNaN(parsed)) createdMs = parsed;
+  }
+  const totalSec = sNum === 3 || sNum === 4 ? 600 : 86400;
+  const elapsed = Math.floor((Date.now() - createdMs) / 1000);
+  const remaining = Math.max(0, totalSec - elapsed);
+
+  return {
+    orderId: item.order_id,
+    dbId: item.db_id,
+    server: sNum,
+    country: item.country || 'Telegram',
+    serviceName: item.service_name || 'Telegram',
+    phone: item.phone,
+    twoFa: item.twofa || undefined,
+    otpCode: item.otp_code || null,
+    status,
+    createdAt: createdMs,
+    totalDurationSeconds: totalSec,
+    remainingSeconds: remaining,
+    canFetchOtp: item.can_fetch_otp ?? (sNum === 1 || sNum === 2),
+    isAutoPolling: item.is_auto_polling ?? (sNum === 3 || sNum === 4),
   };
 }
 

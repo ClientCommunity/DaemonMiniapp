@@ -8,16 +8,22 @@ import {
   XCircle,
   Copy,
   Check,
-  Download
+  Download,
+  RefreshCw,
+  Zap,
+  Key,
 } from 'lucide-react';
 import { PlatformIcon } from '../common/PlatformIcon';
 
 export const ReceiptDrawer: React.FC = () => {
-  const { selectedReceiptItem, closeReceiptDrawer, formatPrice, addToast } = useApp();
+  const { selectedReceiptItem, closeReceiptDrawer, formatPrice, addToast, fetchOtpForNumber } = useApp();
 
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [copied2Fa, setCopied2Fa] = useState(false);
   const [copiedOtp, setCopiedOtp] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
+  const [isFetchingOtp, setIsFetchingOtp] = useState(false);
+  const [liveOtp, setLiveOtp] = useState<string | null>(null);
 
   if (!selectedReceiptItem) return null;
 
@@ -51,6 +57,21 @@ export const ReceiptDrawer: React.FC = () => {
     const filename = isZip ? `bulk_sessions_${item.id}.zip` : `session_${item.id}.session`;
     downloadApi.triggerDownload(item.sessionDownloadUrl, filename);
     addToast('Opening download link...', 'info', 'Saved');
+  };
+
+  const effectiveOtp = liveOtp || item.otpCode;
+  const hasPhone = !!item.phone;
+  const isAccountOrOtp = item.category === 'account_purchase' || item.category === 'otp_activation';
+
+  const handleGetOtp = async () => {
+    if (!item.phone && !item.id) return;
+    setIsFetchingOtp(true);
+    try {
+      const code = await fetchOtpForNumber(item.phone || item.id);
+      if (code) setLiveOtp(code);
+    } finally {
+      setIsFetchingOtp(false);
+    }
   };
 
   return (
@@ -176,25 +197,61 @@ export const ReceiptDrawer: React.FC = () => {
             </div>
           )}
 
-          {item.otpCode && (
+          {effectiveOtp ? (
             <div className="flex items-center justify-between pb-2 border-b border-[#262630]">
               <span className="text-[#a1a1aa]">OTP Validation Code</span>
               <div className="flex items-center gap-1.5 font-mono font-extrabold text-[#22c55e]">
-                <span>{item.otpCode}</span>
+                <span>{effectiveOtp}</span>
                 <button
-                  onClick={() => handleCopy(item.otpCode!, 'otp')}
+                  onClick={() => handleCopy(effectiveOtp, 'otp')}
                   className="text-[#a1a1aa] hover:text-white"
                 >
                   {copiedOtp ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
                 </button>
               </div>
             </div>
-          )}
+          ) : isAccountOrOtp && hasPhone && !isRefunded ? (
+            <div className="pt-1 pb-2 border-b border-[#262630]">
+              <button
+                onClick={handleGetOtp}
+                disabled={isFetchingOtp}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white font-bold text-xs shadow-violet-glow-sm transition-all active:scale-98 disabled:opacity-50"
+              >
+                {isFetchingOtp ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Checking for OTP Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                    <span>Get OTP / Telegram Code</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : null}
 
           {item.twoFa && (
             <div className="flex items-center justify-between pb-2 border-b border-[#262630]">
-              <span className="text-[#a1a1aa]">2FA Password</span>
-              <span className="font-mono text-white font-bold">{item.twoFa}</span>
+              <div className="flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[#a1a1aa]">2FA Password</span>
+              </div>
+              <div className="flex items-center gap-1.5 font-mono font-bold text-amber-300">
+                <span>{item.twoFa}</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(item.twoFa!);
+                    setCopied2Fa(true);
+                    setTimeout(() => setCopied2Fa(false), 2000);
+                    addToast('2FA Password copied!', 'info');
+                  }}
+                  className="text-[#a1a1aa] hover:text-white"
+                >
+                  {copied2Fa ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-amber-400" />}
+                </button>
+              </div>
             </div>
           )}
 

@@ -5,6 +5,7 @@ import { Zap, Copy, Check, QrCode, ArrowRight, CheckCircle2 } from 'lucide-react
 export const GlobalRecoveryBanner: React.FC = () => {
   const {
     activeOtpSession,
+    activeNumbers,
     activeInvoice,
     activeTab,
     setActiveTab,
@@ -58,8 +59,18 @@ export const GlobalRecoveryBanner: React.FC = () => {
     setActiveTab('deposit');
   };
 
+  const activeReceived =
+    activeOtpSession && activeOtpSession.status === 'received' && activeOtpSession.otpCode
+      ? { serviceName: activeOtpSession.serviceName, otpCode: activeOtpSession.otpCode }
+      : activeNumbers.find((n) => n.status === 'received' && n.otpCode)
+      ? {
+          serviceName: activeNumbers.find((n) => n.status === 'received' && n.otpCode)!.serviceName,
+          otpCode: activeNumbers.find((n) => n.status === 'received' && n.otpCode)!.otpCode!,
+        }
+      : null;
+
   // 1. Highest Priority: Active OTP code received while away
-  if (activeOtpSession && activeOtpSession.status === 'received' && activeOtpSession.otpCode) {
+  if (activeReceived && activeReceived.otpCode) {
     return (
       <div className="w-full px-4 pt-2 pb-1 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
         <div className="flex items-center justify-between gap-2.5 bg-gradient-to-r from-[#121217] via-[#102418] to-[#121217] border border-[#22c55e]/60 rounded-xl px-3.5 py-2.5 shadow-lg shadow-green-950/30">
@@ -71,17 +82,17 @@ export const GlobalRecoveryBanner: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-bold text-[#22c55e] uppercase tracking-wider">SMS Arrived!</span>
                 <span className="text-[10px] text-[#a1a1aa] font-medium truncate">
-                  {activeOtpSession.serviceName}
+                  {activeReceived.serviceName}
                 </span>
               </div>
               <span className="text-sm font-mono font-extrabold text-white tracking-widest truncate">
-                {activeOtpSession.otpCode}
+                {activeReceived.otpCode}
               </span>
             </div>
           </div>
 
           <button
-            onClick={() => handleCopyOtp(activeOtpSession.otpCode!)}
+            onClick={() => handleCopyOtp(activeReceived.otpCode)}
             className="flex items-center gap-1.5 bg-[#22c55e] hover:bg-[#16a34a] active:scale-95 text-black px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md shrink-0 cursor-pointer"
           >
             {copiedOtp ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}

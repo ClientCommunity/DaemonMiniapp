@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { useApp } from '../../context/AppContext';
-import { otpApi, downloadApi, authApi, storeApi, Server1Filters } from '../../api/endpoints';
+import { downloadApi, authApi, storeApi, Server1Filters } from '../../api/endpoints';
 import { Server1AccountItem } from '../../types';
 import {
   Search,
@@ -39,6 +39,7 @@ export const Server1Lzt: React.FC = () => {
     server1Items,
     isServerLoading,
     refreshStore,
+    fetchOtpForNumber,
   } = useApp();
 
   const [search, setSearch] = useState<string>(() => {
@@ -287,22 +288,15 @@ export const Server1Lzt: React.FC = () => {
     setOtpNotice(null);
 
     try {
-      const res = await otpApi.getStatus(phoneOrId);
-      if (res && (res.status === 'completed' || res.status === 'delivered') && res.otp) {
-        setFetchedOtp(res.otp);
+      const code = await fetchOtpForNumber(phoneOrId);
+      if (code) {
+        setFetchedOtp(code);
         setOtpNotice(null);
-        try {
-          if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-          }
-        } catch {}
-        addToast(`Telegram Login Code received: ${res.otp}`, 'success', 'Code Received!');
       } else {
-        setOtpNotice('Code not received yet. Request the login code inside official Telegram for this number, then tap Fetch again.');
-        addToast('No new login code detected yet. Request code in Telegram app first.', 'info');
+        setOtpNotice('Code not received yet. Request the login code inside official Telegram for this number, then tap Get OTP again.');
       }
     } catch {
-      setOtpNotice('Network error while checking for login code. Please tap Fetch again.');
+      setOtpNotice('Network error while checking for login code. Please tap Get OTP again.');
       addToast('Failed to check login code. Try again.', 'error');
     } finally {
       setIsFetchingOtp(false);
@@ -1095,7 +1089,7 @@ export const Server1Lzt: React.FC = () => {
                   ) : (
                     <>
                       <Mail className="w-4 h-4" />
-                      <span>Fetch Telegram Login Code</span>
+                      <span>Get OTP / Login Code</span>
                     </>
                   )}
                 </button>

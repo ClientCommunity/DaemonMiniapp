@@ -7,6 +7,7 @@ import {
   Server2DeliveryFormat,
   VirtualOtpServiceItem,
   ActiveOtpSession,
+  ActiveNumberItem,
   ActiveInvoice,
   SmmServiceItem,
   PaymentMethodType,
@@ -41,6 +42,7 @@ import { hapticFeedback } from '../utils/haptics';
 import {
   adaptBackendUser,
   adaptHistoryItem,
+  adaptActiveNumberItem,
   adaptResellerConfig,
   adaptServer1Item,
   adaptServer2Item,
@@ -58,6 +60,7 @@ export interface AppContextType {
   activeTab: 'home' | 'store' | 'deposit' | 'history' | 'profile';
   selectedServer: 1 | 2 | 3 | 4 | 5;
   activeOtpSession: ActiveOtpSession | null;
+  activeNumbers: ActiveNumberItem[];
   activeInvoice: ActiveInvoice | null;
   setActiveInvoice: React.Dispatch<React.SetStateAction<ActiveInvoice | null>>;
   history: HistoryItem[];
@@ -130,6 +133,9 @@ export interface AppContextType {
   closeCredentialsModal: () => void;
   openReceiptDrawer: (item: HistoryItem) => void;
   closeReceiptDrawer: () => void;
+  fetchOtpForNumber: (orderIdOrPhone: string) => Promise<string | null>;
+  archiveActiveNumber: (orderIdOrPhone: string) => Promise<void>;
+  refreshActiveNumbers: () => Promise<void>;
 
   // Theme
   theme: 'dark' | 'light';
@@ -235,6 +241,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     return saved;
   });
+  const [activeNumbers, setActiveNumbers] = useState<ActiveNumberItem[]>(() => {
+    const saved = getSavedState<ActiveNumberItem[]>('activeNumbers', []);
+    if (!Array.isArray(saved)) return [];
+    return saved.filter((item) => {
+      const ageHours = (Date.now() - (item.createdAt || 0)) / (1000 * 3600);
+      return ageHours < 24 && item.status !== 'expired';
+    });
+  });
   const [activeInvoice, setActiveInvoice] = useState<ActiveInvoice | null>(() => {
     const saved = getSavedState<ActiveInvoice | null>('activeInvoice', null);
     if (!saved || !saved.expiresAt) return null;
@@ -314,6 +328,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeTab`, JSON.stringify(activeTab));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_selectedServer`, JSON.stringify(selectedServer));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeOtp`, JSON.stringify(activeOtpSession));
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeNumbers`, JSON.stringify(activeNumbers));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeInvoice`, JSON.stringify(activeInvoice));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_history`, JSON.stringify(history));
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_reseller`, JSON.stringify(resellerConfig));
@@ -328,6 +343,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     activeTab,
     selectedServer,
     activeOtpSession,
+    activeNumbers,
     activeInvoice,
     history,
     resellerConfig,
@@ -425,6 +441,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (historyRes?.success && Array.isArray(historyRes.items)) {
         const adapted = historyRes.items.map((item, idx) => adaptHistoryItem(item, idx));
         setHistory(adapted);
+        refreshActiveNumbers().catch(() => {});
 
         // Backend reconciliation: If local activeOtpSession is null, check if backend has an ongoing waiting OTP order
         setActiveOtpSession((currentSession) => {
@@ -693,6 +710,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
           }).catch(() => {});
 
+          otpApi.getActiveNumbers().then((activeRes) => {
+            if (isMounted && activeRes?.success && Array.isArray(activeRes.items)) {
+              setActiveNumbers(activeRes.items.map(adaptActiveNumberItem));
+            }
+          }).catch(() => {});
+
           // Refresh store catalogues in background - DO NOT block initial splash!
           refreshStore().catch(() => {});
         } else {
@@ -858,6 +881,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             )
           );
 
+          // Add to persistent active numbers section so user never loses it even on back navigation
+          const newActiveItem: ActiveNumberItem = {
+            orderId: realOrderId,
+            server: 1,
+            country: account.country,
+            serviceName: 'Telegram',
+            phone: realPhone || '',
+            twoFa: realTwofa || undefined,
+            otpCode: null,
+            status: 'waiting',
+            createdAt: Date.now(),
+            totalDurationSeconds: 86400,
+            remainingSeconds: 86400,
+            canFetchOtp: true,
+            isAutoPolling: false,
+          };
+          setActiveNumbers((prev) => [
+            newActiveItem,
+            ...prev.filter((x) => x.orderId !== realOrderId && x.phone !== realPhone),
+          ]);
+
           addToast(
             `Purchased ${account.country} Telegram Account! Credentials ready.`,
             'success',
@@ -997,6 +1041,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
           }
 
+          if (requestedFormat === 'account') {
+            const realPhone = res.phone || stockItem.country;
+            const newActiveItem: ActiveNumberItem = {
+              orderId: String(res.order_id || orderId),
+              server: 2,
+              country: stockItem.country,
+              serviceName: 'Telegram',
+              phone: realPhone,
+              twoFa: (res as any).twofa || (stockItem.twoFaRequired ? 'Included' : undefined),
+              otpCode: null,
+              status: 'waiting',
+              createdAt: Date.now(),
+              totalDurationSeconds: 86400,
+              remainingSeconds: 86400,
+              canFetchOtp: true,
+              isAutoPolling: false,
+              downloadUrl: res.download_url,
+            };
+            setActiveNumbers((prev) => [
+              newActiveItem,
+              ...prev.filter((x) => x.orderId !== newActiveItem.orderId),
+            ]);
+          }
+
           addToast(
             isBulk
               ? `Delivered ${quantity} sessions ZIP package successfully!`
@@ -1122,12 +1190,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   : item
               )
             );
+            const newActiveItem: ActiveNumberItem = {
+              orderId: realOrderId,
+              server: service.server,
+              country: service.country,
+              serviceName: service.serviceName,
+              phone: realPhone,
+              otpCode: null,
+              status: 'waiting',
+              createdAt: Date.now(),
+              totalDurationSeconds: 600,
+              remainingSeconds: 600,
+              canFetchOtp: true,
+              isAutoPolling: true,
+            };
+            setActiveNumbers((prev) => [
+              newActiveItem,
+              ...prev.filter((x) => x.orderId !== realOrderId && x.phone !== realPhone),
+            ]);
             addToast(`Number allocated: ${realPhone}. Waiting for SMS code...`, 'info', 'Number Ready');
           }
         } else {
           // Failure returned from API: rollback balance, cancel session, remove history
           rollbackPurchaseDeduction(service.priceInr, deduction.promoUsed);
           setActiveOtpSession(null);
+          setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderId));
           setHistory((prev) => prev.filter((item) => item.id !== orderId));
           addToast(
             res?.error || 'Virtual number could not be allocated. Your balance was refunded.',
@@ -1140,6 +1227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // Network or HTTP error: rollback balance, cancel session, remove history
         rollbackPurchaseDeduction(service.priceInr, deduction.promoUsed);
         setActiveOtpSession(null);
+        setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderId));
         setHistory((prev) => prev.filter((item) => item.id !== orderId));
         addToast(
           err?.message || 'Virtual number allocation failed. Your balance was refunded.',
@@ -1281,6 +1369,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [activeOtpSession?.orderId, activeOtpSession?.status]);
 
+  // Decrement remainingSeconds for waiting active numbers
+  useEffect(() => {
+    const hasWaiting = activeNumbers.some(
+      (n) => n.status === 'waiting' && n.remainingSeconds && n.remainingSeconds > 0
+    );
+    if (!hasWaiting) return;
+
+    const timer = setInterval(() => {
+      setActiveNumbers((prev) =>
+        prev.map((n) => {
+          if (n.status !== 'waiting' || !n.remainingSeconds || n.remainingSeconds <= 0) return n;
+          const nextRemaining = n.remainingSeconds - 1;
+          return {
+            ...n,
+            remainingSeconds: nextRemaining,
+            status: nextRemaining <= 0 ? 'expired' : n.status,
+          };
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeNumbers]);
+
 
 
   // Auto-refund when active OTP expires without receiving SMS code
@@ -1343,6 +1455,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
 
     setActiveOtpSession(null);
+    setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderId && item.phone !== orderId));
 
     addToast(
       `Number cancelled. ₹${refundAmount} has been refunded to your balance.`,
@@ -1360,8 +1473,122 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
 
     setActiveOtpSession(null);
+    setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderId && item.phone !== orderId));
     addToast('Order completed successfully! Stored in History.', 'success', 'Done');
   };
+
+  // Fetch Telegram Login Code / OTP on demand
+  const fetchOtpForNumber = useCallback(
+    async (orderIdOrPhone: string): Promise<string | null> => {
+      if (!orderIdOrPhone) return null;
+      try {
+        const res = await otpApi.getStatus(orderIdOrPhone);
+        if (res && (res.status === 'completed' || res.status === 'delivered') && res.otp) {
+          const code = res.otp;
+          hapticFeedback.success();
+          addToast(`Received OTP Code: ${code}`, 'success', 'Code Received!');
+          setActiveNumbers((prev) =>
+            prev.map((item) =>
+              item.orderId === orderIdOrPhone || item.phone === orderIdOrPhone
+                ? {
+                    ...item,
+                    status: 'received',
+                    otpCode: code,
+                    twoFa: res.twofa || item.twoFa,
+                  }
+                : item
+            )
+          );
+          setHistory((prev) =>
+            prev.map((h) =>
+              h.id === orderIdOrPhone || h.phone === orderIdOrPhone
+                ? {
+                    ...h,
+                    otpCode: code,
+                    status: 'success',
+                    twoFa: res.twofa || h.twoFa,
+                  }
+                : h
+            )
+          );
+          setPurchasedCredentialsModal((prev) => {
+            if (!prev) return null;
+            if (
+              prev.orderId === orderIdOrPhone ||
+              prev.account?.credentialsSample?.phone === orderIdOrPhone
+            ) {
+              return { ...prev, otpCode: code };
+            }
+            return prev;
+          });
+          return code;
+        } else {
+          addToast(
+            'Code not received yet. Request login code inside official Telegram for this number, then tap Get OTP.',
+            'info',
+            'Waiting for Code'
+          );
+          return null;
+        }
+      } catch (err: any) {
+        addToast(err?.message || 'Failed to check OTP. Please try again.', 'error', 'Error');
+        return null;
+      }
+    },
+    [addToast]
+  );
+
+  // Archive / Dismiss an active number
+  const archiveActiveNumber = useCallback(
+    async (orderIdOrPhone: string) => {
+      hapticFeedback.light();
+      setActiveNumbers((prev) =>
+        prev.filter((item) => item.orderId !== orderIdOrPhone && item.phone !== orderIdOrPhone)
+      );
+      setActiveOtpSession((prev) => {
+        if (prev && (prev.orderId === orderIdOrPhone || prev.phone === orderIdOrPhone)) {
+          return null;
+        }
+        return prev;
+      });
+      try {
+        await otpApi.archive(orderIdOrPhone);
+      } catch {}
+      addToast('Active number dismissed. Saved in History.', 'info', 'Archived');
+    },
+    [addToast]
+  );
+
+  // Sync active numbers with live backend
+  const refreshActiveNumbers = useCallback(async () => {
+    try {
+      const res = await otpApi.getActiveNumbers();
+      if (res && res.success && Array.isArray(res.items)) {
+        const adapted = res.items.map(adaptActiveNumberItem);
+        setActiveNumbers((prev) => {
+          const merged = [...adapted];
+          for (const local of prev) {
+            const idx = merged.findIndex(
+              (m) => m.orderId === local.orderId || (local.phone && m.phone === local.phone)
+            );
+            if (idx >= 0) {
+              merged[idx] = {
+                ...merged[idx],
+                otpCode: local.otpCode || merged[idx].otpCode,
+                status: local.status === 'received' ? 'received' : merged[idx].status,
+                twoFa: local.twoFa || merged[idx].twoFa,
+              };
+            } else if (local.status === 'waiting' || local.status === 'received') {
+              merged.push(local);
+            }
+          }
+          return merged;
+        });
+      }
+    } catch {
+      // offline / quiet fail
+    }
+  }, []);
 
   // Server 5: SMM Services Order
   const submitSmmOrder = (service: SmmServiceItem, targetLink: string, quantity: number): boolean => {
@@ -1777,6 +2004,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         activeTab,
         selectedServer,
         activeOtpSession,
+        activeNumbers,
         history,
         resellerConfig,
         toasts,
@@ -1812,6 +2040,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         closeServer2Modal,
         openReceiptDrawer,
         closeReceiptDrawer,
+        fetchOtpForNumber,
+        archiveActiveNumber,
+        refreshActiveNumbers,
         refreshStore,
         refreshUser,
         refreshHistory,
