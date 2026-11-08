@@ -5,6 +5,7 @@ LZT, DGOTP, TemporaSMS, or external SMM panel hostnames).
 """
 from __future__ import annotations
 
+import html
 import logging
 from typing import Any
 
@@ -545,6 +546,56 @@ def get_server5_stock() -> list[dict[str, Any]]:
         logger.warning("Error querying server5_stock: %s", exc)
 
     return items or _SERVER5_CACHE["items"]
+
+
+def get_server5_stock_paginated(
+    page: int = 1,
+    limit: int = 40,
+    platform: str | None = None,
+    category: str | None = None,
+    search: str | None = None,
+) -> dict[str, Any]:
+    """Return paginated, filtered Server 5 catalogue items without overloading client memory."""
+    all_items = get_server5_stock()
+    filtered = all_items
+
+    if platform and platform.strip() and platform.lower() != "all":
+        p_low = platform.strip().lower()
+        filtered = [
+            it for it in filtered
+            if p_low in str(it.get("category", "")).lower() or p_low in str(it.get("name", "")).lower()
+        ]
+
+    if category and category.strip() and category.lower() != "all":
+        c_low = category.strip().lower()
+        filtered = [
+            it for it in filtered
+            if c_low == str(it.get("category", "")).lower() or c_low in str(it.get("category", "")).lower()
+        ]
+
+    if search and search.strip():
+        s_low = search.strip().lower()
+        filtered = [
+            it for it in filtered
+            if s_low in str(it.get("name", "")).lower()
+            or s_low in str(it.get("category", "")).lower()
+            or s_low == str(it.get("id", ""))
+        ]
+
+    total = len(filtered)
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
+    start = (page - 1) * limit
+    end = start + limit
+    sliced = filtered[start:end]
+
+    return {
+        "items": sliced,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "has_more": end < total,
+    }
 
 
 def get_user_server1_filters(uid: int) -> dict[str, str]:

@@ -22,6 +22,7 @@ from services.store_service import (
     get_server3_stock,
     get_server4_stock,
     get_server5_stock,
+    get_server5_stock_paginated,
     get_pinned_services,
 )
 
@@ -93,9 +94,51 @@ def server4_stock():
 @store_bp.route("/api/store/server5", methods=["GET"])
 @store_bp.route("/api/server5/stock", methods=["GET"])
 def server5_stock():
-    """Return Server 5 SMM catalogue (SMM Hub)."""
+    """Return Server 5 SMM catalogue (SMM Hub), supporting both full and paginated queries."""
+    page_param = request.args.get("page")
+    limit_param = request.args.get("limit")
+    platform = request.args.get("platform")
+    category = request.args.get("category")
+    search = request.args.get("search")
+
+    # If any pagination or filtering query parameter is provided:
+    if page_param is not None or limit_param is not None or category or search or (platform and platform.lower() != 'all'):
+        page = int(page_param) if page_param and page_param.isdigit() else 1
+        limit = int(limit_param) if limit_param and limit_param.isdigit() else 40
+        result = get_server5_stock_paginated(
+            page=page,
+            limit=limit,
+            platform=platform,
+            category=category,
+            search=search,
+        )
+        return jsonify({
+            "success": True,
+            "items": result["items"],
+            "total": result["total"],
+            "page": result["page"],
+            "limit": result["limit"],
+            "has_more": result["has_more"],
+        })
+
+    # Backward compatibility: unpaginated catalogue
     items = get_server5_stock()
     return jsonify({"success": True, "items": items})
+
+
+@store_bp.route("/api/store/server5/categories", methods=["GET"])
+def server5_categories():
+    """Return distinct active categories with item counts for rapid tab filtering."""
+    all_items = get_server5_stock()
+    cat_map = {}
+    for item in all_items:
+        c_name = str(item.get("category") or "Other").strip()
+        p_name = str(item.get("platform") or "general").strip().lower()
+        if c_name not in cat_map:
+            cat_map[c_name] = {"category": c_name, "platform": p_name, "count": 0}
+        cat_map[c_name]["count"] += 1
+    categories = sorted(cat_map.values(), key=lambda x: x["count"], reverse=True)
+    return jsonify({"success": True, "categories": categories})
 
 
 @store_bp.route("/api/store/pinned", methods=["GET"])

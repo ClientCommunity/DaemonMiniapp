@@ -195,22 +195,33 @@ def archive_active_order():
         return jsonify({"success": False, "error": "Order identifier required"}), 400
 
     from database import connect
+    import re
     with connect() as conn:
+        if order_id.lower() == "all":
+            conn.execute("UPDATE orders SET is_active = 0 WHERE user_id = ?", (uid,))
+            conn.execute("UPDATE server3_orders SET status = 'completed' WHERE user_id = ?", (uid,))
+            conn.execute("UPDATE server4_orders SET status = 'completed' WHERE user_id = ?", (uid,))
+            conn.commit()
+            return jsonify({"success": True, "message": "All orders archived successfully"})
+
+        clean_id = re.sub(r'^[^0-9]*', '', order_id)
+        numeric_id = int(clean_id) if clean_id.isdigit() else -1
+
         conn.execute("""
             UPDATE orders 
             SET is_active = 0 
-            WHERE user_id = ? AND (provider_item_id = ? OR phone = ? OR id = ?)
-        """, (uid, order_id, order_id, int(order_id) if order_id.isdigit() else -1))
+            WHERE user_id = ? AND (provider_item_id = ? OR phone = ? OR id = ? OR id = ?)
+        """, (uid, order_id, order_id, int(order_id) if order_id.isdigit() else -1, numeric_id))
         conn.execute("""
             UPDATE server3_orders
             SET status = 'completed'
-            WHERE user_id = ? AND (provider_order_id = ? OR phone = ?)
-        """, (uid, order_id, order_id))
+            WHERE user_id = ? AND (provider_order_id = ? OR phone = ? OR id = ?)
+        """, (uid, order_id, order_id, numeric_id))
         conn.execute("""
             UPDATE server4_orders
             SET status = 'completed'
-            WHERE user_id = ? AND (provider_order_id = ? OR phone = ?)
-        """, (uid, order_id, order_id))
+            WHERE user_id = ? AND (provider_order_id = ? OR phone = ? OR id = ?)
+        """, (uid, order_id, order_id, numeric_id))
         conn.commit()
 
     return jsonify({"success": True, "message": "Order archived successfully"})
