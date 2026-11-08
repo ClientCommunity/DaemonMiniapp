@@ -863,7 +863,7 @@ export const Server1Lzt: React.FC = () => {
         title={purchasedCredentialsModal?.isLoading ? "Allocating Account..." : "Account Delivered!"}
         subtitle={
           purchasedCredentialsModal?.isLoading
-            ? "Connecting to LZT Market upstream provider..."
+            ? "Connecting to secure upstream provider..."
             : `Order ID: ${purchasedCredentialsModal?.orderId || 'S1_000000'}`
         }
         footer={
@@ -888,7 +888,7 @@ export const Server1Lzt: React.FC = () => {
                   Allocating and securing 2FA credentials
                 </span>
                 <span className="text-[11px] text-[#a1a1aa]">
-                  Allocating {purchasedCredentialsModal.account?.country || 'Telegram'} Account with LZT Market · Securing session & authorizations
+                  Allocating {purchasedCredentialsModal.account?.country || 'Telegram'} Account · Securing session & authorizations
                 </span>
               </div>
             </div>
@@ -1143,7 +1143,7 @@ export const Server1Lzt: React.FC = () => {
       <Modal
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
-        title="Server 1 Market Filters"
+        title="Server 1 Filters"
         subtitle="Configure account quality and security filters matching the Telegram bot"
         footer={
           <div className="grid grid-cols-2 gap-3 w-full">
