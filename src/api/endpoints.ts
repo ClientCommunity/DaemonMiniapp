@@ -302,7 +302,7 @@ export const storeApi = {
     api.get<Server2StockResponse>('/api/store/server2', { tier }),
   getServer3: () => api.get<Server3StockResponse>('/api/store/server3'),
   getServer4: () => api.get<Server4StockResponse>('/api/store/server4'),
-  getServer5: (params?: { page?: number; limit?: number; platform?: string; category?: string; search?: string }) =>
+  getServer5: (params?: { page?: number; limit?: number; platform?: string; category?: string; search?: string; sort?: string }) =>
     api.get<Server5StockResponse>('/api/store/server5', params),
   getServer5Categories: () =>
     api.get<Server5CategoriesResponse>('/api/store/server5/categories'),

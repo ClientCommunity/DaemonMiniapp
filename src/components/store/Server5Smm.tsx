@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { storeApi } from '../../api/endpoints';
 import { adaptServer5Item } from '../../api/adapters';
 import { useApp } from '../../context/AppContext';
@@ -162,11 +162,17 @@ export const Server5Smm: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  // Fetch page 1 whenever activePlatform or search query changes
+  // Ref to track latest active query and prevent race condition during fast tab switches / pagination
+  const currentQueryRef = React.useRef({ platform: activePlatform, search, sort: priceSort });
+  currentQueryRef.current = { platform: activePlatform, search, sort: priceSort };
+
+  // Fetch page 1 whenever activePlatform, search, or priceSort changes
   useEffect(() => {
     let cancelled = false;
     setIsLoadingPage(true);
     setPage(1);
+
+    const sortParam = priceSort === 'asc' ? 'price_asc' : priceSort === 'desc' ? 'price_desc' : undefined;
 
     const debounceTimer = setTimeout(async () => {
       try {
@@ -175,6 +181,7 @@ export const Server5Smm: React.FC = () => {
           limit: 40,
           platform: activePlatform === 'all' ? undefined : activePlatform,
           search: search.trim() || undefined,
+          sort: sortParam,
         });
 
         if (!cancelled && res?.success && Array.isArray(res.items)) {
@@ -190,31 +197,47 @@ export const Server5Smm: React.FC = () => {
           setIsLoadingPage(false);
         }
       }
-    }, search ? 300 : 0);
+    }, search ? 250 : 0);
 
     return () => {
       cancelled = true;
       clearTimeout(debounceTimer);
     };
-  }, [activePlatform, search]);
+  }, [activePlatform, search, priceSort]);
 
-  // Load next batch on scroll
+  // Load next batch on scroll with query ref guard against race conditions
   const handleLoadMore = useCallback(async () => {
     if (!hasMore || isLoadingMore || isLoadingPage) return;
     setIsLoadingMore(true);
     const nextPage = page + 1;
+    const querySnapshot = { ...currentQueryRef.current };
+    const sortParam = querySnapshot.sort === 'asc' ? 'price_asc' : querySnapshot.sort === 'desc' ? 'price_desc' : undefined;
 
     try {
       const res = await storeApi.getServer5({
         page: nextPage,
         limit: 40,
-        platform: activePlatform === 'all' ? undefined : activePlatform,
-        search: search.trim() || undefined,
+        platform: querySnapshot.platform === 'all' ? undefined : querySnapshot.platform,
+        search: querySnapshot.search.trim() || undefined,
+        sort: sortParam,
       });
+
+      // Discard stale in-flight response if query changed while loading
+      if (
+        currentQueryRef.current.platform !== querySnapshot.platform ||
+        currentQueryRef.current.search !== querySnapshot.search ||
+        currentQueryRef.current.sort !== querySnapshot.sort
+      ) {
+        return;
+      }
 
       if (res?.success && Array.isArray(res.items)) {
         const adapted = res.items.map(adaptServer5Item);
-        setPaginatedServices((prev) => [...prev, ...adapted]);
+        setPaginatedServices((prev) => {
+          const existingIds = new Set(prev.map((x) => x.id));
+          const fresh = adapted.filter((x) => !existingIds.has(x.id));
+          return [...prev, ...fresh];
+        });
         setPage(nextPage);
         setHasMore(!!res.has_more);
         if (res.total !== undefined) setTotalCount(res.total);
@@ -224,7 +247,7 @@ export const Server5Smm: React.FC = () => {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoadingMore, isLoadingPage, page, activePlatform, search]);
+  }, [hasMore, isLoadingMore, isLoadingPage, page]);
 
   // Infinite scroll intersection observer
   useEffect(() => {
@@ -245,16 +268,8 @@ export const Server5Smm: React.FC = () => {
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, handleLoadMore]);
 
-  // Apply in-memory price sort to currently loaded slice
-  const sortedServices = useMemo(() => {
-    if (priceSort === 'asc') {
-      return [...paginatedServices].sort((a, b) => a.ratePer1000 - b.ratePer1000);
-    }
-    if (priceSort === 'desc') {
-      return [...paginatedServices].sort((a, b) => b.ratePer1000 - a.ratePer1000);
-    }
-    return paginatedServices;
-  }, [paginatedServices, priceSort]);
+  // Backend guarantees global sorting across all 9,000+ items
+  const sortedServices = paginatedServices;
 
   const presetIncrements = [500, 1000, 2500, 5000];
 

@@ -52,12 +52,24 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
   });
 
   React.useEffect(() => {
-    if (isReceived || localRemaining <= 0) return;
+    if (isReceived) return;
     const interval = setInterval(() => {
-      setLocalRemaining((prev) => (prev <= 1 ? 0 : prev - 1));
+      setLocalRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(interval);
-  }, [isReceived, localRemaining]);
+  }, [isReceived]);
+
+  React.useEffect(() => {
+    if (remainingSeconds !== undefined && remainingSeconds > 0) {
+      setLocalRemaining(remainingSeconds);
+    }
+  }, [remainingSeconds]);
 
   const handleCopyPhone = () => {
     hapticFeedback.light();

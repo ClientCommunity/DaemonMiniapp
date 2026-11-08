@@ -1518,9 +1518,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const archiveActiveNumber = useCallback(
     async (orderIdOrPhone: string) => {
       hapticFeedback.light();
-      setActiveNumbers((prev) =>
-        prev.filter((item) => item.orderId !== orderIdOrPhone && item.phone !== orderIdOrPhone)
-      );
+      setActiveNumbers((prev) => {
+        const filtered = prev.filter((item) => item.orderId !== orderIdOrPhone && item.phone !== orderIdOrPhone);
+        try {
+          localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeNumbers`, JSON.stringify(filtered));
+        } catch {}
+        return filtered;
+      });
       setActiveOtpSession((prev) => {
         if (prev && (prev.orderId === orderIdOrPhone || prev.phone === orderIdOrPhone)) {
           return null;
@@ -1540,6 +1544,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hapticFeedback.medium();
     setActiveNumbers([]);
     setActiveOtpSession(null);
+    try {
+      localStorage.removeItem(`${LOCAL_STORAGE_KEY}_activeNumbers`);
+    } catch {}
     try {
       await otpApi.archive('all');
     } catch {}
@@ -1565,7 +1572,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 status: local.status === 'received' ? 'received' : merged[idx].status,
                 twoFa: local.twoFa || merged[idx].twoFa,
               };
-            } else if (local.status === 'waiting' || local.status === 'received') {
+            } else if (local.createdAt && (Date.now() - local.createdAt < 60_000) && local.status === 'waiting') {
+              // Retain very fresh (< 60s) in-flight orders not yet returned by backend
               merged.push(local);
             }
           }

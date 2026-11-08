@@ -337,7 +337,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
               {[
                 { no: 1, label: 'S1: 2FA', icon: Globe },
                 { no: 2, label: 'S2: Stock', icon: Layers },
-                { no: 3, label: 'S3: DGOTP', icon: Zap },
+                { no: 3, label: 'S3: Virtual', icon: Zap },
                 { no: 4, label: 'S4: Carrier', icon: Radio },
                 { no: 5, label: 'S5: SMM', icon: Share2 },
               ].map((s) => {
