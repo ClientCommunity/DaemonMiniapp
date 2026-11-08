@@ -460,6 +460,28 @@ def get_server4_stock() -> list[dict[str, Any]]:
 
 _SERVER5_CACHE: dict[str, Any] = {"timestamp": 0.0, "items": []}
 
+def map_smm_platform(cat: str, name: str) -> str:
+    import re
+    combined = f"{cat} {name}".lower()
+    if "snapchat" in combined or re.search(r"\bsnap\b", combined):
+        return "snapchat"
+    if "tiktok" in combined or "tik tok" in combined or re.search(r"\btik\b", combined):
+        return "tiktok"
+    if "facebook" in combined or re.search(r"\b(fb)\b", combined) or combined.startswith("fb "):
+        return "facebook"
+    if "youtube" in combined or re.search(r"\byt\b", combined) or combined.startswith("yt "):
+        return "youtube"
+    if "telegram" in combined or re.search(r"\btg\b", combined) or combined.startswith("tg "):
+        return "telegram"
+    if "whatsapp" in combined or re.search(r"\bwa\b", combined) or combined.startswith("wa "):
+        return "whatsapp"
+    if "twitter" in combined or "x.com" in combined or re.search(r"\b(twit|x)\b", combined):
+        return "twitter"
+    if "instagram" in combined or re.search(r"\b(insta|ig)\b", combined) or combined.startswith("ig "):
+        return "instagram"
+    return "other"
+
+
 def get_server5_stock() -> list[dict[str, Any]]:
     """Return Server 5 catalogue (SMM Hub) with authentic rates, markup, and enabled providers."""
     import time
@@ -527,11 +549,13 @@ def get_server5_stock() -> list[dict[str, Any]]:
                 cat_raw = r["category_name"] or "SMM"
                 cat = html.unescape(html.unescape(str(cat_raw))).strip()
                 s_name = html.unescape(html.unescape(str(r["name"] or ""))).strip()
+                platform_name = map_smm_platform(cat, s_name)
                 items.append({
                     "id": r["id"],
                     "name": s_name,
                     "country": cat,
                     "category": cat,
+                    "platform": platform_name,
                     "icon": "🚀",
                     "price": final_price,
                     "min_qty": int(r["minimum"] or 100),
@@ -554,6 +578,7 @@ def get_server5_stock_paginated(
     platform: str | None = None,
     category: str | None = None,
     search: str | None = None,
+    sort: str | None = None,
 ) -> dict[str, Any]:
     """Return paginated, filtered Server 5 catalogue items without overloading client memory."""
     all_items = get_server5_stock()
@@ -563,7 +588,9 @@ def get_server5_stock_paginated(
         p_low = platform.strip().lower()
         filtered = [
             it for it in filtered
-            if p_low in str(it.get("category", "")).lower() or p_low in str(it.get("name", "")).lower()
+            if str(it.get("platform", "")).lower() == p_low
+            or p_low in str(it.get("category", "")).lower()
+            or p_low in str(it.get("name", "")).lower()
         ]
 
     if category and category.strip() and category.lower() != "all":
@@ -581,6 +608,11 @@ def get_server5_stock_paginated(
             or s_low in str(it.get("category", "")).lower()
             or s_low == str(it.get("id", ""))
         ]
+
+    if sort == "price_asc":
+        filtered = sorted(filtered, key=lambda x: float(x.get("price") or 0.0))
+    elif sort == "price_desc":
+        filtered = sorted(filtered, key=lambda x: float(x.get("price") or 0.0), reverse=True)
 
     total = len(filtered)
     page = max(1, page)

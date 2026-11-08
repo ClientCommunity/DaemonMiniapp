@@ -100,9 +100,10 @@ def server5_stock():
     platform = request.args.get("platform")
     category = request.args.get("category")
     search = request.args.get("search")
+    sort = request.args.get("sort")
 
     # If any pagination or filtering query parameter is provided:
-    if page_param is not None or limit_param is not None or category or search or (platform and platform.lower() != 'all'):
+    if page_param is not None or limit_param is not None or category or search or sort or (platform and platform.lower() != 'all'):
         page = int(page_param) if page_param and page_param.isdigit() else 1
         limit = int(limit_param) if limit_param and limit_param.isdigit() else 40
         result = get_server5_stock_paginated(
@@ -111,6 +112,7 @@ def server5_stock():
             platform=platform,
             category=category,
             search=search,
+            sort=sort,
         )
         return jsonify({
             "success": True,
