@@ -231,7 +231,7 @@ def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
             FROM lzt_stock_cache
             WHERE stock_count > 0
             ORDER BY stock_count DESC, country ASC
-            LIMIT 60
+            LIMIT 500
         """).fetchall()
 
         for r in rows:
@@ -260,15 +260,15 @@ def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
                 "subtitle": "Global Market 2FA",
             })
 
-        # 2. Secondary fallback: local stock table if populated
+        # 2. Secondary fallback: local stock table if populated strictly for Server 1
         if not items:
             stock_rows = conn.execute("""
                 SELECT country_icon, country_name, price, COUNT(*) as stock_count
                 FROM stock
-                WHERE available = 1 AND (category = 'Server 1' OR category = 'Good')
+                WHERE available = 1 AND category = 'Server 1'
                 GROUP BY country_name
                 ORDER BY stock_count DESC
-                LIMIT 60
+                LIMIT 500
             """).fetchall()
             for r in stock_rows:
                 items.append({
@@ -341,8 +341,15 @@ def get_server2_stock(tier: str = "good") -> dict[str, Any]:
     }
 
 
+_SERVER3_CACHE: dict[str, Any] = {"timestamp": 0.0, "items": []}
+
 def get_server3_stock() -> list[dict[str, Any]]:
-    """Return Server 3 catalogue (Instant Virtual OTP)."""
+    """Return Server 3 catalogue (Instant Virtual OTP) with high-speed in-memory caching."""
+    import time
+    now = time.time()
+    if _SERVER3_CACHE["items"] and (now - _SERVER3_CACHE["timestamp"]) < 60.0:
+        return _SERVER3_CACHE["items"]
+
     items = []
     icon_map = {
         "tg": "✈️", "wa": "💬", "wb": "💬", "go": "🔍", "ig": "📸",
@@ -376,6 +383,8 @@ def get_server3_stock() -> list[dict[str, Any]]:
                 "stock": None,
                 "subtitle": f"{country_name} Instant OTP",
             })
+        _SERVER3_CACHE["items"] = items
+        _SERVER3_CACHE["timestamp"] = now
     except Exception as exc:
         logger.warning("Error querying server3_services: %s", exc)
     return items
@@ -897,10 +906,26 @@ def get_pinned_services(server_no: int | None = None) -> list[dict[str, Any]]:
 
                     elif s_no == 2:
                         target = c_name or svc_id
-                        stk_row = conn.execute(
-                            "SELECT price, COUNT(*) as cnt, country_icon FROM stock WHERE country_name = ? AND available = 1",
-                            (target,)
-                        ).fetchone()
+                        stk_row = None
+                        # Check if svc_id is in structured format Country_Tier_Year (e.g. India_good_2024)
+                        parts = svc_id.split("_")
+                        if len(parts) >= 3:
+                            country_part = parts[0]
+                            tier_part = parts[1].lower()
+                            year_part = parts[2]
+                            stk_row = conn.execute(
+                                """SELECT price, COUNT(*) as cnt, country_icon 
+                                   FROM stock 
+                                   WHERE country_name = ? AND quality_tier = ? AND account_year = ? AND available = 1""",
+                                (country_part, tier_part, int(year_part) if year_part.isdigit() else 2024)
+                            ).fetchone()
+
+                        if not stk_row or not stk_row["cnt"]:
+                            stk_row = conn.execute(
+                                "SELECT price, COUNT(*) as cnt, country_icon FROM stock WHERE country_name = ? AND available = 1",
+                                (target,)
+                            ).fetchone()
+
                         if stk_row and stk_row["cnt"]:
                             price = int(stk_row["price"] or 60)
                             stock = int(stk_row["cnt"])
