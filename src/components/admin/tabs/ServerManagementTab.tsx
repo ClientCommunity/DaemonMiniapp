@@ -28,6 +28,8 @@ import {
   Pin,
   X,
 } from 'lucide-react';
+import { PinServiceModal, PreselectedServiceInfo } from '../PinServiceModal';
+import { PinnedServiceItem } from '../../../api/endpoints';
 const PinnedServicesTab = React.lazy(() => import('./PinnedServicesTab').then(m => ({ default: m.PinnedServicesTab })));
 
 type ServerSubTab = 'server1' | 'server2' | 'server3_4' | 'server5' | 'pinned';
@@ -35,6 +37,41 @@ type ServerSubTab = 'server1' | 'server2' | 'server3_4' | 'server5' | 'pinned';
 export const ServerManagementTab: React.FC = () => {
   const { addToast } = useApp();
   const [subTab, setSubTab] = useState<ServerSubTab>('server1');
+
+  // ============================================================================
+  // PINNED SERVICES GLOBAL STATE & QUICK PIN MODAL (FEATURE B)
+  // ============================================================================
+  const [pinnedList, setPinnedList] = useState<PinnedServiceItem[]>([]);
+  const [quickPinModal, setQuickPinModal] = useState<{
+    isOpen: boolean;
+    service: PreselectedServiceInfo | null;
+  }>({ isOpen: false, service: null });
+
+  const loadPinnedList = useCallback(async () => {
+    try {
+      const res = await adminApi.getPinnedServices();
+      if (res?.success && Array.isArray(res.pinned)) {
+        setPinnedList(res.pinned);
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPinnedList();
+  }, [loadPinnedList]);
+
+  const isServicePinned = useCallback(
+    (serverNo: number, serviceId: string) => {
+      return pinnedList.some(
+        (p) =>
+          p.server_no === serverNo &&
+          String(p.service_id).trim().toLowerCase() === String(serviceId).trim().toLowerCase()
+      );
+    },
+    [pinnedList]
+  );
 
   // ============================================================================
   // SERVER 1 STATE
@@ -716,6 +753,71 @@ export const ServerManagementTab: React.FC = () => {
             </div>
           </div>
 
+          {/* Quick Pin Popular Server 1 Countries */}
+          <div className="bg-[#181820] border border-[#262630] rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Pin className="w-4 h-4 text-amber-400" />
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Feature / Pin Server 1 Countries to Storefront
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickPinModal({ isOpen: true, service: null })}
+                className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                + Browse & Pin Any Country
+              </button>
+            </div>
+            <p className="text-[11px] text-[#a1a1aa]">
+              Pin accounts directly to the top of the Home Dashboard & Store tab for instant customer checkout.
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                { code: 'US', name: 'USA', flag: '🇺🇸' },
+                { code: 'RU', name: 'Russia', flag: '🇷🇺' },
+                { code: 'DZ', name: 'Algeria', flag: '🇩🇿' },
+                { code: 'IN', name: 'India', flag: '🇮🇳' },
+                { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
+                { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
+                { code: 'BR', name: 'Brazil', flag: '🇧🇷' },
+              ].map((c) => {
+                const pinned = isServicePinned(1, c.code);
+                return (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() =>
+                      setQuickPinModal({
+                        isOpen: true,
+                        service: {
+                          server_no: 1,
+                          service_id: c.code,
+                          service_name: `${c.name} 2FA Account`,
+                          category_name: 'Telegram 2FA',
+                          country_name: c.name,
+                          country_code: c.code,
+                          badge: 'Hot',
+                        },
+                      })
+                    }
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                      pinned
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 ring-1 ring-amber-400/50'
+                        : 'bg-[#121217] text-[#a1a1aa] border-[#262630] hover:text-white hover:border-[#383848]'
+                    }`}
+                  >
+                    <span>{c.flag}</span>
+                    <span>{c.name}</span>
+                    <Pin className={`w-3 h-3 ${pinned ? 'fill-amber-400 text-amber-400' : 'text-[#71717a]'}`} />
+                    {pinned && <span className="text-[9px] bg-amber-400/30 px-1 py-0.2 rounded text-amber-200">Pinned</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Country-Specific Markups Table */}
           <div className="bg-[#181820] border border-[#262630] rounded-2xl p-5 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1043,6 +1145,16 @@ export const ServerManagementTab: React.FC = () => {
                 >
                   <RefreshCw className={`w-4 h-4 ${s2Loading ? 'animate-spin' : ''}`} />
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setQuickPinModal({ isOpen: true, service: null })}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition-all shadow-sm"
+                  title="Feature Server 2 Stock on Storefront"
+                >
+                  <Pin className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Pin Stock</span>
+                </button>
               </div>
             </div>
 
@@ -1087,6 +1199,38 @@ export const ServerManagementTab: React.FC = () => {
                         </td>
                         <td className="py-2 px-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {(() => {
+                              const country = item.country_name || 'Global';
+                              const serviceId = `${country}_${item.quality_tier}_${item.account_year || 2023}`;
+                              const pinned = isServicePinned(2, serviceId);
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setQuickPinModal({
+                                      isOpen: true,
+                                      service: {
+                                        server_no: 2,
+                                        service_id: serviceId,
+                                        service_name: `${country} ${item.account_year || 2023} (${item.quality_tier === 'good' ? 'Good' : 'Cheap'})`,
+                                        category_name: `Telegram ${item.quality_tier.toUpperCase()} Session`,
+                                        country_name: country,
+                                        price: item.price,
+                                        badge: 'Hot',
+                                      },
+                                    })
+                                  }
+                                  className={`p-1 rounded-lg transition-colors ${
+                                    pinned
+                                      ? 'text-amber-400 bg-amber-500/20 hover:bg-amber-500/30'
+                                      : 'text-[#a1a1aa] hover:text-amber-400 hover:bg-amber-500/10'
+                                  }`}
+                                  title={pinned ? 'Pinned on Storefront (Click to manage)' : 'Pin this Country Stock to Storefront'}
+                                >
+                                  <Pin className={`w-3.5 h-3.5 ${pinned ? 'fill-amber-400 text-amber-400' : ''}`} />
+                                </button>
+                              );
+                            })()}
                             <button
                               onClick={() => handleUpdateStockPrice(item)}
                               className="text-[#a78bfa] hover:text-[#c4b5fd] p-1 rounded-lg hover:bg-[#a78bfa]/10 transition-colors"
@@ -1258,6 +1402,61 @@ export const ServerManagementTab: React.FC = () => {
                       <span>Sync Catalogue</span>
                     </button>
                   </div>
+
+                  {/* Feature / Pin Popular Services */}
+                  <div className="pt-3 border-t border-[#262630] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-[#a1a1aa] font-semibold flex items-center gap-1">
+                        <Pin className="w-3 h-3 text-amber-400" />
+                        <span>Feature Popular {serverNo === 3 ? 'Virtual' : 'Carrier'} OTP Apps:</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuickPinModal({ isOpen: true, service: null })}
+                        className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold transition-colors"
+                      >
+                        + Browse & Pin
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {[
+                        { code: 'tg', name: 'Telegram' },
+                        { code: 'wa', name: 'WhatsApp' },
+                        { code: 'ig', name: 'Instagram' },
+                        { code: 'go', name: 'Google' },
+                        { code: 'openai', name: 'OpenAI' },
+                      ].map((app) => {
+                        const isPinned = isServicePinned(serverNo, app.code);
+                        return (
+                          <button
+                            key={app.code}
+                            type="button"
+                            onClick={() =>
+                              setQuickPinModal({
+                                isOpen: true,
+                                service: {
+                                  server_no: serverNo,
+                                  service_id: app.code,
+                                  service_name: `${app.name} Instant OTP (${serverNo === 3 ? 'DGOTP' : 'Carrier'})`,
+                                  category_name: app.name,
+                                  badge: 'Instant',
+                                },
+                              })
+                            }
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                              isPinned
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                : 'bg-[#121217] text-[#a1a1aa] border-[#262630] hover:text-white'
+                            }`}
+                          >
+                            <Pin className={`w-2.5 h-2.5 ${isPinned ? 'fill-amber-400 text-amber-400' : ''}`} />
+                            <span>{app.name}</span>
+                            {isPinned && <span className="text-[8px] bg-amber-400/30 px-1 rounded text-amber-200">Pinned</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -1293,31 +1492,43 @@ export const ServerManagementTab: React.FC = () => {
             </button>
           </div>
 
-          {/* SMM Sub-sections (Providers / Categories / Orders) */}
-          <div className="flex items-center gap-2 border-b border-[#262630] pb-2">
+          {/* SMM Sub-sections (Providers / Categories / Orders) + Quick Pin Action */}
+          <div className="flex items-center justify-between gap-2 border-b border-[#262630] pb-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSmmSubSection('providers')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  smmSubSection === 'providers' ? 'bg-[#7c3aed] text-white' : 'text-[#a1a1aa]'
+                }`}
+              >
+                Providers ({smmProviders.length})
+              </button>
+              <button
+                onClick={() => setSmmSubSection('categories')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  smmSubSection === 'categories' ? 'bg-[#7c3aed] text-white' : 'text-[#a1a1aa]'
+                }`}
+              >
+                Categories ({smmCategories.length})
+              </button>
+              <button
+                onClick={() => setSmmSubSection('orders')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  smmSubSection === 'orders' ? 'bg-[#7c3aed] text-white' : 'text-[#a1a1aa]'
+                }`}
+              >
+                Live Orders Log ({smmOrders.length})
+              </button>
+            </div>
+
             <button
-              onClick={() => setSmmSubSection('providers')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                smmSubSection === 'providers' ? 'bg-[#7c3aed] text-white' : 'text-[#a1a1aa]'
-              }`}
+              type="button"
+              onClick={() => setQuickPinModal({ isOpen: true, service: null })}
+              className="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/30 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm"
+              title="Search across all 9,000+ SMM services and pin directly"
             >
-              Providers ({smmProviders.length})
-            </button>
-            <button
-              onClick={() => setSmmSubSection('categories')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                smmSubSection === 'categories' ? 'bg-[#7c3aed] text-white' : 'text-[#a1a1aa]'
-              }`}
-            >
-              Categories ({smmCategories.length})
-            </button>
-            <button
-              onClick={() => setSmmSubSection('orders')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                smmSubSection === 'orders' ? 'bg-[#7c3aed] text-white' : 'text-[#a1a1aa]'
-              }`}
-            >
-              Live Orders Log ({smmOrders.length})
+              <Pin className="w-3.5 h-3.5" />
+              <span>Search & Pin Any SMM Service</span>
             </button>
           </div>
 
@@ -1526,16 +1737,47 @@ export const ServerManagementTab: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleToggleSmmCategory(c.id)}
-                          className={`text-[10px] font-bold px-3 py-1 rounded-full border transition-all shrink-0 cursor-pointer ${
-                            isVisible
-                              ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30 hover:bg-[#22c55e]/25'
-                              : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30 hover:bg-[#ef4444]/25'
-                          }`}
-                        >
-                          {isVisible ? 'Visible' : 'Hidden'}
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {(() => {
+                            const catName = c.name || c.display_name || 'SMM Service';
+                            const pinned = isServicePinned(5, String(c.id));
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setQuickPinModal({
+                                    isOpen: true,
+                                    service: {
+                                      server_no: 5,
+                                      service_id: String(c.id),
+                                      service_name: catName,
+                                      category_name: c.platform || 'Social Media',
+                                      badge: 'Hot',
+                                    },
+                                  })
+                                }
+                                className={`p-1.5 rounded-lg border text-xs transition-all ${
+                                  pinned
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                    : 'bg-[#121217] text-[#a1a1aa] border-[#262630] hover:text-amber-400 hover:border-amber-500/30'
+                                }`}
+                                title={pinned ? 'Category Pinned (Click to manage)' : 'Pin this Category to Storefront'}
+                              >
+                                <Pin className={`w-3.5 h-3.5 ${pinned ? 'fill-amber-400 text-amber-400' : ''}`} />
+                              </button>
+                            );
+                          })()}
+                          <button
+                            onClick={() => handleToggleSmmCategory(c.id)}
+                            className={`text-[10px] font-bold px-3 py-1 rounded-full border transition-all shrink-0 cursor-pointer ${
+                              isVisible
+                                ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30 hover:bg-[#22c55e]/25'
+                                : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30 hover:bg-[#ef4444]/25'
+                            }`}
+                          >
+                            {isVisible ? 'Visible' : 'Hidden'}
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -1637,6 +1879,17 @@ export const ServerManagementTab: React.FC = () => {
           </React.Suspense>
         </div>
       )}
+
+      {/* 1-Click Quick Pinning Modal (Feature B) */}
+      <PinServiceModal
+        isOpen={quickPinModal.isOpen}
+        onClose={() => setQuickPinModal({ isOpen: false, service: null })}
+        onPinnedSuccessfully={() => {
+          loadPinnedList();
+        }}
+        initialService={quickPinModal.service}
+        pinnedList={pinnedList}
+      />
     </div>
   );
 };

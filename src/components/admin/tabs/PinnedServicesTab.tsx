@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { adminApi } from '../../../api/adminApi';
 import { PinnedServiceItem } from '../../../api/endpoints';
 import { useApp } from '../../../context/AppContext';
+import { PinServiceModal, PreselectedServiceInfo } from '../PinServiceModal';
 import {
   Pin,
   Plus,
@@ -11,6 +12,7 @@ import {
   Megaphone,
   X,
   ExternalLink,
+  Edit2,
 } from 'lucide-react';
 
 export const PinnedServicesTab: React.FC = () => {
@@ -19,16 +21,9 @@ export const PinnedServicesTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [serverFilter, setServerFilter] = useState<number | null>(null);
 
-  // Add Modal State
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [formServerNo, setFormServerNo] = useState<number>(5);
-  const [formServiceId, setFormServiceId] = useState('');
-  const [formServiceName, setFormServiceName] = useState('');
-  const [formCategory, setFormCategory] = useState('');
-  const [formCountry, setFormCountry] = useState('');
-  const [formBadge, setFormBadge] = useState('Hot');
-  const [formOrder, setFormOrder] = useState('0');
-  const [submitting, setSubmitting] = useState(false);
+  // Pin / Edit Service Modal State
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState<PreselectedServiceInfo | null>(null);
 
   // Broadcast Modal State
   const [broadcastTarget, setBroadcastTarget] = useState<PinnedServiceItem | null>(null);
@@ -85,41 +80,22 @@ export const PinnedServicesTab: React.FC = () => {
     }
   };
 
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formServiceId.trim() || !formServiceName.trim()) {
-      addToast('Service ID and Name are required', 'error');
-      return;
-    }
+  const handleOpenAddModal = () => {
+    setEditingService(null);
+    setIsPinModalOpen(true);
+  };
 
-    setSubmitting(true);
-    try {
-      const res = await adminApi.addPinnedService({
-        server_no: formServerNo,
-        service_id: formServiceId.trim(),
-        service_name: formServiceName.trim(),
-        category_name: formCategory.trim(),
-        country_name: formCountry.trim(),
-        badge: formBadge.trim() || 'Hot',
-        display_order: parseInt(formOrder, 10) || 0,
-      });
-
-      if (res?.success && res.item) {
-        addToast('Service successfully pinned!', 'success');
-        setIsAddModalOpen(false);
-        setFormServiceId('');
-        setFormServiceName('');
-        setFormCategory('');
-        setFormCountry('');
-        setFormOrder('0');
-        loadPinned();
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to pin service';
-      addToast(msg, 'error');
-    } finally {
-      setSubmitting(false);
-    }
+  const handleOpenEditModal = (item: PinnedServiceItem) => {
+    setEditingService({
+      server_no: item.server_no,
+      service_id: item.service_id,
+      service_name: item.service_name,
+      category_name: item.category_name,
+      country_name: item.country_name,
+      country_code: item.country_code,
+      badge: item.badge,
+    });
+    setIsPinModalOpen(true);
   };
 
   const handleOpenBroadcast = (item: PinnedServiceItem) => {
@@ -190,7 +166,7 @@ export const PinnedServicesTab: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={handleOpenAddModal}
               className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -236,7 +212,7 @@ export const PinnedServicesTab: React.FC = () => {
             You haven't pinned any services yet. Click the button below to feature services from any server.
           </p>
           <button
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={handleOpenAddModal}
             className="inline-flex items-center gap-2 bg-amber-500 text-black font-bold px-4 py-2 rounded-xl text-xs"
           >
             <Plus className="w-4 h-4" />
@@ -266,6 +242,13 @@ export const PinnedServicesTab: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleOpenEditModal(item)}
+                      className="p-1 rounded-lg text-[#a1a1aa] hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                      title="Edit Badge or Priority"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => handleToggleActive(item)}
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all ${
@@ -312,144 +295,19 @@ export const PinnedServicesTab: React.FC = () => {
         </div>
       )}
 
-      {/* Add Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#181820] border border-[#262630] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#262630]">
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <Pin className="w-4 h-4 text-amber-400" />
-                <span>Pin a Service</span>
-              </h4>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-[#a1a1aa] hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddSubmit} className="space-y-3.5">
-              <div>
-                <label className="text-xs font-semibold text-[#a1a1aa] block mb-1">
-                  Target Server:
-                </label>
-                <select
-                  value={formServerNo}
-                  onChange={(e) => setFormServerNo(Number(e.target.value))}
-                  className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
-                >
-                  <option value={1}>Server 1 (Global 2FA Accounts / LZT)</option>
-                  <option value={2}>Server 2 (Sessions & Combo Stock)</option>
-                  <option value={3}>Server 3 (Instant Virtual OTP)</option>
-                  <option value={4}>Server 4 (Fresh Carrier OTP)</option>
-                  <option value={5}>Server 5 (SMM Hub Services)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-[#a1a1aa] block mb-1">
-                  Service ID / Code:
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 101, tg, wa, US"
-                  value={formServiceId}
-                  onChange={(e) => setFormServiceId(e.target.value)}
-                  className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none font-mono"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-[#a1a1aa] block mb-1">
-                  Display Name:
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Telegram India OTP, Instagram Followers"
-                  value={formServiceName}
-                  onChange={(e) => setFormServiceName(e.target.value)}
-                  className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#a1a1aa] block mb-1">
-                    Category (optional):
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Instagram"
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-[#a1a1aa] block mb-1">
-                    Country (optional):
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. India"
-                    value={formCountry}
-                    onChange={(e) => setFormCountry(e.target.value)}
-                    className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#a1a1aa] block mb-1">
-                    Badge Text:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Hot"
-                    value={formBadge}
-                    onChange={(e) => setFormBadge(e.target.value)}
-                    className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-[#a1a1aa] block mb-1">
-                    Sort Order #:
-                  </label>
-                  <input
-                    type="number"
-                    value={formOrder}
-                    onChange={(e) => setFormOrder(e.target.value)}
-                    className="w-full bg-[#121217] border border-[#262630] rounded-xl px-3 py-2 text-xs text-white outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-[#a1a1aa] hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-2 rounded-xl text-xs transition-all shadow-md"
-                >
-                  {submitting ? 'Pinning...' : 'Save & Pin'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Pin / Edit Service Modal */}
+      <PinServiceModal
+        isOpen={isPinModalOpen}
+        onClose={() => {
+          setIsPinModalOpen(false);
+          setEditingService(null);
+        }}
+        onPinnedSuccessfully={() => {
+          loadPinned();
+        }}
+        initialService={editingService}
+        pinnedList={pinnedItems}
+      />
 
       {/* Broadcast Modal */}
       {broadcastTarget && (
