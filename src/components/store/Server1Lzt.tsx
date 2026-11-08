@@ -308,7 +308,7 @@ export const Server1Lzt: React.FC = () => {
       {/* Banner / Intro */}
       <div className="py-2 px-3 mb-2 rounded-xl bg-[#181820] border border-[#262630] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-white">Server 1: Global 2FA Accounts</span>
+          <span className="text-[11px] font-bold text-white">Server 1: Global Accounts</span>
           <span className="text-[10px] text-[#71717a] hidden xs:inline">• Global Aged Stock</span>
         </div>
         <div className="px-1.5 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/25 text-[#22c55e] text-[9px] font-bold uppercase tracking-wider shrink-0">
@@ -499,7 +499,7 @@ export const Server1Lzt: React.FC = () => {
                 <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa] mt-0.5">
                   <span>Stock: {item.stockCount} left</span>
                   <span>•</span>
-                  <span className="text-[#22c55e] font-medium">Instant 2FA Delivery</span>
+                  <span className="text-[#22c55e] font-medium">Instant Delivery</span>
                 </div>
               </div>
             </div>
