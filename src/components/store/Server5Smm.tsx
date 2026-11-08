@@ -1,4 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { storeApi } from '../../api/endpoints';
+import { adaptServer5Item } from '../../api/adapters';
 import { useApp } from '../../context/AppContext';
 import { SmmPlatform, SmmServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
@@ -25,7 +27,7 @@ import {
 } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
-  const { formatPrice, submitSmmOrder, server5Items, user, setActiveTab, addToast, isServerLoading } = useApp();
+  const { formatPrice, submitSmmOrder, user, setActiveTab, addToast } = useApp();
 
   const [activePlatform, setActivePlatform] = useState<SmmPlatform | 'all'>(() => {
     try {
@@ -132,76 +134,127 @@ export const Server5Smm: React.FC = () => {
     { id: 'snapchat', label: 'Snapchat' },
   ];
 
-  // Available services for chosen platform (consuming live inventory from AppContext)
-  const allServices = server5Items;
-
-  const platformCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: allServices.length };
-    for (const item of allServices) {
-      counts[item.platform] = (counts[item.platform] || 0) + 1;
-    }
-    return counts;
-  }, [allServices]);
-
-  const platformServices = useMemo(() => {
-    let list = activePlatform === 'all'
-      ? allServices
-      : allServices.filter((s) => s.platform === activePlatform);
-
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
-      list = list.filter((s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.categoryName.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q) ||
-        s.platform.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [allServices, activePlatform, search]);
-
-  const sortedServices = useMemo(() => {
-    if (priceSort === 'asc') {
-      return [...platformServices].sort((a, b) => a.ratePer1000 - b.ratePer1000);
-    }
-    if (priceSort === 'desc') {
-      return [...platformServices].sort((a, b) => b.ratePer1000 - a.ratePer1000);
-    }
-    return platformServices;
-  }, [platformServices, priceSort]);
-
-  const [displayCount, setDisplayCount] = useState<number>(60);
+  // Paginated live inventory state (loads batch-by-batch without memory starvation)
+  const [paginatedServices, setPaginatedServices] = useState<SmmServiceItem[]>([]);
+  const [page, setPage] = useState<number>(1);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [isLoadingPage, setIsLoadingPage] = useState<boolean>(true);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [platformCounts, setPlatformCounts] = useState<Record<string, number>>({});
   const observerRef = React.useRef<HTMLDivElement | null>(null);
 
+  // Fetch category counts once on mount for instant platform pills
   useEffect(() => {
-    setDisplayCount(60);
-  }, [activePlatform, search, priceSort]);
+    storeApi
+      .getServer5Categories()
+      .then((res) => {
+        if (res?.success && Array.isArray(res.categories)) {
+          const counts: Record<string, number> = { all: 0 };
+          for (const cat of res.categories) {
+            counts.all = (counts.all || 0) + cat.count;
+            const plat = (cat.platform || 'general').toLowerCase();
+            counts[plat] = (counts[plat] || 0) + cat.count;
+          }
+          setPlatformCounts(counts);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  const visibleServices = useMemo(() => {
-    return sortedServices.slice(0, displayCount);
-  }, [sortedServices, displayCount]);
-
-  // Infinite scroll observer: Automatically loads more items 400px before reaching the bottom
+  // Fetch page 1 whenever activePlatform or search query changes
   useEffect(() => {
-    if (visibleServices.length >= sortedServices.length) return;
+    let cancelled = false;
+    setIsLoadingPage(true);
+    setPage(1);
 
+    const debounceTimer = setTimeout(async () => {
+      try {
+        const res = await storeApi.getServer5({
+          page: 1,
+          limit: 40,
+          platform: activePlatform === 'all' ? undefined : activePlatform,
+          search: search.trim() || undefined,
+        });
+
+        if (!cancelled && res?.success && Array.isArray(res.items)) {
+          const adapted = res.items.map(adaptServer5Item);
+          setPaginatedServices(adapted);
+          setHasMore(!!res.has_more);
+          setTotalCount(res.total ?? adapted.length);
+        }
+      } catch {
+        // failover
+      } finally {
+        if (!cancelled) {
+          setIsLoadingPage(false);
+        }
+      }
+    }, search ? 300 : 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(debounceTimer);
+    };
+  }, [activePlatform, search]);
+
+  // Load next batch on scroll
+  const handleLoadMore = useCallback(async () => {
+    if (!hasMore || isLoadingMore || isLoadingPage) return;
+    setIsLoadingMore(true);
+    const nextPage = page + 1;
+
+    try {
+      const res = await storeApi.getServer5({
+        page: nextPage,
+        limit: 40,
+        platform: activePlatform === 'all' ? undefined : activePlatform,
+        search: search.trim() || undefined,
+      });
+
+      if (res?.success && Array.isArray(res.items)) {
+        const adapted = res.items.map(adaptServer5Item);
+        setPaginatedServices((prev) => [...prev, ...adapted]);
+        setPage(nextPage);
+        setHasMore(!!res.has_more);
+        if (res.total !== undefined) setTotalCount(res.total);
+      }
+    } catch {
+      // silent
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoadingMore, isLoadingPage, page, activePlatform, search]);
+
+  // Infinite scroll intersection observer
+  useEffect(() => {
+    if (!hasMore || isLoadingMore) return;
     const target = observerRef.current;
     if (!target) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setDisplayCount((prev) => Math.min(prev + 60, sortedServices.length));
+          handleLoadMore();
         }
       },
       { rootMargin: '400px' }
     );
 
     observer.observe(target);
-    return () => {
-      observer.disconnect();
-    };
-  }, [visibleServices.length, sortedServices.length]);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, handleLoadMore]);
+
+  // Apply in-memory price sort to currently loaded slice
+  const sortedServices = useMemo(() => {
+    if (priceSort === 'asc') {
+      return [...paginatedServices].sort((a, b) => a.ratePer1000 - b.ratePer1000);
+    }
+    if (priceSort === 'desc') {
+      return [...paginatedServices].sort((a, b) => b.ratePer1000 - a.ratePer1000);
+    }
+    return paginatedServices;
+  }, [paginatedServices, priceSort]);
 
   const presetIncrements = [500, 1000, 2500, 5000];
 
@@ -308,9 +361,9 @@ export const Server5Smm: React.FC = () => {
         </div>
       </div>
 
-      {isServerLoading[5] && allServices.length === 0 ? (
+      {isLoadingPage && paginatedServices.length === 0 ? (
         <Server5SkeletonList count={6} />
-      ) : allServices.length === 0 ? (
+      ) : !isLoadingPage && paginatedServices.length === 0 && !search && activePlatform === 'all' ? (
         <div className="p-10 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
           <Rocket className="w-8 h-8 text-[#71717a]" />
           <div className="flex flex-col gap-1">
@@ -392,7 +445,7 @@ export const Server5Smm: React.FC = () => {
             <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider flex items-center justify-between">
               <span>Choose Package</span>
               <span className="text-[10px] text-[#8b5cf6] font-normal">
-                {sortedServices.length} options available
+                {totalCount > 0 ? `${totalCount.toLocaleString()} options available` : `${sortedServices.length} options`}
               </span>
             </div>
 
@@ -417,7 +470,7 @@ export const Server5Smm: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                visibleServices.map((service) => (
+                sortedServices.map((service) => (
                 <div
                   key={service.id}
                   onClick={() => handleOpenBuyModal(service)}
@@ -518,15 +571,15 @@ export const Server5Smm: React.FC = () => {
             </div>
 
             {/* Infinite Scroll Sentinel & Dynamic Status */}
-            {visibleServices.length < sortedServices.length ? (
+            {hasMore ? (
               <div ref={observerRef} className="py-5 flex items-center justify-center gap-2 text-xs text-[#a1a1aa]">
                 <div className="w-4 h-4 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
-                <span>Loading more services ({visibleServices.length} of {sortedServices.length.toLocaleString()})...</span>
+                <span>Loading more services ({paginatedServices.length} of {totalCount.toLocaleString()})...</span>
               </div>
-            ) : sortedServices.length > 0 ? (
+            ) : paginatedServices.length > 0 ? (
               <div className="py-5 text-center text-[11px] text-[#71717a] flex items-center justify-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#8b5cf6]" />
-                <span>All {sortedServices.length.toLocaleString()} services directly displayed</span>
+                <span>All {totalCount.toLocaleString()} services directly displayed</span>
               </div>
             ) : null}
           </div>

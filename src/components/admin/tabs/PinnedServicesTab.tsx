@@ -296,18 +296,20 @@ export const PinnedServicesTab: React.FC = () => {
       )}
 
       {/* Pin / Edit Service Modal */}
-      <PinServiceModal
-        isOpen={isPinModalOpen}
-        onClose={() => {
-          setIsPinModalOpen(false);
-          setEditingService(null);
-        }}
-        onPinnedSuccessfully={() => {
-          loadPinned();
-        }}
-        initialService={editingService}
-        pinnedList={pinnedItems}
-      />
+      {isPinModalOpen && (
+        <PinServiceModal
+          isOpen={isPinModalOpen}
+          onClose={() => {
+            setIsPinModalOpen(false);
+            setEditingService(null);
+          }}
+          onPinnedSuccessfully={() => {
+            loadPinned();
+          }}
+          initialService={editingService}
+          pinnedList={pinnedItems}
+        />
+      )}
 
       {/* Broadcast Modal */}
       {broadcastTarget && (

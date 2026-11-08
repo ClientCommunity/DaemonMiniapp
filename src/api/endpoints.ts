@@ -59,6 +59,15 @@ export interface Server4StockResponse {
 export interface Server5StockResponse {
   success: boolean;
   items: BackendServer5Item[];
+  total?: number;
+  page?: number;
+  limit?: number;
+  has_more?: boolean;
+}
+
+export interface Server5CategoriesResponse {
+  success: boolean;
+  categories: Array<{ category: string; platform: string; count: number }>;
 }
 
 export interface PinnedServiceItem {
@@ -293,7 +302,10 @@ export const storeApi = {
     api.get<Server2StockResponse>('/api/store/server2', { tier }),
   getServer3: () => api.get<Server3StockResponse>('/api/store/server3'),
   getServer4: () => api.get<Server4StockResponse>('/api/store/server4'),
-  getServer5: () => api.get<Server5StockResponse>('/api/store/server5'),
+  getServer5: (params?: { page?: number; limit?: number; platform?: string; category?: string; search?: string }) =>
+    api.get<Server5StockResponse>('/api/store/server5', params),
+  getServer5Categories: () =>
+    api.get<Server5CategoriesResponse>('/api/store/server5/categories'),
   getPinned: (server?: number) =>
     api.get<PinnedServicesResponse>('/api/store/pinned', server ? { server } : undefined),
 };

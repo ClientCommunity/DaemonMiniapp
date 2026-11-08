@@ -1881,15 +1881,17 @@ export const ServerManagementTab: React.FC = () => {
       )}
 
       {/* 1-Click Quick Pinning Modal (Feature B) */}
-      <PinServiceModal
-        isOpen={quickPinModal.isOpen}
-        onClose={() => setQuickPinModal({ isOpen: false, service: null })}
-        onPinnedSuccessfully={() => {
-          loadPinnedList();
-        }}
-        initialService={quickPinModal.service}
-        pinnedList={pinnedList}
-      />
+      {quickPinModal.isOpen && (
+        <PinServiceModal
+          isOpen={quickPinModal.isOpen}
+          onClose={() => setQuickPinModal({ isOpen: false, service: null })}
+          onPinnedSuccessfully={() => {
+            loadPinnedList();
+          }}
+          initialService={quickPinModal.service}
+          pinnedList={pinnedList}
+        />
+      )}
     </div>
   );
 };

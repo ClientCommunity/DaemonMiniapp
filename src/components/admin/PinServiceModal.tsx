@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { adminApi } from '../../api/adminApi';
-import { PinnedServiceItem } from '../../api/endpoints';
+import { PinnedServiceItem, storeApi } from '../../api/endpoints';
 import {
   Pin,
   X,
@@ -53,15 +53,66 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   initialService = null,
   pinnedList = [],
 }) => {
-  const { server1Items, server2Items, server34Items, server5Items, addToast } = useApp();
+  const { server1Items, server2Items, server34Items, addToast } = useApp();
 
-  const [activeServer, setActiveServer] = useState<number>(5);
+  const [activeServer, setActiveServer] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedService, setSelectedService] = useState<PreselectedServiceInfo | null>(null);
   const [badge, setBadge] = useState('Hot');
   const [displayOrder, setDisplayOrder] = useState('0');
   const [isManualMode, setIsManualMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Server 5 On-Demand Server-Side Search (Eliminates mobile memory crashes)
+  const [s5Results, setS5Results] = useState<Array<{
+    server_no: number;
+    service_id: string;
+    service_name: string;
+    category_name?: string;
+    country_name?: string;
+    country_code?: string;
+    price?: number;
+    stock?: number;
+  }>>([]);
+  const [isSearchingS5, setIsSearchingS5] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || activeServer !== 5) return;
+    let cancelled = false;
+    setIsSearchingS5(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await storeApi.getServer5({
+          page: 1,
+          limit: 30,
+          search: searchQuery.trim() || undefined,
+        });
+        if (!cancelled && res?.success && Array.isArray(res.items)) {
+          setS5Results(
+            res.items.map((item) => ({
+              server_no: 5,
+              service_id: String(item.id),
+              service_name: item.name || 'SMM Service',
+              category_name: item.category || 'SMM',
+              country_name: '',
+              country_code: '',
+              price: Number(item.price || 0),
+              stock: undefined,
+            }))
+          );
+        }
+      } catch {
+        // silent
+      } finally {
+        if (!cancelled) setIsSearchingS5(false);
+      }
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [isOpen, activeServer, searchQuery]);
 
   // Sync initial service when modal opens
   useEffect(() => {
@@ -156,30 +207,11 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
 
     if (activeServer === 5) {
-      return (server5Items || [])
-        .filter(
-          (item) =>
-            !q ||
-            item.name.toLowerCase().includes(q) ||
-            item.categoryName.toLowerCase().includes(q) ||
-            item.platform.toLowerCase().includes(q) ||
-            String(item.id).includes(q)
-        )
-        .slice(0, 50) // limit to top 50 matches for high performance
-        .map((item) => ({
-          server_no: 5,
-          service_id: String(item.id),
-          service_name: item.name,
-          category_name: item.categoryName || item.platform,
-          country_name: '',
-          country_code: '',
-          price: item.ratePer1000,
-          stock: undefined,
-        }));
+      return s5Results;
     }
 
     return [];
-  }, [activeServer, searchQuery, server1Items, server2Items, server34Items, server5Items]);
+  }, [activeServer, searchQuery, server1Items, server2Items, server34Items, s5Results]);
 
   const handleSelectFromList = (item: {
     server_no: number;
@@ -381,7 +413,11 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
 
                 {/* Catalog List */}
                 <div className="max-h-48 overflow-y-auto rounded-xl border border-[#262630] bg-[#121217] divide-y divide-[#20202a]">
-                  {filteredCatalog.length === 0 ? (
+                  {activeServer === 5 && isSearchingS5 ? (
+                    <div className="p-4 text-center text-xs text-[#a1a1aa] animate-pulse">
+                      Searching Server 5 catalog...
+                    </div>
+                  ) : filteredCatalog.length === 0 ? (
                     <div className="p-4 text-center text-xs text-[#71717a]">
                       No services found for "{searchQuery}". Try another keyword or switch server.
                     </div>

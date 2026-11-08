@@ -46,6 +46,19 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
   const isReceived = status === 'received' || !!otpCode;
   const has2Fa = !!(twoFa && twoFa.trim() !== '' && twoFa.toLowerCase() !== 'none');
 
+  // Isolated local countdown timer per card — prevents root AppContext re-render thrashing
+  const [localRemaining, setLocalRemaining] = useState<number>(() => {
+    return remainingSeconds && remainingSeconds > 0 ? remainingSeconds : 0;
+  });
+
+  React.useEffect(() => {
+    if (isReceived || localRemaining <= 0) return;
+    const interval = setInterval(() => {
+      setLocalRemaining((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isReceived, localRemaining]);
+
   const handleCopyPhone = () => {
     hapticFeedback.light();
     navigator.clipboard?.writeText(phone);
@@ -163,7 +176,7 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
           {server >= 3 && remainingSeconds !== undefined && (
             <span className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300">
               <Clock className="w-3 h-3 text-[#f59e0b]" />
-              {formatRemaining(remainingSeconds)}
+              {formatRemaining(localRemaining)}
             </span>
           )}
         </div>
@@ -323,9 +336,12 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
 };
 
 export const ActiveNumbersSection: React.FC = () => {
-  const { activeNumbers } = useApp();
+  const { activeNumbers, archiveAllActiveNumbers } = useApp();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (!activeNumbers || activeNumbers.length === 0) return null;
+
+  const visibleNumbers = isExpanded || activeNumbers.length <= 2 ? activeNumbers : activeNumbers.slice(0, 2);
 
   return (
     <section className="w-full flex flex-col gap-2.5 my-3 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -336,17 +352,41 @@ export const ActiveNumbersSection: React.FC = () => {
             Active Numbers & Live OTP
           </h2>
         </div>
-        <span className="text-[11px] font-bold text-[#8b5cf6] bg-[#7c3aed]/15 px-2.5 py-0.5 rounded-full border border-[#7c3aed]/30 flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
-          <span>{activeNumbers.length} Active</span>
-        </span>
+        <div className="flex items-center gap-2">
+          {activeNumbers.length > 1 && (
+            <button
+              onClick={() => archiveAllActiveNumbers()}
+              className="text-[10px] font-semibold text-zinc-400 hover:text-white px-2 py-0.5 rounded-lg bg-[#1f1f2a] border border-[#262630] transition-colors"
+              title="Dismiss all active numbers"
+            >
+              Clear All
+            </button>
+          )}
+          <span className="text-[11px] font-bold text-[#8b5cf6] bg-[#7c3aed]/15 px-2.5 py-0.5 rounded-full border border-[#7c3aed]/30 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
+            <span>{activeNumbers.length} Active</span>
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">
-        {activeNumbers.map((item) => (
+        {visibleNumbers.map((item) => (
           <ActiveNumberCard key={item.orderId || item.phone} item={item} />
         ))}
       </div>
+
+      {activeNumbers.length > 2 && (
+        <button
+          onClick={() => {
+            hapticFeedback.selection();
+            setIsExpanded((prev) => !prev);
+          }}
+          className="w-full py-2 px-3 rounded-xl bg-[#181820] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white flex items-center justify-center gap-1.5 transition-colors active:scale-98"
+        >
+          <span>{isExpanded ? 'Show Less' : `Show All ${activeNumbers.length} Active Numbers`}</span>
+          <span className="text-[10px]">{isExpanded ? '▲' : '▼'}</span>
+        </button>
+      )}
     </section>
   );
 };

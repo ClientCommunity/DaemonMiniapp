@@ -135,6 +135,7 @@ export interface AppContextType {
   closeReceiptDrawer: () => void;
   fetchOtpForNumber: (orderIdOrPhone: string) => Promise<string | null>;
   archiveActiveNumber: (orderIdOrPhone: string) => Promise<void>;
+  archiveAllActiveNumbers: () => Promise<void>;
   refreshActiveNumbers: () => Promise<void>;
 
   // Theme
@@ -273,9 +274,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [server34Items, setServer34Items] = useState<VirtualOtpServiceItem[]>(() =>
     getSavedState('cache_s34', server34Catalog)
   );
-  const [server5Items, setServer5Items] = useState<SmmServiceItem[]>(() =>
-    getSavedState('cache_s5', server5Catalog)
-  );
+  const [server5Items, setServer5Items] = useState<SmmServiceItem[]>(() => {
+    const saved = getSavedState<SmmServiceItem[]>('cache_s5', server5Catalog);
+    return Array.isArray(saved) ? saved.slice(0, 50) : [];
+  });
   const [isLoadingStore, setIsLoadingStore] = useState<boolean>(false);
   const [isServerLoading, setIsServerLoading] = useState<Record<1 | 2 | 3 | 4 | 5, boolean>>({
     1: true,
@@ -548,12 +550,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Fast catalogues (1, 2, 3) ready! Interactive store immediately unlocked
       setIsLoadingStore(false);
 
-      // 2. Stream Server 5 in background asynchronously (due to 9,000+ SMM packages)
+      // 2. Stream Server 5 initial batch in background asynchronously (paginated on-demand)
       storeApi
-        .getServer5()
+        .getServer5({ page: 1, limit: 50 })
         .then((s5) => {
           if (s5?.success && Array.isArray(s5.items)) {
-            const s5Adapted = s5.items.map((item) => adaptServer5Item(item));
+            const s5Adapted = s5.items.slice(0, 50).map((item) => adaptServer5Item(item));
             setServer5Items(s5Adapted);
             try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s5`, JSON.stringify(s5Adapted)); } catch {}
           }
@@ -1369,32 +1371,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [activeOtpSession?.orderId, activeOtpSession?.status]);
 
-  // Decrement remainingSeconds for waiting active numbers
-  useEffect(() => {
-    const hasWaiting = activeNumbers.some(
-      (n) => n.status === 'waiting' && n.remainingSeconds && n.remainingSeconds > 0
-    );
-    if (!hasWaiting) return;
-
-    const timer = setInterval(() => {
-      setActiveNumbers((prev) =>
-        prev.map((n) => {
-          if (n.status !== 'waiting' || !n.remainingSeconds || n.remainingSeconds <= 0) return n;
-          const nextRemaining = n.remainingSeconds - 1;
-          return {
-            ...n,
-            remainingSeconds: nextRemaining,
-            status: nextRemaining <= 0 ? 'expired' : n.status,
-          };
-        })
-      );
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [activeNumbers]);
-
-
-
   // Auto-refund when active OTP expires without receiving SMS code
   useEffect(() => {
     if (activeOtpSession && activeOtpSession.status === 'expired') {
@@ -1558,6 +1534,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     },
     [addToast]
   );
+
+  // Archive / Dismiss all active numbers at once
+  const archiveAllActiveNumbers = useCallback(async () => {
+    hapticFeedback.medium();
+    setActiveNumbers([]);
+    setActiveOtpSession(null);
+    try {
+      await otpApi.archive('all');
+    } catch {}
+    addToast('All active numbers dismissed. Saved in History.', 'info', 'Archived All');
+  }, [addToast]);
 
   // Sync active numbers with live backend
   const refreshActiveNumbers = useCallback(async () => {
@@ -2042,6 +2029,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         closeReceiptDrawer,
         fetchOtpForNumber,
         archiveActiveNumber,
+        archiveAllActiveNumbers,
         refreshActiveNumbers,
         refreshStore,
         refreshUser,
