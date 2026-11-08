@@ -30,11 +30,10 @@ function matchesCategory(item: VirtualOtpServiceItem, cat: string): boolean {
   const itemCat = (item.category || '').toLowerCase().trim();
   if (itemCat === c) return true;
 
-  const name = (item.serviceName || '').toLowerCase().trim();
-  const raw = (item.rawName || '').toLowerCase().trim();
   const code = (item.serviceCode || '').toLowerCase().trim();
+  if (code === c) return true;
 
-  // Known shorthand codes
+  const name = (item.serviceName || '').toLowerCase();
   if (c === 'wa') return name.includes('whatsapp') || code === 'wa';
   if (c === 'tg') return name.includes('telegram') || code === 'tg';
   if (c === 'ig') return name.includes('instagram') || name.includes('insta') || code === 'ig';
@@ -47,15 +46,7 @@ function matchesCategory(item: VirtualOtpServiceItem, cat: string): boolean {
   if (c === 'openai') return name.includes('openai') || name.includes('chatgpt') || code === 'oa';
   if (c === 'steam') return name.includes('steam') || code === 'steam';
 
-  // Slug comparison (e.g. "air_india" vs "airindia")
-  const itemSlug = name.replace(/[^a-z0-9]/g, '');
-  const targetSlug = c.replace(/[^a-z0-9]/g, '');
-  if (itemSlug && targetSlug && itemSlug === targetSlug) return true;
-
-  // Exact or word boundary matches
-  if (name === c || name.startsWith(c + ' ') || name.endsWith(' ' + c) || raw.toLowerCase().startsWith(c)) return true;
-
-  return false;
+  return name.includes(c);
 }
 
 export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
@@ -77,6 +68,13 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
       return '';
     }
   });
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [priceSort, setPriceSort] = useState<PriceSortOrder>(() => {
     try {
       const saved = localStorage.getItem(`krish_otp_sort_s${serverId}`);
@@ -124,28 +122,15 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
     const map = new Map<string, AppChipItem>();
 
-    serverItems.forEach((item) => {
-      let matchedCode = '';
-      let matchedLabel = '';
-      let matchedBadge: string | undefined = undefined;
-      let order = 999;
+    for (let i = 0; i < serverItems.length; i++) {
+      const item = serverItems[i];
+      const cat = (item.category || item.serviceCode || 'other').toLowerCase();
+      const pDef = popularDefs[cat];
 
-      for (const [pCode, pDef] of Object.entries(popularDefs)) {
-        if (matchesCategory(item, pCode)) {
-          matchedCode = pCode;
-          matchedLabel = pDef.label;
-          matchedBadge = pDef.badge;
-          order = pDef.order;
-          break;
-        }
-      }
-
-      if (!matchedCode) {
-        const cleanName = item.serviceName.trim() || 'Other Service';
-        matchedCode = cleanName;
-        matchedLabel = cleanName;
-        order = 1000;
-      }
+      const matchedCode = cat;
+      const matchedLabel = pDef?.label || item.serviceName?.trim() || 'Service';
+      const matchedBadge = pDef?.badge;
+      const order = pDef ? pDef.order : 1000;
 
       const existing = map.get(matchedCode);
       if (existing) {
@@ -153,13 +138,13 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
       } else {
         map.set(matchedCode, {
           code: matchedCode as OtpAppCode,
-          label: matchedLabel || 'Service',
+          label: matchedLabel,
           count: 1,
           badge: matchedBadge,
           order,
         });
       }
-    });
+    }
 
     // All unique apps sorted alphabetically (for full list search/picker)
     const allUnique = Array.from(map.values()).sort((a, b) =>
@@ -239,7 +224,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
   // Multi-attribute search matching: region, country, dial code, number, operator, service name
   const filtered = useMemo(() => {
-    const trimmed = search.trim().toLowerCase();
+    const trimmed = debouncedSearch.trim().toLowerCase();
     const searchTokens = trimmed ? trimmed.split(/\s+/).filter(Boolean) : [];
 
     return serverItems.filter((item: VirtualOtpServiceItem) => {
@@ -291,7 +276,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
 
       return true;
     });
-  }, [serverItems, search, activeCategory]);
+  }, [serverItems, debouncedSearch, activeCategory]);
 
   // Reset pagination window when search query, category, sort, or active server changes
   useEffect(() => {

@@ -45,7 +45,8 @@ export const ServerManagementTab: React.FC = () => {
   const [quickPinModal, setQuickPinModal] = useState<{
     isOpen: boolean;
     service: PreselectedServiceInfo | null;
-  }>({ isOpen: false, service: null });
+    defaultServer?: number;
+  }>({ isOpen: false, service: null, defaultServer: 1 });
 
   const loadPinnedList = useCallback(async () => {
     try {
@@ -1148,7 +1149,7 @@ export const ServerManagementTab: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setQuickPinModal({ isOpen: true, service: null })}
+                  onClick={() => setQuickPinModal({ isOpen: true, service: null, defaultServer: 2 })}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition-all shadow-sm"
                   title="Feature Server 2 Stock on Storefront"
                 >
@@ -1884,11 +1885,12 @@ export const ServerManagementTab: React.FC = () => {
       {quickPinModal.isOpen && (
         <PinServiceModal
           isOpen={quickPinModal.isOpen}
-          onClose={() => setQuickPinModal({ isOpen: false, service: null })}
+          onClose={() => setQuickPinModal({ isOpen: false, service: null, defaultServer: 1 })}
           onPinnedSuccessfully={() => {
             loadPinnedList();
           }}
           initialService={quickPinModal.service}
+          defaultServer={quickPinModal.defaultServer || (subTab === 'server2' ? 2 : subTab === 'server3_4' ? 3 : subTab === 'server5' ? 5 : 1)}
           pinnedList={pinnedList}
         />
       )}

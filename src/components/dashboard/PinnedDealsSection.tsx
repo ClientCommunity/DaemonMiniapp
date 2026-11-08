@@ -62,6 +62,9 @@ export const PinnedDealsSection: React.FC<PinnedDealsSectionProps> = ({
 
     setSelectedServer(item.server_no);
     setActiveTab('store');
+    try {
+      window.dispatchEvent(new CustomEvent('krish_pinned_selected', { detail: item }));
+    } catch {}
   };
 
   return (

@@ -34,6 +34,7 @@ interface PinServiceModalProps {
   onClose: () => void;
   onPinnedSuccessfully: () => void;
   initialService?: PreselectedServiceInfo | null;
+  defaultServer?: number;
   pinnedList?: PinnedServiceItem[];
 }
 
@@ -51,6 +52,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   onClose,
   onPinnedSuccessfully,
   initialService = null,
+  defaultServer = 1,
   pinnedList = [],
 }) => {
   const { server1Items, server2Items, server34Items, addToast } = useApp();
@@ -122,6 +124,9 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         setSelectedService(initialService);
         if (initialService.badge) setBadge(initialService.badge);
       } else {
+        if (defaultServer && defaultServer >= 1 && defaultServer <= 5) {
+          setActiveServer(defaultServer);
+        }
         setSelectedService(null);
         setSearchQuery('');
         setBadge('Hot');
@@ -129,7 +134,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         setIsManualMode(false);
       }
     }
-  }, [isOpen, initialService]);
+  }, [isOpen, initialService, defaultServer]);
 
   // Check if current selected service is already pinned
   const existingPin = useMemo(() => {
@@ -174,7 +179,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         )
         .map((item) => ({
           server_no: 2,
-          service_id: `${item.countryCode || item.country}_${item.qualityTier}_${item.accountYear}`,
+          service_id: `${item.country}_${item.qualityTier}_${item.accountYear}`,
           service_name: `${item.country} ${item.accountYear} (${item.qualityTier === 'good' ? 'Good' : 'Cheap'})`,
           category_name: `Telegram ${item.qualityTier.toUpperCase()} Session`,
           country_name: item.country,
@@ -422,7 +427,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                       No services found for "{searchQuery}". Try another keyword or switch server.
                     </div>
                   ) : (
-                    filteredCatalog.map((item) => {
+                    filteredCatalog.slice(0, 50).map((item) => {
                       const isSelected =
                         selectedService?.server_no === item.server_no &&
                         String(selectedService?.service_id) === String(item.service_id);

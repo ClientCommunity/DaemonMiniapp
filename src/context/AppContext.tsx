@@ -549,7 +549,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setServer34Items((prev) => {
           const existingS4 = prev.filter((item) => item.server === 4);
           const combined = [...s3Adapted, ...existingS4];
-          try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s34`, JSON.stringify(combined)); } catch {}
+          try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s34`, JSON.stringify(combined.slice(0, 40))); } catch {}
           return combined;
         });
       }
@@ -586,7 +586,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               setServer34Items((prev) => {
                 const existingS3 = prev.filter((item) => item.server === 3);
                 const combined = [...existingS3, ...s4Adapted];
-                try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s34`, JSON.stringify(combined)); } catch {}
+                try { localStorage.setItem(`${LOCAL_STORAGE_KEY}_cache_s34`, JSON.stringify(combined.slice(0, 40))); } catch {}
                 return combined;
               });
             }
