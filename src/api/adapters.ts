@@ -194,8 +194,8 @@ export function adaptServer1Item(item: BackendServer1Item, index: number): Serve
     priceUsdt: Number((price / 94.0).toFixed(2)),
     stockCount: stock,
     platform: 'Telegram',
-    format: '2FA Account',
-    subtitle: item.subtitle || 'Global Market 2FA',
+    format: 'Account',
+    subtitle: item.subtitle || 'Global Market',
     credentialsSample: {
       phone: item.phone || '',
       twoFa: item.twofa ? String(item.twofa) : '',
@@ -462,7 +462,9 @@ export function parseSignedAmount(amountRaw: string | number | undefined): numbe
  */
 export function adaptHistoryItem(item: BackendHistoryItem, index: number): HistoryItem {
   const type = (item.type || 'order').toLowerCase();
-  const rawTitle = (item.title || 'Transaction').replace(/^[\s\uFE0F]*[🛒💳📤📥⚡🚀📱💰🛍️]\s*/u, '').trim();
+  const rawTitle = (item.title || 'Transaction')
+    .replace(/^[\s\uFE0F]*[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}]+\s*/u, '')
+    .trim();
   const details = item.details || '';
   const amountInr = parseSignedAmount(item.amount);
   const date = item.date || 'Recently';

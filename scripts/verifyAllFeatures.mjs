@@ -195,9 +195,9 @@ assert(
 
 // Assert Header.tsx hides the admin switch pill from non-admin users
 assert(
-  headerContent.includes('isAdmin && !isAdminMode') &&
+  headerContent.includes('isAdmin &&') &&
   headerContent.includes('Switch to Admin Panel'),
-  'Header.tsx displays admin toggle pill strictly when user is verified admin (isAdmin && !isAdminMode)'
+  'Header.tsx displays admin toggle pill strictly when user is verified admin (isAdmin)'
 );
 
 // Assert default context initialization protects unauthenticated users

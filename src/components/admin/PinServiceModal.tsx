@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { adminApi } from '../../api/adminApi';
 import { PinnedServiceItem, storeApi } from '../../api/endpoints';
+import { adaptServer1Item, adaptServer2Item, adaptServer34Item } from '../../api/adapters';
 import {
   Pin,
   X,
@@ -16,6 +17,7 @@ import {
   Globe,
   Radio,
   Share2,
+  Loader2,
 } from 'lucide-react';
 
 export interface PreselectedServiceInfo {
@@ -64,6 +66,98 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   const [displayOrder, setDisplayOrder] = useState('0');
   const [isManualMode, setIsManualMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Local cache for server stock catalogs in PinServiceModal
+  const [modalServer1, setModalServer1] = useState<any[]>(() => server1Items || []);
+  const [modalServer2, setModalServer2] = useState<any[]>(() => server2Items || []);
+  const [modalServer3, setModalServer3] = useState<any[]>(() => (server34Items || []).filter((i) => i.server === 3));
+  const [modalServer4, setModalServer4] = useState<any[]>(() => (server34Items || []).filter((i) => i.server === 4));
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+
+  // Sync from useApp if populated later
+  useEffect(() => {
+    if (server1Items?.length > 0 && modalServer1.length === 0) setModalServer1(server1Items);
+  }, [server1Items]);
+  useEffect(() => {
+    if (server2Items?.length > 0 && modalServer2.length === 0) setModalServer2(server2Items);
+  }, [server2Items]);
+  useEffect(() => {
+    const s3 = (server34Items || []).filter((i) => i.server === 3);
+    if (s3.length > 0 && modalServer3.length === 0) setModalServer3(s3);
+    const s4 = (server34Items || []).filter((i) => i.server === 4);
+    if (s4.length > 0 && modalServer4.length === 0) setModalServer4(s4);
+  }, [server34Items]);
+
+  // On-demand server inventory fetch when modal is open and active server catalog is missing
+  useEffect(() => {
+    if (!isOpen || activeServer === 5) return;
+    let cancelled = false;
+
+    const fetchActiveServerStock = async () => {
+      if (activeServer === 1 && modalServer1.length === 0) {
+        setIsLoadingCatalog(true);
+        try {
+          const res = await storeApi.getServer1();
+          if (!cancelled && res?.items && Array.isArray(res.items)) {
+            setModalServer1(res.items.map(adaptServer1Item));
+          }
+        } catch {
+          // silent fallback
+        } finally {
+          if (!cancelled) setIsLoadingCatalog(false);
+        }
+      } else if (activeServer === 2 && modalServer2.length === 0) {
+        setIsLoadingCatalog(true);
+        try {
+          const [goodRes, cheapRes] = await Promise.all([
+            storeApi.getServer2('good').catch(() => ({ items: [] })),
+            storeApi.getServer2('cheap').catch(() => ({ items: [] })),
+          ]);
+          if (!cancelled) {
+            const combined = [
+              ...((goodRes?.items || []).map((it) => adaptServer2Item(it, 'good'))),
+              ...((cheapRes?.items || []).map((it) => adaptServer2Item(it, 'cheap'))),
+            ];
+            setModalServer2(combined);
+          }
+        } catch {
+          // silent fallback
+        } finally {
+          if (!cancelled) setIsLoadingCatalog(false);
+        }
+      } else if (activeServer === 3 && modalServer3.length === 0) {
+        setIsLoadingCatalog(true);
+        try {
+          const res = await storeApi.getServer3();
+          if (!cancelled && res?.items && Array.isArray(res.items)) {
+            setModalServer3(res.items.map((it, idx) => adaptServer34Item(it, 3, idx)));
+          }
+        } catch {
+          // silent fallback
+        } finally {
+          if (!cancelled) setIsLoadingCatalog(false);
+        }
+      } else if (activeServer === 4 && modalServer4.length === 0) {
+        setIsLoadingCatalog(true);
+        try {
+          const res = await storeApi.getServer4();
+          if (!cancelled && res?.items && Array.isArray(res.items)) {
+            setModalServer4(res.items.map((it, idx) => adaptServer34Item(it, 4, idx)));
+          }
+        } catch {
+          // silent fallback
+        } finally {
+          if (!cancelled) setIsLoadingCatalog(false);
+        }
+      }
+    };
+
+    fetchActiveServerStock();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeServer, modalServer1.length, modalServer2.length, modalServer3.length, modalServer4.length]);
 
   // Server 5 On-Demand Server-Side Search (Eliminates mobile memory crashes)
   const [s5Results, setS5Results] = useState<Array<{
@@ -150,17 +244,19 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   }, [selectedService, pinnedList]);
 
   // Catalog items for the selected server
+  // Catalog items for the selected server
   const filteredCatalog = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
     if (activeServer === 1) {
-      return (server1Items || [])
+      const items = modalServer1.length > 0 ? modalServer1 : (server1Items || []);
+      return items
         .filter((item) => !q || item.country.toLowerCase().includes(q) || item.countryCode.toLowerCase().includes(q))
         .map((item) => ({
           server_no: 1,
           service_id: item.countryCode || item.country,
-          service_name: `${item.country} 2FA Account`,
-          category_name: 'Telegram 2FA',
+          service_name: `${item.country} Account`,
+          category_name: 'Telegram Global',
           country_name: item.country,
           country_code: item.countryCode,
           price: item.priceInr,
@@ -169,7 +265,8 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
 
     if (activeServer === 2) {
-      return (server2Items || [])
+      const items = modalServer2.length > 0 ? modalServer2 : (server2Items || []);
+      return items
         .filter(
           (item) =>
             !q ||
@@ -190,8 +287,11 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
 
     if (activeServer === 3 || activeServer === 4) {
-      return (server34Items || [])
-        .filter((item) => item.server === activeServer)
+      const source = activeServer === 3 ? modalServer3 : modalServer4;
+      const fallback = (server34Items || []).filter((item) => item.server === activeServer);
+      const items = source.length > 0 ? source : fallback;
+
+      return items
         .filter(
           (item) =>
             !q ||
@@ -203,7 +303,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
           server_no: activeServer,
           service_id: item.serviceCode,
           service_name: `${item.serviceName} (${item.country})`,
-          category_name: item.serviceName,
+          category_name: `${item.serviceName} OTP`,
           country_name: item.country,
           country_code: item.countryCode,
           price: item.priceInr,
@@ -216,7 +316,18 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
 
     return [];
-  }, [activeServer, searchQuery, server1Items, server2Items, server34Items, s5Results]);
+  }, [
+    activeServer,
+    searchQuery,
+    modalServer1,
+    modalServer2,
+    modalServer3,
+    modalServer4,
+    server1Items,
+    server2Items,
+    server34Items,
+    s5Results,
+  ]);
 
   const handleSelectFromList = (item: {
     server_no: number;
@@ -340,7 +451,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
             </label>
             <div className="grid grid-cols-5 gap-1.5 bg-[#121217] p-1 rounded-xl border border-[#262630]">
               {[
-                { no: 1, label: 'S1: 2FA', icon: Globe },
+                { no: 1, label: 'S1: Global', icon: Globe },
                 { no: 2, label: 'S2: Stock', icon: Layers },
                 { no: 3, label: 'S3: Virtual', icon: Zap },
                 { no: 4, label: 'S4: Carrier', icon: Radio },
@@ -418,16 +529,17 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
 
                 {/* Catalog List */}
                 <div className="max-h-48 overflow-y-auto rounded-xl border border-[#262630] bg-[#121217] divide-y divide-[#20202a]">
-                  {activeServer === 5 && isSearchingS5 ? (
-                    <div className="p-4 text-center text-xs text-[#a1a1aa] animate-pulse">
-                      Searching Server 5 catalog...
+                  {isLoadingCatalog || (activeServer === 5 && isSearchingS5) ? (
+                    <div className="p-6 text-center text-xs text-[#a1a1aa] flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+                      <span>Loading Server {activeServer} inventory...</span>
                     </div>
                   ) : filteredCatalog.length === 0 ? (
                     <div className="p-4 text-center text-xs text-[#71717a]">
                       No services found for "{searchQuery}". Try another keyword or switch server.
                     </div>
                   ) : (
-                    filteredCatalog.slice(0, 50).map((item) => {
+                    filteredCatalog.slice(0, 100).map((item, idx) => {
                       const isSelected =
                         selectedService?.server_no === item.server_no &&
                         String(selectedService?.service_id) === String(item.service_id);
@@ -439,7 +551,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
 
                       return (
                         <div
-                          key={`${item.server_no}_${item.service_id}`}
+                          key={`srv_${item.server_no}_${item.service_id}_${item.country_name || item.service_name || ''}_${idx}`}
                           onClick={() => handleSelectFromList(item)}
                           className={`p-2.5 flex items-center justify-between gap-2.5 cursor-pointer transition-colors ${
                             isSelected
