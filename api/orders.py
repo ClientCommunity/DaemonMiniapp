@@ -79,7 +79,7 @@ def cancel_active_order():
 
 @orders_bp.route("/api/user/active-numbers", methods=["GET"])
 def get_user_active_numbers():
-    """Return all active numbers awaiting OTP or active for user."""
+    """Return all active numbers awaiting OTP or active for user (strictly within 48h window)."""
     uid = get_current_user_id(request)
     if not uid:
         return jsonify({"success": False, "items": []})
@@ -87,14 +87,16 @@ def get_user_active_numbers():
     from database import connect
     items = []
     with connect() as conn:
-        # 1. Server 1 & Server 2 active orders (unarchived)
+        # 1. Server 1 & Server 2 active orders (unarchived, created within the last 48 hours)
         rows = conn.execute("""
             SELECT id, country, price, phone, otp, server, date, twofa, provider_item_id, is_active
             FROM orders
             WHERE user_id = ? 
               AND (is_active = 1 OR is_active IS NULL)
+              AND is_active != 0
               AND (refunded = 0 OR refunded IS NULL)
               AND (server IN ('Server 1', 'Server 2') OR server IS NULL)
+              AND substr(date, 1, 10) >= date('now', '-2 days')
             ORDER BY id DESC LIMIT 10
         """, (uid,)).fetchall()
 
@@ -125,11 +127,14 @@ def get_user_active_numbers():
                 "created_at": str(r["date"])[:19] if r["date"] else "",
             })
 
-        # 2. Server 3 active orders (waiting or recently completed)
+        # 2. Server 3 active orders (waiting or recently completed within 48 hours)
         s3_rows = conn.execute("""
             SELECT id, provider_order_id, service_code, server_code, phone, charged_price, status, sms_code, created_at
             FROM server3_orders
-            WHERE user_id = ? AND status IN ('waiting', 'completed') AND (refunded = 0 OR refunded IS NULL)
+            WHERE user_id = ? 
+              AND status IN ('waiting', 'completed') 
+              AND (refunded = 0 OR refunded IS NULL)
+              AND substr(created_at, 1, 10) >= date('now', '-2 days')
             ORDER BY id DESC LIMIT 5
         """, (uid,)).fetchall()
         for r in s3_rows:
@@ -152,11 +157,14 @@ def get_user_active_numbers():
                 "created_at": str(r["created_at"])[:19] if r["created_at"] else "",
             })
 
-        # 3. Server 4 active orders (waiting or recently completed)
+        # 3. Server 4 active orders (waiting or recently completed within 48 hours)
         s4_rows = conn.execute("""
             SELECT id, provider_order_id, service_code, country_code, phone, charged_price, status, sms_code, created_at
             FROM server4_orders
-            WHERE user_id = ? AND status IN ('waiting', 'completed') AND (refunded = 0 OR refunded IS NULL)
+            WHERE user_id = ? 
+              AND status IN ('waiting', 'completed') 
+              AND (refunded = 0 OR refunded IS NULL)
+              AND substr(created_at, 1, 10) >= date('now', '-2 days')
             ORDER BY id DESC LIMIT 5
         """, (uid,)).fetchall()
         for r in s4_rows:
@@ -206,22 +214,43 @@ def archive_active_order():
 
         clean_id = re.sub(r'^[^0-9]*', '', order_id)
         numeric_id = int(clean_id) if clean_id.isdigit() else -1
+        phone_no_plus = order_id.lstrip("+")
+        phone_with_plus = f"+{phone_no_plus}"
 
         conn.execute("""
             UPDATE orders 
             SET is_active = 0 
-            WHERE user_id = ? AND (provider_item_id = ? OR phone = ? OR id = ? OR id = ?)
-        """, (uid, order_id, order_id, int(order_id) if order_id.isdigit() else -1, numeric_id))
+            WHERE user_id = ? AND (
+                provider_item_id = ? 
+                OR phone = ? 
+                OR phone = ? 
+                OR phone = ? 
+                OR id = ? 
+                OR id = ?
+            )
+        """, (uid, order_id, order_id, phone_no_plus, phone_with_plus, int(order_id) if order_id.isdigit() else -1, numeric_id))
         conn.execute("""
             UPDATE server3_orders
             SET status = 'archived'
-            WHERE user_id = ? AND (provider_order_id = ? OR phone = ? OR id = ?)
-        """, (uid, order_id, order_id, numeric_id))
+            WHERE user_id = ? AND (
+                provider_order_id = ? 
+                OR phone = ? 
+                OR phone = ? 
+                OR phone = ? 
+                OR id = ?
+            )
+        """, (uid, order_id, order_id, phone_no_plus, phone_with_plus, numeric_id))
         conn.execute("""
             UPDATE server4_orders
             SET status = 'archived'
-            WHERE user_id = ? AND (provider_order_id = ? OR phone = ? OR id = ?)
-        """, (uid, order_id, order_id, numeric_id))
+            WHERE user_id = ? AND (
+                provider_order_id = ? 
+                OR phone = ? 
+                OR phone = ? 
+                OR phone = ? 
+                OR id = ?
+            )
+        """, (uid, order_id, order_id, phone_no_plus, phone_with_plus, numeric_id))
         conn.commit()
 
     return jsonify({"success": True, "message": "Order archived successfully"})
