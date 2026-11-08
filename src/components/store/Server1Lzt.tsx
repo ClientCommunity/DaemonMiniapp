@@ -729,7 +729,9 @@ export const Server1Lzt: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
                   <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Account Type</span>
-                  <span className="text-white font-bold">Aged Telegram 2FA</span>
+                  <span className="text-white font-bold">
+                    {filters.twofa === 'yes' ? 'Aged Telegram 2FA' : filters.twofa === 'any' ? 'Aged Telegram' : 'Aged Telegram (Direct)'}
+                  </span>
                 </div>
 
                 <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
@@ -750,9 +752,19 @@ export const Server1Lzt: React.FC = () => {
 
                 <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
                   <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">2FA Security</span>
-                  <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <Key className="w-3 h-3 text-amber-400" />
-                    2FA Password Included
+                  <span className={`font-bold flex items-center gap-1 ${
+                    filters.twofa === 'yes'
+                      ? 'text-amber-400'
+                      : filters.twofa === 'any'
+                      ? 'text-sky-300'
+                      : 'text-emerald-400'
+                  }`}>
+                    <Key className="w-3 h-3" />
+                    {filters.twofa === 'yes'
+                      ? 'With 2FA Password'
+                      : filters.twofa === 'any'
+                      ? 'Any 2FA Status'
+                      : 'Without 2FA (Clean)'}
                   </span>
                 </div>
 
@@ -773,10 +785,14 @@ export const Server1Lzt: React.FC = () => {
                 </div>
 
                 <div className="p-2 rounded-lg bg-[#121217] border border-[#262630] flex flex-col gap-0.5">
-                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">2FA Security</span>
-                  <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <Key className="w-3 h-3 text-amber-400" />
-                    {filters.twofa === 'yes' ? 'With 2FA Password' : filters.twofa === 'any' ? 'Any 2FA Status' : 'Without 2FA (Clean)'}
+                  <span className="text-[10px] text-[#a1a1aa] uppercase font-semibold">Delivery Format</span>
+                  <span className="text-[#22c55e] font-bold flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-[#22c55e]" />
+                    {filters.twofa === 'yes'
+                      ? 'Phone + 2FA + OTP'
+                      : filters.twofa === 'any'
+                      ? 'Phone + Login Code'
+                      : 'Phone + Direct OTP'}
                   </span>
                 </div>
 
