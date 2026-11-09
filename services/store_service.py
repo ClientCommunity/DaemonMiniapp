@@ -377,12 +377,16 @@ def get_server2_stock(tier: str = "good") -> dict[str, Any]:
 
 _SERVER3_CACHE: dict[str, Any] = {"timestamp": 0.0, "items": []}
 
-def get_server3_stock() -> list[dict[str, Any]]:
-    """Return Server 3 catalogue (Instant Virtual OTP) with high-speed in-memory caching."""
+def get_server3_stock(search: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
+    """Return Server 3 catalogue (Instant Virtual OTP) with high-speed in-memory caching and optional search/limit."""
     import time
-    now = time.time()
-    if _SERVER3_CACHE["items"] and (now - _SERVER3_CACHE["timestamp"]) < 60.0:
-        return _SERVER3_CACHE["items"]
+    clean_q = (search or "").strip()
+
+    # If no search query and no limit, use cached full catalogue for store front speed
+    if not clean_q and (limit is None or limit <= 0):
+        now = time.time()
+        if _SERVER3_CACHE["items"] and (now - _SERVER3_CACHE["timestamp"]) < 60.0:
+            return _SERVER3_CACHE["items"]
 
     items = []
     icon_map = {
@@ -393,13 +397,28 @@ def get_server3_stock() -> list[dict[str, Any]]:
 
     try:
         with connect() as conn:
-            rows = conn.execute("""
-                SELECT s.service_code, s.server_code, s.name, s.provider_price, COALESCE(v.name, 'India') as server_name
-                FROM server3_services s
-                LEFT JOIN server3_servers v ON v.code = s.server_code
-                WHERE s.enabled = 1 AND s.in_stock = 1 AND s.provider_price > 0
-                ORDER BY s.name ASC
-            """).fetchall()
+            if clean_q:
+                q_pattern = f"%{clean_q}%"
+                limit_clause = f"LIMIT {int(limit)}" if (limit and limit > 0) else "LIMIT 100"
+                rows = conn.execute(f"""
+                    SELECT s.service_code, s.server_code, s.name, s.provider_price, COALESCE(v.name, 'India') as server_name
+                    FROM server3_services s
+                    LEFT JOIN server3_servers v ON v.code = s.server_code
+                    WHERE s.enabled = 1 AND s.in_stock = 1 AND s.provider_price > 0
+                      AND (s.name LIKE ? OR s.service_code LIKE ? OR v.name LIKE ?)
+                    ORDER BY s.name ASC
+                    {limit_clause}
+                """, (q_pattern, q_pattern, q_pattern)).fetchall()
+            else:
+                limit_clause = f"LIMIT {int(limit)}" if (limit and limit > 0) else ""
+                rows = conn.execute(f"""
+                    SELECT s.service_code, s.server_code, s.name, s.provider_price, COALESCE(v.name, 'India') as server_name
+                    FROM server3_services s
+                    LEFT JOIN server3_servers v ON v.code = s.server_code
+                    WHERE s.enabled = 1 AND s.in_stock = 1 AND s.provider_price > 0
+                    ORDER BY s.name ASC
+                    {limit_clause}
+                """).fetchall()
 
         for r in rows:
             code = r["service_code"]
@@ -417,8 +436,10 @@ def get_server3_stock() -> list[dict[str, Any]]:
                 "stock": None,
                 "subtitle": f"{country_name} Instant OTP",
             })
-        _SERVER3_CACHE["items"] = items
-        _SERVER3_CACHE["timestamp"] = now
+
+        if not clean_q and (limit is None or limit <= 0):
+            _SERVER3_CACHE["items"] = items
+            _SERVER3_CACHE["timestamp"] = time.time()
     except Exception as exc:
         logger.warning("Error querying server3_services: %s", exc)
     return items
@@ -426,12 +447,16 @@ def get_server3_stock() -> list[dict[str, Any]]:
 
 _SERVER4_CACHE: dict[str, Any] = {"timestamp": 0.0, "items": []}
 
-def get_server4_stock() -> list[dict[str, Any]]:
-    """Return Server 4 catalogue (Fresh Carrier Numbers) with authentic country combinations."""
+def get_server4_stock(search: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
+    """Return Server 4 catalogue (Fresh Carrier Numbers) with authentic country combinations, supporting search and limit."""
     import time
-    now = time.time()
-    if _SERVER4_CACHE["items"] and (now - _SERVER4_CACHE["timestamp"]) < 60.0:
-        return _SERVER4_CACHE["items"]
+    clean_q = (search or "").strip()
+
+    # If no search query and no limit, use cached full catalogue for store front speed
+    if not clean_q and (limit is None or limit <= 0):
+        now = time.time()
+        if _SERVER4_CACHE["items"] and (now - _SERVER4_CACHE["timestamp"]) < 60.0:
+            return _SERVER4_CACHE["items"]
 
     items = []
     try:
@@ -443,33 +468,56 @@ def get_server4_stock() -> list[dict[str, Any]]:
             min_price_floor = float(s4_cfg["minimum_price"] if s4_cfg and s4_cfg["minimum_price"] is not None else 15.0)
 
             # 2. Query verified in-stock services across countries with available_count > 0
-            popular_rows = conn.execute("""
-                SELECT
-                    v.service_code,
-                    v.name as service_name,
-                    c.country_code,
-                    c.name as country_name,
-                    s.operator_code,
-                    MIN(s.min_price) as min_price,
-                    SUM(s.available_count) as total_stock
-                FROM server4_stock s
-                JOIN server4_countries c ON c.operator_code = s.operator_code AND c.country_code = s.country_code
-                JOIN server4_services v ON v.operator_code = s.operator_code AND v.service_code = s.service_code
-                WHERE s.available_count > 0 AND c.enabled = 1 AND v.enabled = 1
-                GROUP BY v.name, c.name
-                ORDER BY
-                  CASE
-                    WHEN LOWER(v.name) LIKE '%whatsapp%' THEN 1
-                    WHEN LOWER(v.name) LIKE '%telegram%' THEN 2
-                    WHEN LOWER(v.name) LIKE '%instagram%' THEN 3
-                    WHEN LOWER(v.name) LIKE '%google%' OR LOWER(v.name) LIKE '%gmail%' THEN 4
-                    WHEN LOWER(v.name) LIKE '%snap%' THEN 5
-                    WHEN LOWER(v.name) LIKE '%facebook%' THEN 6
-                    ELSE 10
-                  END ASC,
-                  total_stock DESC
-                LIMIT 8000
-            """).fetchall()
+            if clean_q:
+                q_pattern = f"%{clean_q}%"
+                limit_clause = f"LIMIT {int(limit)}" if (limit and limit > 0) else "LIMIT 100"
+                popular_rows = conn.execute(f"""
+                    SELECT
+                        v.service_code,
+                        v.name as service_name,
+                        c.country_code,
+                        c.name as country_name,
+                        s.operator_code,
+                        MIN(s.min_price) as min_price,
+                        SUM(s.available_count) as total_stock
+                    FROM server4_stock s
+                    JOIN server4_countries c ON c.operator_code = s.operator_code AND c.country_code = s.country_code
+                    JOIN server4_services v ON v.operator_code = s.operator_code AND v.service_code = s.service_code
+                    WHERE s.available_count > 0 AND c.enabled = 1 AND v.enabled = 1
+                      AND (v.name LIKE ? OR c.name LIKE ? OR v.service_code LIKE ?)
+                    GROUP BY v.name, c.name
+                    ORDER BY total_stock DESC
+                    {limit_clause}
+                """, (q_pattern, q_pattern, q_pattern)).fetchall()
+            else:
+                limit_val = int(limit) if (limit and limit > 0) else 8000
+                popular_rows = conn.execute(f"""
+                    SELECT
+                        v.service_code,
+                        v.name as service_name,
+                        c.country_code,
+                        c.name as country_name,
+                        s.operator_code,
+                        MIN(s.min_price) as min_price,
+                        SUM(s.available_count) as total_stock
+                    FROM server4_stock s
+                    JOIN server4_countries c ON c.operator_code = s.operator_code AND c.country_code = s.country_code
+                    JOIN server4_services v ON v.operator_code = s.operator_code AND v.service_code = s.service_code
+                    WHERE s.available_count > 0 AND c.enabled = 1 AND v.enabled = 1
+                    GROUP BY v.name, c.name
+                    ORDER BY
+                      CASE
+                        WHEN LOWER(v.name) LIKE '%whatsapp%' THEN 1
+                        WHEN LOWER(v.name) LIKE '%telegram%' THEN 2
+                        WHEN LOWER(v.name) LIKE '%instagram%' THEN 3
+                        WHEN LOWER(v.name) LIKE '%google%' OR LOWER(v.name) LIKE '%gmail%' THEN 4
+                        WHEN LOWER(v.name) LIKE '%snap%' THEN 5
+                        WHEN LOWER(v.name) LIKE '%facebook%' THEN 6
+                        ELSE 10
+                      END ASC,
+                      total_stock DESC
+                    LIMIT {limit_val}
+                """).fetchall()
 
             for r in popular_rows:
                 s_name = r["service_name"]
@@ -493,12 +541,13 @@ def get_server4_stock() -> list[dict[str, Any]]:
                     "subtitle": f"Fresh Carrier · {c_name}",
                 })
 
-        _SERVER4_CACHE["timestamp"] = now
-        _SERVER4_CACHE["items"] = items
+        if not clean_q and (limit is None or limit <= 0):
+            _SERVER4_CACHE["timestamp"] = time.time()
+            _SERVER4_CACHE["items"] = items
     except Exception as exc:
         logger.warning("Error querying server4_services: %s", exc)
 
-    return items or _SERVER4_CACHE["items"]
+    return items or (_SERVER4_CACHE["items"] if not clean_q else [])
 
 
 _SERVER5_CACHE: dict[str, Any] = {"timestamp": 0.0, "items": []}
@@ -968,10 +1017,18 @@ def get_pinned_services(server_no: int | None = None) -> list[dict[str, Any]]:
                         subtitle = "Session + TData Combo"
 
                     elif s_no == 3:
-                        s3_row = conn.execute(
-                            "SELECT provider_price FROM server3_services WHERE service_code = ? OR name = ?",
-                            (svc_id, r["service_name"])
-                        ).fetchone()
+                        s3_row = None
+                        parts = svc_id.split("_")
+                        if len(parts) >= 2:
+                            s3_row = conn.execute(
+                                "SELECT provider_price FROM server3_services WHERE service_code = ? AND server_code = ?",
+                                (parts[0], parts[1])
+                            ).fetchone()
+                        if not s3_row:
+                            s3_row = conn.execute(
+                                "SELECT provider_price FROM server3_services WHERE service_code = ? OR name = ?",
+                                (svc_id, r["service_name"])
+                            ).fetchone()
                         if s3_row:
                             price = int(s3_row["provider_price"] or 45)
                         subtitle = "Instant Virtual OTP"
@@ -982,10 +1039,21 @@ def get_pinned_services(server_no: int | None = None) -> list[dict[str, Any]]:
                         fix = float(s4_cfg["fixed_markup"] if s4_cfg and s4_cfg["fixed_markup"] is not None else 0.0)
                         flr = float(s4_cfg["minimum_price"] if s4_cfg and s4_cfg["minimum_price"] is not None else 15.0)
 
-                        s4_row = conn.execute(
-                            "SELECT MIN(min_price) as mp, SUM(available_count) as cnt FROM server4_stock WHERE service_code = ?",
-                            (svc_id,)
-                        ).fetchone()
+                        s4_row = None
+                        clean_sid = svc_id
+                        if clean_sid.startswith("s4_"):
+                            clean_sid = clean_sid[3:]
+                        parts = clean_sid.split("_")
+                        if len(parts) >= 2:
+                            s4_row = conn.execute(
+                                "SELECT MIN(min_price) as mp, SUM(available_count) as cnt FROM server4_stock WHERE service_code = ? AND country_code = ?",
+                                (parts[0], parts[1])
+                            ).fetchone()
+                        if not s4_row or s4_row["mp"] is None:
+                            s4_row = conn.execute(
+                                "SELECT MIN(min_price) as mp, SUM(available_count) as cnt FROM server4_stock WHERE service_code = ?",
+                                (clean_sid,)
+                            ).fetchone()
                         if s4_row and s4_row["mp"] is not None:
                             raw = float(s4_row["mp"])
                             calc_price = int(round(max(flr, raw * (1 + pct / 100.0) + fix)))

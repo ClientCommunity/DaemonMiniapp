@@ -78,17 +78,23 @@ def server2_stock():
 @store_bp.route("/api/store/server3", methods=["GET"])
 @store_bp.route("/api/server3/stock", methods=["GET"])
 def server3_stock():
-    """Return Server 3 virtual numbers stock (Instant Virtual OTP)."""
-    items = get_server3_stock()
-    return jsonify({"success": True, "items": items})
+    """Return Server 3 virtual numbers stock (Instant Virtual OTP), supporting search and limit."""
+    search = request.args.get("search") or request.args.get("q")
+    limit = request.args.get("limit")
+    limit_val = int(limit) if limit and limit.isdigit() else None
+    items = get_server3_stock(search=search, limit=limit_val)
+    return jsonify({"success": True, "items": items, "count": len(items)})
 
 
 @store_bp.route("/api/store/server4", methods=["GET"])
 @store_bp.route("/api/server4/stock", methods=["GET"])
 def server4_stock():
-    """Return Server 4 virtual numbers stock (Fresh Carrier Numbers)."""
-    items = get_server4_stock()
-    return jsonify({"success": True, "items": items})
+    """Return Server 4 virtual numbers stock (Fresh Carrier Numbers), supporting search and limit."""
+    search = request.args.get("search") or request.args.get("q")
+    limit = request.args.get("limit")
+    limit_val = int(limit) if limit and limit.isdigit() else None
+    items = get_server4_stock(search=search, limit=limit_val)
+    return jsonify({"success": True, "items": items, "count": len(items)})
 
 
 @store_bp.route("/api/store/server5", methods=["GET"])
