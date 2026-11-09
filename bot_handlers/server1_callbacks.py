@@ -519,6 +519,7 @@ async def handle_server1_callback(e, uid: int, data: str) -> bool:
             if not latest_item or market_price is None:
                 await e.edit(f"{P_WARN} <b>Unable to load latest Server 1 price.</b>\nPlease refresh the stock and try again.", buttons=[[p_btn("Back", f"lzt_chk|{iso_code}|1")]])
                 return True
+            flt = get_user_filters(uid)
             twofa_pref = flt.get("twofa", "no")
             has_pwd = lzt_item_requires_password(latest_item)
             if twofa_pref == "no" and has_pwd:
