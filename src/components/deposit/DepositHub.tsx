@@ -846,7 +846,7 @@ export const DepositHub: React.FC = () => {
                   )}
 
                   {/* QR Code image if exists */}
-                  {activeManualMethod.name.toLowerCase().includes('cwallet') ? (
+                  {(activeManualMethod.name.toLowerCase().includes('cwallet') || (activeManualMethod.caption && activeManualMethod.caption.toLowerCase().includes('cwallet'))) ? (
                     <div className="flex flex-col items-center justify-center my-2 p-3 bg-[#121217] rounded-2xl border border-[#262630]">
                       <div className="max-w-[280px] w-full rounded-2xl overflow-hidden border border-[#262630] shadow-2xl bg-white p-1">
                         <img
