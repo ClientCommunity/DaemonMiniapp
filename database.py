@@ -1615,19 +1615,40 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
     lim = max(1, int(limit))
     off = max(0, int(offset))
 
-    sql = """
+    def _get_cols(table_name: str) -> set[str]:
+        try:
+            c_rows = conn_or_cur.execute(f"PRAGMA table_info({table_name})").fetchall()
+            return {r[1] if not isinstance(r, dict) and not hasattr(r, 'keys') else r["name"] for r in c_rows}
+        except Exception:
+            return set()
+
+    o_cols = _get_cols("orders")
+    twofa_expr = "COALESCE(twofa, '')" if "twofa" in o_cols else "''"
+    prov_expr = "COALESCE(provider_item_id, '')" if "provider_item_id" in o_cols else "''"
+    active_expr = "COALESCE(is_active, 1)" if "is_active" in o_cols else "1"
+
+    s3_cols = _get_cols("server3_orders")
+    s3_prov = "provider_order_id" if "provider_order_id" in s3_cols else "''"
+
+    s4_cols = _get_cols("server4_orders")
+    s4_prov = "provider_order_id" if "provider_order_id" in s4_cols else "''"
+
+    smm_cols = _get_cols("smm_orders")
+    smm_prov = "CAST(provider_order_id AS TEXT)" if "provider_order_id" in smm_cols else "''"
+
+    sql = f"""
     SELECT id, country, year, price, phone, otp, server, date, twofa, provider_item_id, is_active
     FROM (
         SELECT id, country, year, price, phone, otp, COALESCE(server, 'Server 1') as server, date,
-               COALESCE(twofa, '') as twofa, COALESCE(provider_item_id, '') as provider_item_id,
-               COALESCE(is_active, 1) as is_active
+               {twofa_expr} as twofa, {prov_expr} as provider_item_id,
+               {active_expr} as is_active
         FROM orders
         WHERE user_id = ? AND (server IS NULL OR server NOT IN ('Server 3', 'Server 4', 'Server 5'))
 
         UNION ALL
 
         SELECT id, server_code as country, 2024 as year, charged_price as price, phone, COALESCE(sms_code, status) as otp,
-               'Server 3' as server, created_at as date, '' as twofa, provider_order_id as provider_item_id,
+               'Server 3' as server, created_at as date, '' as twofa, {s3_prov} as provider_item_id,
                CASE WHEN status IN ('waiting', 'completed') THEN 1 ELSE 0 END as is_active
         FROM server3_orders
         WHERE user_id = ?
@@ -1635,7 +1656,7 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
         UNION ALL
 
         SELECT id, service_code as country, 2024 as year, charged_price as price, phone, COALESCE(sms_code, status) as otp,
-               'Server 4' as server, created_at as date, '' as twofa, provider_order_id as provider_item_id,
+               'Server 4' as server, created_at as date, '' as twofa, {s4_prov} as provider_item_id,
                CASE WHEN status IN ('waiting', 'completed') THEN 1 ELSE 0 END as is_active
         FROM server4_orders
         WHERE user_id = ?
@@ -1643,7 +1664,7 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
         UNION ALL
 
         SELECT id, link as country, quantity as year, CAST(charge AS INT) as price, link as phone, status as otp,
-               'Server 5' as server, created_at as date, '' as twofa, CAST(provider_order_id AS TEXT) as provider_item_id,
+               'Server 5' as server, created_at as date, '' as twofa, {smm_prov} as provider_item_id,
                0 as is_active
         FROM smm_orders
         WHERE user_id = ?
@@ -1677,7 +1698,7 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
         # Fallback to standard orders table
         try:
             fb = conn_or_cur.execute(
-                "SELECT id, country, year, price, phone, otp, server, date, twofa, provider_item_id, is_active FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+                f"SELECT id, country, year, price, phone, otp, server, date, {twofa_expr}, {prov_expr}, {active_expr} FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
                 (uid, lim, off)
             ).fetchall()
             return [dict(r) if isinstance(r, dict) or hasattr(r, 'keys') else {
@@ -1685,8 +1706,6 @@ def get_unified_user_orders(conn_or_cur: Any = None, user_id: int = 0, limit: in
                 "otp": r[5], "server": r[6], "date": r[7], "twofa": r[8] if len(r) > 8 else "",
                 "provider_item_id": r[9] if len(r) > 9 else "", "is_active": r[10] if len(r) > 10 else 1
             } for r in fb]
-
-
         except Exception:
             return []
 

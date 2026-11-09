@@ -63,6 +63,7 @@ class TestUnifiedOrderStats(unittest.TestCase):
         self.conn.execute("""
             CREATE TABLE smm_orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider_order_id TEXT,
                 user_id INTEGER,
                 link TEXT,
                 quantity INTEGER,
