@@ -99,10 +99,15 @@ export const Server1Lzt: React.FC = () => {
     }
     let cancelled = false;
     setIsVerifyingStock(true);
-    storeApi
-      .checkServer1Country(selectedForPurchase.country)
-      .then((res) => {
-        if (!cancelled && res.success) {
+
+    const checkPromise = storeApi.checkServer1Country(selectedForPurchase.country);
+    const timeoutPromise = new Promise<{ success: false }>((resolve) =>
+      setTimeout(() => resolve({ success: false }), 2500)
+    );
+
+    Promise.race([checkPromise, timeoutPromise])
+      .then((res: any) => {
+        if (!cancelled && res && res.success) {
           setLiveStockInfo({
             stock: res.stock,
             price: res.price,
@@ -117,7 +122,7 @@ export const Server1Lzt: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedForPurchase]);
+  }, [selectedForPurchase?.country]);
 
   const effectiveStock = liveStockInfo !== null ? liveStockInfo.stock : selectedForPurchase?.stockCount ?? 0;
   const effectivePrice = liveStockInfo !== null ? liveStockInfo.price : selectedForPurchase?.priceInr ?? 0;
@@ -266,7 +271,7 @@ export const Server1Lzt: React.FC = () => {
   }, [purchasedCredentialsModal?.isOpen, purchasedCredentialsModal?.orderId, purchasedCredentialsModal?.otpCode]);
 
   const handleConfirmBuy = () => {
-    if (!selectedForPurchase || isOutOfStock || isVerifyingStock) return;
+    if (!selectedForPurchase || isOutOfStock) return;
     const itemToBuy = {
       ...selectedForPurchase,
       priceInr: effectivePrice,
@@ -615,15 +620,10 @@ export const Server1Lzt: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmBuy}
-                disabled={isVerifyingStock || isOutOfStock || user.balance < effectivePrice}
+                disabled={isOutOfStock || user.balance < effectivePrice}
                 className="py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:grayscale"
               >
-                {isVerifyingStock ? (
-                  <span className="flex items-center gap-1.5 text-black">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Verifying Stock...</span>
-                  </span>
-                ) : isOutOfStock ? (
+                {isOutOfStock ? (
                   <span className="flex items-center gap-1.5 text-black">
                     <AlertTriangle className="w-3.5 h-3.5" />
                     <span>Out of Stock for Selected Criteria</span>
@@ -632,6 +632,9 @@ export const Server1Lzt: React.FC = () => {
                   <>
                     <Check className="w-4 h-4 text-black stroke-[3]" />
                     <span>Confirm & Pay ({formatPrice(effectivePrice)})</span>
+                    {isVerifyingStock && (
+                      <RefreshCw className="w-3 h-3 animate-spin text-black/60 ml-0.5" />
+                    )}
                   </>
                 )}
               </button>
@@ -650,12 +653,7 @@ export const Server1Lzt: React.FC = () => {
                     {selectedForPurchase.country} Telegram
                   </span>
                   <div className="flex items-center gap-1.5 text-[11px] font-medium">
-                    {isVerifyingStock ? (
-                      <span className="text-[#a1a1aa] flex items-center gap-1">
-                        <RefreshCw className="w-3 h-3 animate-spin text-[#8b5cf6]" />
-                        <span>Verifying live market availability...</span>
-                      </span>
-                    ) : isOutOfStock ? (
+                    {isOutOfStock ? (
                       <span className="text-red-400 font-bold flex items-center gap-1">
                         <AlertTriangle className="w-3.5 h-3.5" />
                         <span>0 in stock for your filters</span>
@@ -664,6 +662,9 @@ export const Server1Lzt: React.FC = () => {
                       <span className="text-[#22c55e] flex items-center gap-1">
                         <Check className="w-3 h-3" />
                         <span>Stock: {effectiveStock} available</span>
+                        {isVerifyingStock && (
+                          <RefreshCw className="w-2.5 h-2.5 animate-spin text-[#8b5cf6] ml-1" />
+                        )}
                       </span>
                     )}
                     <span>•</span>
@@ -808,17 +809,17 @@ export const Server1Lzt: React.FC = () => {
               </div>
               <div className="flex items-center justify-between text-[#a1a1aa] text-[11px]">
                 <span>Cost Deduction:</span>
-                <span className="text-[#ef4444] font-mono font-bold">-{formatPrice(selectedForPurchase.priceInr)}</span>
+                <span className="text-[#ef4444] font-mono font-bold">-{formatPrice(effectivePrice)}</span>
               </div>
               <div className="flex items-center justify-between pt-1 border-t border-[#262630] text-[#a1a1aa] text-[11px]">
                 <span>Balance After Purchase:</span>
                 <span className="text-[#22c55e] font-mono font-bold">
-                  {formatPrice(Math.max(0, user.balance - selectedForPurchase.priceInr))}
+                  {formatPrice(Math.max(0, user.balance - effectivePrice))}
                 </span>
               </div>
             </div>
 
-            {user.balance < selectedForPurchase.priceInr ? (
+            {user.balance < effectivePrice ? (
               <div className="p-3 bg-red-950/20 border border-red-500/40 rounded-xl text-xs text-[#ef4444] flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 text-[#ef4444] shrink-0" />
