@@ -1317,6 +1317,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               ? { ...prev, status: 'received', otpCode: receivedCode }
               : prev
           );
+        } else if (res && (res.status === 'session_invalid' || res.status === 'cancelled')) {
+          try {
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+              window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            }
+          } catch {}
+          addToast((res as any).error || 'Session was invalid or terminated. Your balance has been refunded.', 'error', 'Session Invalid - Refunded');
+          setActiveOtpSession((prev) => (prev && prev.orderId === orderId ? null : prev));
+          setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderId && item.phone !== orderId));
+          refreshUser().catch(() => {});
         }
       } catch {}
     };
@@ -1355,6 +1365,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               ? { ...prev, status: 'received', otpCode: receivedCode }
               : prev
           );
+        } else if (res && (res.status === 'session_invalid' || res.status === 'cancelled')) {
+          try {
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+              window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            }
+          } catch {}
+          addToast((res as any).error || 'Session was invalid or terminated. Your balance has been refunded.', 'error', 'Session Invalid - Refunded');
+          setActiveOtpSession((prev) => (prev && prev.orderId === orderId ? null : prev));
+          setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderId && item.phone !== orderId));
+          refreshUser().catch(() => {});
         }
       } catch {
         // backend poll silent failover to countdown
@@ -1536,6 +1556,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return prev;
           });
           return code;
+        } else if (res && (res.status === 'session_invalid' || res.status === 'cancelled' || (res as any).refunded)) {
+          hapticFeedback.error();
+          addToast((res as any).error || 'This session was terminated or invalid. Your balance has been fully refunded.', 'error', 'Session Invalid - Refunded');
+          setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderIdOrPhone && item.phone !== orderIdOrPhone));
+          refreshUser().catch(() => {});
+          return null;
         } else {
           addToast(
             'Code not received yet. Request login code inside official Telegram for this number, then tap Get OTP.',

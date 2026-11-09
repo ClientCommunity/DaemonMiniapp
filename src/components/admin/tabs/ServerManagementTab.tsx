@@ -27,6 +27,9 @@ import {
   Edit2,
   Pin,
   X,
+  Archive,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import { PinServiceModal, PreselectedServiceInfo } from '../PinServiceModal';
 import { PinnedServiceItem } from '../../../api/endpoints';
@@ -181,7 +184,20 @@ export const ServerManagementTab: React.FC = () => {
   const [s2Loading, setS2Loading] = useState(false);
   const [s2TierFilter, setS2TierFilter] = useState<'all' | 'good' | 'cheap'>('all');
   const [s2Search, setS2Search] = useState('');
-  const [s2UploadMode, setS2UploadMode] = useState<'single' | 'bulk'>('single');
+  const [s2UploadMode, setS2UploadMode] = useState<'bot' | 'single' | 'bulk'>('bot');
+
+  const handleOpenBotUpload = (mode: 'zip' | 'single') => {
+    const botUsername = 'SnapToNumberBot';
+    const param = mode === 'zip' ? 'upload_zip' : 'upload_session';
+    const deepLink = `https://t.me/${botUsername}?start=${param}`;
+
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(deepLink);
+      window.Telegram.WebApp.close();
+    } else {
+      window.open(deepLink, '_blank');
+    }
+  };
 
   // Single upload form
   const [s2SingleTier, setS2SingleTier] = useState<'good' | 'cheap'>('good');
@@ -879,39 +895,115 @@ export const ServerManagementTab: React.FC = () => {
       {/* ===================================================================== */}
       {subTab === 'server2' && (
         <div className="space-y-5 animate-in fade-in duration-150">
-          {/* Top Switcher: Single vs Bulk Upload */}
+          {/* Top Switcher: Bot Upload vs Text Override */}
           <div className="bg-[#181820] border border-[#262630] rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Upload className="w-4 h-4 text-[#8b5cf6]" />
-                <h3 className="text-sm font-bold text-white tracking-tight">
-                  Stock Upload & Strict Quality Tier Segregation
-                </h3>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">
+                    Server 2 Session Stock Management & Live Upload
+                  </h3>
+                  <p className="text-[11px] text-[#a1a1aa] mt-0.5">
+                    Upload real authorized accounts with 100% verified Telegram OTP support.
+                  </p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-1 bg-[#121217] p-1 rounded-xl border border-[#262630]">
+              <div className="flex items-center gap-1 bg-[#121217] p-1 rounded-xl border border-[#262630] self-start sm:self-auto">
                 <button
-                  onClick={() => setS2UploadMode('single')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    s2UploadMode === 'single'
+                  onClick={() => setS2UploadMode('bot')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    s2UploadMode === 'bot'
                       ? 'bg-[#7c3aed] text-white shadow'
                       : 'text-[#a1a1aa] hover:text-white'
                   }`}
                 >
-                  Single Account
+                  <span>⚡ Bot Upload (Recommended)</span>
+                </button>
+                <button
+                  onClick={() => setS2UploadMode('single')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    s2UploadMode === 'single'
+                      ? 'bg-[#272730] text-white shadow'
+                      : 'text-[#a1a1aa] hover:text-white'
+                  }`}
+                >
+                  Single Text
                 </button>
                 <button
                   onClick={() => setS2UploadMode('bulk')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     s2UploadMode === 'bulk'
-                      ? 'bg-[#7c3aed] text-white shadow'
+                      ? 'bg-[#272730] text-white shadow'
                       : 'text-[#a1a1aa] hover:text-white'
                   }`}
                 >
-                  Bulk Upload
+                  Bulk Text
                 </button>
               </div>
             </div>
+
+            {/* Mode 1: Bot Upload Portal (Recommended) */}
+            {s2UploadMode === 'bot' && (
+              <div className="space-y-4 pt-1 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBotUpload('zip')}
+                    className="group bg-[#121217] hover:bg-[#1a1a22] border border-[#262630] hover:border-[#7c3aed]/50 rounded-xl p-4 text-left transition-all flex items-center justify-between cursor-pointer active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#7c3aed]/10 border border-[#7c3aed]/20 flex items-center justify-center text-[#a78bfa] group-hover:scale-110 transition-transform">
+                        <Archive className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>Upload Bulk Archive (.zip)</span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#7c3aed]/20 text-[#a78bfa] font-mono">Multi</span>
+                        </div>
+                        <div className="text-[11px] text-[#a1a1aa] mt-0.5">
+                          Upload multiple .session files packed in a ZIP.
+                        </div>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-[#71717a] group-hover:text-white transition-colors shrink-0" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBotUpload('single')}
+                    className="group bg-[#121217] hover:bg-[#1a1a22] border border-[#262630] hover:border-[#22c55e]/50 rounded-xl p-4 text-left transition-all flex items-center justify-between cursor-pointer active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#22c55e]/10 border border-[#22c55e]/20 flex items-center justify-center text-[#4ade80] group-hover:scale-110 transition-transform">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>Upload Single Account (.session)</span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e]/20 text-[#4ade80] font-mono">Direct</span>
+                        </div>
+                        <div className="text-[11px] text-[#a1a1aa] mt-0.5">
+                          Send or forward a single .session file directly to bot.
+                        </div>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-[#71717a] group-hover:text-white transition-colors shrink-0" />
+                  </button>
+                </div>
+
+                <div className="bg-[#121217] border border-[#262630] rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-[#a1a1aa]">
+                  <CheckCircle2 className="w-4 h-4 text-[#22c55e] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-white">100% Verified Telethon Authorization: </span>
+                    <span>
+                      The bot connects to Telegram and tests authorization live before saving. Dead, revoked, or password-locked accounts are filtered out automatically, preventing customer refund issues.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Form: Single Upload */}
             {s2UploadMode === 'single' && (
