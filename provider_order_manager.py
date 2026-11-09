@@ -135,7 +135,11 @@ class ProviderOrderManager:
                 if response in ("ACCESS_CANCEL", "ACCESS_CANCEL_ALREADY", "STATUS_CANCEL"):
                     await self._emit("refunded", cancel_and_refund(table, row["provider_order_id"], "otp_timeout"))
             except (DGOTPError, TemporaError):
-                logger.warning("Provider cancellation retry pending: %s %s", table, row["provider_order_id"])
+                if now - expires > timedelta(hours=1):
+                    logger.info("Order %s expired upstream (>1h); finalizing timeout refund.", row["provider_order_id"])
+                    await self._emit("refunded", cancel_and_refund(table, row["provider_order_id"], "otp_timeout"))
+                else:
+                    logger.warning("Provider cancellation retry pending: %s %s", table, row["provider_order_id"])
 
     async def _loop(self):
         while True:

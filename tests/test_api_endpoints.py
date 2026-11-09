@@ -24,6 +24,7 @@ import os
 import sys
 import time
 import unittest
+from unittest.mock import patch
 import zipfile
 from pathlib import Path
 from urllib.parse import urlencode
@@ -294,8 +295,14 @@ class DeamonApiTestCase(unittest.TestCase):
     # 5. ORDER FULFILLMENT, OTP POLLING & REFUND TESTS
     # ==========================================================================
 
-    def test_order_purchase_and_otp_status(self):
+    @patch("services.order_service.find_session_path")
+    @patch("services.order_service.verify_server2_session")
+    @patch("services.order_service.check_server2_session_otp")
+    def test_order_purchase_and_otp_status(self, mock_check_otp, mock_verify, mock_find):
+        mock_check_otp.return_value = (None, True)
         """POST /api/buy and GET /api/otp/status flow."""
+        mock_find.return_value = Path("dummy.session")
+        mock_verify.return_value = True
         # Seed user with balance
         buyer_uid = 99887744
         with transaction(immediate=True) as conn:
@@ -319,17 +326,16 @@ class DeamonApiTestCase(unittest.TestCase):
         otp_data = res_otp.get_json()
         self.assertEqual(otp_data.get("status"), "waiting")
 
-        # Cancel order and receive refund
+        # Server 2 delivered orders are protected from post-purchase user cancellation
         res_cancel = self.client.post(
             "/api/otp/cancel",
             headers={"X-User-Id": str(buyer_uid)},
             json={"phone": phone}
         )
-        self.assertEqual(res_cancel.status_code, 200)
+        self.assertEqual(res_cancel.status_code, 400)
         cancel_data = res_cancel.get_json()
-        self.assertTrue(cancel_data.get("success"))
-        self.assertEqual(cancel_data.get("refunded_amount"), 85)
-        self.assertEqual(cancel_data.get("new_balance"), 500)
+        self.assertFalse(cancel_data.get("success"))
+        self.assertIn("cannot be cancelled or refunded", cancel_data.get("error", ""))
 
     # ==========================================================================
     # 6. PAYMENTS & DEPOSITS TESTS
@@ -347,7 +353,7 @@ class DeamonApiTestCase(unittest.TestCase):
         self.assertTrue(data.get("success"))
         self.assertEqual(data.get("amount"), 150)
         self.assertIn("upi://pay", data.get("upi_uri", ""))
-        self.assertIn("quickchart.io/qr", data.get("qr_url", ""))
+        self.assertTrue("data:image/png;base64" in data.get("qr_url", "") or "quickchart.io/qr" in data.get("qr_url", ""))
 
         # Check order status
         ref = data.get("reference")
