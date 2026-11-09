@@ -169,7 +169,7 @@ def get_manual_methods() -> dict[str, Any]:
     elif setting_upi and setting_upi["value"]:
         merchant_upi = str(setting_upi["value"]).strip()
 
-    CWALLET_URL = "https://cwallet.com/recevie/application/eba662e90501fd8d472d30b0e35043b8?contract=&type=off&chain=&addr=55164887"
+    CWALLET_URL = "https://cwallet.com/recevie/application/eba662e90501fd8d472d30b0e35043b8?contract=&type=off&chain=&addr=61286356"
     methods = []
     for r in rows:
         r_name = (r["name"] or "").strip()
@@ -177,7 +177,7 @@ def get_manual_methods() -> dict[str, Any]:
         qr = (r["qr_file_id"] or "").strip()
 
         # If Cwallet, always provide clean, high-contrast QR code instead of phone screenshots
-        if "cwallet" in r_name.lower() or "55164887" in r_cap or "x.jpg" in qr:
+        if "cwallet" in r_name.lower() or "61286356" in r_cap or "55164887" in r_cap or "x.jpg" in qr:
             qr = generate_qr_data_uri(CWALLET_URL)
         elif qr and not (qr.startswith("http://") or qr.startswith("https://") or qr.startswith("data:")):
             if os.path.exists(qr):
