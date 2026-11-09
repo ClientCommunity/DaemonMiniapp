@@ -3,6 +3,7 @@ import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
 import { useApp } from '../../context/AppContext';
 import { downloadApi, authApi, storeApi, Server1Filters } from '../../api/endpoints';
 import { Server1AccountItem } from '../../types';
+import { hapticFeedback } from '../../utils/haptics';
 import {
   Search,
   ShoppingBag,
@@ -85,6 +86,7 @@ export const Server1Lzt: React.FC = () => {
   });
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isVerifyingStock, setIsVerifyingStock] = useState(false);
+  const [isRefreshingStock, setIsRefreshingStock] = useState(false);
   const [liveStockInfo, setLiveStockInfo] = useState<{
     stock: number;
     price: number;
@@ -308,16 +310,44 @@ export const Server1Lzt: React.FC = () => {
     }
   };
 
+  const handleRefreshStock = async () => {
+    if (isRefreshingStock || isServerLoading[1]) return;
+    setIsRefreshingStock(true);
+    hapticFeedback.light();
+    try {
+      await refreshStore();
+      hapticFeedback.success();
+      addToast('Server 1 stock updated', 'success', 'Server 1');
+    } catch {
+      hapticFeedback.error();
+      addToast('Failed to refresh stock. Try again.', 'error', 'Server 1');
+    } finally {
+      setIsRefreshingStock(false);
+    }
+  };
+
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Banner / Intro */}
-      <div className="py-2 px-3 mb-2 rounded-xl bg-[#181820] border border-[#262630] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-white">Server 1: Global Accounts</span>
+      <div className="py-2 px-3 mb-2 rounded-xl bg-[#181820] border border-[#262630] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[11px] font-bold text-white truncate">Server 1: Global Accounts</span>
           <span className="text-[10px] text-[#71717a] hidden xs:inline">• Global Aged Stock</span>
         </div>
-        <div className="px-1.5 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/25 text-[#22c55e] text-[9px] font-bold uppercase tracking-wider shrink-0">
-          High Trust
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleRefreshStock}
+            disabled={isRefreshingStock || isServerLoading[1]}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#7c3aed]/15 hover:bg-[#7c3aed]/25 active:bg-[#7c3aed]/35 border border-[#7c3aed]/35 text-[#c084fc] hover:text-white text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50"
+            title="Refresh Server 1 stock"
+          >
+            <RefreshCw className={`w-3 h-3 ${isRefreshingStock || isServerLoading[1] ? 'animate-spin text-[#a78bfa]' : 'text-[#c084fc]'}`} />
+            <span>{isRefreshingStock || isServerLoading[1] ? 'Refreshing...' : 'Refresh Stock'}</span>
+          </button>
+          <div className="px-1.5 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/25 text-[#22c55e] text-[9px] font-bold uppercase tracking-wider shrink-0">
+            High Trust
+          </div>
         </div>
       </div>
 
