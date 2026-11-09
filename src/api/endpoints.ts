@@ -300,8 +300,10 @@ export const storeApi = {
     }>('/api/store/server1/check', { country }),
   getServer2: (tier: 'good' | 'cheap' = 'good') =>
     api.get<Server2StockResponse>('/api/store/server2', { tier }),
-  getServer3: () => api.get<Server3StockResponse>('/api/store/server3'),
-  getServer4: () => api.get<Server4StockResponse>('/api/store/server4'),
+  getServer3: (params?: { search?: string; limit?: number }) =>
+    api.get<Server3StockResponse>('/api/store/server3', params),
+  getServer4: (params?: { search?: string; limit?: number }) =>
+    api.get<Server4StockResponse>('/api/store/server4', params),
   getServer5: (params?: { page?: number; limit?: number; platform?: string; category?: string; search?: string; sort?: string }) =>
     api.get<Server5StockResponse>('/api/store/server5', params),
   getServer5Categories: () =>

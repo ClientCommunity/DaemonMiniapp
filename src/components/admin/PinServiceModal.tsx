@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { adminApi } from '../../api/adminApi';
 import { PinnedServiceItem, storeApi } from '../../api/endpoints';
-import { adaptServer1Item, adaptServer2Item, adaptServer34Item } from '../../api/adapters';
+import { adaptServer1Item, adaptServer2Item } from '../../api/adapters';
 import {
   Pin,
   X,
@@ -18,6 +18,7 @@ import {
   Radio,
   Share2,
   Loader2,
+  ChevronDown,
 } from 'lucide-react';
 
 export interface PreselectedServiceInfo {
@@ -40,6 +41,17 @@ interface PinServiceModalProps {
   pinnedList?: PinnedServiceItem[];
 }
 
+interface UniformCatalogItem {
+  server_no: number;
+  service_id: string;
+  service_name: string;
+  category_name?: string;
+  country_name?: string;
+  country_code?: string;
+  price?: number;
+  stock?: number;
+}
+
 const BADGE_PRESETS = [
   { label: 'Hot', icon: Flame, color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
   { label: 'Instant', icon: Zap, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
@@ -57,7 +69,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   defaultServer = 1,
   pinnedList = [],
 }) => {
-  const { server1Items, server2Items, server34Items, addToast } = useApp();
+  const { addToast } = useApp();
 
   const [activeServer, setActiveServer] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,148 +79,24 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   const [isManualMode, setIsManualMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Local cache for server stock catalogs in PinServiceModal
-  const [modalServer1, setModalServer1] = useState<any[]>(() => server1Items || []);
-  const [modalServer2, setModalServer2] = useState<any[]>(() => server2Items || []);
-  const [modalServer3, setModalServer3] = useState<any[]>(() => (server34Items || []).filter((i) => i.server === 3));
-  const [modalServer4, setModalServer4] = useState<any[]>(() => (server34Items || []).filter((i) => i.server === 4));
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+  // Server 1 & Server 2 local catalogs
+  const [modalServer1, setModalServer1] = useState<any[]>([]);
+  const [modalServer2, setModalServer2] = useState<any[]>([]);
+  const [isLoadingS1, setIsLoadingS1] = useState(false);
+  const [isLoadingS2, setIsLoadingS2] = useState(false);
 
-  // Sync from useApp if populated later
-  useEffect(() => {
-    if (server1Items?.length > 0 && modalServer1.length === 0) setModalServer1(server1Items);
-  }, [server1Items]);
-  useEffect(() => {
-    if (server2Items?.length > 0 && modalServer2.length === 0) setModalServer2(server2Items);
-  }, [server2Items]);
-  useEffect(() => {
-    const s3 = (server34Items || []).filter((i) => i.server === 3);
-    if (s3.length > 0 && modalServer3.length === 0) setModalServer3(s3);
-    const s4 = (server34Items || []).filter((i) => i.server === 4);
-    if (s4.length > 0 && modalServer4.length === 0) setModalServer4(s4);
-  }, [server34Items]);
+  // Server 3, 4, 5 dynamic server-side search results
+  const [s3Results, setS3Results] = useState<UniformCatalogItem[]>([]);
+  const [isSearchingS3, setIsSearchingS3] = useState(false);
 
-  // On-demand server inventory fetch when modal is open and active server catalog is missing
-  useEffect(() => {
-    if (!isOpen || activeServer === 5) return;
-    let cancelled = false;
+  const [s4Results, setS4Results] = useState<UniformCatalogItem[]>([]);
+  const [isSearchingS4, setIsSearchingS4] = useState(false);
 
-    const fetchActiveServerStock = async () => {
-      if (activeServer === 1 && modalServer1.length === 0) {
-        setIsLoadingCatalog(true);
-        try {
-          const res = await storeApi.getServer1();
-          if (!cancelled && res?.items && Array.isArray(res.items)) {
-            setModalServer1(res.items.map(adaptServer1Item));
-          }
-        } catch {
-          // silent fallback
-        } finally {
-          if (!cancelled) setIsLoadingCatalog(false);
-        }
-      } else if (activeServer === 2 && modalServer2.length === 0) {
-        setIsLoadingCatalog(true);
-        try {
-          const [goodRes, cheapRes] = await Promise.all([
-            storeApi.getServer2('good').catch(() => ({ items: [] })),
-            storeApi.getServer2('cheap').catch(() => ({ items: [] })),
-          ]);
-          if (!cancelled) {
-            const combined = [
-              ...((goodRes?.items || []).map((it) => adaptServer2Item(it, 'good'))),
-              ...((cheapRes?.items || []).map((it) => adaptServer2Item(it, 'cheap'))),
-            ];
-            setModalServer2(combined);
-          }
-        } catch {
-          // silent fallback
-        } finally {
-          if (!cancelled) setIsLoadingCatalog(false);
-        }
-      } else if (activeServer === 3 && modalServer3.length === 0) {
-        setIsLoadingCatalog(true);
-        try {
-          const res = await storeApi.getServer3();
-          if (!cancelled && res?.items && Array.isArray(res.items)) {
-            setModalServer3(res.items.map((it, idx) => adaptServer34Item(it, 3, idx)));
-          }
-        } catch {
-          // silent fallback
-        } finally {
-          if (!cancelled) setIsLoadingCatalog(false);
-        }
-      } else if (activeServer === 4 && modalServer4.length === 0) {
-        setIsLoadingCatalog(true);
-        try {
-          const res = await storeApi.getServer4();
-          if (!cancelled && res?.items && Array.isArray(res.items)) {
-            setModalServer4(res.items.map((it, idx) => adaptServer34Item(it, 4, idx)));
-          }
-        } catch {
-          // silent fallback
-        } finally {
-          if (!cancelled) setIsLoadingCatalog(false);
-        }
-      }
-    };
-
-    fetchActiveServerStock();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, activeServer, modalServer1.length, modalServer2.length, modalServer3.length, modalServer4.length]);
-
-  // Server 5 On-Demand Server-Side Search (Eliminates mobile memory crashes)
-  const [s5Results, setS5Results] = useState<Array<{
-    server_no: number;
-    service_id: string;
-    service_name: string;
-    category_name?: string;
-    country_name?: string;
-    country_code?: string;
-    price?: number;
-    stock?: number;
-  }>>([]);
+  const [s5Results, setS5Results] = useState<UniformCatalogItem[]>([]);
   const [isSearchingS5, setIsSearchingS5] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen || activeServer !== 5) return;
-    let cancelled = false;
-    setIsSearchingS5(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await storeApi.getServer5({
-          page: 1,
-          limit: 30,
-          search: searchQuery.trim() || undefined,
-        });
-        if (!cancelled && res?.success && Array.isArray(res.items)) {
-          setS5Results(
-            res.items.map((item) => ({
-              server_no: 5,
-              service_id: String(item.id),
-              service_name: item.name || 'SMM Service',
-              category_name: item.category || 'SMM',
-              country_name: '',
-              country_code: '',
-              price: Number(item.price || 0),
-              stock: undefined,
-            }))
-          );
-        }
-      } catch {
-        // silent
-      } finally {
-        if (!cancelled) setIsSearchingS5(false);
-      }
-    }, 200);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [isOpen, activeServer, searchQuery]);
+  const [s5Page, setS5Page] = useState(1);
+  const [hasMoreS5, setHasMoreS5] = useState(false);
+  const [isLoadingMoreS5, setIsLoadingMoreS5] = useState(false);
 
   // Sync initial service when modal opens
   useEffect(() => {
@@ -230,28 +118,220 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
   }, [isOpen, initialService, defaultServer]);
 
-  // Check if current selected service is already pinned
-  const existingPin = useMemo(() => {
-    if (!selectedService) return null;
-    return (
-      pinnedList.find(
-        (p) =>
-          p.server_no === selectedService.server_no &&
-          String(p.service_id).trim().toLowerCase() ===
-            String(selectedService.service_id).trim().toLowerCase()
-      ) || null
-    );
-  }, [selectedService, pinnedList]);
+  // Load Server 1 Full Catalog (153 countries) on-demand
+  useEffect(() => {
+    if (!isOpen || activeServer !== 1 || modalServer1.length > 0) return;
+    let cancelled = false;
+    setIsLoadingS1(true);
+    storeApi
+      .getServer1()
+      .then((res) => {
+        if (!cancelled && res?.items && Array.isArray(res.items)) {
+          setModalServer1(res.items.map(adaptServer1Item));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsLoadingS1(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeServer, modalServer1.length]);
 
-  // Catalog items for the selected server
-  // Catalog items for the selected server
-  const filteredCatalog = useMemo(() => {
+  // Load Server 2 Full Catalog on-demand
+  useEffect(() => {
+    if (!isOpen || activeServer !== 2 || modalServer2.length > 0) return;
+    let cancelled = false;
+    setIsLoadingS2(true);
+    Promise.all([
+      storeApi.getServer2('good').catch(() => ({ items: [] })),
+      storeApi.getServer2('cheap').catch(() => ({ items: [] })),
+    ])
+      .then(([goodRes, cheapRes]) => {
+        if (!cancelled) {
+          const combined = [
+            ...((goodRes?.items || []).map((it) => adaptServer2Item(it, 'good'))),
+            ...((cheapRes?.items || []).map((it) => adaptServer2Item(it, 'cheap'))),
+          ];
+          setModalServer2(combined);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsLoadingS2(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeServer, modalServer2.length]);
+
+  // Server 3 Server-Side Search (Debounced across all 8,215 DGOTP services)
+  useEffect(() => {
+    if (!isOpen || activeServer !== 3) return;
+    let cancelled = false;
+    setIsSearchingS3(true);
+
+    const t = setTimeout(async () => {
+      try {
+        const q = searchQuery.trim();
+        const res = await storeApi.getServer3({
+          search: q || undefined,
+          limit: 60,
+        });
+        if (!cancelled && res?.items && Array.isArray(res.items)) {
+          setS3Results(
+            res.items.map((it: any) => ({
+              server_no: 3,
+              service_id: `${it.service_code}_${it.server_code}`,
+              service_name: `${it.name} (${it.country})`,
+              category_name: `${it.name} OTP`,
+              country_name: it.country,
+              country_code: it.server_code,
+              price: it.price,
+              stock: undefined,
+            }))
+          );
+        }
+      } catch {
+        // silent failover
+      } finally {
+        if (!cancelled) setIsSearchingS3(false);
+      }
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [isOpen, activeServer, searchQuery]);
+
+  // Server 4 Server-Side Search (Debounced across all 8,000+ carrier combinations)
+  useEffect(() => {
+    if (!isOpen || activeServer !== 4) return;
+    let cancelled = false;
+    setIsSearchingS4(true);
+
+    const t = setTimeout(async () => {
+      try {
+        const q = searchQuery.trim();
+        const res = await storeApi.getServer4({
+          search: q || undefined,
+          limit: 60,
+        });
+        if (!cancelled && res?.items && Array.isArray(res.items)) {
+          setS4Results(
+            res.items.map((it: any) => ({
+              server_no: 4,
+              service_id: `${it.service_code}_${it.country_code}`,
+              service_name: it.name,
+              category_name: 'Carrier OTP',
+              country_name: it.country,
+              country_code: it.country_code,
+              price: it.price,
+              stock: it.stock,
+            }))
+          );
+        }
+      } catch {
+        // silent failover
+      } finally {
+        if (!cancelled) setIsSearchingS4(false);
+      }
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [isOpen, activeServer, searchQuery]);
+
+  // Server 5 Server-Side Search (Debounced across all 9,126 SMM services with pagination)
+  useEffect(() => {
+    if (!isOpen || activeServer !== 5) return;
+    let cancelled = false;
+    setIsSearchingS5(true);
+    setS5Page(1);
+
+    const t = setTimeout(async () => {
+      try {
+        const res = await storeApi.getServer5({
+          page: 1,
+          limit: 40,
+          search: searchQuery.trim() || undefined,
+        });
+        if (!cancelled && res?.success && Array.isArray(res.items)) {
+          setS5Results(
+            res.items.map((item) => ({
+              server_no: 5,
+              service_id: String(item.id),
+              service_name: item.name || 'SMM Service',
+              category_name: item.category || 'SMM',
+              country_name: '',
+              country_code: '',
+              price: Number(item.price || 0),
+              stock: undefined,
+            }))
+          );
+          setHasMoreS5(Boolean(res.has_more));
+        }
+      } catch {
+        // silent
+      } finally {
+        if (!cancelled) setIsSearchingS5(false);
+      }
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [isOpen, activeServer, searchQuery]);
+
+  const handleLoadMoreS5 = async () => {
+    if (isLoadingMoreS5 || !hasMoreS5) return;
+    setIsLoadingMoreS5(true);
+    const nextPage = s5Page + 1;
+    try {
+      const res = await storeApi.getServer5({
+        page: nextPage,
+        limit: 40,
+        search: searchQuery.trim() || undefined,
+      });
+      if (res?.success && Array.isArray(res.items)) {
+        const nextItems: UniformCatalogItem[] = res.items.map((item) => ({
+          server_no: 5,
+          service_id: String(item.id),
+          service_name: item.name || 'SMM Service',
+          category_name: item.category || 'SMM',
+          country_name: '',
+          country_code: '',
+          price: Number(item.price || 0),
+          stock: undefined,
+        }));
+        setS5Results((prev) => [...prev, ...nextItems]);
+        setS5Page(nextPage);
+        setHasMoreS5(Boolean(res.has_more));
+      }
+    } catch {
+      // silent
+    } finally {
+      setIsLoadingMoreS5(false);
+    }
+  };
+
+  // Uniform catalog items list for currently active server
+  const filteredCatalog = useMemo<UniformCatalogItem[]>(() => {
     const q = searchQuery.trim().toLowerCase();
 
     if (activeServer === 1) {
-      const items = modalServer1.length > 0 ? modalServer1 : (server1Items || []);
-      return items
-        .filter((item) => !q || item.country.toLowerCase().includes(q) || item.countryCode.toLowerCase().includes(q))
+      return modalServer1
+        .filter(
+          (item) =>
+            !q ||
+            item.country.toLowerCase().includes(q) ||
+            item.countryCode.toLowerCase().includes(q)
+        )
         .map((item) => ({
           server_no: 1,
           service_id: item.countryCode || item.country,
@@ -265,8 +345,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
 
     if (activeServer === 2) {
-      const items = modalServer2.length > 0 ? modalServer2 : (server2Items || []);
-      return items
+      return modalServer2
         .filter(
           (item) =>
             !q ||
@@ -276,7 +355,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         )
         .map((item) => ({
           server_no: 2,
-          service_id: `${item.country}_${item.qualityTier}_${item.accountYear}`,
+          service_id: `${item.country}_${item.qualityTier}_${item.accountYear}_${item.priceInr}`,
           service_name: `${item.country} ${item.accountYear} (${item.qualityTier === 'good' ? 'Good' : 'Cheap'})`,
           category_name: `Telegram ${item.qualityTier.toUpperCase()} Session`,
           country_name: item.country,
@@ -286,29 +365,12 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         }));
     }
 
-    if (activeServer === 3 || activeServer === 4) {
-      const source = activeServer === 3 ? modalServer3 : modalServer4;
-      const fallback = (server34Items || []).filter((item) => item.server === activeServer);
-      const items = source.length > 0 ? source : fallback;
+    if (activeServer === 3) {
+      return s3Results;
+    }
 
-      return items
-        .filter(
-          (item) =>
-            !q ||
-            item.serviceName.toLowerCase().includes(q) ||
-            item.country.toLowerCase().includes(q) ||
-            item.serviceCode.toLowerCase().includes(q)
-        )
-        .map((item) => ({
-          server_no: activeServer,
-          service_id: item.serviceCode,
-          service_name: `${item.serviceName} (${item.country})`,
-          category_name: `${item.serviceName} OTP`,
-          country_name: item.country,
-          country_code: item.countryCode,
-          price: item.priceInr,
-          stock: item.availableCount,
-        }));
+    if (activeServer === 4) {
+      return s4Results;
     }
 
     if (activeServer === 5) {
@@ -316,28 +378,22 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
 
     return [];
-  }, [
-    activeServer,
-    searchQuery,
-    modalServer1,
-    modalServer2,
-    modalServer3,
-    modalServer4,
-    server1Items,
-    server2Items,
-    server34Items,
-    s5Results,
-  ]);
+  }, [activeServer, searchQuery, modalServer1, modalServer2, s3Results, s4Results, s5Results]);
 
-  const handleSelectFromList = (item: {
-    server_no: number;
-    service_id: string;
-    service_name: string;
-    category_name?: string;
-    country_name?: string;
-    country_code?: string;
-    price?: number;
-  }) => {
+  // Check if currently selected service is already pinned
+  const existingPin = useMemo(() => {
+    if (!selectedService) return null;
+    const selId = String(selectedService.service_id).trim().toLowerCase();
+    return (
+      pinnedList.find(
+        (p) =>
+          p.server_no === selectedService.server_no &&
+          String(p.service_id).trim().toLowerCase() === selId
+      ) || null
+    );
+  }, [selectedService, pinnedList]);
+
+  const handleSelectFromList = (item: UniformCatalogItem) => {
     setSelectedService({
       server_no: item.server_no,
       service_id: item.service_id,
@@ -409,6 +465,13 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
   };
 
+  const isServerLoading =
+    (activeServer === 1 && isLoadingS1) ||
+    (activeServer === 2 && isLoadingS2) ||
+    (activeServer === 3 && isSearchingS3) ||
+    (activeServer === 4 && isSearchingS4) ||
+    (activeServer === 5 && isSearchingS5);
+
   if (!isOpen) return null;
 
   return (
@@ -444,7 +507,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-5 overflow-y-auto space-y-4 no-scrollbar">
-          {/* Server Selector Tabs (Only active if not in pre-selected mode or Krish wants to switch) */}
+          {/* Server Selector Tabs */}
           <div>
             <label className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider block mb-1.5">
               Select Target Server:
@@ -467,6 +530,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                       setActiveServer(s.no);
                       setSelectedService(null);
                       setSearchQuery('');
+                      setS5Page(1);
                     }}
                     className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[10px] font-bold transition-all ${
                       isCurrent
@@ -482,11 +546,16 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
             </div>
           </div>
 
-          {/* Service Search Bar */}
+          {/* Service Search Bar & Mode Switch */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider">
-                Select Service from Server {activeServer}:
+              <label className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
+                <span>Select Service from Server {activeServer}:</span>
+                {!isServerLoading && filteredCatalog.length > 0 && (
+                  <span className="text-[10px] text-amber-400 font-mono font-bold lowercase">
+                    ({filteredCatalog.length} {activeServer === 1 ? 'countries' : 'services'})
+                  </span>
+                )}
               </label>
               <button
                 type="button"
@@ -509,12 +578,14 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                         : activeServer === 2
                         ? 'Bangladesh, 2025, Good...'
                         : activeServer === 1
-                        ? 'USA, Russia, Algeria...'
-                        : 'WhatsApp, Telegram, India...'
+                        ? 'USA, Russia, Algeria, India...'
+                        : activeServer === 3
+                        ? 'Discord, Telegram, WhatsApp, Steam...'
+                        : 'WhatsApp, Telegram, Myanmar, India...'
                     })`}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-[#121217] border border-[#262630] focus:border-amber-500/60 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-[#71717a] outline-none transition-colors"
+                    className="w-full bg-[#121217] border border-[#262630] focus:border-amber-500/60 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-[#71717a] outline-none transition-colors"
                   />
                   {searchQuery && (
                     <button
@@ -528,77 +599,106 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                 </div>
 
                 {/* Catalog List */}
-                <div className="max-h-48 overflow-y-auto rounded-xl border border-[#262630] bg-[#121217] divide-y divide-[#20202a]">
-                  {isLoadingCatalog || (activeServer === 5 && isSearchingS5) ? (
-                    <div className="p-6 text-center text-xs text-[#a1a1aa] flex flex-col items-center justify-center gap-2">
+                <div className="max-h-56 overflow-y-auto rounded-xl border border-[#262630] bg-[#121217] divide-y divide-[#20202a]">
+                  {isServerLoading ? (
+                    <div className="p-8 text-center text-xs text-[#a1a1aa] flex flex-col items-center justify-center gap-2">
                       <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
                       <span>Loading Server {activeServer} inventory...</span>
                     </div>
                   ) : filteredCatalog.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-[#71717a]">
+                    <div className="p-6 text-center text-xs text-[#71717a]">
                       No services found for "{searchQuery}". Try another keyword or switch server.
                     </div>
                   ) : (
-                    filteredCatalog.slice(0, 100).map((item, idx) => {
-                      const isSelected =
-                        selectedService?.server_no === item.server_no &&
-                        String(selectedService?.service_id) === String(item.service_id);
-                      const isItemPinned = pinnedList.some(
-                        (p) =>
-                          p.server_no === item.server_no &&
-                          String(p.service_id) === String(item.service_id)
-                      );
+                    <>
+                      {filteredCatalog.map((item, idx) => {
+                        const isSelected =
+                          selectedService?.server_no === item.server_no &&
+                          String(selectedService?.service_id).trim().toLowerCase() ===
+                            String(item.service_id).trim().toLowerCase();
 
-                      return (
-                        <div
-                          key={`srv_${item.server_no}_${item.service_id}_${item.country_name || item.service_name || ''}_${idx}`}
-                          onClick={() => handleSelectFromList(item)}
-                          className={`p-2.5 flex items-center justify-between gap-2.5 cursor-pointer transition-colors ${
-                            isSelected
-                              ? 'bg-amber-500/15 border-l-2 border-amber-500'
-                              : 'hover:bg-[#1a1a24]'
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-xs font-bold text-white truncate max-w-[280px]">
-                                {item.service_name}
-                              </span>
-                              {isItemPinned && (
-                                <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-semibold flex items-center gap-0.5">
-                                  <Pin className="w-2.5 h-2.5" /> Pinned
+                        const isItemPinned = pinnedList.some(
+                          (p) =>
+                            p.server_no === item.server_no &&
+                            String(p.service_id).trim().toLowerCase() ===
+                              String(item.service_id).trim().toLowerCase()
+                        );
+
+                        return (
+                          <div
+                            key={`srv_${item.server_no}_${item.service_id}_${idx}`}
+                            onClick={() => handleSelectFromList(item)}
+                            className={`p-2.5 flex items-center justify-between gap-2.5 cursor-pointer transition-colors ${
+                              isSelected
+                                ? 'bg-amber-500/15 border-l-2 border-amber-500'
+                                : 'hover:bg-[#1a1a24]'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-bold text-white truncate max-w-[280px]">
+                                  {item.service_name}
+                                </span>
+                                {isItemPinned && (
+                                  <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-semibold flex items-center gap-0.5">
+                                    <Pin className="w-2.5 h-2.5" /> Pinned
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-[#a1a1aa] mt-0.5 flex-wrap">
+                                <span className="font-mono text-[#38bdf8]">ID: {item.service_id}</span>
+                                {item.category_name && <span>• {item.category_name}</span>}
+                                {item.country_name && <span>• {item.country_name}</span>}
+                                {item.stock !== undefined && (
+                                  <span className="text-emerald-400">• Stock: {item.stock}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0 flex items-center gap-2">
+                              {item.price !== undefined && (
+                                <span className="text-xs font-extrabold text-[#22c55e] font-mono">
+                                  ₹{item.price}
                                 </span>
                               )}
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] text-[#a1a1aa] mt-0.5">
-                              <span className="font-mono text-[#38bdf8]">ID: {item.service_id}</span>
-                              {item.category_name && <span>• {item.category_name}</span>}
-                              {item.country_name && <span>• {item.country_name}</span>}
-                              {item.stock !== undefined && (
-                                <span className="text-emerald-400">• Stock: {item.stock}</span>
-                              )}
+                              <div
+                                className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                                  isSelected
+                                    ? 'bg-amber-500 border-amber-500 text-black'
+                                    : 'border-[#383848] text-transparent'
+                                }`}
+                              >
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              </div>
                             </div>
                           </div>
+                        );
+                      })}
 
-                          <div className="text-right shrink-0 flex items-center gap-2">
-                            {item.price !== undefined && (
-                              <span className="text-xs font-extrabold text-[#22c55e] font-mono">
-                                ₹{item.price}
-                              </span>
+                      {/* Server 5 Load More Action */}
+                      {activeServer === 5 && hasMoreS5 && (
+                        <div className="p-2.5 text-center bg-[#14141a]">
+                          <button
+                            type="button"
+                            onClick={handleLoadMoreS5}
+                            disabled={isLoadingMoreS5}
+                            className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center justify-center gap-1.5 mx-auto py-1 px-3 rounded-lg hover:bg-amber-500/10 transition-colors"
+                          >
+                            {isLoadingMoreS5 ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <span>Loading more...</span>
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                                <span>Load More (Page {s5Page + 1})</span>
+                              </>
                             )}
-                            <div
-                              className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                                isSelected
-                                  ? 'bg-amber-500 border-amber-500 text-black'
-                                  : 'border-[#383848] text-transparent'
-                              }`}
-                            >
-                              <Check className="w-3 h-3 stroke-[3]" />
-                            </div>
-                          </div>
+                          </button>
                         </div>
-                      );
-                    })
+                      )}
+                    </>
                   )}
                 </div>
               </div>
