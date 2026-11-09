@@ -73,8 +73,8 @@ def _parse_response(payload) -> Verification:
     return Verification(verified, amount, transaction_id, raw)
 
 
-def _check_imap_sync(gmail: str, app_password: str, reference: str, expected_amount: int) -> Verification:
-    """Connect via IMAP SSL to Gmail, search for FamPay/UPI credit emails matching reference and amount."""
+def _check_imap_sync(gmail: str, app_password: str, reference: str, expected_amount: int, utr_to_match: str = None) -> Verification:
+    """Connect via IMAP SSL to Gmail, search for FamPay/UPI credit emails matching reference or UTR and amount."""
     mail = None
     try:
         clean_pw = app_password.replace(" ", "")
@@ -82,10 +82,19 @@ def _check_imap_sync(gmail: str, app_password: str, reference: str, expected_amo
         mail.login(gmail, clean_pw)
         mail.select("INBOX", readonly=True)
 
-        ref_upper = reference.upper()
-        # Search directly for reference string
-        status, messages = mail.search(None, f'(TEXT "{ref_upper}")')
-        msg_ids = messages[0].split() if (status == "OK" and messages and messages[0]) else []
+        ref_upper = reference.upper() if reference else ""
+        utr_clean = str(utr_to_match).strip() if utr_to_match else ""
+
+        # Search directly for reference or UTR string
+        msg_ids = []
+        if ref_upper:
+            status, messages = mail.search(None, f'(TEXT "{ref_upper}")')
+            if status == "OK" and messages and messages[0]:
+                msg_ids = messages[0].split()
+        if not msg_ids and utr_clean:
+            status, messages = mail.search(None, f'(TEXT "{utr_clean}")')
+            if status == "OK" and messages and messages[0]:
+                msg_ids = messages[0].split()
 
         if not msg_ids:
             # Fallback: scan recent 25 messages
@@ -126,7 +135,10 @@ def _check_imap_sync(gmail: str, app_password: str, reference: str, expected_amo
 
             full_text = f"{subject}\n{body}"
 
-            if ref_upper in full_text.upper():
+            ref_matched = bool(ref_upper and (ref_upper in full_text.upper()))
+            utr_matched = bool(utr_clean and (utr_clean in full_text))
+
+            if ref_matched or utr_matched:
                 amt_str = str(expected_amount)
                 if amt_str in full_text:
                     # Extract 12-digit UTR if present
@@ -135,6 +147,8 @@ def _check_imap_sync(gmail: str, app_password: str, reference: str, expected_amo
                     if not utr:
                         alt_match = re.search(r"\b(?:utr|txn|ref(?:erence)?)\s*(?:id|no\.?|num)?[:\s]+([A-Za-z0-9_-]{8,32})\b", full_text, re.IGNORECASE)
                         utr = alt_match.group(1) if alt_match else None
+
+                    final_txn_id = utr or utr_clean or f"IMAP_{reference}"
 
                     try:
                         mail.close()
@@ -145,8 +159,8 @@ def _check_imap_sync(gmail: str, app_password: str, reference: str, expected_amo
                     return Verification(
                         verified=True,
                         amount=expected_amount,
-                        transaction_id=utr or f"IMAP_{reference}",
-                        raw=json.dumps({"subject": subject, "utr": utr, "matched_ref": reference})
+                        transaction_id=final_txn_id,
+                        raw=json.dumps({"subject": subject, "utr": final_txn_id, "matched_ref": reference, "matched_utr": utr_clean})
                     )
     except Exception as exc:
         logger.warning("FamPay Gmail IMAP check error for %s: %s", gmail, exc)
@@ -162,7 +176,7 @@ def _check_imap_sync(gmail: str, app_password: str, reference: str, expected_amo
     return Verification(verified=False, amount=None, transaction_id=None, raw="no_matching_email_found")
 
 
-async def verify(reference: str) -> Verification:
+async def verify(reference: str, utr_to_match: str = None) -> Verification:
     # 1. Primary: Verify via Gmail IMAP SSL using gateway credentials
     try:
         with connect() as conn:
@@ -179,7 +193,7 @@ async def verify(reference: str) -> Verification:
                     from secrets_manager import decrypt_secret
                     stored_pw = gw["app_password"]
                     app_pw = decrypt_secret(stored_pw[4:]) if stored_pw.startswith("enc:") else stored_pw
-                    imap_verif = await asyncio.to_thread(_check_imap_sync, gw["gmail"], app_pw, reference, int(order["amount"]))
+                    imap_verif = await asyncio.to_thread(_check_imap_sync, gw["gmail"], app_pw, reference, int(order["amount"]), utr_to_match)
                     if imap_verif.verified:
                         return imap_verif
     except Exception as exc:

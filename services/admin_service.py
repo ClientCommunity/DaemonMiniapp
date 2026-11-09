@@ -1250,36 +1250,34 @@ def broadcast_pinned_service(pinned_id: int, broadcast_text: str = "", button_la
         ]
     }
 
-    sent = 0
-    failed = 0
-    for uid in users:
-        try:
-            payload = json.dumps({
-                "chat_id": uid,
-                "text": final_text,
-                "parse_mode": "HTML",
-                "reply_markup": inline_keyboard,
-            }).encode("utf-8")
-            req = urllib.request.Request(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                data=payload,
-                headers={"Content-Type": "application/json", "User-Agent": "KrishBot/1.0"}
-            )
-            with urllib.request.urlopen(req, timeout=4) as resp:
-                if resp.status == 200:
-                    sent += 1
-                else:
-                    failed += 1
-        except Exception:
-            failed += 1
+    def _worker():
+        for uid in users:
+            try:
+                payload = json.dumps({
+                    "chat_id": uid,
+                    "text": final_text,
+                    "parse_mode": "HTML",
+                    "reply_markup": inline_keyboard,
+                }).encode("utf-8")
+                req = urllib.request.Request(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    data=payload,
+                    headers={"Content-Type": "application/json", "User-Agent": "KrishBot/1.0"}
+                )
+                with urllib.request.urlopen(req, timeout=4) as resp:
+                    pass
+            except Exception:
+                pass
+            time.sleep(0.04)
 
-        time.sleep(0.05)
+    import threading
+    t = threading.Thread(target=_worker, daemon=True, name=f"PinnedBroadcast-{pinned_id}")
+    t.start()
 
     return {
         "success": True,
         "pinned_id": pinned_id,
         "service_name": s_name,
-        "sent": sent,
-        "failed": failed,
+        "status": "queued_in_background",
         "total_users": len(users)
     }

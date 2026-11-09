@@ -15,6 +15,9 @@ async def handle_deposit_callback(e, uid: int, data: str) -> bool:
             "fampay_check|",
             "fampay_regen|",
             "fampay_cancel|",
+            "fampay_enter_utr|",
+            "fampay_cancel_utr|",
+            "fampay_verify_utr|",
             "fampay_review|",
             "fampay_review_cancel|",
             "fampay_review_submit|",
@@ -38,6 +41,7 @@ async def handle_deposit_callback(e, uid: int, data: str) -> bool:
     fampay_check_locks = bot.fampay_check_locks
     fampay_error_cooldowns = bot.fampay_error_cooldowns
     fampay_review_state = bot.fampay_review_state
+    fampay_utr_state = getattr(bot, "fampay_utr_state", {})
     callback_message_id = bot.callback_message_id
     cleanup_deposit_media = bot.cleanup_deposit_media
     build_deposit_menu_buttons = bot.build_deposit_menu_buttons
@@ -96,6 +100,63 @@ async def handle_deposit_callback(e, uid: int, data: str) -> bool:
         fampay_gateway_selection[uid] = gateway_id
         fampay_deposit_state.add(uid)
         await e.edit(f"⚡ <b>{html.escape(row[0])}</b>\n\nSend an amount from ₹{row[1]} to ₹{row[2]}.", buttons=[[p_btn("Cancel", "menu_deposit", style="danger")]])
+        return True
+
+    elif data.startswith("fampay_enter_utr|"):
+        reference = data.split("|", 1)[1]
+        row = cur.execute("SELECT amount,status FROM fampay_orders WHERE reference=? AND user_id=?", (reference, uid)).fetchone()
+        if not row:
+            await e.answer("Deposit request not found.", alert=True)
+            return True
+        if row[1] == "success":
+            await e.answer("This payment was already credited.", alert=True)
+            return True
+        fampay_utr_state[uid] = {"reference": reference, "amount": row[0]}
+        await bot_client.send_message(
+            uid,
+            f"🔢 <b>Submit Transaction UTR</b>\n\n"
+            f"Amount: <b>₹{row[0]}</b>\n"
+            f"Reference: <code>{reference}</code>\n\n"
+            f"Please send the <b>12-digit UTR</b> / Reference Number from your payment app (Google Pay, PhonePe, Paytm, etc.).",
+            buttons=[[p_btn("❌ Cancel", f"fampay_cancel_utr|{reference}", style="danger")]]
+        )
+        return True
+
+    elif data.startswith("fampay_cancel_utr|"):
+        reference = data.split("|", 1)[1]
+        fampay_utr_state.pop(uid, None)
+        await e.edit("UTR submission cancelled.", buttons=[[p_btn("Back to Deposit", "menu_deposit")]])
+        return True
+
+    elif data.startswith("fampay_verify_utr|"):
+        parts = data.split("|")
+        reference = parts[1]
+        utr = parts[2] if len(parts) > 2 else None
+        await e.answer("Checking payment with UTR…", alert=False)
+        try:
+            status, result = await check_fampay_order(reference, uid, user_initiated=True, utr=utr)
+            if status == "credited" and result:
+                fampay_utr_state.pop(uid, None)
+                fampay_check_locks.pop(reference, None)
+                fampay_error_cooldowns.pop(reference, None)
+                try:
+                    await e.delete()
+                except Exception:
+                    pass
+                await bot_client.send_message(
+                    uid,
+                    f"✅ <b>Payment Successful!</b>\n\nAmount: <b>₹{result['amount']}</b>\nUTR: <code>{utr or reference}</code>\nYour balance was updated.",
+                    buttons=[[p_btn("⚡ Open Store", "menu_main", style="primary")]]
+                )
+                await log_primary_deposit(uid, result["amount"], f"FamPay UTR ({utr})")
+            elif status == "credited":
+                await e.answer("This payment was already credited.", alert=True)
+            elif status == "expired":
+                await e.answer("This deposit request has expired.", alert=True)
+            else:
+                await e.answer("Bank email not received yet. Please wait 15–30 seconds and tap verify again.", alert=True)
+        except FamPayError as exc:
+            await e.answer(f"Verification note: {exc}", alert=True)
         return True
 
     elif data.startswith("fampay_check|"):

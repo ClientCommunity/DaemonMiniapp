@@ -8,7 +8,7 @@ import re
 import time
 import sqlite3
 import zipfile
-from telethon import Button, TelegramClient
+from telethon import Button, TelegramClient, errors
 from telethon.errors import MessageNotModifiedError, SessionPasswordNeededError
 from telethon.tl.functions.account import GetPasswordRequest
 from database import get_user_order_stats, get_overall_order_stats
@@ -248,13 +248,8 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
 
         elif action.startswith("adm_pinbcast|"):
             pid = int(action.split("|")[1])
-            from services.admin_service import broadcast_pinned_service
-            await e.edit("✈️ <b>Broadcasting pinned service to all Telegram bot users...</b>\nPlease wait.")
-            try:
-                res = broadcast_pinned_service(pid)
-                await e.edit(f"✅ <b>Broadcast Completed!</b>\n\nService: <b>{html.escape(res['service_name'])}</b>\nSent: <b>{res['sent']}</b>\nFailed: <b>{res['failed']}</b>\nTotal users: <b>{res['total_users']}</b>", buttons=[[p_btn("Back to Pinned", "adm_pinned")]])
-            except Exception as ex:
-                await e.edit(f"❌ Broadcast failed: {html.escape(str(ex))}", buttons=[[p_btn("Back", f"adm_pinview|{pid}")]])
+            await e.edit("✈️ <b>Broadcasting pinned service to all Telegram bot users in background...</b>\nLive progress will be posted here.")
+            asyncio.create_task(_run_async_pinned_broadcast(bot, uid, e.message_id, pid))
 
         elif action == "server5":
             with managed_connect() as conn:
@@ -890,9 +885,9 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
                         if msg_text.lower() == "/cancel":
                             raise ConversationCancelled("Cancelled")
                         is_reply = getattr(resp, "reply_to_msg_id", None) == m.id
-                        if not is_reply:
-                            continue
-                        return resp
+                        if is_reply or resp.sender_id == uid:
+                            return resp
+                        continue
 
             try:
                 if action == "addsell":
@@ -1375,19 +1370,19 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
                     msg_obj = await get_reply(f"📜 <b>Send Message/Media for Broadcast:</b>")
                     txt = msg_obj.text or ""
                     media = msg_obj.media
-                    btn_name = (await get_reply("🔘 <b>Button Name (or 'skip'):</b>")).text
-                    url = (await get_reply("🔗 <b>URL:</b>")).text if btn_name.lower() != 'skip' else None
+                    btn_name = (await get_reply("🔘 <b>Button Name (or 'skip'):</b>")).text.strip()
+                    url = None
+                    if btn_name.lower() != 'skip':
+                        raw_url = (await get_reply("🔗 <b>URL:</b>")).text.strip()
+                        if raw_url.startswith("@"):
+                            raw_url = f"https://t.me/{raw_url[1:]}"
+                        elif not raw_url.startswith(("http://", "https://", "tg://")):
+                            raw_url = f"https://{raw_url}"
+                        url = raw_url
                     b_btns = [[p_btn(btn_name, url=url)]] if url else None
-                    users = cur.execute("SELECT user_id FROM users").fetchall()
-                    s, f = 0, 0
-                    await bot.send_message(uid, f"✈️ Broadcasting...")
-                    for (u_id,) in users:
-                        try:
-                            await bot.send_message(int(u_id), txt, file=media, buttons=b_btns, parse_mode='html')
-                            s += 1
-                        except: f += 1
-                        await asyncio.sleep(0.1)
-                    await bot.send_message(uid, f"✅ Done! Sent: {s} | Failed: {f}")
+                    users = [r[0] for r in cur.execute("SELECT user_id FROM users WHERE user_id > 0").fetchall()]
+                    status_msg = await bot.send_message(uid, f"✈️ <b>Broadcast Initialized!</b>\n\nAudience: <b>{len(users):,} users</b>\nSending in background with live status updates...")
+                    asyncio.create_task(_run_admin_broadcast(bot, uid, status_msg.id, txt, media, b_btns, users))
 
                 elif action == "bal" and has_perm(uid, 'p_bal'):
                     t_uid = int((await get_reply(f"👤 <b>User ID:</b>")).text)

@@ -332,6 +332,7 @@ fampay_gateway_selection = {}
 fampay_check_locks = {}
 fampay_error_cooldowns = {}
 fampay_review_state = PersistentState("fampay_review", ttl=1800)
+fampay_utr_state = PersistentState("fampay_utr", ttl=1800)
 deposit_media_messages = {}
 promo_state = PersistentState("promo", ttl=1800)
 payment_admin_state = PersistentState("payment_admin", ttl=1800)
@@ -1841,13 +1842,13 @@ async def create_fampay_checkout(uid, amount, old_reference=None, gateway_id=Non
     caption = (f"📥 <b>Automatic Deposit Request</b>\n\n"
                f"Amount: <b>₹{amount}</b>\nReference: <code>{reference}</code>\n"
                f"Gateway: <b>{html.escape(gateway[1]) if gateway else 'FamPay'}</b>\nUPI: <code>{html.escape(upi_id)}</code>\n\n"
-               f"Pay the exact amount within {FAMPAY_ORDER_TTL // 60} minutes. Verification runs automatically, or press Check Payment.")
+               f"Pay the exact amount within {FAMPAY_ORDER_TTL // 60} minutes.\n"
+               f"👉 <b>After paying, send your 12-digit UTR in chat</b> or tap <b>Submit UTR</b> below.")
     try:
         qr_image = await generate_qr_image_async(upi_uri, filename=f"fampay-{reference}.png")
         sent = await bot.send_file(uid, qr_image, caption=caption, parse_mode="html", force_document=False, buttons=[
-            [p_btn("✅ Check Payment", f"fampay_check|{reference}", style="success")],
-            [p_btn("♻️ Regenerate QR", f"fampay_regen|{reference}", style="primary")],
-            [p_btn("Cancel Deposit", f"fampay_cancel|{reference}", style="danger")],
+            [p_btn("🔢 Submit UTR", f"fampay_enter_utr|{reference}", style="success"), p_btn("✅ Check Payment", f"fampay_check|{reference}", style="primary")],
+            [p_btn("♻️ Regenerate QR", f"fampay_regen|{reference}"), p_btn("Cancel Deposit", f"fampay_cancel|{reference}", style="danger")],
         ])
     except Exception:
         cur.execute("UPDATE fampay_orders SET status='expired',updated_at=? WHERE reference=? AND status='pending'",(datetime.now(timezone.utc).isoformat(),reference));db.commit()
@@ -1857,7 +1858,7 @@ async def create_fampay_checkout(uid, amount, old_reference=None, gateway_id=Non
     deposit_media_messages.setdefault(uid,[]).append(sent.id)
     return reference
 
-async def check_fampay_order(reference, uid=None, user_initiated=False):
+async def check_fampay_order(reference, uid=None, user_initiated=False, utr=None):
     lock = fampay_check_locks.setdefault(reference, asyncio.Lock())
     async with lock:
         row = cur.execute("SELECT user_id,amount,status,expires_at FROM fampay_orders WHERE reference=?", (reference,)).fetchone()
@@ -1870,7 +1871,7 @@ async def check_fampay_order(reference, uid=None, user_initiated=False):
         if user_initiated:
             cur.execute("UPDATE fampay_orders SET check_count=check_count+1,last_checked_at=?,updated_at=? WHERE reference=? AND status='pending'",
                         (datetime.now(timezone.utc).isoformat(),datetime.now(timezone.utc).isoformat(),reference));db.commit()
-        verification = await verify_fampay(reference)
+        verification = await verify_fampay(reference, utr_to_match=utr)
         if not verification.verified:
             return "waiting", None
         result = credit_fampay_order(reference, verification)

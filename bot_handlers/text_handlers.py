@@ -54,8 +54,11 @@ async def handle_text_input(e, uid: int, text: str, raw_text: str) -> bool:
         globals()["bot"] = client
     file_obj = getattr(e, "file", None)
     file_name = getattr(file_obj, "name", "") or ""
+    fampay_utr_state = getattr(bot, "fampay_utr_state", {})
     has_state = (
-        uid in smm_state
+        uid in fampay_utr_state
+        or (text.strip().isdigit() and len(text.strip()) == 12 and cur.execute("SELECT 1 FROM fampay_orders WHERE user_id=? AND status='pending'", (uid,)).fetchone())
+        or uid in smm_state
         or uid in fampay_review_state
         or file_name.casefold().endswith(".session")
         or uid in session_buy_state
@@ -81,6 +84,53 @@ async def handle_text_input(e, uid: int, text: str, raw_text: str) -> bool:
 
 
 async def _dispatch_text_input(e, uid: int, text: str, raw_text: str):
+    fampay_utr_state = getattr(bot, "fampay_utr_state", {})
+    if uid in fampay_utr_state or (text.strip().isdigit() and len(text.strip()) == 12):
+        st = fampay_utr_state.pop(uid, None)
+        reference = st.get("reference") if st else None
+        expected_amt = st.get("amount") if st else None
+
+        if not reference:
+            active_order = cur.execute("SELECT reference, amount FROM fampay_orders WHERE user_id=? AND status='pending' ORDER BY id DESC LIMIT 1", (uid,)).fetchone()
+            if active_order:
+                reference, expected_amt = active_order[0], active_order[1]
+
+        if reference:
+            raw_utr = re.sub(r"\s+", "", text).upper()
+            if not re.fullmatch(r"[A-Z0-9_-]{6,64}", raw_utr):
+                if st: fampay_utr_state[uid] = st
+                return await e.reply("❌ Send a valid 6–64 character UTR or transaction ID.", buttons=[[p_btn("Cancel", f"fampay_cancel_utr|{reference}")]])
+
+            dup = cur.execute("SELECT 1 FROM deposits WHERE utr=? AND status IN ('success', 'approved', 'processing')", (raw_utr,)).fetchone()
+            dup_ord = cur.execute("SELECT 1 FROM fampay_orders WHERE (transaction_id=? OR review_utr=?) AND status='success'", (raw_utr, raw_utr)).fetchone()
+            if dup or dup_ord:
+                return await e.reply("❌ This UTR or transaction ID has already been credited or submitted.", buttons=[[p_btn("New Deposit", "menu_deposit")]])
+
+            status, result = await check_fampay_order(reference, uid, user_initiated=True, utr=raw_utr)
+            if status == "credited" and result:
+                fampay_check_locks.pop(reference, None)
+                fampay_error_cooldowns.pop(reference, None)
+                await log_primary_deposit(uid, result["amount"], f"FamPay Auto ({raw_utr})")
+                return await e.reply(
+                    f"✅ <b>Payment Verified!</b>\n\n"
+                    f"Amount: <b>₹{result['amount']}</b>\n"
+                    f"UTR: <code>{raw_utr}</code>\n"
+                    f"Your wallet has been credited successfully!",
+                    buttons=[[p_btn("⚡ Open Store", "menu_main", style="primary")]]
+                )
+            else:
+                return await e.reply(
+                    f"⏳ <b>Bank Confirmation Pending</b>\n\n"
+                    f"UTR: <code>{raw_utr}</code>\n"
+                    f"Expected Amount: <b>₹{expected_amt or ''}</b>\n\n"
+                    f"Bank notification emails can take 30–60 seconds to arrive.\n"
+                    f"Please tap <b>[🔄 Verify UTR Again]</b> below in a moment.",
+                    buttons=[
+                        [p_btn("🔄 Verify UTR Again", f"fampay_verify_utr|{reference}|{raw_utr}", style="success")],
+                        [p_btn("❌ Cancel", f"fampay_cancel|{reference}", style="danger")]
+                    ]
+                )
+
     if uid in smm_state:
         state=smm_state[uid]
         if state['step']=='search':
