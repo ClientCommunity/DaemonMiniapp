@@ -28,18 +28,21 @@ from services.wallet_service import purchase_deduct
 logger = logging.getLogger("services.order")
 
 
-def run_sync(coro):
+def run_sync(coro, timeout: float = 25.0):
     """Safely execute an asyncio coroutine from synchronous Flask request threads."""
     try:
         import bot
         bot_loop = getattr(bot, "loop", None)
         if bot_loop and bot_loop.is_running():
             future = asyncio.run_coroutine_threadsafe(coro, bot_loop)
-            return future.result(timeout=25)
-    except Exception:
-        pass
+            return future.result(timeout=timeout)
+    except Exception as e:
+        logger.warning("run_sync on bot_loop failed/timed out: %s", e)
+        # If bot_loop is running, do not run asyncio.run on tasks bound to bot_loop
+        if bot_loop and bot_loop.is_running():
+            raise
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(asyncio.run, coro).result()
+        return pool.submit(asyncio.run, coro).result(timeout=timeout)
 
 
 def process_reseller_commission(customer_uid: int, purchase_amount: int, description: str = "Purchase") -> None:

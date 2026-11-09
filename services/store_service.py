@@ -87,7 +87,65 @@ def check_server1_country_stock(country: str, uid: int | None = None) -> dict[st
                 break
 
     fkey = "_".join(str(flt.get(k, "any" if k != "twofa" else "no")) for k in ("spam", "geoblock", "offline", "login_mail", "premium", "twofa"))
+    default_fkeys = {"no_no_any_any_any", "no_no_any_any_any_no"}
 
+    cached_stock: int | None = None
+    cached_price: float | None = None
+
+    # Step 1: Check in-memory bot cache first (< 1ms)
+    try:
+        if hasattr(bot, "cached_lzt_stock") and isinstance(bot.cached_lzt_stock, dict):
+            mem_dict = bot.cached_lzt_stock.get(fkey)
+            if mem_dict and country in mem_dict:
+                cached_stock, cached_price = mem_dict[country]
+            elif fkey in default_fkeys:
+                def_dict = bot.cached_lzt_stock.get("no_no_any_any_any") or bot.cached_lzt_stock.get("no_no_any_any_any_no")
+                if def_dict and country in def_dict:
+                    cached_stock, cached_price = def_dict[country]
+    except Exception:
+        pass
+
+    # Step 2: Check SQLite persistent cache (< 3ms)
+    if cached_stock is None:
+        try:
+            with connect() as conn:
+                if fkey not in default_fkeys:
+                    f_row = conn.execute(
+                        "SELECT stock_count, price FROM lzt_filtered_cache WHERE (country = ? OR country = ?) AND filter_key = ?",
+                        (country, iso_code, fkey)
+                    ).fetchone()
+                    if f_row:
+                        cached_stock = int(f_row["stock_count"])
+                        cached_price = float(f_row["price"] or 80)
+
+                if cached_stock is None:
+                    s_row = conn.execute(
+                        "SELECT stock_count, price FROM lzt_stock_cache WHERE country = ? OR iso_code = ?",
+                        (country, iso_code)
+                    ).fetchone()
+                    if s_row:
+                        cached_stock = int(s_row["stock_count"] or 0)
+                        cached_price = float(s_row["price"] or 80)
+        except Exception:
+            pass
+
+    # Step 3: Fast-path return if cached (instant modal response, zero freeze)
+    if cached_stock is not None:
+        price_val = int(round(cached_price)) if (cached_price and cached_price > 0) else 80
+        return {
+            "success": True,
+            "country": country,
+            "iso_code": iso_code,
+            "flag": flag,
+            "stock": cached_stock,
+            "price": price_val,
+            "has_stock": cached_stock > 0,
+            "filters": flt,
+            "live": True,
+            "cached": True,
+        }
+
+    # Step 4: Fallback to upstream live fetch ONLY on cache miss with strict 3.0s timeout
     async def _fetch():
         fetch_lzt = getattr(bot, "fetch_lzt_country_data_with_filters", None)
         if fetch_lzt:
@@ -105,9 +163,9 @@ def check_server1_country_stock(country: str, uid: int | None = None) -> dict[st
     res = None
     try:
         from services.order_service import run_sync
-        res = run_sync(_fetch())
+        res = run_sync(_fetch(), timeout=3.0)
     except Exception as exc:
-        logger.warning("Error checking live stock for %s: %s", country, exc)
+        logger.warning("Error or timeout checking live stock for %s: %s", country, exc)
 
     if res and isinstance(res, (tuple, list)) and len(res) >= 3:
         _, count, price = res
@@ -154,46 +212,18 @@ def check_server1_country_stock(country: str, uid: int | None = None) -> dict[st
             "live": True,
         }
 
-    # Fallback to cached value
-    with connect() as conn:
-        try:
-            f_row = conn.execute(
-                "SELECT stock_count, price FROM lzt_filtered_cache WHERE (country = ? OR country = ?) AND filter_key = ?",
-                (country, iso_code, fkey)
-            ).fetchone()
-            if f_row:
-                return {
-                    "success": True,
-                    "country": country,
-                    "iso_code": iso_code,
-                    "flag": flag,
-                    "stock": int(f_row["stock_count"]),
-                    "price": int(round(f_row["price"] or 80)),
-                    "has_stock": int(f_row["stock_count"]) > 0,
-                    "filters": flt,
-                    "live": False,
-                }
-        except Exception:
-            pass
-
-        row = conn.execute(
-            "SELECT stock_count, price FROM lzt_stock_cache WHERE country = ? OR iso_code = ?",
-            (country, iso_code)
-        ).fetchone()
-        fallback_stock = int(row["stock_count"] or 0) if row else 0
-        fallback_price = int(round(row["price"] or 80)) if row else 80
-
-        return {
-            "success": True,
-            "country": country,
-            "iso_code": iso_code,
-            "flag": flag,
-            "stock": fallback_stock,
-            "price": fallback_price,
-            "has_stock": fallback_stock > 0,
-            "filters": flt,
-            "live": False,
-        }
+    # Step 5: Ultimate fallback if cache missed and upstream was unavailable
+    return {
+        "success": True,
+        "country": country,
+        "iso_code": iso_code,
+        "flag": flag,
+        "stock": 0,
+        "price": 80,
+        "has_stock": False,
+        "filters": flt,
+        "live": False,
+    }
 
 
 def get_server1_stock(uid: int | None = None) -> list[dict[str, Any]]:
