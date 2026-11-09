@@ -656,6 +656,65 @@ def check_lzt_code(phone_or_item: str) -> str | None:
     return None
 
 
+def check_server2_session_otp(phone: str) -> str | None:
+    """Read recent login OTP code from Telegram service notification (777000) for a Server 2 Telethon session."""
+    clean = phone.replace("+", "").replace(" ", "").strip()
+    if not clean:
+        return None
+
+    from pathlib import Path
+    from config import SESSIONS_DIR, BASE_DIR
+    from bot_helpers.constants import OTP_REGEX
+
+    possible_paths = [
+        SESSIONS_DIR / f"{clean}.session",
+        SESSIONS_DIR / f"+{clean}.session",
+        BASE_DIR / f"sessions/{clean}.session",
+        Path(f"sessions/{clean}.session"),
+        Path(f"/home/shebin/krishotp/sessions/{clean}.session"),
+    ]
+    sess_path = None
+    for p in possible_paths:
+        if p and p.is_file():
+            sess_path = str(p)
+            break
+
+    if not sess_path:
+        logger.debug("Server 2 session file not found on disk for phone: %s", clean)
+        return None
+
+    session_name = sess_path[:-8] if sess_path.endswith(".session") else sess_path
+
+    async def _fetch():
+        from telethon import TelegramClient
+        import bot
+        dyn_id, dyn_hash = getattr(bot, "get_api_credentials", lambda: (2040, "b18441a1ff607e10a989891a5462e627"))()
+        client = TelegramClient(session_name, dyn_id, dyn_hash)
+        try:
+            await client.connect()
+            if not await client.is_user_authorized():
+                logger.warning("Session %s is unauthorized/logged out", clean)
+                return None
+            msgs = await client.get_messages(777000, limit=5)
+            for m in msgs:
+                if m and m.message:
+                    match = re.search(OTP_REGEX, m.message)
+                    if match:
+                        return match.group()
+            return None
+        finally:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+
+    try:
+        return run_sync(_fetch(), timeout=12.0)
+    except Exception as ex:
+        logger.warning("Error reading OTP from session %s: %s", clean, ex)
+        return None
+
+
 def poll_otp_status(identifier: str) -> dict[str, Any]:
     """Check live OTP delivery status for a phone number or order identifier."""
     clean_id = (identifier or "").replace("+", "").replace(" ", "").strip()
@@ -743,7 +802,23 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
                 "twofa": twofa_val,
             }
 
-    # 2. Server 3: Query DGOTP live status
+    # 2. Server 2: Retrieve live OTP from local Telethon session
+    if server_label == "Server 2":
+        target_phone = row["phone"]
+        if target_phone:
+            fetched_otp = check_server2_session_otp(target_phone)
+            if fetched_otp:
+                with connect() as conn:
+                    conn.execute("UPDATE orders SET otp = ? WHERE id = ?", (fetched_otp, row["id"]))
+                return {
+                    "status": "completed",
+                    "otp": fetched_otp,
+                    "phone": row["phone"],
+                    "server": row["server"],
+                    "twofa": twofa_val,
+                }
+
+    # 3. Server 3: Query DGOTP live status
     if server_label == "Server 3":
         try:
             with connect() as conn:
@@ -780,7 +855,7 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
         except Exception as ex:
             logger.debug("Server 3 poll exception: %s", ex)
 
-    # 3. Server 4: Query TemporaSMS live status
+    # 4. Server 4: Query TemporaSMS live status
     if server_label == "Server 4":
         try:
             with connect() as conn:
@@ -826,50 +901,63 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
 
 
 def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
-    """Cancel an active waiting order and refund the user wallet atomically and symmetrically, preventing duplicate refunds."""
+    """Cancel an active waiting virtual OTP order and refund the user wallet atomically and symmetrically.
+    Delivered accounts and sessions (Server 1 & Server 2) are permanent and non-refundable.
+    """
     uid = int(user_id)
     clean_id = (identifier or "").replace("+", "").replace(" ", "").strip()
 
     with transaction(immediate=True) as conn:
-        row = conn.execute("""
-            SELECT id, price, phone, otp, server, promo_deducted
+        # 1. Guard against cancelling delivered accounts / sessions (Server 1 & Server 2)
+        account_row = conn.execute("""
+            SELECT id, price, phone, otp, server
             FROM orders
-            WHERE user_id = ? AND (phone LIKE ? OR id = ? OR phone = ? OR provider_item_id = ?) AND otp = 'WAITING'
+            WHERE user_id = ? AND (phone LIKE ? OR id = ? OR phone = ? OR provider_item_id = ?)
             ORDER BY id DESC LIMIT 1
         """, (uid, f"%{clean_id}%", clean_id if clean_id.isdigit() else -1, clean_id, clean_id)).fetchone()
 
-        if not row:
-            s3_wait = conn.execute("""
+        if account_row:
+            srv = str(account_row["server"] or "").strip()
+            if "Server 1" in srv or "Server 2" in srv:
+                return {
+                    "success": False,
+                    "error": "Delivered accounts and sessions (Server 1 & Server 2) cannot be cancelled or refunded."
+                }
+
+        # 2. Only pending virtual OTP orders (Server 3 & Server 4) are cancelable while waiting
+        s3_wait = conn.execute("""
+            SELECT id, provider_order_id, charged_price as price, phone, status, refunded
+            FROM server3_orders
+            WHERE user_id = ? AND (phone LIKE ? OR provider_order_id = ? OR phone = ?) AND status = 'waiting'
+            ORDER BY id DESC LIMIT 1
+        """, (uid, f"%{clean_id}%", clean_id, clean_id)).fetchone()
+        if s3_wait and not s3_wait["refunded"]:
+            row = {
+                "id": None,
+                "price": s3_wait["price"],
+                "phone": s3_wait["phone"],
+                "otp": "WAITING",
+                "server": "Server 3",
+                "promo_deducted": 0,
+            }
+        else:
+            s4_wait = conn.execute("""
                 SELECT id, provider_order_id, charged_price as price, phone, status, refunded
-                FROM server3_orders
+                FROM server4_orders
                 WHERE user_id = ? AND (phone LIKE ? OR provider_order_id = ? OR phone = ?) AND status = 'waiting'
                 ORDER BY id DESC LIMIT 1
             """, (uid, f"%{clean_id}%", clean_id, clean_id)).fetchone()
-            if s3_wait and not s3_wait["refunded"]:
+            if s4_wait and not s4_wait["refunded"]:
                 row = {
                     "id": None,
-                    "price": s3_wait["price"],
-                    "phone": s3_wait["phone"],
+                    "price": s4_wait["price"],
+                    "phone": s4_wait["phone"],
                     "otp": "WAITING",
-                    "server": "Server 3",
+                    "server": "Server 4",
                     "promo_deducted": 0,
                 }
             else:
-                s4_wait = conn.execute("""
-                    SELECT id, provider_order_id, charged_price as price, phone, status, refunded
-                    FROM server4_orders
-                    WHERE user_id = ? AND (phone LIKE ? OR provider_order_id = ? OR phone = ?) AND status = 'waiting'
-                    ORDER BY id DESC LIMIT 1
-                """, (uid, f"%{clean_id}%", clean_id, clean_id)).fetchone()
-                if s4_wait and not s4_wait["refunded"]:
-                    row = {
-                        "id": None,
-                        "price": s4_wait["price"],
-                        "phone": s4_wait["phone"],
-                        "otp": "WAITING",
-                        "server": "Server 4",
-                        "promo_deducted": 0,
-                    }
+                row = None
 
         if not row:
             return {"success": False, "error": "Order not found or cannot be cancelled."}
@@ -912,10 +1000,6 @@ def cancel_order(user_id: int, identifier: str) -> dict[str, Any]:
                     conn.execute("UPDATE server4_orders SET status = 'cancelled', refunded = 1 WHERE provider_order_id = ?", (s4_row["provider_order_id"],))
             except Exception as ex:
                 logger.warning("Upstream Server 4 cancellation update: %s", ex)
-
-        # Return stock for Server 2
-        elif server_label == "Server 2" and phone:
-            conn.execute("UPDATE stock SET available = 1 WHERE phone = ?", (phone,))
 
         # Mark cancelled and refunded in orders table
         if order_id:
