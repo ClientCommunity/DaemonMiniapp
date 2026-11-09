@@ -20,6 +20,7 @@ export const ActiveOtpCard: React.FC = () => {
   }, [activeOtpSession?.status]);
 
   if (!activeOtpSession) return null;
+  if (activeOtpSession.server !== 3 && activeOtpSession.server !== 4) return null;
 
   const { orderId, serviceName, country, phone, status, otpCode, remainingSeconds } = activeOtpSession;
 

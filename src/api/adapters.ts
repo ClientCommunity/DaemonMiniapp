@@ -477,10 +477,17 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
   } else if (type === 'transfer_sent' || type === 'transfer_received') {
     category = 'transfer';
   } else if (
+    rawTitle.includes('Server 1') ||
+    rawTitle.includes('Server 2') ||
+    rawTitle.includes('Aged Session') ||
+    rawTitle.includes('Global 2FA')
+  ) {
+    category = 'account_purchase';
+  } else if (
     rawTitle.includes('Server 3') ||
     rawTitle.includes('Server 4') ||
-    rawTitle.includes('OTP') ||
-    details.includes('OTP')
+    rawTitle.includes('Virtual') ||
+    (details.includes('SMS') && !rawTitle.includes('Server 2'))
   ) {
     category = 'otp_activation';
   } else if (rawTitle.includes('Server 5') || rawTitle.includes('SMM')) {
@@ -490,7 +497,14 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
   }
 
   const detailsLower = details.toLowerCase();
-  if (detailsLower.includes('waiting') || detailsLower.includes('pending')) {
+  if (category === 'account_purchase') {
+    // Delivered accounts and sessions are fulfilled upon purchase
+    if (detailsLower.includes('cancel') || detailsLower.includes('refund')) {
+      status = 'refunded';
+    } else {
+      status = 'success';
+    }
+  } else if (detailsLower.includes('waiting') || detailsLower.includes('pending')) {
     status = 'waiting';
   } else if (detailsLower.includes('progress')) {
     status = 'in_progress';

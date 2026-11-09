@@ -36,6 +36,7 @@ export const Server2Sessions: React.FC = () => {
       return 'account';
     }
   });
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number | 'all'>(() => {
     try {
       const saved = localStorage.getItem('krish_s2_year');
@@ -120,10 +121,15 @@ export const Server2Sessions: React.FC = () => {
   };
 
   const handleConfirmPurchase = () => {
-    if (!itemForPurchase) return;
-    const success = purchaseServer2Session(itemForPurchase, quantity, deliveryFormat);
-    if (success) {
-      setItemForPurchase(null);
+    if (!itemForPurchase || isPurchasing) return;
+    setIsPurchasing(true);
+    try {
+      const success = purchaseServer2Session(itemForPurchase, quantity, deliveryFormat);
+      if (success) {
+        setItemForPurchase(null);
+      }
+    } finally {
+      setIsPurchasing(false);
     }
   };
 
@@ -322,19 +328,29 @@ export const Server2Sessions: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 w-full">
               <button
                 type="button"
-                onClick={() => setItemForPurchase(null)}
-                className="py-3.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-bold text-[#a1a1aa] hover:text-white active:scale-95 transition-all"
+                onClick={() => !isPurchasing && setItemForPurchase(null)}
+                disabled={isPurchasing}
+                className="py-3.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-bold text-[#a1a1aa] hover:text-white active:scale-95 transition-all disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmPurchase}
-                disabled={user.balance < itemForPurchase.priceInr * quantity}
+                disabled={isPurchasing || user.balance < itemForPurchase.priceInr * quantity}
                 className="py-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:grayscale"
               >
-                <Check className="w-4 h-4 text-black stroke-[3]" />
-                <span>Confirm & Pay ({formatPrice(itemForPurchase.priceInr * quantity)})</span>
+                {isPurchasing ? (
+                  <span className="flex items-center gap-1.5 text-black">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Allocating Session...</span>
+                  </span>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 text-black stroke-[3]" />
+                    <span>Confirm & Pay ({formatPrice(itemForPurchase.priceInr * quantity)})</span>
+                  </>
+                )}
               </button>
             </div>
           ) : undefined

@@ -306,6 +306,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Concurrency & Cache Refs
   const isRefreshingStoreRef = useRef(false);
   const server4LoadedRef = useRef(false);
+  const lastPurchaseTimeRef = useRef<number>(0);
   const [purchasedCredentialsModal, setPurchasedCredentialsModal] = useState<{
     isOpen: boolean;
     account?: Server1AccountItem;
@@ -466,6 +467,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (waitingOrder) {
             const sMatch = waitingOrder.server?.match(/(\d+)/);
             const serverNum = (sMatch ? Number(sMatch[1]) : 3) as 3 | 4;
+            // Strict guard: Only Server 3 and Server 4 virtual numbers can ever be an activeOtpSession.
+            // Server 1 & Server 2 are permanent accounts/sessions and must never have cancellation/refund UI.
+            if (serverNum !== 3 && serverNum !== 4) {
+              return currentSession;
+            }
             return {
               orderId: waitingOrder.id,
               server: serverNum,
@@ -803,6 +809,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Server 1: Purchase Account
   const purchaseServer1Account = (account: Server1AccountItem): boolean => {
+    const now = Date.now();
+    if (now - lastPurchaseTimeRef.current < 1200) {
+      return false;
+    }
+    lastPurchaseTimeRef.current = now;
+
     hapticFeedback.medium();
     const deduction = deductPurchaseAmount(account.priceInr);
     if (!deduction.success) return false;
@@ -950,6 +962,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     quantity: number,
     format: Server2DeliveryFormat = 'account'
   ): boolean => {
+    const now = Date.now();
+    if (now - lastPurchaseTimeRef.current < 1200) {
+      return false;
+    }
+    lastPurchaseTimeRef.current = now;
+
     if (isNaN(quantity) || quantity <= 0) {
       addToast('Quantity must be at least 1.', 'error', 'Invalid Quantity');
       return false;
@@ -1111,6 +1129,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Server 3 & 4: Virtual OTP Numbers (Fast OTP & Fresh Numbers)
   const requestVirtualOtp = (service: VirtualOtpServiceItem): boolean => {
+    const now = Date.now();
+    if (now - lastPurchaseTimeRef.current < 1200) {
+      return false;
+    }
+    lastPurchaseTimeRef.current = now;
+
     hapticFeedback.medium();
     if (activeOtpSession && activeOtpSession.status === 'waiting') {
       addToast(
@@ -1396,6 +1420,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const cancelActiveOtp = async (orderId: string) => {
     if (!activeOtpSession || activeOtpSession.orderId !== orderId) return;
     if (activeOtpSession.status !== 'waiting' && activeOtpSession.status !== 'expired') return;
+    // Strict guard: Only Server 3 and Server 4 virtual numbers can ever be cancelled & refunded.
+    if (activeOtpSession.server !== 3 && activeOtpSession.server !== 4) {
+      addToast('Permanent accounts and sessions cannot be cancelled or refunded.', 'error', 'Action Prohibited');
+      return;
+    }
 
     const refundAmount = activeOtpSession.priceInr;
     const promoRefund = activeOtpSession.promoUsed || 0;
@@ -1404,30 +1433,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Call backend cancel endpoint
     try {
       const cancelRes = await otpApi.cancel(phoneToCancel || orderId);
-      if (cancelRes && cancelRes.success && typeof cancelRes.new_balance === 'number') {
-        setUser((prev) => ({
-          ...prev,
-          balance: cancelRes.new_balance!,
-          promoBalance: prev.promoBalance + promoRefund,
-          totalSaved: Math.max(0, prev.totalSaved - promoRefund),
-        }));
+      if (cancelRes && cancelRes.success) {
+        if (typeof cancelRes.new_balance === 'number') {
+          setUser((prev) => ({
+            ...prev,
+            balance: cancelRes.new_balance!,
+            promoBalance: prev.promoBalance + promoRefund,
+            totalSaved: Math.max(0, prev.totalSaved - promoRefund),
+          }));
+        } else {
+          // Success without explicit new_balance
+          setUser((prev) => ({
+            ...prev,
+            balance: prev.balance + refundAmount,
+            promoBalance: prev.promoBalance + promoRefund,
+            totalSaved: Math.max(0, prev.totalSaved - promoRefund),
+          }));
+        }
       } else {
-        // Fallback local balance refund
-        setUser((prev) => ({
-          ...prev,
-          balance: prev.balance + refundAmount,
-          promoBalance: prev.promoBalance + promoRefund,
-          totalSaved: Math.max(0, prev.totalSaved - promoRefund),
-        }));
+        // Backend rejected cancellation
+        addToast(cancelRes?.error || 'Order could not be cancelled.', 'error', 'Cancellation Refused');
+        return;
       }
     } catch {
-      // Fallback local balance refund
-      setUser((prev) => ({
-        ...prev,
-        balance: prev.balance + refundAmount,
-        promoBalance: prev.promoBalance + promoRefund,
-        totalSaved: Math.max(0, prev.totalSaved - promoRefund),
-      }));
+      addToast('Failed to contact server for cancellation. Please try again.', 'error', 'Network Error');
+      return;
     }
 
     setHistory((prev) =>
