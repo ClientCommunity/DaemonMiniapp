@@ -187,7 +187,7 @@ export const ServerManagementTab: React.FC = () => {
   const [s2UploadMode, setS2UploadMode] = useState<'bot' | 'single' | 'bulk'>('bot');
 
   const handleOpenBotUpload = (mode: 'zip' | 'single') => {
-    const botUsername = 'SnapToNumberBot';
+    const botUsername = (window as any).Telegram?.WebApp?.initDataUnsafe?.bot_username || 'DeamonOTPBot';
     const param = mode === 'zip' ? 'upload_zip' : 'upload_session';
     const deepLink = `https://t.me/${botUsername}?start=${param}`;
 

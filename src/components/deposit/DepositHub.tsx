@@ -846,7 +846,34 @@ export const DepositHub: React.FC = () => {
                   )}
 
                   {/* QR Code image if exists */}
-                  {activeManualMethod.qr_url ? (
+                  {activeManualMethod.name.toLowerCase().includes('cwallet') ? (
+                    <div className="flex flex-col items-center justify-center my-2 p-3 bg-[#121217] rounded-2xl border border-[#262630]">
+                      <div className="max-w-[280px] w-full rounded-2xl overflow-hidden border border-[#262630] shadow-2xl bg-white p-1">
+                        <img
+                          src="/cwallet-card.jpg"
+                          alt="Cwallet QR"
+                          className="w-full h-auto object-contain rounded-xl"
+                        />
+                      </div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-white bg-[#181820] px-3 py-1.5 rounded-xl border border-[#262630]">
+                          UID: 61286356
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCustom('61286356')}
+                          className="px-3 py-1.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold transition-all shadow-violet-glow-sm flex items-center gap-1.5 active:scale-95"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy UID</span>
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
+                        <QrCode className="w-3 h-3 text-[#8b5cf6]" />
+                        Scan with Cwallet app or transfer to UID 61286356
+                      </span>
+                    </div>
+                  ) : activeManualMethod.qr_url ? (
                     <div className="flex flex-col items-center justify-center my-2 p-3 bg-[#121217] rounded-xl border border-[#262630]">
                       <div className="w-48 h-48 bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center">
                         <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
