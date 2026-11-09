@@ -1173,6 +1173,14 @@ async def handle_admin_callback(e, uid: int, data: str) -> bool:
                     db.commit()
                     await bot.send_message(uid, f"✅ Deleted!")
 
+                elif action in ("start_session", "addsession") and has_perm(uid, 'p_add_stock'):
+                    await bot.send_message(
+                        uid,
+                        "📄 <b>Ready for Session Upload:</b>\n\n"
+                        "Simply send or forward the <code>.session</code> file directly here in chat as a document.\n"
+                        "The bot will automatically inspect the session, verify account health with Telethon, and add it to Server 2."
+                    )
+
                 elif action == "addzip" and has_perm(uid, 'p_add_stock'):
                     tier_prompt = (
                         "🏷️ <b>Select Quality Tier for this ZIP upload:</b>\n\n"

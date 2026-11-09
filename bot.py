@@ -2289,6 +2289,39 @@ async def handle_start(e):
             start_param = text.split(maxsplit=1)[1].strip()
 
             route = start_param.lower()
+            if route in ("upload_zip", "upload_session", "upload_sessions", "add_stock"):
+                if not is_admin(uid) or not has_perm(uid, "p_add_stock"):
+                    return await e.respond("❌ <b>Unauthorized.</b> Only administrators with stock upload permissions can use this portal.")
+
+                if route == "upload_zip":
+                    msg = (
+                        f"📦 <b>Server 2 Bulk ZIP Upload Portal</b>\n\n"
+                        f"Tap <b>Start ZIP Upload</b> below to choose the Quality Tier (Good / Cheap) and upload your <code>.zip</code> file containing <code>.session</code> accounts.\n\n"
+                        f"<i>The bot will extract, scan, verify live with Telethon, and store only working accounts.</i>"
+                    )
+                    btns = [
+                        [p_btn("⚡ Start ZIP Upload", "adm_addzip", style="success")],
+                        [p_btn("📄 Single Session", "adm_start_session", style="primary")],
+                        [p_btn("Admin Menu", "menu_admin")]
+                    ]
+                    return await e.respond(msg, buttons=btns)
+                else:
+                    msg = (
+                        f"📂 <b>Server 2 Session Upload Portal</b>\n\n"
+                        f"👋 Welcome Administrator!\n\n"
+                        f"<b>How to upload:</b>\n"
+                        f"• <b>Single Account:</b> Just send or forward any authorized <code>.session</code> file directly in this chat. The bot will automatically inspect it, extract phone/country/year, and add it to Server 2.\n"
+                        f"• <b>Bulk ZIP:</b> Tap below to upload a <code>.zip</code> file containing multiple accounts.\n"
+                        f"• <b>Interactive Login:</b> Tap below to login a number via OTP in chat."
+                    )
+                    btns = [
+                        [p_btn("📦 Upload Bulk ZIP", "adm_addzip", style="success")],
+                        [p_btn("📄 Send .session File", "adm_start_session", style="primary")],
+                        [p_btn("➕ Add Single Stock (Login)", "adm_addstock", style="default")],
+                        [p_btn("Admin Menu", "menu_admin")]
+                    ]
+                    return await e.respond(msg, buttons=btns)
+
             if route in ("account", "sell", "history"):
                 if not await check_channel_joined(uid):
                     from services.force_join_service import get_force_join_channels

@@ -45,6 +45,69 @@ def run_sync(coro, timeout: float = 25.0):
         return pool.submit(asyncio.run, coro).result(timeout=timeout)
 
 
+def find_session_path(phone: str, raw_session_file: str | None = None):
+    """Resolve physical .session file on disk for a given phone number."""
+    from pathlib import Path
+    from config import SESSIONS_DIR, BASE_DIR
+
+    clean = str(phone or "").replace("+", "").replace(" ", "").strip()
+    if not clean:
+        return None
+
+    candidates = [
+        SESSIONS_DIR / f"{clean}.session",
+        SESSIONS_DIR / f"+{clean}.session",
+        BASE_DIR / f"sessions/{clean}.session",
+        Path(f"sessions/{clean}.session"),
+        Path(f"/home/shebin/krishotp/sessions/{clean}.session"),
+        Path(f"/home/shebin/krishotp/sessions/+{clean}.session"),
+    ]
+    if raw_session_file:
+        rf = str(raw_session_file).strip()
+        candidates.extend([
+            Path(rf),
+            BASE_DIR / rf,
+            SESSIONS_DIR / os.path.basename(rf),
+            Path(f"/home/shebin/krishotp/{rf}"),
+        ])
+
+    for p in candidates:
+        try:
+            if p and p.is_file():
+                return p
+        except Exception:
+            continue
+    return None
+
+
+def verify_server2_session(session_path: str) -> bool:
+    """Connect to Telegram via Telethon and verify if session is authorized alive."""
+    clean_sess = session_path[:-8] if session_path.endswith(".session") else session_path
+
+    async def _test():
+        from telethon import TelegramClient
+        import bot
+        dyn_id, dyn_hash = getattr(bot, "get_api_credentials", lambda: (2040, "b18441a1ff607e10a989891a5462e627"))()
+        client = TelegramClient(clean_sess, dyn_id, dyn_hash)
+        try:
+            await client.connect()
+            return await client.is_user_authorized()
+        except Exception as exc:
+            logger.warning("Session authorization check failed for %s: %s", clean_sess, exc)
+            return False
+        finally:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+
+    try:
+        return run_sync(_test(), timeout=8.0) is True
+    except Exception as ex:
+        logger.warning("Verification error for session %s: %s", session_path, ex)
+        return False
+
+
 def process_reseller_commission(customer_uid: int, purchase_amount: int, description: str = "Purchase") -> None:
     """Credit margin commission to reseller if customer registered via custom margin link."""
     try:
@@ -174,19 +237,53 @@ def execute_buy(
                     "new_promo_balance": int(new_bal[1] or 0),
                 }
 
-            # B. Single Account Live Delivery
-            cand = conn.execute("""
-                SELECT phone, session_file, country_icon, twofa
-                FROM stock
-                WHERE available = 1
-                  AND country_name LIKE ?
-                  AND account_year = ?
-                  AND COALESCE(quality_tier, 'good') = ?
-                LIMIT 1
-            """, (f"{country}%", year, clean_tier)).fetchone()
+            # B. Single Account Live Delivery with Pre-Delivery Telethon Verification
+            valid_cand = None
+            while True:
+                cand = conn.execute("""
+                    SELECT phone, session_file, country_icon, twofa
+                    FROM stock
+                    WHERE available = 1
+                      AND country_name LIKE ?
+                      AND account_year = ?
+                      AND COALESCE(quality_tier, 'good') = ?
+                    LIMIT 1
+                """, (f"{country}%", year, clean_tier)).fetchone()
 
-            if not cand:
-                # Symmetrical refund
+                if not cand:
+                    break
+
+                cand_phone = cand["phone"]
+                cand_file = cand["session_file"]
+                sess_path = find_session_path(cand_phone, cand_file)
+
+                if not sess_path:
+                    # Missing physical file on disk: purge ghost stock row immediately
+                    logger.warning("Purging ghost Server 2 stock row (missing file): %s", cand_phone)
+                    conn.execute("DELETE FROM stock WHERE phone = ?", (cand_phone,))
+                    conn.commit()
+                    continue
+
+                # Live authorization check via Telethon
+                is_alive = verify_server2_session(str(sess_path))
+                if not is_alive:
+                    # Dead or unauthorized: purge row from stock and delete invalid file
+                    logger.warning("Purging dead/unauthorized Server 2 session: %s", cand_phone)
+                    conn.execute("DELETE FROM stock WHERE phone = ?", (cand_phone,))
+                    conn.commit()
+                    try:
+                        if sess_path.exists():
+                            sess_path.unlink()
+                    except Exception:
+                        pass
+                    continue
+
+                # Candidate is 100% verified alive and authorized!
+                valid_cand = cand
+                break
+
+            if not valid_cand:
+                # Symmetrical refund - no working sessions available
                 conn.execute("""
                     UPDATE users
                     SET balance = balance + ?,
@@ -194,10 +291,14 @@ def execute_buy(
                     WHERE user_id = ?
                 """, (total_price, promo_deducted, uid))
                 conn.commit()
-                return {"success": False, "error": "This item is currently out of stock."}
+                return {
+                    "success": False,
+                    "error": "This item is currently out of stock or being verified. Your balance has been fully refunded.",
+                    "refunded": True,
+                }
 
-            phone = cand["phone"]
-            twofa_val = cand["twofa"] or "None"
+            phone = valid_cand["phone"]
+            twofa_val = valid_cand["twofa"] or "None"
             conn.execute("UPDATE stock SET available = 0 WHERE phone = ?", (phone,))
             conn.execute("""
                 INSERT INTO orders (user_id, country, year, price, phone, otp, server, date, promo_deducted, twofa, provider_item_id, is_active)
@@ -215,7 +316,7 @@ def execute_buy(
                 "phone": clean_phone,
                 "delivery_type": "account_live",
                 "download_url": f"/api/session/download/{phone}",
-                "twofa": cand["twofa"] or "None",
+                "twofa": valid_cand["twofa"] or "None",
                 "new_balance": int(new_bal[0] or 0),
                 "new_promo_balance": int(new_bal[1] or 0),
             }
@@ -656,34 +757,27 @@ def check_lzt_code(phone_or_item: str) -> str | None:
     return None
 
 
-def check_server2_session_otp(phone: str) -> str | None:
-    """Read recent login OTP code from Telegram service notification (777000) for a Server 2 Telethon session."""
+def check_server2_session_otp(phone: str) -> tuple[str | None, bool]:
+    """Read recent login OTP code from Telegram service notification (777000) for a Server 2 Telethon session.
+
+    Returns:
+        (otp_code, is_session_alive)
+        - (code, True): Verification OTP successfully read from 777000.
+        - (None, True): Session is active and authorized; waiting for Telegram login attempt.
+        - (None, False): Session file missing on disk or revoked/dead on Telegram.
+    """
     clean = phone.replace("+", "").replace(" ", "").strip()
     if not clean:
-        return None
+        return (None, False)
 
-    from pathlib import Path
-    from config import SESSIONS_DIR, BASE_DIR
     from bot_helpers.constants import OTP_REGEX
 
-    possible_paths = [
-        SESSIONS_DIR / f"{clean}.session",
-        SESSIONS_DIR / f"+{clean}.session",
-        BASE_DIR / f"sessions/{clean}.session",
-        Path(f"sessions/{clean}.session"),
-        Path(f"/home/shebin/krishotp/sessions/{clean}.session"),
-    ]
-    sess_path = None
-    for p in possible_paths:
-        if p and p.is_file():
-            sess_path = str(p)
-            break
-
+    sess_path = find_session_path(clean)
     if not sess_path:
         logger.debug("Server 2 session file not found on disk for phone: %s", clean)
-        return None
+        return (None, False)
 
-    session_name = sess_path[:-8] if sess_path.endswith(".session") else sess_path
+    session_name = str(sess_path)[:-8] if str(sess_path).endswith(".session") else str(sess_path)
 
     async def _fetch():
         from telethon import TelegramClient
@@ -694,14 +788,17 @@ def check_server2_session_otp(phone: str) -> str | None:
             await client.connect()
             if not await client.is_user_authorized():
                 logger.warning("Session %s is unauthorized/logged out", clean)
-                return None
+                return (None, False)
             msgs = await client.get_messages(777000, limit=5)
             for m in msgs:
                 if m and m.message:
                     match = re.search(OTP_REGEX, m.message)
                     if match:
-                        return match.group()
-            return None
+                        return (match.group(), True)
+            return (None, True)
+        except Exception as exc:
+            logger.warning("Telethon session error for %s: %s", clean, exc)
+            return (None, False)
         finally:
             try:
                 await client.disconnect()
@@ -709,10 +806,11 @@ def check_server2_session_otp(phone: str) -> str | None:
                 pass
 
     try:
-        return run_sync(_fetch(), timeout=12.0)
+        res = run_sync(_fetch(), timeout=12.0)
+        return res if isinstance(res, tuple) else (None, False)
     except Exception as ex:
         logger.warning("Error reading OTP from session %s: %s", clean, ex)
-        return None
+        return (None, False)
 
 
 def poll_otp_status(identifier: str) -> dict[str, Any]:
@@ -806,7 +904,7 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
     if server_label == "Server 2":
         target_phone = row["phone"]
         if target_phone:
-            fetched_otp = check_server2_session_otp(target_phone)
+            fetched_otp, is_alive = check_server2_session_otp(target_phone)
             if fetched_otp:
                 with connect() as conn:
                     conn.execute("UPDATE orders SET otp = ? WHERE id = ?", (fetched_otp, row["id"]))
@@ -816,6 +914,22 @@ def poll_otp_status(identifier: str) -> dict[str, Any]:
                     "phone": row["phone"],
                     "server": row["server"],
                     "twofa": twofa_val,
+                }
+            elif not is_alive:
+                # Session is missing or revoked on Telegram: auto refund user immediately
+                order_price = int(row["price"] or 0)
+                user_id = row["user_id"]
+                with connect() as conn:
+                    conn.execute("UPDATE orders SET otp = 'CANCELLED', is_active = 0 WHERE id = ?", (row["id"],))
+                    if user_id and order_price > 0:
+                        conn.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (order_price, user_id))
+                    conn.commit()
+                return {
+                    "status": "session_invalid",
+                    "error": "This session was terminated or invalid. Your balance has been fully refunded.",
+                    "refunded": True,
+                    "phone": row["phone"],
+                    "server": row["server"],
                 }
 
     # 3. Server 3: Query DGOTP live status
