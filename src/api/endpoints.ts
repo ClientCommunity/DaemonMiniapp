@@ -225,6 +225,7 @@ export interface ManualMethodsResponse {
   success: boolean;
   methods: ManualMethodItem[];
   merchant_upi?: string;
+  fampay_enabled?: boolean;
 }
 
 export interface ResellerSetMarginResponse {

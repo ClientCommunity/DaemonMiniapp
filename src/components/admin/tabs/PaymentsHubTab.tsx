@@ -16,6 +16,7 @@ import {
   RefreshCw,
   QrCode,
   Sliders,
+  Zap,
 } from 'lucide-react';
 
 export const PaymentsHubTab: React.FC = () => {
@@ -104,6 +105,8 @@ export const PaymentsHubTab: React.FC = () => {
   // 2. FAMPAY GATEWAYS STATE
   // ============================================================================
   const [fampayGateways, setFampayGateways] = useState<FampayGateway[]>([]);
+  const [fampayMasterStatus, setFampayMasterStatus] = useState<string>('on');
+  const [isTogglingMaster, setIsTogglingMaster] = useState<boolean>(false);
   const [newFpName, setNewFpName] = useState('');
   const [newFpUpi, setNewFpUpi] = useState('');
   const [newFpPayName, setNewFpPayName] = useState('');
@@ -114,14 +117,38 @@ export const PaymentsHubTab: React.FC = () => {
 
   const loadFampayGateways = useCallback(async () => {
     try {
-      const res = await adminApi.getFampayGateways();
+      const [res, settingsRes] = await Promise.all([
+        adminApi.getFampayGateways(),
+        adminApi.getSettings(),
+      ]);
       if (res?.success && res.gateways) {
         setFampayGateways(res.gateways);
+      }
+      if (settingsRes?.success && settingsRes.settings) {
+        setFampayMasterStatus(settingsRes.settings.fampay_status || 'on');
       }
     } catch {
       addToast('Failed to load FamPay gateways', 'error');
     }
   }, [addToast]);
+
+  const handleToggleMasterFampay = async () => {
+    const nextStatus = fampayMasterStatus === 'on' ? 'off' : 'on';
+    setIsTogglingMaster(true);
+    try {
+      const res = await adminApi.updateSetting('fampay_status', nextStatus);
+      if (res?.success) {
+        setFampayMasterStatus(nextStatus);
+        addToast(`FamPay Automatic Deposits switched ${nextStatus.toUpperCase()}!`, 'success');
+      } else {
+        addToast('Failed to update FamPay master switch', 'error');
+      }
+    } catch {
+      addToast('Error updating FamPay master switch', 'error');
+    } finally {
+      setIsTogglingMaster(false);
+    }
+  };
 
   const handleToggleFampay = async (id: number) => {
     try {
@@ -491,6 +518,47 @@ export const PaymentsHubTab: React.FC = () => {
       {/* ===================================================================== */}
       {activeSection === 'fampay' && (
         <div className="space-y-5 animate-in fade-in duration-150">
+          {/* Master Global FamPay Switch */}
+          <div className="bg-[#181820] border border-[#262630] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                fampayMasterStatus === 'on' ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'bg-[#ef4444]/20 text-[#ef4444]'
+              }`}>
+                <Zap className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                    FamPay Master Switch (Global)
+                  </h4>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    fampayMasterStatus === 'on'
+                      ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
+                      : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30'
+                  }`}>
+                    {fampayMasterStatus === 'on' ? 'ACTIVE' : 'DISABLED'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#71717a] mt-0.5">
+                  {fampayMasterStatus === 'on'
+                    ? 'FamPay automatic QR deposits are enabled. Users can create instant QR codes.'
+                    : 'FamPay automatic QR deposits are shut down globally. Mini app routes users to UPI Direct.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleToggleMasterFampay}
+              disabled={isTogglingMaster}
+              className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer whitespace-nowrap disabled:opacity-50 ${
+                fampayMasterStatus === 'on'
+                  ? 'bg-[#ef4444]/15 hover:bg-[#ef4444]/25 text-[#ef4444] border-[#ef4444]/30'
+                  : 'bg-[#22c55e]/15 hover:bg-[#22c55e]/25 text-[#22c55e] border-[#22c55e]/30'
+              }`}
+            >
+              {fampayMasterStatus === 'on' ? 'Turn OFF FamPay' : 'Turn ON FamPay'}
+            </button>
+          </div>
+
           {/* Create FamPay Gateway */}
           <form
             onSubmit={handleCreateFampay}

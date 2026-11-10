@@ -73,6 +73,7 @@ export const DepositHub: React.FC = () => {
 
   // Dynamic live payment gateways
   const [merchantUpi, setMerchantUpi] = useState<string>('');
+  const [fampayEnabled, setFampayEnabled] = useState<boolean>(true);
   const [manualMethods, setManualMethods] = useState<ManualMethodItem[]>([]);
   const [selectedManualId, setSelectedManualId] = useState<number | null>(null);
   const [isLoadingManual, setIsLoadingManual] = useState<boolean>(false);
@@ -106,6 +107,11 @@ export const DepositHub: React.FC = () => {
       .getManualMethods()
       .then((res) => {
         if (isMounted && res && res.success) {
+          const isFpOn = res.fampay_enabled !== false;
+          setFampayEnabled(isFpOn);
+          if (!isFpOn) {
+            setSelectedMethod((prev) => (prev === 'fampay' ? 'upi_direct' : prev));
+          }
           if (res.merchant_upi) {
             setMerchantUpi(res.merchant_upi);
           }
@@ -200,6 +206,10 @@ export const DepositHub: React.FC = () => {
         setTimeLeft(900);
         addToast(`Invoice ${genRef} ready! Scan QR to complete payment.`, 'success', 'Invoice Ready');
       } else {
+        if ((res as any)?.code === 'GATEWAY_OFFLINE') {
+          setFampayEnabled(false);
+          setSelectedMethod('upi_direct');
+        }
         addToast(
           res?.error || 'UPI Gateway is temporarily unconfigured or offline. Please use UPI Direct (UTR) or Crypto below.',
           'error',
@@ -320,24 +330,36 @@ export const DepositHub: React.FC = () => {
       <div className="grid grid-cols-3 gap-2 mb-4">
         {/* FamPay */}
         <button
-          onClick={() => setSelectedMethod('fampay')}
+          onClick={() => {
+            if (!fampayEnabled) {
+              addToast('FamPay instant automatic QR is currently disabled by administrator. Please use UPI Direct.', 'warning');
+              return;
+            }
+            setSelectedMethod('fampay');
+          }}
           className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
-            selectedMethod === 'fampay'
-              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm'
-              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+            !fampayEnabled
+              ? 'bg-[#181820]/40 border-[#262630]/50 text-[#71717a] cursor-not-allowed opacity-60'
+              : selectedMethod === 'fampay'
+              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm cursor-pointer'
+              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white cursor-pointer'
           }`}
         >
-          <div className="w-8 h-8 rounded-xl bg-[#7c3aed]/20 flex items-center justify-center mb-1.5">
-            <Zap className="w-4 h-4 text-[#8b5cf6]" />
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 ${
+            !fampayEnabled ? 'bg-[#262630]/40' : 'bg-[#7c3aed]/20'
+          }`}>
+            <Zap className={`w-4 h-4 ${!fampayEnabled ? 'text-[#71717a]' : 'text-[#8b5cf6]'}`} />
           </div>
-          <span className="text-xs font-bold leading-tight">UPI Auto</span>
-          <span className="text-[9px] text-[#22c55e] mt-0.5 font-medium">Instant QR</span>
+          <span className={`text-xs font-bold leading-tight ${!fampayEnabled ? 'line-through' : ''}`}>UPI Auto</span>
+          <span className={`text-[9px] mt-0.5 font-medium ${!fampayEnabled ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>
+            {!fampayEnabled ? 'Disabled' : 'Instant QR'}
+          </span>
         </button>
 
         {/* UPI Direct */}
         <button
           onClick={() => setSelectedMethod('upi_direct')}
-          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
+          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
             selectedMethod === 'upi_direct'
               ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm'
               : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
@@ -353,7 +375,7 @@ export const DepositHub: React.FC = () => {
         {/* Crypto / Manual */}
         <button
           onClick={() => setSelectedMethod('usdt_bep20')}
-          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
+          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
             selectedMethod === 'usdt_bep20'
               ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm'
               : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
@@ -369,6 +391,25 @@ export const DepositHub: React.FC = () => {
 
       {/* METHOD 1: FAMPAY INSTANT QR INVOICE */}
       {selectedMethod === 'fampay' && (
+        !fampayEnabled ? (
+          <div className="bg-[#181820] border border-[#ef4444]/30 rounded-2xl p-6 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#ef4444]/15 flex items-center justify-center mx-auto text-[#ef4444]">
+              <Zap className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-white">Instant UPI Auto is Currently Offline</h3>
+              <p className="text-xs text-[#a1a1aa] max-w-sm mx-auto">
+                Automatic QR deposits have been temporarily disabled by administrator. You can still deposit using UPI Direct or Crypto below.
+              </p>
+            </div>
+            <button
+              onClick={() => setSelectedMethod('upi_direct')}
+              className="inline-flex items-center gap-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <span>Continue with UPI Direct</span>
+            </button>
+          </div>
+        ) : (
         <>
           {/* STATE A: NO ACTIVE INVOICE (Select Amount, View Guidelines & Make Invoice) */}
           {!activeInvoice ? (
@@ -626,6 +667,7 @@ export const DepositHub: React.FC = () => {
             </div>
           )}
         </>
+        )
       )}
 
       {/* METHOD 2: UPI DIRECT MANUAL TRANSFER */}
