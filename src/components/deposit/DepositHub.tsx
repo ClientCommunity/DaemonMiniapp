@@ -74,6 +74,11 @@ export const DepositHub: React.FC = () => {
   // Dynamic live payment gateways
   const [merchantUpi, setMerchantUpi] = useState<string>('');
   const [fampayEnabled, setFampayEnabled] = useState<boolean>(true);
+  const [upiEnabled, setUpiEnabled] = useState<boolean>(true);
+  const [cwalletEnabled, setCwalletEnabled] = useState<boolean>(true);
+  const [fampayMinDeposit, setFampayMinDeposit] = useState<number>(10);
+  const [upiMinDeposit, setUpiMinDeposit] = useState<number>(50);
+  const [cwalletMinDeposit, setCwalletMinDeposit] = useState<number>(50);
   const [manualMethods, setManualMethods] = useState<ManualMethodItem[]>([]);
   const [selectedManualId, setSelectedManualId] = useState<number | null>(null);
   const [isLoadingManual, setIsLoadingManual] = useState<boolean>(false);
@@ -108,10 +113,23 @@ export const DepositHub: React.FC = () => {
       .then((res) => {
         if (isMounted && res && res.success) {
           const isFpOn = res.fampay_enabled !== false;
+          const isUpiOn = res.upi_enabled !== false;
+          const isCwOn = res.cwallet_enabled !== false;
+
           setFampayEnabled(isFpOn);
-          if (!isFpOn) {
-            setSelectedMethod((prev) => (prev === 'fampay' ? 'upi_direct' : prev));
+          setUpiEnabled(isUpiOn);
+          setCwalletEnabled(isCwOn);
+
+          if (res.fampay_min_deposit) setFampayMinDeposit(res.fampay_min_deposit);
+          if (res.upi_min_deposit) setUpiMinDeposit(res.upi_min_deposit);
+          if (res.cwallet_min_deposit) setCwalletMinDeposit(res.cwallet_min_deposit);
+
+          if (!isFpOn && selectedMethod === 'fampay') {
+            setSelectedMethod(isUpiOn ? 'upi_direct' : 'usdt_bep20');
+          } else if (!isUpiOn && selectedMethod === 'upi_direct') {
+            setSelectedMethod(isFpOn ? 'fampay' : 'usdt_bep20');
           }
+
           if (res.merchant_upi) {
             setMerchantUpi(res.merchant_upi);
           }
@@ -135,8 +153,14 @@ export const DepositHub: React.FC = () => {
 
   // Filter manual methods to crypto/custom only for the Crypto tab (exclude UPI which belongs in the UPI tabs)
   const cryptoMethods = React.useMemo(() => {
-    return manualMethods.filter((m) => !m.name.toLowerCase().includes('upi'));
-  }, [manualMethods]);
+    return manualMethods.filter((m) => {
+      if (m.name.toLowerCase().includes('upi')) return false;
+      if (!cwalletEnabled && (m.name.toLowerCase().includes('cwallet') || (m.caption && m.caption.toLowerCase().includes('cwallet')))) {
+        return false;
+      }
+      return true;
+    });
+  }, [manualMethods, cwalletEnabled]);
 
   const activeManualMethod =
     cryptoMethods.find((m) => m.id === selectedManualId) || cryptoMethods[0] || null;
@@ -180,8 +204,8 @@ export const DepositHub: React.FC = () => {
 
   // Explicit user trigger: Generates the dynamic QR invoice only when requested
   const handleMakeInvoice = async () => {
-    if (amount < 10) {
-      addToast('Minimum deposit amount is ₹10.', 'error', 'Invalid Amount');
+    if (amount < fampayMinDeposit) {
+      addToast(`Minimum deposit amount for Instant QR is ₹${fampayMinDeposit}.`, 'error', 'Invalid Amount');
       return;
     }
 
@@ -260,6 +284,12 @@ export const DepositHub: React.FC = () => {
     }
 
     const payAmount = activeInvoice ? activeInvoice.amount : amount;
+    const requiredMin = selectedMethod === 'upi_direct' ? upiMinDeposit : (selectedMethod === 'fampay' ? fampayMinDeposit : cwalletMinDeposit);
+    if (payAmount > 0 && payAmount < requiredMin) {
+      hapticFeedback.error();
+      addToast(`Minimum deposit amount is ₹${requiredMin}.`, 'error', 'Invalid Amount');
+      return;
+    }
 
     setIsVerifying(true);
     hapticFeedback.light();
@@ -358,18 +388,30 @@ export const DepositHub: React.FC = () => {
 
         {/* UPI Direct */}
         <button
-          onClick={() => setSelectedMethod('upi_direct')}
-          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
-            selectedMethod === 'upi_direct'
-              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm'
-              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+          onClick={() => {
+            if (!upiEnabled) {
+              addToast('UPI Direct manual deposits are currently disabled by administrator.', 'warning');
+              return;
+            }
+            setSelectedMethod('upi_direct');
+          }}
+          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
+            !upiEnabled
+              ? 'bg-[#181820]/40 border-[#262630]/50 text-[#71717a] cursor-not-allowed opacity-60'
+              : selectedMethod === 'upi_direct'
+              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm cursor-pointer'
+              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white cursor-pointer'
           }`}
         >
-          <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center mb-1.5">
-            <Building className="w-4 h-4 text-blue-400" />
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 ${
+            !upiEnabled ? 'bg-[#262630]/40' : 'bg-blue-500/20'
+          }`}>
+            <Building className={`w-4 h-4 ${!upiEnabled ? 'text-[#71717a]' : 'text-blue-400'}`} />
           </div>
-          <span className="text-xs font-bold leading-tight">UPI Direct</span>
-          <span className="text-[9px] text-[#a1a1aa] mt-0.5 font-medium">Any UPI App</span>
+          <span className={`text-xs font-bold leading-tight ${!upiEnabled ? 'line-through' : ''}`}>UPI Direct</span>
+          <span className={`text-[9px] mt-0.5 font-medium ${!upiEnabled ? 'text-[#ef4444]' : 'text-[#a1a1aa]'}`}>
+            {!upiEnabled ? 'Disabled' : 'Any UPI App'}
+          </span>
         </button>
 
         {/* Crypto / Manual */}
@@ -672,6 +714,25 @@ export const DepositHub: React.FC = () => {
 
       {/* METHOD 2: UPI DIRECT MANUAL TRANSFER */}
       {selectedMethod === 'upi_direct' && (
+        !upiEnabled ? (
+          <div className="bg-[#181820] border border-[#ef4444]/30 rounded-2xl p-6 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#ef4444]/15 flex items-center justify-center mx-auto text-[#ef4444]">
+              <Building className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-white">UPI Direct is Currently Offline</h3>
+              <p className="text-xs text-[#a1a1aa] max-w-sm mx-auto">
+                UPI Direct manual deposits have been temporarily disabled by administrator. You can still deposit using UPI Auto QR or Crypto below.
+              </p>
+            </div>
+            <button
+              onClick={() => setSelectedMethod(fampayEnabled ? 'fampay' : 'usdt_bep20')}
+              className="inline-flex items-center gap-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <span>{fampayEnabled ? 'Continue with UPI Auto' : 'Continue with Crypto'}</span>
+            </button>
+          </div>
+        ) : (
         <div className="flex flex-col gap-4">
           {/* Amount Selector Card */}
           <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630]">
@@ -781,6 +842,7 @@ export const DepositHub: React.FC = () => {
             </form>
           </div>
         </div>
+        )
       )}
 
       {/* METHOD 3: LIVE CRYPTO & MANUAL CUSTOM METHODS */}

@@ -30,6 +30,7 @@ const AppContent: React.FC = () => {
     initialLoadingStep,
     initialLoadingMessage,
     backendConnected,
+    isMaintenanceMode,
     isCheckingBackend,
     recheckConnection,
     refreshUser,
@@ -210,7 +211,7 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (backendConnected === false) {
+  if (backendConnected === false || (isMaintenanceMode && !isAdminMode)) {
     return (
       <MaintenanceScreen
         onRetry={() => recheckConnection(true)}

@@ -106,6 +106,8 @@ export const PaymentsHubTab: React.FC = () => {
   // ============================================================================
   const [fampayGateways, setFampayGateways] = useState<FampayGateway[]>([]);
   const [fampayMasterStatus, setFampayMasterStatus] = useState<string>('on');
+  const [upiStatus, setUpiStatus] = useState<string>('on');
+  const [cwalletStatus, setCwalletStatus] = useState<string>('on');
   const [isTogglingMaster, setIsTogglingMaster] = useState<boolean>(false);
   const [newFpName, setNewFpName] = useState('');
   const [newFpUpi, setNewFpUpi] = useState('');
@@ -126,11 +128,39 @@ export const PaymentsHubTab: React.FC = () => {
       }
       if (settingsRes?.success && settingsRes.settings) {
         setFampayMasterStatus(settingsRes.settings.fampay_status || 'on');
+        setUpiStatus(settingsRes.settings.upi_status || 'on');
+        setCwalletStatus(settingsRes.settings.cwallet_status || 'on');
       }
     } catch {
       addToast('Failed to load FamPay gateways', 'error');
     }
   }, [addToast]);
+
+  const handleToggleUpiStatus = async () => {
+    const nextStatus = upiStatus === 'on' ? 'off' : 'on';
+    try {
+      const res = await adminApi.updateSetting('upi_status', nextStatus);
+      if (res?.success) {
+        setUpiStatus(nextStatus);
+        addToast(`UPI Direct switched ${nextStatus.toUpperCase()}!`, 'success');
+      }
+    } catch {
+      addToast('Error updating UPI status', 'error');
+    }
+  };
+
+  const handleToggleCwalletStatus = async () => {
+    const nextStatus = cwalletStatus === 'on' ? 'off' : 'on';
+    try {
+      const res = await adminApi.updateSetting('cwallet_status', nextStatus);
+      if (res?.success) {
+        setCwalletStatus(nextStatus);
+        addToast(`Cwallet switched ${nextStatus.toUpperCase()}!`, 'success');
+      }
+    } catch {
+      addToast('Error updating Cwallet status', 'error');
+    }
+  };
 
   const handleToggleMasterFampay = async () => {
     const nextStatus = fampayMasterStatus === 'on' ? 'off' : 'on';
@@ -682,6 +712,46 @@ export const PaymentsHubTab: React.FC = () => {
       {/* ===================================================================== */}
       {activeSection === 'custom' && (
         <div className="space-y-5 animate-in fade-in duration-150">
+          {/* Cwallet Master Switch */}
+          <div className="bg-[#181820] border border-[#262630] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                cwalletStatus === 'on' ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'bg-[#ef4444]/20 text-[#ef4444]'
+              }`}>
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Cwallet Master Switch
+                  </h4>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    cwalletStatus === 'on'
+                      ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
+                      : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30'
+                  }`}>
+                    {cwalletStatus === 'on' ? 'ACTIVE' : 'DISABLED'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#71717a] mt-0.5">
+                  {cwalletStatus === 'on'
+                    ? 'Cwallet deposits are enabled in the bot and Mini App.'
+                    : 'Cwallet deposits are disabled across all platforms.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleToggleCwalletStatus}
+              className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                cwalletStatus === 'on'
+                  ? 'bg-[#ef4444]/15 hover:bg-[#ef4444]/25 text-[#ef4444] border-[#ef4444]/30'
+                  : 'bg-[#22c55e]/15 hover:bg-[#22c55e]/25 text-[#22c55e] border-[#22c55e]/30'
+              }`}
+            >
+              {cwalletStatus === 'on' ? 'Turn OFF Cwallet' : 'Turn ON Cwallet'}
+            </button>
+          </div>
+
           <form
             onSubmit={handleCreateCustomPayment}
             className="bg-[#181820] border border-[#262630] rounded-2xl p-5 shadow-sm space-y-3"
@@ -763,11 +833,51 @@ export const PaymentsHubTab: React.FC = () => {
         <div className="bg-[#181820] border border-[#262630] rounded-2xl p-5 shadow-sm space-y-5 animate-in fade-in duration-150">
           <div>
             <h3 className="text-sm font-bold text-white tracking-tight">
-              Minimum Deposit Threshold Settings
+              Minimum Deposit Threshold Settings & UPI Direct Toggle
             </h3>
             <p className="text-xs text-[#a1a1aa]">
               Configure minimum invoice requirements enforced during checkout across all deposit methods.
             </p>
+          </div>
+
+          {/* UPI Direct Master Switch */}
+          <div className="bg-[#121217] border border-[#262630] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                upiStatus === 'on' ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'bg-[#ef4444]/20 text-[#ef4444]'
+              }`}>
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                    UPI Direct Master Switch
+                  </h4>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    upiStatus === 'on'
+                      ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
+                      : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30'
+                  }`}>
+                    {upiStatus === 'on' ? 'ACTIVE' : 'DISABLED'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#71717a] mt-0.5">
+                  {upiStatus === 'on'
+                    ? 'UPI Direct manual deposits are enabled across bot and Mini App.'
+                    : 'UPI Direct is disabled across bot and Mini App.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleToggleUpiStatus}
+              className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                upiStatus === 'on'
+                  ? 'bg-[#ef4444]/15 hover:bg-[#ef4444]/25 text-[#ef4444] border-[#ef4444]/30'
+                  : 'bg-[#22c55e]/15 hover:bg-[#22c55e]/25 text-[#22c55e] border-[#22c55e]/30'
+              }`}
+            >
+              {upiStatus === 'on' ? 'Turn OFF UPI Direct' : 'Turn ON UPI Direct'}
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

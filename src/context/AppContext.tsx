@@ -69,6 +69,7 @@ export interface AppContextType {
 
   // Backend Connectivity
   backendConnected: boolean | null;
+  isMaintenanceMode: boolean;
   isCheckingBackend: boolean;
   recheckConnection: (notify?: boolean) => Promise<boolean>;
   isInitialLoading: boolean;
@@ -295,6 +296,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     5: true,
   });
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState<boolean>(false);
   const [isCheckingBackend, setIsCheckingBackend] = useState<boolean>(false);
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(() => {
     if (isTelegramWebApp()) return true;
@@ -432,6 +434,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const refreshUser = useCallback(async () => {
     try {
       const authRes = await authApi.authenticate();
+      if (authRes?.maintenance) {
+        setIsMaintenanceMode(true);
+      } else {
+        setIsMaintenanceMode(false);
+      }
       if (authRes?.success && authRes.user) {
         setUser((prev) => adaptBackendUser(authRes.user, prev));
         if (authRes.token) {
@@ -701,6 +708,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (isMounted) {
           setBackendConnected(isOnline);
+          setIsMaintenanceMode(!!authRes?.maintenance);
           setIsCheckingBackend(false);
           if (authRes?.success && authRes.user) {
             setUser((prev) => adaptBackendUser(authRes.user, prev));
@@ -2108,6 +2116,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         refreshHistory,
         refreshReseller,
         backendConnected,
+        isMaintenanceMode,
         isCheckingBackend,
         recheckConnection,
         isInitialLoading,

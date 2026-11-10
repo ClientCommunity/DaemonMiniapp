@@ -20,6 +20,7 @@ export interface AuthResponse {
   user: BackendUserPayload;
   token?: string;
   error?: string;
+  maintenance?: boolean;
 }
 
 export interface ServersOverviewResponse {
@@ -226,6 +227,13 @@ export interface ManualMethodsResponse {
   methods: ManualMethodItem[];
   merchant_upi?: string;
   fampay_enabled?: boolean;
+  upi_enabled?: boolean;
+  cwallet_enabled?: boolean;
+  min_deposit?: number;
+  fampay_min_deposit?: number;
+  upi_min_deposit?: number;
+  cwallet_min_deposit?: number;
+  bot_status?: string;
 }
 
 export interface ResellerSetMarginResponse {
