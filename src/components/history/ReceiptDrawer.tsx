@@ -29,6 +29,7 @@ export const ReceiptDrawer: React.FC = () => {
 
   const item = selectedReceiptItem;
   const isDeposit = item.amountInr > 0;
+  const isFailed = item.status === 'failed';
   const isSuccess = item.status === 'success';
   const isWaiting = item.status === 'waiting' || item.status === 'in_progress';
   const isRefunded = item.status === 'refunded' || item.status === 'cancelled';
@@ -106,7 +107,8 @@ export const ReceiptDrawer: React.FC = () => {
           <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2 bg-[#181820]">
             {isSuccess && <CheckCircle2 className="w-6 h-6 text-[#22c55e]" />}
             {isWaiting && <Clock className="w-6 h-6 text-[#f59e0b] animate-spin" />}
-            {isRefunded && <XCircle className="w-6 h-6 text-[#a1a1aa]" />}
+            {isRefunded && <RefreshCw className="w-6 h-6 text-emerald-400" />}
+            {isFailed && <XCircle className="w-6 h-6 text-red-400" />}
           </div>
 
           <span className="text-2xl font-extrabold font-mono text-white">
@@ -115,14 +117,16 @@ export const ReceiptDrawer: React.FC = () => {
 
           <span
             className={`text-xs px-2.5 py-0.5 rounded-full font-bold mt-2 uppercase border ${
-              isSuccess
+              isFailed
+                ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                : isSuccess
                 ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
                 : isWaiting
                 ? 'bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30'
-                : 'bg-zinc-800 text-[#a1a1aa] border-zinc-700'
+                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
             }`}
           >
-            {isRefunded ? 'Refunded' : isWaiting ? 'In Progress' : 'Completed'}
+            {isFailed ? 'Failed' : isRefunded ? 'Refunded' : isWaiting ? 'In Progress' : isDeposit ? 'Credited' : 'Completed'}
           </span>
         </div>
 
@@ -186,9 +190,11 @@ export const ReceiptDrawer: React.FC = () => {
 
           {item.phone && (
             <div className="flex items-center justify-between pb-2 border-b border-[#262630]">
-              <span className="text-[#a1a1aa]">Phone Number</span>
-              <div className="flex items-center gap-1.5 font-mono font-bold text-white">
-                <span>{item.phone}</span>
+              <span className="text-[#a1a1aa]">
+                {item.category === 'smm_order' ? 'Target Link' : 'Phone Number'}
+              </span>
+              <div className="flex items-center gap-1.5 font-mono font-bold text-white max-w-[200px]">
+                <span className="truncate">{item.phone}</span>
                 <button
                   onClick={() => handleCopy(item.phone!, 'phone')}
                   className="text-[#a1a1aa] hover:text-white"

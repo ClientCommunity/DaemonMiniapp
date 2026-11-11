@@ -87,9 +87,12 @@ export interface BackendServer5Item {
 
 export interface BackendHistoryItem {
   type?: string;
+  order_id?: string;
   title?: string;
   amount?: string | number;
   date?: string;
+  status?: string;
+  refunded?: boolean;
   details?: string;
   download_url?: string | null;
 }
@@ -474,6 +477,8 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
 
   if (type === 'deposit') {
     category = 'deposit';
+  } else if (type === 'refund') {
+    category = 'smm_order';
   } else if (type === 'transfer_sent' || type === 'transfer_received') {
     category = 'transfer';
   } else if (
@@ -497,18 +502,24 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
   }
 
   const detailsLower = details.toLowerCase();
-  if (category === 'account_purchase') {
+  const explicitStatus = String(item.status || '').trim().toLowerCase();
+
+  if (type === 'refund' || item.refunded && (explicitStatus === 'cancelled' || explicitStatus === 'canceled' || explicitStatus === 'partial' || explicitStatus === 'refunded')) {
+    status = 'refunded';
+  } else if (explicitStatus === 'failed' || detailsLower.includes('fail') || detailsLower.includes('not placed')) {
+    status = 'failed';
+  } else if (category === 'account_purchase') {
     // Delivered accounts and sessions are fulfilled upon purchase
     if (detailsLower.includes('cancel') || detailsLower.includes('refund')) {
       status = 'refunded';
     } else {
       status = 'success';
     }
-  } else if (detailsLower.includes('waiting') || detailsLower.includes('pending')) {
+  } else if (explicitStatus === 'waiting' || explicitStatus === 'pending' || detailsLower.includes('waiting') || detailsLower.includes('pending')) {
     status = 'waiting';
-  } else if (detailsLower.includes('progress')) {
+  } else if (explicitStatus === 'processing' || explicitStatus === 'inprogress' || explicitStatus === 'in_progress' || detailsLower.includes('progress')) {
     status = 'in_progress';
-  } else if (detailsLower.includes('cancel') || detailsLower.includes('refund')) {
+  } else if (explicitStatus === 'cancelled' || explicitStatus === 'canceled' || explicitStatus === 'partial' || item.refunded || detailsLower.includes('cancel') || detailsLower.includes('refund')) {
     status = 'refunded';
   } else {
     status = 'success';

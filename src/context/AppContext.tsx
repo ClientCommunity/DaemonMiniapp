@@ -10,6 +10,7 @@ import {
   ActiveNumberItem,
   ActiveInvoice,
   SmmServiceItem,
+  SmmOrderResult,
   PaymentMethodType,
   HistoryItem,
   ResellerConfig,
@@ -119,7 +120,12 @@ export interface AppContextType {
   requestVirtualOtp: (service: VirtualOtpServiceItem) => boolean;
   cancelActiveOtp: (orderId: string) => void;
   finishActiveOtp: (orderId: string) => void;
-  submitSmmOrder: (service: SmmServiceItem, targetLink: string, quantity: number) => boolean;
+  submitSmmOrder: (
+    service: SmmServiceItem,
+    targetLink: string,
+    quantity: number,
+    clientRequestId?: string
+  ) => Promise<SmmOrderResult>;
   submitDeposit: (method: PaymentMethodType, amount: number, utr?: string, skipApiCall?: boolean) => boolean;
   transferP2P: (recipient: string, amount: number) => { success: boolean; message: string };
   transferBalance: (recipient: string, amount: number) => { success: boolean; message: string };
@@ -1657,93 +1663,116 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Server 5: SMM Services Order
-  const submitSmmOrder = (service: SmmServiceItem, targetLink: string, quantity: number): boolean => {
+  // Server 5: SMM Services Order (waits for authoritative backend placement before updating wallet/history)
+  const submitSmmOrder = async (
+    service: SmmServiceItem,
+    targetLink: string,
+    quantity: number,
+    clientRequestId?: string
+  ): Promise<SmmOrderResult> => {
     if (quantity < service.minQuantity || quantity > service.maxQuantity) {
-      addToast(
-        `Quantity must be between ${service.minQuantity} and ${service.maxQuantity.toLocaleString()}.`,
-        'error',
-        'Invalid Quantity'
-      );
-      return false;
+      const msg = `Quantity must be between ${service.minQuantity} and ${service.maxQuantity.toLocaleString()}.`;
+      addToast(msg, 'error', 'Invalid Quantity');
+      return { success: false, error: msg };
     }
 
-    if (!targetLink || !targetLink.trim()) {
-      addToast('Please provide a valid target URL or channel username.', 'error', 'Missing Link');
-      return false;
+    const cleanedLink = (targetLink || '').trim();
+    if (!cleanedLink) {
+      const msg = 'Please provide a valid target URL or channel username.';
+      addToast(msg, 'error', 'Missing Link');
+      return { success: false, error: msg };
     }
 
-    const totalCost = Math.round((service.ratePer1000 * quantity) / 1000);
-    const deduction = deductPurchaseAmount(totalCost);
-    if (!deduction.success) return false;
+    const rawCost = (service.ratePer1000 * quantity) / 1000;
+    const totalCost =
+      rawCost >= 1 ? Math.round(rawCost * 100) / 100 : Math.round(rawCost * 10000) / 10000;
+    if (isNaN(totalCost) || totalCost <= 0) {
+      const msg = 'Order amount calculation invalid. Please increase quantity.';
+      addToast(msg, 'error', 'Invalid Order Amount');
+      return { success: false, error: msg };
+    }
 
-    const orderId = `SMM_${Date.now().toString().slice(-6)}`;
-    const newHistoryItem: HistoryItem = {
-      id: orderId,
-      category: 'smm_order',
-      title: `${service.name} (${quantity.toLocaleString()})`,
-      subtitle: `Target: ${targetLink} · Processing`,
-      amountInr: -totalCost,
-      date: 'Just now',
-      status: 'in_progress',
-      server: 'Server 5 (SMM)',
-      quantity,
-      targetLink,
-      refunded: false,
-    };
+    if (user.balance < totalCost) {
+      hapticFeedback.error();
+      const msg = `Insufficient balance. Required: ${formatPrice(totalCost)}, Available: ${formatPrice(user.balance)}.`;
+      addToast(msg, 'error', 'Purchase Failed');
+      return { success: false, error: msg };
+    }
 
-    setHistory((prev) => [newHistoryItem, ...prev]);
+    const reqId =
+      (clientRequestId || '').trim() ||
+      `smm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // Dispatch live SMM order API call
-    orderApi
-      .buy({
+    try {
+      const res = await orderApi.buy({
         server: 5,
         item: {
           id: service.id,
           name: service.name,
           price: totalCost,
-          link: targetLink,
+          link: cleanedLink,
+          client_request_id: reqId,
         },
         qty: quantity,
-      })
-      .then((res) => {
-        if (res && res.success) {
-          if (res.new_balance !== undefined) {
-            setUser((prev) => ({
-              ...prev,
-              balance: res.new_balance!,
-              promoBalance:
-                res.new_promo_balance !== undefined ? res.new_promo_balance : prev.promoBalance,
-            }));
-          }
-          addToast(
-            `SMM Order submitted for ${quantity.toLocaleString()} units! Starting shortly.`,
-            'success',
-            'SMM Boost Activated'
-          );
-        } else {
-          // Backend returned failure
-          rollbackPurchaseDeduction(totalCost, deduction.promoUsed);
-          setHistory((prev) => prev.filter((item) => item.id !== orderId));
-          addToast(
-            res?.error || 'SMM order failed. Your balance was refunded.',
-            'error',
-            'Order Failed'
-          );
-        }
-      })
-      .catch((err: any) => {
-        // Rollback on network or HTTP 400 error
-        rollbackPurchaseDeduction(totalCost, deduction.promoUsed);
-        setHistory((prev) => prev.filter((item) => item.id !== orderId));
-        addToast(
-          err?.message || 'SMM order failed. Your balance was refunded.',
-          'error',
-          'Order Failed'
-        );
       });
 
-    return true;
+      if (res && res.success) {
+        hapticFeedback.success();
+        const serverOrderId = String(res.order_id || `SMM_${Date.now().toString().slice(-6)}`);
+        const charged = res.charged_amount ?? totalCost;
+
+        if (res.new_balance !== undefined) {
+          setUser((prev) => ({
+            ...prev,
+            balance: res.new_balance!,
+            promoBalance:
+              res.new_promo_balance !== undefined ? res.new_promo_balance : prev.promoBalance,
+          }));
+        } else {
+          refreshUser().catch(() => {});
+        }
+
+        const newHistoryItem: HistoryItem = {
+          id: serverOrderId,
+          category: 'smm_order',
+          title: `${service.name} (${quantity.toLocaleString()})`,
+          subtitle: `Target: ${cleanedLink} · Qty: ${quantity.toLocaleString()} · Status: Pending`,
+          amountInr: -charged,
+          date: 'Just now',
+          status: 'waiting',
+          server: 'Server 5 (SMM)',
+          quantity,
+          targetLink: cleanedLink,
+          refunded: false,
+        };
+        setHistory((prev) => [newHistoryItem, ...prev.filter((h) => h.id !== serverOrderId)]);
+        refreshHistory().catch(() => {});
+
+        addToast(
+          `SMM Order #${serverOrderId} submitted for ${quantity.toLocaleString()} units!`,
+          'success',
+          'SMM Boost Activated'
+        );
+        return { success: true, orderId: serverOrderId, chargedAmount: charged };
+      }
+
+      const errMsg =
+        res?.error || 'Order could not be placed. Zero amount was deducted from your wallet.';
+      hapticFeedback.error();
+      addToast(errMsg, 'error', 'Order Not Placed');
+      refreshUser().catch(() => {});
+      refreshHistory().catch(() => {});
+      return { success: false, error: errMsg };
+    } catch (err: unknown) {
+      const msg =
+        (err instanceof Error && err.message) ||
+        'Network or server error. Zero amount was deducted from your wallet.';
+      hapticFeedback.error();
+      addToast(msg, 'error', 'Order Not Placed');
+      refreshUser().catch(() => {});
+      refreshHistory().catch(() => {});
+      return { success: false, error: msg };
+    }
   };
 
   // Deposit Top-Up

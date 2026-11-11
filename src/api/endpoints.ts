@@ -127,6 +127,7 @@ export interface BuyResponse {
   metadata?: Server1AccountMetadata;
   new_balance?: number;
   new_promo_balance?: number;
+  charged_amount?: number;
   price?: number;
   error?: string;
   required?: number;

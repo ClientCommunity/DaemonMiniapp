@@ -99,6 +99,7 @@ export const RecentActivity: React.FC = () => {
         ) : (
           recentItems.map((item) => {
             const isDeposit = item.amountInr > 0;
+            const isFailed = item.status === 'failed';
             const isSuccess = item.status === 'success';
             const isWaiting = item.status === 'waiting' || item.status === 'in_progress';
             const isRefunded = item.status === 'refunded' || item.status === 'cancelled';
@@ -129,21 +130,23 @@ export const RecentActivity: React.FC = () => {
                 <div className="flex flex-col items-end shrink-0 ml-3">
                   <span
                     className={`text-xs font-bold font-mono ${
-                      isDeposit ? 'text-[#22c55e]' : 'text-white'
+                      isDeposit ? 'text-[#22c55e]' : isFailed ? 'text-[#a1a1aa]' : 'text-white'
                     }`}
                   >
                     {isDeposit ? `+${formatPrice(item.amountInr)}` : formatPrice(item.amountInr)}
                   </span>
                   <span
                     className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 border ${
-                      isSuccess
+                      isFailed
+                        ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                        : isSuccess
                         ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
                         : isWaiting
                         ? 'bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30 animate-pulse'
-                        : 'bg-[#262630] text-[#a1a1aa] border-zinc-700'
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                     }`}
                   >
-                    {isRefunded ? 'Refunded' : isWaiting ? 'Active' : 'Delivered'}
+                    {isFailed ? 'Failed' : isRefunded ? 'Refunded' : isWaiting ? 'Active' : isDeposit ? 'Credited' : 'Delivered'}
                   </span>
                 </div>
               </div>

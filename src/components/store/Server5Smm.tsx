@@ -24,6 +24,8 @@ import {
   ArrowRight,
   Sparkles,
   Info,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 
 export const Server5Smm: React.FC = () => {
@@ -291,7 +293,11 @@ export const Server5Smm: React.FC = () => {
     }
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+
   const handleOpenBuyModal = (service: SmmServiceItem) => {
+    setModalError(null);
     setModalService(service);
     setModalTargetLink('');
     setModalQuantity(service.minQuantity || 1000);
@@ -314,26 +320,49 @@ export const Server5Smm: React.FC = () => {
     handleModalQuantityChange(modalQuantity - dec);
   };
 
-  const modalTotalCost = modalService
-    ? Math.round((modalService.ratePer1000 * modalQuantity) / 1000)
+  const rawModalCost = modalService
+    ? (modalService.ratePer1000 * modalQuantity) / 1000
     : 0;
+  const modalTotalCost =
+    rawModalCost >= 1
+      ? Math.round(rawModalCost * 100) / 100
+      : Math.round(rawModalCost * 10000) / 10000;
 
-  const handleModalSubmit = (e: React.FormEvent) => {
+  const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modalService) return;
+    if (!modalService || isSubmitting) return;
 
-    const ok = submitSmmOrder(modalService, modalTargetLink, modalQuantity);
-    if (ok) {
-      const captured = {
-        orderId: `SMM_${Date.now().toString().slice(-6)}`,
-        serviceName: modalService.name,
-        platform: modalService.platform,
-        link: modalTargetLink,
-        quantity: modalQuantity,
-        cost: modalTotalCost,
-      };
-      setModalService(null);
-      setPlacedOrder(captured);
+    setModalError(null);
+    setIsSubmitting(true);
+    const reqId = `smm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    try {
+      const result = await submitSmmOrder(
+        modalService,
+        modalTargetLink,
+        modalQuantity,
+        reqId
+      );
+      if (result.success) {
+        const captured = {
+          orderId: result.orderId || `SMM_${Date.now().toString().slice(-6)}`,
+          serviceName: modalService.name,
+          platform: modalService.platform,
+          link: modalTargetLink.trim(),
+          quantity: modalQuantity,
+          cost: result.chargedAmount ?? modalTotalCost,
+        };
+        setModalError(null);
+        setModalService(null);
+        setPlacedOrder(captured);
+      } else {
+        setModalError(
+          result.error ||
+            'Order could not be placed. Zero amount was deducted from your wallet.'
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -604,7 +633,12 @@ export const Server5Smm: React.FC = () => {
       {/* Configure & Buy SMM Modal */}
       <Modal
         isOpen={!!modalService}
-        onClose={() => setModalService(null)}
+        onClose={() => {
+          if (!isSubmitting) {
+            setModalError(null);
+            setModalService(null);
+          }
+        }}
         title="Configure SMM Order"
         subtitle={modalService?.name}
       >
@@ -768,22 +802,42 @@ export const Server5Smm: React.FC = () => {
               </div>
             )}
 
+            {modalError && (
+              <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded-xl text-[11px] text-red-400 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                <span>{modalError}</span>
+              </div>
+            )}
+
             {/* Submit & Cancel Buttons */}
             <div className="sticky bottom-0 bg-[#15151c] pt-3 pb-1 border-t border-[#262630]/80 -mx-4 px-4 mt-2 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setModalService(null)}
-                className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white"
+                disabled={isSubmitting}
+                onClick={() => {
+                  setModalError(null);
+                  setModalService(null);
+                }}
+                className="py-3 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={user.balance < modalTotalCost}
+                disabled={isSubmitting || modalTotalCost <= 0 || user.balance < modalTotalCost}
                 className="py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                <Rocket className="w-3.5 h-3.5" />
-                <span>Confirm & Pay</span>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Placing Order...</span>
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="w-3.5 h-3.5" />
+                    <span>Confirm & Pay</span>
+                  </>
+                )}
               </button>
             </div>
           </form>
