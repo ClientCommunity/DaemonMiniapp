@@ -83,7 +83,9 @@ export const ReceiptDrawer: React.FC = () => {
     !isFailed &&
     hasPhone &&
     !isBulkZip &&
-    (item.server === 'Server 2' || item.title.includes('Server 2'));
+    (String(item.server || '').includes('Server 2') ||
+      String(item.subtitle || '').includes('Server 2') ||
+      item.title.includes('Server 2'));
   const isSessionLoggedOut = Boolean(item.sessionLoggedOut);
 
   const handleGetOtp = async () => {

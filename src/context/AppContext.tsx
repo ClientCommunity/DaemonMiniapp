@@ -1582,8 +1582,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           refreshUser().catch(() => {});
           return null;
         } else if (res && res.status === 'logged_out') {
+          const normKey = orderIdOrPhone.replace(/[+\s]/g, '');
+          const normResPhone = (res.phone || '').replace(/[+\s]/g, '');
+          const matchesTarget = (id?: string, ph?: string) => {
+            const cId = (id || '').trim();
+            const cPh = (ph || '').replace(/[+\s]/g, '');
+            return (
+              Boolean(cId && cId === orderIdOrPhone) ||
+              Boolean(cPh && (cPh === normKey || (normResPhone && cPh === normResPhone)))
+            );
+          };
           addToast(res.error || 'Bot session has already been logged out.', 'info', 'Session Logged Out');
-          setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderIdOrPhone && item.phone !== orderIdOrPhone));
+          setActiveNumbers((prev) => {
+            const filtered = prev.filter((item) => !matchesTarget(item.orderId, item.phone));
+            try {
+              localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeNumbers`, JSON.stringify(filtered));
+            } catch {}
+            return filtered;
+          });
+          setHistory((prev) =>
+            prev.map((h) =>
+              matchesTarget(h.id, h.phone)
+                ? {
+                    ...h,
+                    sessionLoggedOut: true,
+                    sessionDownloadUrl: undefined,
+                    status: h.status === 'waiting' ? 'success' : h.status,
+                  }
+                : h
+            )
+          );
+          setSelectedReceiptItem((prev) =>
+            prev && matchesTarget(prev.id, prev.phone)
+              ? {
+                  ...prev,
+                  sessionLoggedOut: true,
+                  sessionDownloadUrl: undefined,
+                  status: prev.status === 'waiting' ? 'success' : prev.status,
+                }
+              : prev
+          );
           return res.otp || null;
         } else {
           addToast(
