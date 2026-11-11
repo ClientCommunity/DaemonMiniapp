@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { downloadApi } from '../../api/endpoints';
 import { Modal } from '../common/Modal';
@@ -12,11 +12,13 @@ import {
   RefreshCw,
   Zap,
   Key,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { PlatformIcon } from '../common/PlatformIcon';
 
 export const ReceiptDrawer: React.FC = () => {
-  const { selectedReceiptItem, closeReceiptDrawer, formatPrice, addToast, fetchOtpForNumber } = useApp();
+  const { selectedReceiptItem, closeReceiptDrawer, formatPrice, addToast, fetchOtpForNumber, logoutServer2Session } = useApp();
 
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copied2Fa, setCopied2Fa] = useState(false);
@@ -24,6 +26,14 @@ export const ReceiptDrawer: React.FC = () => {
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [isFetchingOtp, setIsFetchingOtp] = useState(false);
   const [liveOtp, setLiveOtp] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  useEffect(() => {
+    setLiveOtp(null);
+    setConfirmLogout(false);
+    setIsLoggingOut(false);
+  }, [selectedReceiptItem?.id]);
 
   if (!selectedReceiptItem) return null;
 
@@ -63,6 +73,14 @@ export const ReceiptDrawer: React.FC = () => {
   const effectiveOtp = liveOtp || item.otpCode;
   const hasPhone = !!item.phone;
   const isAccountOrOtp = item.category === 'account_purchase' || item.category === 'otp_activation';
+  const isServer2SingleAccount =
+    !isDeposit &&
+    !isRefunded &&
+    !isFailed &&
+    hasPhone &&
+    !String(item.phone || '').includes(',') &&
+    (item.server === 'Server 2' || item.title.includes('Server 2'));
+  const isSessionLoggedOut = Boolean(item.sessionLoggedOut);
 
   const handleGetOtp = async () => {
     if (!item.phone && !item.id) return;
@@ -75,6 +93,23 @@ export const ReceiptDrawer: React.FC = () => {
     }
   };
 
+  const handleLogoutBotSession = async () => {
+    if (isLoggingOut) return;
+    if (!confirmLogout) {
+      setConfirmLogout(true);
+      return;
+    }
+    setIsLoggingOut(true);
+    try {
+      const ok = await logoutServer2Session(item.phone || item.id);
+      if (ok) {
+        setConfirmLogout(false);
+      }
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <Modal
       isOpen={!!selectedReceiptItem}
@@ -83,7 +118,7 @@ export const ReceiptDrawer: React.FC = () => {
       subtitle={`Ref: ${item.id}`}
       footer={
         <div className="flex flex-col gap-2">
-          {item.sessionDownloadUrl && (
+          {item.sessionDownloadUrl && !isSessionLoggedOut && (
             <button
               onClick={handleDownloadSession}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-95"
@@ -91,6 +126,42 @@ export const ReceiptDrawer: React.FC = () => {
               <Download className="w-4 h-4" />
               <span>{item.sessionDownloadUrl.includes('_zip') ? 'Download Bulk (.ZIP Archive)' : 'Download .Session File'}</span>
             </button>
+          )}
+          {isServer2SingleAccount && !isSessionLoggedOut && (
+            confirmLogout ? (
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <button
+                  onClick={() => setConfirmLogout(false)}
+                  disabled={isLoggingOut}
+                  className="py-2.5 rounded-xl bg-[#1f1f2a] border border-[#262630] text-xs font-semibold text-[#a1a1aa] hover:text-white disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogoutBotSession}
+                  disabled={isLoggingOut}
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>{isLoggingOut ? 'Logging Out...' : 'Confirm Bot Logout'}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleLogoutBotSession}
+                disabled={isLoggingOut}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs transition-all active:scale-95 disabled:opacity-50"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout Bot Session</span>
+              </button>
+            )
+          )}
+          {isServer2SingleAccount && isSessionLoggedOut && (
+            <div className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs">
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>Bot Session Logged Out — Only Your Login Remains</span>
+            </div>
           )}
           <button
             onClick={closeReceiptDrawer}
@@ -217,6 +288,11 @@ export const ReceiptDrawer: React.FC = () => {
                   {copiedOtp ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
                 </button>
               </div>
+            </div>
+          ) : isServer2SingleAccount && isSessionLoggedOut ? (
+            <div className="pt-1 pb-2 border-b border-[#262630] flex items-center justify-between text-xs">
+              <span className="text-[#a1a1aa]">Bot Session Status</span>
+              <span className="text-emerald-400 font-semibold">Logged Out</span>
             </div>
           ) : isAccountOrOtp && hasPhone && !isRefunded ? (
             <div className="pt-1 pb-2 border-b border-[#262630]">

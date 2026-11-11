@@ -88,11 +88,13 @@ export interface BackendServer5Item {
 export interface BackendHistoryItem {
   type?: string;
   order_id?: string;
+  server?: string;
   title?: string;
   amount?: string | number;
   date?: string;
   status?: string;
   refunded?: boolean;
+  session_logged_out?: boolean;
   details?: string;
   download_url?: string | null;
 }
@@ -578,6 +580,13 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
     amountInr,
     date,
     status,
+    server:
+      item.server ||
+      (rawTitle.includes('Server 2')
+        ? 'Server 2'
+        : rawTitle.includes('Server 1')
+          ? 'Server 1'
+          : undefined),
     phone,
     otpCode,
     twoFa,
@@ -585,6 +594,7 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
     quantity,
     sessionDownloadUrl: item.download_url || undefined,
     refunded: status === 'refunded',
+    sessionLoggedOut: Boolean(item.session_logged_out) || detailsLower.includes('bot session logged out'),
   };
 }
 
@@ -624,6 +634,7 @@ export function adaptActiveNumberItem(item: BackendActiveNumber): ActiveNumberIt
     remainingSeconds: remaining,
     canFetchOtp: item.can_fetch_otp ?? (sNum === 1 || sNum === 2),
     isAutoPolling: item.is_auto_polling ?? (sNum === 3 || sNum === 4),
+    sessionLoggedOut: Boolean(item.session_logged_out),
   };
 }
 

@@ -115,6 +115,7 @@ export interface ActiveNumberItem {
   canFetchOtp: boolean; // true for Server 1 / 2 (presents live 'Get OTP' button)
   isAutoPolling?: boolean; // true for Server 3 / 4
   downloadUrl?: string;
+  sessionLoggedOut?: boolean;
 }
 
 // Server 5: SMM Services
@@ -187,6 +188,7 @@ export interface HistoryItem {
   utr?: string;
   recipient?: string;
   refunded?: boolean;
+  sessionLoggedOut?: boolean;
 }
 
 // Reseller Margin Config

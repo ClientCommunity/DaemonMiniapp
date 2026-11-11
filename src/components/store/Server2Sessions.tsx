@@ -548,14 +548,27 @@ export const Server2Sessions: React.FC = () => {
               </button>
             )}
 
-            {/* How to use sessions instructions */}
+            {/* How to use instructions */}
             <div className="p-3 bg-[#181820] border border-[#262630] rounded-xl text-xs text-[#a1a1aa]">
-              <span className="font-semibold text-white block mb-1">How to Use Your Sessions:</span>
-              <ol className="list-decimal list-inside space-y-1 text-[11px]">
-                <li>Download your <strong className="text-white">.session</strong> or <strong className="text-white">.zip</strong> file above.</li>
-                <li>Import the .session file directly into your Telethon, Pyrogram, or Telegram client.</li>
-                <li>You can re-download this session anytime from the <strong className="text-white">History</strong> tab.</li>
-              </ol>
+              {purchasedServer2Modal.format === 'account' ? (
+                <>
+                  <span className="font-semibold text-white block mb-1">Next Steps (Login &amp; Security):</span>
+                  <ol className="list-decimal list-inside space-y-1 text-[11px]">
+                    <li>Enter the allocated number in Telegram (available in <strong className="text-white">Active Numbers</strong>).</li>
+                    <li>Tap <strong className="text-white">Get OTP Code</strong> and enter your 2FA password if prompted.</li>
+                    <li>Once logged in, tap <strong className="text-amber-300">Logout Bot</strong> on your Active Card or History receipt to remove the bot session.</li>
+                  </ol>
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-white block mb-1">How to Use Your Sessions:</span>
+                  <ol className="list-decimal list-inside space-y-1 text-[11px]">
+                    <li>Download your <strong className="text-white">.session</strong> or <strong className="text-white">.zip</strong> file above.</li>
+                    <li>Import the .session file directly into your Telethon, Pyrogram, or Telegram client.</li>
+                    <li>You can re-download this session anytime from the <strong className="text-white">History</strong> tab.</li>
+                  </ol>
+                </>
+              )}
             </div>
           </div>
         )}

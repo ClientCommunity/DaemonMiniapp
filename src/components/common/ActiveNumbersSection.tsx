@@ -14,6 +14,7 @@ import {
   Phone,
   ShieldCheck,
   CheckCheck,
+  LogOut,
 } from 'lucide-react';
 import { PlatformIcon } from './PlatformIcon';
 import { hapticFeedback } from '../../utils/haptics';
@@ -23,12 +24,14 @@ interface ActiveNumberCardProps {
 }
 
 const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
-  const { fetchOtpForNumber, archiveActiveNumber, cancelActiveOtp, addToast } = useApp();
+  const { fetchOtpForNumber, archiveActiveNumber, cancelActiveOtp, logoutServer2Session, addToast } = useApp();
 
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copied2Fa, setCopied2Fa] = useState(false);
   const [copiedOtp, setCopiedOtp] = useState(false);
   const [isFetchingOtp, setIsFetchingOtp] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
   const {
@@ -117,6 +120,27 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
       await fetchOtpForNumber(orderId || phone);
     } finally {
       setIsFetchingOtp(false);
+    }
+  };
+
+  const isServer2SingleAccount = server === 2 && Boolean(phone) && !phone.includes(',');
+
+  const handleLogoutBotSession = async () => {
+    if (isLoggingOut) return;
+    if (!confirmLogout) {
+      hapticFeedback.warning();
+      setConfirmLogout(true);
+      return;
+    }
+    hapticFeedback.medium();
+    setIsLoggingOut(true);
+    try {
+      const ok = await logoutServer2Session(phone || orderId);
+      if (ok) {
+        setConfirmLogout(false);
+      }
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -316,10 +340,10 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
         </div>
       )}
 
-      {/* Footer Actions: Archive / Done / Refund */}
-      <div className="flex items-center justify-between pt-1 border-t border-white/5">
-        <span className="text-[10px] text-zinc-500 font-mono">Ref: {orderId}</span>
-        <div className="flex items-center gap-2">
+      {/* Footer Actions: Archive / Done / Refund / Logout Bot */}
+      <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
+        <span className="text-[10px] text-zinc-500 font-mono shrink-0">Ref: {orderId}</span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {server >= 3 && !isReceived && (
             <button
               onClick={() => {
@@ -331,6 +355,38 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
               <XCircle className="w-3.5 h-3.5" />
               <span>Cancel & Refund</span>
             </button>
+          )}
+
+          {isServer2SingleAccount && (
+            confirmLogout ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleLogoutBotSession}
+                  disabled={isLoggingOut}
+                  className="flex items-center gap-1 text-[11px] font-bold text-white px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 transition-colors active:scale-95 disabled:opacity-50"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>{isLoggingOut ? 'Logging out...' : 'Confirm Logout'}</span>
+                </button>
+                <button
+                  onClick={() => setConfirmLogout(false)}
+                  disabled={isLoggingOut}
+                  className="text-[11px] font-semibold text-zinc-400 hover:text-white px-2 py-1 rounded-lg bg-[#1f1f2a] border border-[#262630]"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleLogoutBotSession}
+                disabled={isLoggingOut}
+                className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 transition-colors active:scale-95 disabled:opacity-50"
+                title="Terminate the bot Telethon session on this Telegram account after you sign in"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Logout Bot</span>
+              </button>
+            )
           )}
 
           <button

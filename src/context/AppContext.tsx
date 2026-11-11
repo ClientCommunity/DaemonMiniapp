@@ -143,6 +143,7 @@ export interface AppContextType {
   fetchOtpForNumber: (orderIdOrPhone: string) => Promise<string | null>;
   archiveActiveNumber: (orderIdOrPhone: string) => Promise<void>;
   archiveAllActiveNumbers: () => Promise<void>;
+  logoutServer2Session: (orderIdOrPhone: string) => Promise<boolean>;
   refreshActiveNumbers: () => Promise<void>;
 
   // Theme
@@ -1054,18 +1055,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 res.new_promo_balance !== undefined ? res.new_promo_balance : prev.promoBalance,
             }));
           }
-          if (res.download_url) {
+          if (res.phone || res.download_url || res.order_id) {
             setHistory((hPrev) =>
               hPrev.map((item) =>
                 item.id === orderId
                   ? {
                       ...item,
-                      sessionDownloadUrl: res.download_url,
                       id: String(res.order_id || orderId),
+                      phone: res.phone || item.phone,
+                      twoFa: (res as any).twofa || item.twoFa,
+                      sessionDownloadUrl: res.download_url || item.sessionDownloadUrl,
                     }
                   : item
               )
             );
+          }
+          if (res.download_url) {
             setPurchasedServer2Modal((prev) =>
               prev
                 ? {
@@ -1576,6 +1581,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderIdOrPhone && item.phone !== orderIdOrPhone));
           refreshUser().catch(() => {});
           return null;
+        } else if (res && res.status === 'logged_out') {
+          addToast(res.error || 'Bot session has already been logged out.', 'info', 'Session Logged Out');
+          setActiveNumbers((prev) => prev.filter((item) => item.orderId !== orderIdOrPhone && item.phone !== orderIdOrPhone));
+          return res.otp || null;
         } else {
           addToast(
             'Code not received yet. Request login code inside official Telegram for this number, then tap Get OTP.',
@@ -1630,6 +1639,79 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {}
     addToast('All active numbers dismissed. Saved in History.', 'info', 'Archived All');
   }, [addToast]);
+
+  // Terminate Server 2 bot Telethon session on Telegram & delete local session
+  const logoutServer2Session = useCallback(
+    async (orderIdOrPhone: string): Promise<boolean> => {
+      const rawKey = (orderIdOrPhone || '').trim();
+      if (!rawKey) return false;
+      const normKey = rawKey.replace(/[+\s]/g, '');
+
+      try {
+        const res = await otpApi.logoutServer2(rawKey);
+        if (res && res.success) {
+          hapticFeedback.success();
+          const normPhone = (res.phone || '').replace(/[+\s]/g, '');
+          const matchesTarget = (id?: string, ph?: string) => {
+            const cId = (id || '').trim();
+            const cPh = (ph || '').replace(/[+\s]/g, '');
+            return (
+              Boolean(cId && (cId === rawKey || (res.order_id && cId === res.order_id))) ||
+              Boolean(cPh && (cPh === normKey || (normPhone && cPh === normPhone)))
+            );
+          };
+
+          setActiveNumbers((prev) => {
+            const filtered = prev.filter((item) => !matchesTarget(item.orderId, item.phone));
+            try {
+              localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeNumbers`, JSON.stringify(filtered));
+            } catch {}
+            return filtered;
+          });
+
+          setHistory((prev) =>
+            prev.map((h) =>
+              matchesTarget(h.id, h.phone)
+                ? {
+                    ...h,
+                    sessionLoggedOut: true,
+                    sessionDownloadUrl: undefined,
+                    status: h.status === 'waiting' ? 'success' : h.status,
+                  }
+                : h
+            )
+          );
+
+          setSelectedReceiptItem((prev) =>
+            prev && matchesTarget(prev.id, prev.phone)
+              ? {
+                  ...prev,
+                  sessionLoggedOut: true,
+                  sessionDownloadUrl: undefined,
+                  status: prev.status === 'waiting' ? 'success' : prev.status,
+                }
+              : prev
+          );
+
+          addToast(
+            res.message || 'Bot session logged out and removed securely.',
+            res.already_logged_out ? 'info' : 'success',
+            'Session Logged Out'
+          );
+          return true;
+        }
+
+        hapticFeedback.error();
+        addToast(res?.error || 'Could not logout bot session.', 'error', 'Logout Failed');
+        return false;
+      } catch (err: any) {
+        hapticFeedback.error();
+        addToast(err?.message || 'Failed to logout bot session.', 'error', 'Logout Failed');
+        return false;
+      }
+    },
+    [addToast]
+  );
 
   // Sync active numbers with live backend
   const refreshActiveNumbers = useCallback(async () => {
@@ -2139,6 +2221,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchOtpForNumber,
         archiveActiveNumber,
         archiveAllActiveNumbers,
+        logoutServer2Session,
         refreshActiveNumbers,
         refreshStore,
         refreshUser,

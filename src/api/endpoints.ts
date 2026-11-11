@@ -135,13 +135,16 @@ export interface BuyResponse {
 
 export interface OtpStatusResponse {
   success?: boolean;
-  status: 'waiting' | 'completed' | 'delivered' | 'not_found' | string;
+  status: 'waiting' | 'completed' | 'delivered' | 'not_found' | 'logged_out' | string;
   otp: string | null;
   phone?: string;
   twofa?: string;
   server?: string;
   time_left?: number;
   order_id?: string | number;
+  session_logged_out?: boolean;
+  refunded?: boolean;
+  error?: string;
 }
 
 export interface BackendActiveNumber {
@@ -157,6 +160,18 @@ export interface BackendActiveNumber {
   can_fetch_otp: boolean;
   is_auto_polling: boolean;
   created_at: string;
+  session_logged_out?: boolean;
+}
+
+export interface Server2LogoutResponse {
+  success: boolean;
+  order_id?: string;
+  db_id?: number;
+  phone?: string;
+  already_logged_out?: boolean;
+  session_logged_out?: boolean;
+  message?: string;
+  error?: string;
 }
 
 export interface ActiveNumbersResponse {
@@ -344,6 +359,8 @@ export const otpApi = {
     api.get<ActiveNumbersResponse>('/api/user/active-numbers'),
   archive: (orderIdOrPhone: string) =>
     api.post<{ success: boolean; message?: string }>('/api/otp/archive', { order_id: orderIdOrPhone }),
+  logoutServer2: (orderIdOrPhone: string) =>
+    api.post<Server2LogoutResponse>('/api/server2/logout', { order_id: orderIdOrPhone }),
 };
 
 /**
