@@ -556,6 +556,20 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
 
   const id = (item as any).order_id || `hist_${Date.now().toString().slice(-4)}_${index}`;
 
+  let targetLink: string | undefined;
+  let quantity: number | undefined;
+  if (category === 'smm_order') {
+    const targetMatch = details.match(/Target:\s*([^\s·]+)/i);
+    if (targetMatch && targetMatch[1]) {
+      targetLink = targetMatch[1].trim();
+    }
+    const qtyMatch = details.match(/Qty:\s*([0-9,]+)/i);
+    if (qtyMatch && qtyMatch[1]) {
+      const parsedQty = parseInt(qtyMatch[1].replace(/,/g, ''), 10);
+      if (!isNaN(parsedQty) && parsedQty > 0) quantity = parsedQty;
+    }
+  }
+
   return {
     id,
     category,
@@ -567,6 +581,8 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
     phone,
     otpCode,
     twoFa,
+    targetLink,
+    quantity,
     sessionDownloadUrl: item.download_url || undefined,
     refunded: status === 'refunded',
   };

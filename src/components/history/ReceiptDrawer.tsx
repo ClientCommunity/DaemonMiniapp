@@ -272,8 +272,17 @@ export const ReceiptDrawer: React.FC = () => {
 
           {item.quantity && (
             <div className="flex items-center justify-between pb-2 border-b border-[#262630]">
-              <span className="text-[#a1a1aa]">Quantity Delivered</span>
+              <span className="text-[#a1a1aa]">
+                {isSuccess ? 'Quantity Delivered' : 'Order Quantity'}
+              </span>
               <span className="text-white font-bold font-mono">{item.quantity.toLocaleString()}</span>
+            </div>
+          )}
+
+          {item.subtitle && (isFailed || isRefunded || item.category === 'smm_order') && (
+            <div className="flex flex-col gap-1 pb-2 border-b border-[#262630]">
+              <span className="text-[#a1a1aa]">Status Details</span>
+              <span className="text-zinc-200 text-[11px] leading-relaxed break-words">{item.subtitle}</span>
             </div>
           )}
 
