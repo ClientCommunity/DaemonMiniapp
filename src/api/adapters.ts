@@ -95,6 +95,9 @@ export interface BackendHistoryItem {
   status?: string;
   refunded?: boolean;
   session_logged_out?: boolean;
+  phone?: string | null;
+  otp?: string | null;
+  twofa?: string;
   details?: string;
   download_url?: string | null;
 }
@@ -527,11 +530,14 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
     status = 'success';
   }
 
-  // Extract phone number from details if present (e.g., "Number: +919876543210")
-  let phone: string | undefined;
-  const phoneMatch = details.match(/(?:Number:\s*)(\+?[0-9\s-]+)/i);
-  if (phoneMatch && phoneMatch[1]) {
-    phone = phoneMatch[1].trim();
+  // Prefer explicit phone field from backend (preserves comma-separated Bulk ZIP lists)
+  let phone: string | undefined =
+    item.phone && item.phone !== 'N/A' ? String(item.phone).trim() : undefined;
+  if (!phone) {
+    const phoneMatch = details.match(/(?:Number:\s*)(\+?[0-9,\s-]+)/i);
+    if (phoneMatch && phoneMatch[1]) {
+      phone = phoneMatch[1].trim();
+    }
   }
 
   // Extract OTP code from details if present (e.g., "OTP: 48192")

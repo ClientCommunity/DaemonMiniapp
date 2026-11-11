@@ -73,12 +73,16 @@ export const ReceiptDrawer: React.FC = () => {
   const effectiveOtp = liveOtp || item.otpCode;
   const hasPhone = !!item.phone;
   const isAccountOrOtp = item.category === 'account_purchase' || item.category === 'otp_activation';
+  const isBulkZip =
+    Boolean(item.sessionDownloadUrl?.includes('_zip')) ||
+    Boolean(item.subtitle?.includes('ZIP DELIVERED')) ||
+    String(item.phone || '').includes(',');
   const isServer2SingleAccount =
     !isDeposit &&
     !isRefunded &&
     !isFailed &&
     hasPhone &&
-    !String(item.phone || '').includes(',') &&
+    !isBulkZip &&
     (item.server === 'Server 2' || item.title.includes('Server 2'));
   const isSessionLoggedOut = Boolean(item.sessionLoggedOut);
 
@@ -294,7 +298,7 @@ export const ReceiptDrawer: React.FC = () => {
               <span className="text-[#a1a1aa]">Bot Session Status</span>
               <span className="text-emerald-400 font-semibold">Logged Out</span>
             </div>
-          ) : isAccountOrOtp && hasPhone && !isRefunded ? (
+          ) : isAccountOrOtp && hasPhone && !isRefunded && !isBulkZip ? (
             <div className="pt-1 pb-2 border-b border-[#262630]">
               <button
                 onClick={handleGetOtp}

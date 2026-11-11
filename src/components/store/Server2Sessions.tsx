@@ -543,7 +543,9 @@ export const Server2Sessions: React.FC = () => {
                 <span>
                   {(purchasedServer2Modal.quantity || 1) > 1
                     ? 'Packaging bulk sessions (.ZIP)...'
-                    : 'Preparing secure .session download...'}
+                    : purchasedServer2Modal.format === 'account'
+                      ? 'Allocating Telegram account...'
+                      : 'Preparing secure .session download...'}
                 </span>
               </button>
             )}
