@@ -432,7 +432,7 @@ export const PaymentsHubTab: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-[#a1a1aa]">
-                Review 12-digit UPI UTR references. 1-click approval atomically credits user wallet balance.
+                Review FamPay Transaction IDs & 12-digit UPI UTR references. 1-click approval atomically credits user wallet balance.
               </p>
             </div>
 
@@ -472,7 +472,7 @@ export const PaymentsHubTab: React.FC = () => {
                       ₹{dep.amount}
                     </span>
                     <span className="text-[10px] px-2 py-0.5 rounded bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30 font-semibold">
-                      Pending UTR
+                      Pending Proof
                     </span>
                   </div>
                 </div>
@@ -481,7 +481,7 @@ export const PaymentsHubTab: React.FC = () => {
                 <div className="bg-[#121217] border border-[#262630] rounded-xl p-3 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] text-[#71717a] block font-semibold uppercase">
-                      12-Digit Reference / UTR
+                      FamPay Txn ID / UTR
                     </span>
                     <span className="font-mono text-sm font-bold text-[#f59e0b] tracking-wider">
                       {dep.utr || 'N/A'}

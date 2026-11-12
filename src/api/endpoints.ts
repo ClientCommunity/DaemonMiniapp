@@ -228,6 +228,36 @@ export interface ManualDepositSubmitResponse {
   message?: string;
   deposit_id?: number;
   status?: string;
+  utr?: string;
+  txn_type?: string;
+  amount?: number;
+  new_balance?: number;
+  wait_seconds?: number;
+  remaining_seconds?: number;
+  order_reference?: string;
+  error?: string;
+}
+
+export interface ManualDepositStatusResponse {
+  success: boolean;
+  deposit_id?: number;
+  status?: 'verifying' | 'pending' | 'success' | 'rejected' | 'cancelled' | 'not_found' | string;
+  raw_status?: string;
+  auto_verified?: boolean;
+  amount?: number;
+  utr?: string;
+  txn_id?: string | null;
+  new_balance?: number;
+  remaining_seconds?: number;
+  error?: string;
+}
+
+export interface ManualDepositCancelResponse {
+  success: boolean;
+  deposit_id?: number;
+  utr?: string;
+  status?: string;
+  message?: string;
   error?: string;
 }
 
@@ -467,11 +497,26 @@ export const depositApi = {
     api.get<FamPayCheckResponse>('/api/deposit/fampay/check', { ref }),
   getManualMethods: () =>
     api.get<ManualMethodsResponse>('/api/deposit/manual/methods'),
-  submitManual: (methodId: number, utr: string, amount: number) =>
+  submitManual: (
+    methodId: number | string,
+    utr: string,
+    amount: number,
+    extra?: { order_reference?: string; method_type?: string }
+  ) =>
     api.post<ManualDepositSubmitResponse>('/api/deposit/manual/submit', {
       method_id: methodId,
       utr,
       amount,
+      ...(extra?.order_reference ? { order_reference: extra.order_reference } : {}),
+      ...(extra?.method_type ? { method_type: extra.method_type } : {}),
+    }),
+  getManualStatus: (depositId: number) =>
+    api.get<ManualDepositStatusResponse>('/api/deposit/manual/status', {
+      deposit_id: depositId,
+    }),
+  cancelManualVerify: (depositId: number) =>
+    api.post<ManualDepositCancelResponse>('/api/deposit/manual/cancel-verify', {
+      deposit_id: depositId,
     }),
 };
 

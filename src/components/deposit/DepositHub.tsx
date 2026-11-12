@@ -17,9 +17,75 @@ import {
   RotateCcw,
   Receipt,
   QrCode,
-  Clipboard
+  Clipboard,
+  Loader2,
+  X
 } from 'lucide-react';
 import { hapticFeedback } from '../../utils/haptics';
+
+interface VerifyingDepositState {
+  depositId: number;
+  amount: number;
+  utr: string;
+  method: PaymentMethodType;
+  orderReference?: string;
+  expiresAt: number;
+}
+
+interface EscalatedNoticeState {
+  depositId: number;
+  amount: number;
+  utr: string;
+}
+
+type DetectedRefKind = 'fampay_txn' | 'upi_utr' | 'upi_vpa' | 'invoice_ref' | 'short' | 'other';
+
+function inspectPaymentRef(
+  raw: string,
+  invoiceRef?: string,
+  expectedAmt?: number
+): { normalized: string; kind: DetectedRefKind; hint: string; isWarning?: boolean } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { normalized: '', kind: 'short', hint: '' };
+  if (trimmed.includes('@')) {
+    return {
+      normalized: trimmed,
+      kind: 'upi_vpa',
+      hint: 'Looks like a UPI ID — paste your FamPay Txn ID (FMP...) or 12-digit UTR from the receipt.',
+      isWarning: true,
+    };
+  }
+  const clean = trimmed.replace(/\s+/g, '').toUpperCase();
+  if (
+    invoiceRef &&
+    clean.replace(/[^A-Z0-9]/g, '') === invoiceRef.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  ) {
+    return {
+      normalized: clean,
+      kind: 'invoice_ref',
+      hint: 'That is your Invoice Ref — paste the Txn ID (FMP...) or 12-digit UTR from your payment app.',
+      isWarning: true,
+    };
+  }
+  if (expectedAmt && expectedAmt > 0 && clean === String(Math.floor(expectedAmt))) {
+    return {
+      normalized: clean,
+      kind: 'other',
+      hint: 'Enter your Payment Txn ID or UTR, not the deposit amount.',
+      isWarning: true,
+    };
+  }
+  if (/^\d{12}$/.test(clean)) {
+    return { normalized: clean, kind: 'upi_utr', hint: '12-digit UPI UTR detected' };
+  }
+  if (/^(?:FMP|FP|TXN)[A-Z0-9_-]{3,44}$/.test(clean)) {
+    return { normalized: clean, kind: 'fampay_txn', hint: 'FamPay Transaction ID detected' };
+  }
+  if (clean.length < 6) {
+    return { normalized: clean, kind: 'short', hint: 'At least 6 characters required' };
+  }
+  return { normalized: clean, kind: 'other', hint: 'Transaction reference detected' };
+}
 
 function decodeHtmlEntities(raw: string): string {
   if (!raw) return '';
@@ -62,6 +128,31 @@ export const DepositHub: React.FC = () => {
     }
   });
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isCancellingVerify, setIsCancellingVerify] = useState(false);
+  const [verifyingDeposit, setVerifyingDeposit] = useState<VerifyingDepositState | null>(() => {
+    try {
+      const raw = localStorage.getItem('krish_verifying_deposit');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as VerifyingDepositState;
+      if (!parsed?.depositId || !parsed?.expiresAt) return null;
+      if (Date.now() - parsed.expiresAt > 4 * 60 * 1000) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  });
+  const [verifySecondsLeft, setVerifySecondsLeft] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('krish_verifying_deposit');
+      if (!raw) return 0;
+      const parsed = JSON.parse(raw) as VerifyingDepositState;
+      if (!parsed?.expiresAt) return 0;
+      return Math.max(0, Math.ceil((parsed.expiresAt - Date.now()) / 1000));
+    } catch {
+      return 0;
+    }
+  });
+  const [escalatedNotice, setEscalatedNotice] = useState<EscalatedNoticeState | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
@@ -70,6 +161,16 @@ export const DepositHub: React.FC = () => {
   useEffect(() => {
     setQrImgError(false);
   }, [activeInvoice?.reference]);
+
+  useEffect(() => {
+    try {
+      if (verifyingDeposit) {
+        localStorage.setItem('krish_verifying_deposit', JSON.stringify(verifyingDeposit));
+      } else {
+        localStorage.removeItem('krish_verifying_deposit');
+      }
+    } catch {}
+  }, [verifyingDeposit]);
 
   // Dynamic live payment gateways
   const [merchantUpi, setMerchantUpi] = useState<string>('');
@@ -256,6 +357,103 @@ export const DepositHub: React.FC = () => {
     addToast('Invoice cancelled. You can select another amount.', 'info', 'Invoice Cancelled');
   };
 
+  // Live 1-second countdown + 4.5s status poller for 60s payment verification
+  useEffect(() => {
+    if (!verifyingDeposit) {
+      setVerifySecondsLeft(0);
+      return;
+    }
+
+    let active = true;
+    let inFlight = false;
+
+    const tickCountdown = () => {
+      if (!active) return;
+      const rem = Math.max(0, Math.ceil((verifyingDeposit.expiresAt - Date.now()) / 1000));
+      setVerifySecondsLeft(rem);
+    };
+
+    const pollStatus = async () => {
+      if (!active || inFlight) return;
+      inFlight = true;
+      try {
+        const st = await depositApi.getManualStatus(verifyingDeposit.depositId);
+        if (!active || !st || !st.success) return;
+
+        if (st.status === 'success') {
+          const finalAmt = st.amount || verifyingDeposit.amount;
+          const finalRef = st.utr || verifyingDeposit.utr;
+          hapticFeedback.success();
+          addToast(
+            `Payment verified! ₹${finalAmt} credited to your wallet.`,
+            'success',
+            'Auto-Verified'
+          );
+          await refreshUser();
+          submitDeposit(verifyingDeposit.method, finalAmt, finalRef, true);
+          setVerifyingDeposit(null);
+          setEscalatedNotice(null);
+          setUtrNumber('');
+          setActiveInvoice(null);
+        } else if (st.status === 'pending') {
+          const finalAmt = st.amount || verifyingDeposit.amount;
+          const finalRef = st.utr || verifyingDeposit.utr;
+          hapticFeedback.medium();
+          addToast(
+            'Still awaiting bank email. Queued for priority verification & background auto-check.',
+            'info',
+            'Priority Review'
+          );
+          submitDeposit(verifyingDeposit.method, finalAmt, finalRef, true);
+          setVerifyingDeposit(null);
+          setEscalatedNotice({
+            depositId: verifyingDeposit.depositId,
+            amount: finalAmt,
+            utr: finalRef,
+          });
+          setUtrNumber('');
+          setActiveInvoice(null);
+        } else if (st.status === 'rejected' || st.status === 'cancelled' || st.status === 'not_found') {
+          setVerifyingDeposit(null);
+          if (st.status === 'rejected') {
+            hapticFeedback.error();
+            addToast('Deposit request was declined during verification.', 'error', 'Declined');
+          }
+        } else if (typeof st.remaining_seconds === 'number') {
+          const syncedExpires = Date.now() + st.remaining_seconds * 1000;
+          if (Math.abs(syncedExpires - verifyingDeposit.expiresAt) > 4000) {
+            setVerifyingDeposit((prev) => (prev ? { ...prev, expiresAt: syncedExpires } : null));
+          }
+        }
+      } catch {
+        // Silent retry on transient network glitch during 60s window
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    tickCountdown();
+    const secTimer = setInterval(() => {
+      tickCountdown();
+      if (Date.now() >= verifyingDeposit.expiresAt) {
+        void pollStatus();
+      }
+    }, 1000);
+    const pollTimer = setInterval(() => {
+      void pollStatus();
+    }, 4500);
+    const kickTimer = setTimeout(() => {
+      void pollStatus();
+    }, 2500);
+
+    return () => {
+      active = false;
+      clearInterval(secTimer);
+      clearInterval(pollTimer);
+      clearTimeout(kickTimer);
+    };
+  }, [verifyingDeposit?.depositId, verifyingDeposit?.expiresAt]);
+
   const handlePasteUtr = async () => {
     hapticFeedback.light();
     try {
@@ -264,7 +462,7 @@ export const DepositHub: React.FC = () => {
         const cleaned = text.trim();
         if (cleaned) {
           setUtrNumber(cleaned);
-          addToast('Pasted UTR from clipboard!', 'info', 'Clipboard');
+          addToast('Pasted payment reference from clipboard!', 'info', 'Clipboard');
           return;
         }
       }
@@ -274,17 +472,76 @@ export const DepositHub: React.FC = () => {
     }
   };
 
+  const handleCancelVerifying = async () => {
+    if (!verifyingDeposit || isCancellingVerify) return;
+    setIsCancellingVerify(true);
+    hapticFeedback.light();
+    try {
+      const res = await depositApi.cancelManualVerify(verifyingDeposit.depositId);
+      if (res && res.success) {
+        setUtrNumber(res.utr || verifyingDeposit.utr);
+        setVerifyingDeposit(null);
+        addToast('Check cancelled. Edit your Transaction ID / UTR and retry.', 'info', 'Edit & Retry');
+      } else {
+        // Refresh status immediately in case it just verified or escalated during click
+        const st = await depositApi.getManualStatus(verifyingDeposit.depositId).catch(() => null);
+        if (st && st.status === 'success') {
+          await refreshUser();
+          setVerifyingDeposit(null);
+          setActiveInvoice(null);
+          setUtrNumber('');
+          addToast(
+            `Payment verified! ₹${st.amount || verifyingDeposit.amount} already credited.`,
+            'success',
+            'Auto-Verified'
+          );
+        } else {
+          addToast(
+            res?.error || 'Verification already completed or moved to review.',
+            'warning',
+            'Unable to Edit'
+          );
+          if (st?.status === 'pending') {
+            setVerifyingDeposit(null);
+          }
+        }
+      }
+    } catch {
+      addToast('Network error cancelling active check. Please try again.', 'error', 'Error');
+    } finally {
+      setIsCancellingVerify(false);
+    }
+  };
+
   const handleUtrSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const cleanUtr = utrNumber.trim();
-    if (!cleanUtr || cleanUtr.length < 6) {
-      hapticFeedback.error();
-      addToast('Please enter a valid transaction reference or 12-digit UTR.', 'error', 'Invalid Reference');
+    if (verifyingDeposit) {
+      addToast('A verification check is already running. Wait or tap Edit & Retry.', 'info', 'Verifying');
       return;
     }
 
     const payAmount = activeInvoice ? activeInvoice.amount : amount;
-    const requiredMin = selectedMethod === 'upi_direct' ? upiMinDeposit : (selectedMethod === 'fampay' ? fampayMinDeposit : cwalletMinDeposit);
+    const refCheck = inspectPaymentRef(
+      utrNumber,
+      selectedMethod === 'fampay' ? activeInvoice?.reference : undefined,
+      payAmount
+    );
+    if (!refCheck.normalized || refCheck.kind === 'short' || refCheck.isWarning) {
+      hapticFeedback.error();
+      addToast(
+        refCheck.hint || 'Please enter a valid FamPay Transaction ID (FMP...) or 12-digit UTR.',
+        'error',
+        'Invalid Reference'
+      );
+      return;
+    }
+
+    const requiredMin =
+      selectedMethod === 'upi_direct'
+        ? upiMinDeposit
+        : selectedMethod === 'fampay'
+        ? fampayMinDeposit
+        : cwalletMinDeposit;
     if (payAmount > 0 && payAmount < requiredMin) {
       hapticFeedback.error();
       addToast(`Minimum deposit amount is ₹${requiredMin}.`, 'error', 'Invalid Amount');
@@ -292,16 +549,21 @@ export const DepositHub: React.FC = () => {
     }
 
     setIsVerifying(true);
+    setEscalatedNotice(null);
     hapticFeedback.light();
-    addToast('Verifying transaction reference...', 'info', 'Verifying');
 
     try {
-      const methodId =
-        selectedMethod === 'usdt_bep20' && activeManualMethod ? activeManualMethod.id : 1;
-      const res = await depositApi.submitManual(methodId, cleanUtr, payAmount);
+      const methodId: number | string =
+        selectedMethod === 'usdt_bep20' && activeManualMethod
+          ? activeManualMethod.id
+          : selectedMethod;
+      const res = await depositApi.submitManual(methodId, refCheck.normalized, payAmount, {
+        order_reference: selectedMethod === 'fampay' ? activeInvoice?.reference : undefined,
+        method_type: selectedMethod,
+      });
 
       if (res && res.success) {
-        if (res.auto_verified) {
+        if (res.auto_verified || res.status === 'success') {
           hapticFeedback.success();
           addToast(
             res.message || `Payment of ₹${payAmount} auto-verified! Your balance has been credited.`,
@@ -309,17 +571,37 @@ export const DepositHub: React.FC = () => {
             'Auto-Verified'
           );
           await refreshUser();
+          submitDeposit(selectedMethod, payAmount, refCheck.normalized, true);
+          setUtrNumber('');
+          setActiveInvoice(null);
+        } else if (res.status === 'verifying' && res.deposit_id) {
+          const waitSecs = Math.max(15, Number(res.wait_seconds || res.remaining_seconds || 60));
+          hapticFeedback.medium();
+          addToast(
+            'Checking for bank confirmation email every 5 seconds...',
+            'info',
+            'Verifying Payment'
+          );
+          setVerifyingDeposit({
+            depositId: res.deposit_id,
+            amount: res.amount || payAmount,
+            utr: res.utr || refCheck.normalized,
+            method: selectedMethod,
+            orderReference: res.order_reference || activeInvoice?.reference,
+            expiresAt: Date.now() + waitSecs * 1000,
+          });
+          setVerifySecondsLeft(waitSecs);
         } else {
           hapticFeedback.medium();
           addToast(
-            res.message || 'Deposit submitted successfully! Queued for instant admin verification.',
+            res.message || 'Deposit submitted successfully! Queued for admin verification.',
             'info',
             'Submitted'
           );
+          submitDeposit(selectedMethod, payAmount, refCheck.normalized, true);
+          setUtrNumber('');
+          setActiveInvoice(null);
         }
-        submitDeposit(selectedMethod, payAmount, cleanUtr, true);
-        setUtrNumber('');
-        setActiveInvoice(null);
       } else {
         hapticFeedback.error();
         addToast(
@@ -338,6 +620,149 @@ export const DepositHub: React.FC = () => {
     } finally {
       setIsVerifying(false);
     }
+  };
+
+  const currentPayAmount = selectedMethod === 'fampay' && activeInvoice ? activeInvoice.amount : amount;
+  const currentRefInspection = inspectPaymentRef(
+    utrNumber,
+    selectedMethod === 'fampay' ? activeInvoice?.reference : undefined,
+    currentPayAmount
+  );
+
+  const renderUpiVerificationSection = (isDynamicInvoice: boolean) => {
+    const buttonPayAmount = isDynamicInvoice && activeInvoice ? activeInvoice.amount : amount;
+    return (
+      <div className="w-full bg-[#121217] border border-[#262630] rounded-xl p-3 sm:p-3.5 text-left mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-bold text-[#22c55e] uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-4 h-4 rounded-full bg-[#22c55e] text-black flex items-center justify-center text-[10px] font-bold">2</span>
+            <span>Step 2: Enter FamPay Txn ID or 12-Digit UTR</span>
+          </span>
+          <span className="text-[10px] font-mono text-[#a1a1aa]">Auto-Verify (≤60s)</span>
+        </div>
+
+        {verifyingDeposit ? (
+          <div className="bg-[#0b0b0e] border border-[#7c3aed]/50 rounded-xl p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Loader2 className="w-4 h-4 text-[#a78bfa] animate-spin shrink-0" />
+                <span className="text-xs font-bold text-white truncate">
+                  Trying to Verify Payment...
+                </span>
+              </div>
+              <span className="text-xs font-mono font-extrabold text-[#a78bfa] bg-[#7c3aed]/15 border border-[#7c3aed]/30 px-2 py-0.5 rounded-full shrink-0">
+                {verifySecondsLeft}s
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] bg-[#14141b] border border-[#262630] rounded-lg px-2.5 py-1.5">
+              <span className="text-[#a1a1aa] truncate">
+                Ref: <code className="text-white font-mono">{verifyingDeposit.utr}</code>
+              </span>
+              <span className="font-mono font-bold text-[#22c55e] shrink-0">
+                ₹{verifyingDeposit.amount}
+              </span>
+            </div>
+
+            <p className="text-[11px] text-[#a1a1aa] leading-relaxed">
+              Checking bank / FamPay confirmation email automatically every 5 seconds. Please do not re-submit.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleCancelVerifying}
+              disabled={isCancellingVerify}
+              className="w-full min-h-[36px] py-1.5 px-3 rounded-lg bg-[#181820] hover:bg-[#22222d] border border-[#2e2e3d] text-[11px] font-semibold text-[#e4e4e7] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {isCancellingVerify ? 'Releasing...' : 'Wrong ID? Edit & Retry'}
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleUtrSubmit} className="flex flex-col gap-2.5">
+            {escalatedNotice && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 text-[11px] text-amber-200 flex items-start justify-between gap-2">
+                <div className="space-y-0.5">
+                  <div className="font-bold text-amber-300">
+                    Priority Verification Queued (#{escalatedNotice.depositId})
+                  </div>
+                  <div className="text-amber-100/80 leading-relaxed">
+                    Email hasn&apos;t arrived within 60s for ₹{escalatedNotice.amount} (
+                    <code className="font-mono">{escalatedNotice.utr}</code>). Still checking automatically &amp; queued for admin review.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEscalatedNotice(null)}
+                  className="text-amber-300 hover:text-white p-0.5 shrink-0 cursor-pointer"
+                  aria-label="Dismiss notice"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={utrNumber}
+                onChange={(e) => setUtrNumber(e.target.value)}
+                placeholder="FamPay Txn ID (FMP...) or 12-digit UTR"
+                maxLength={48}
+                className="w-full bg-[#0b0b0e] border border-[#262630] focus:border-[#7c3aed] rounded-xl pl-3.5 pr-20 py-3 text-xs font-mono text-white placeholder-[#71717a] focus:outline-none transition-colors"
+                required
+              />
+              <button
+                type="button"
+                onClick={handlePasteUtr}
+                className="absolute right-2 min-h-[34px] px-2.5 py-1 rounded-lg bg-[#1f1f2a] hover:bg-[#2a2a38] active:scale-95 text-[11px] font-semibold text-[#a78bfa] border border-[#38384a] flex items-center gap-1 transition-all cursor-pointer"
+                title="Paste FamPay Txn ID or UTR from clipboard"
+              >
+                <Clipboard className="w-3.5 h-3.5" />
+                <span>Paste</span>
+              </button>
+            </div>
+
+            {utrNumber.trim() ? (
+              <div
+                className={`text-[10px] font-medium flex items-center gap-1.5 ${
+                  currentRefInspection.isWarning
+                    ? 'text-amber-400'
+                    : currentRefInspection.kind === 'fampay_txn' || currentRefInspection.kind === 'upi_utr'
+                    ? 'text-[#22c55e]'
+                    : 'text-[#a1a1aa]'
+                }`}
+              >
+                {currentRefInspection.isWarning ? (
+                  <AlertTriangle className="w-3 h-3 shrink-0" />
+                ) : (
+                  <Check className="w-3 h-3 shrink-0" />
+                )}
+                <span>{currentRefInspection.hint}</span>
+              </div>
+            ) : (
+              <div className="text-[10px] text-[#71717a]">
+                Paid via FamPay? Paste <span className="text-[#a1a1aa] font-mono">FMP...</span> Txn ID. Used GPay/PhonePe/Paytm? Paste 12-digit UTR.
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isVerifying || !utrNumber.trim()}
+              className="w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+            >
+              <Zap className="w-4 h-4 fill-black" />
+              <span>
+                {isVerifying
+                  ? 'Verifying with Bank...'
+                  : isDynamicInvoice
+                  ? 'Verify & Auto-Credit Balance'
+                  : `Verify & Auto-Credit Balance (₹${buttonPayAmount})`}
+              </span>
+            </button>
+          </form>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -455,6 +880,9 @@ export const DepositHub: React.FC = () => {
         <>
           {/* STATE A: NO ACTIVE INVOICE (Select Amount, View Guidelines & Make Invoice) */}
           {!activeInvoice ? (
+            verifyingDeposit ? (
+              renderUpiVerificationSection(false)
+            ) : (
             <div className="flex flex-col gap-4">
               {/* Amount Selector Card */}
               <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630]">
@@ -551,7 +979,7 @@ export const DepositHub: React.FC = () => {
                 {/* MAKE YOUR INVOICE BUTTON */}
                 <button
                   onClick={handleMakeInvoice}
-                  disabled={isGenerating || amount < 10}
+                  disabled={isGenerating || amount < fampayMinDeposit}
                   className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white font-extrabold text-sm shadow-violet-glow transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isGenerating ? (
@@ -568,8 +996,9 @@ export const DepositHub: React.FC = () => {
                 </button>
               </div>
             </div>
+            )
           ) : (
-            /* STATE B: ACTIVE INVOICE VIEW (Prominent Step-by-Step 12-Digit UTR Verification Card) */
+            /* STATE B: ACTIVE INVOICE VIEW (Prominent Step-by-Step FamPay Txn ID / UTR Verification Card) */
             <div className="p-4 sm:p-5 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col items-center shadow-xl relative overflow-hidden">
               {/* Header with Title + 15-min countdown timer */}
               <div className="w-full flex items-center justify-between pb-3 mb-3 border-b border-[#262630]">
@@ -579,7 +1008,7 @@ export const DepositHub: React.FC = () => {
                   </div>
                   <div className="text-left">
                     <span className="text-xs font-bold text-white block">UPI Instant Invoice</span>
-                    <span className="text-[10px] text-[#a1a1aa]">Auto-credited via 12-Digit UTR</span>
+                    <span className="text-[10px] text-[#a1a1aa]">Auto-credited via Txn ID / UTR</span>
                   </div>
                 </div>
 
@@ -653,49 +1082,8 @@ export const DepositHub: React.FC = () => {
                 ) : null}
               </div>
 
-              {/* STEP 2: Input 12-Digit UTR with Paste button & Auto-Credit */}
-              <div className="w-full bg-[#121217] border border-[#262630] rounded-xl p-3 sm:p-3.5 text-left mb-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold text-[#22c55e] uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-4 h-4 rounded-full bg-[#22c55e] text-black flex items-center justify-center text-[10px] font-bold">2</span>
-                    <span>Step 2: Enter 12-Digit UTR</span>
-                  </span>
-                  <span className="text-[10px] font-mono text-[#a1a1aa]">Instant Auto-Credit</span>
-                </div>
-
-                <form onSubmit={handleUtrSubmit} className="flex flex-col gap-3">
-                  <div className="relative flex items-center">
-                    <input
-                      type="text"
-                      value={utrNumber}
-                      onChange={(e) => setUtrNumber(e.target.value)}
-                      placeholder="Enter 12-digit UTR (e.g. 429812345678)"
-                      maxLength={22}
-                      className="w-full bg-[#0b0b0e] border border-[#262630] focus:border-[#7c3aed] rounded-xl pl-3.5 pr-20 py-3 text-xs font-mono text-white placeholder-[#71717a] focus:outline-none transition-colors"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={handlePasteUtr}
-                      className="absolute right-2 min-h-[34px] px-2.5 py-1 rounded-lg bg-[#1f1f2a] hover:bg-[#2a2a38] active:scale-95 text-[11px] font-semibold text-[#a78bfa] border border-[#38384a] flex items-center gap-1 transition-all cursor-pointer"
-                      title="Paste UTR from clipboard"
-                    >
-                      <Clipboard className="w-3.5 h-3.5" />
-                      <span>Paste</span>
-                    </button>
-                  </div>
-
-                  {/* Primary CTA: Verify UTR & Auto-Credit Balance */}
-                  <button
-                    type="submit"
-                    disabled={isVerifying || !utrNumber.trim()}
-                    className="w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                  >
-                    <Zap className="w-4 h-4 fill-black" />
-                    <span>{isVerifying ? 'Verifying with Bank...' : 'Verify UTR & Auto-Credit Balance'}</span>
-                  </button>
-                </form>
-              </div>
+              {/* STEP 2: Input FamPay Txn ID or 12-Digit UTR with 60s smart auto-verify */}
+              {renderUpiVerificationSection(true)}
 
               {/* Cancel / Change Amount button */}
               <button
@@ -808,38 +1196,7 @@ export const DepositHub: React.FC = () => {
               </div>
             ) : null}
 
-            <span className="text-xs font-bold text-white mb-1">
-              Step 2: Enter 12-digit UTR Transaction ID
-            </span>
-            <form onSubmit={handleUtrSubmit} className="flex flex-col gap-2.5">
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  value={utrNumber}
-                  onChange={(e) => setUtrNumber(e.target.value)}
-                  placeholder="Enter 12-digit UTR (e.g. 429812345678)"
-                  className="w-full bg-[#0b0b0e] border border-[#262630] focus:border-[#7c3aed] rounded-xl pl-3.5 pr-20 py-2.5 text-xs font-mono text-white placeholder-[#71717a] focus:outline-none transition-colors"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={handlePasteUtr}
-                  className="absolute right-2 min-h-[32px] px-2.5 py-1 rounded-lg bg-[#1f1f2a] hover:bg-[#2a2a38] active:scale-95 text-[11px] font-semibold text-[#a78bfa] border border-[#38384a] flex items-center gap-1 transition-all cursor-pointer"
-                  title="Paste UTR from clipboard"
-                >
-                  <Clipboard className="w-3 h-3" />
-                  <span>Paste</span>
-                </button>
-              </div>
-              <button
-                type="submit"
-                disabled={isVerifying || !utrNumber.trim()}
-                className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-extrabold text-xs shadow-green-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-              >
-                <Zap className="w-4 h-4 fill-black" />
-                <span>{isVerifying ? 'Verifying UTR...' : `Verify UTR & Auto-Credit Balance (₹${amount})`}</span>
-              </button>
-            </form>
+            {renderUpiVerificationSection(false)}
           </div>
         </div>
         )
