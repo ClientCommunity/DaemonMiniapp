@@ -520,7 +520,7 @@ export const DepositHub: React.FC = () => {
       return;
     }
 
-    const payAmount = activeInvoice ? activeInvoice.amount : amount;
+    const payAmount = selectedMethod === 'fampay' && activeInvoice ? activeInvoice.amount : amount;
     const refCheck = inspectPaymentRef(
       utrNumber,
       selectedMethod === 'fampay' ? activeInvoice?.reference : undefined,
@@ -880,7 +880,7 @@ export const DepositHub: React.FC = () => {
         <>
           {/* STATE A: NO ACTIVE INVOICE (Select Amount, View Guidelines & Make Invoice) */}
           {!activeInvoice ? (
-            verifyingDeposit ? (
+            verifyingDeposit && verifyingDeposit.method === 'fampay' ? (
               renderUpiVerificationSection(false)
             ) : (
             <div className="flex flex-col gap-4">
