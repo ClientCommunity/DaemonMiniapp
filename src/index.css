@@ -369,75 +369,10 @@ html.light .bg-\[\#181820\]:not(button):not(input):not(select):not([role="option
 }
 
 /* ==========================================================================
-   Landing Page Light Mode Rules
+   Killer UI: Landing Page Design Tokens & Surfaces
    ========================================================================== */
-html.light .bg-\[\#090a0f\],
-html.light .bg-\[\#0c0d12\],
-html.light .bg-\[\#07070a\],
-html.light .bg-\[\#0e0e12\],
-html.light .bg-\[\#0e0e12\]\/60,
-html.light .bg-\[\#0e0e12\]\/80 {
-  background-color: #f8fafc !important;
-}
-
-html.light .bg-\[\#12131a\],
-html.light .bg-\[\#14151c\],
-html.light .bg-\[\#151622\],
-html.light .bg-\[\#181922\],
-html.light .bg-\[\#1c1d29\],
-html.light .bg-\[\#1f202b\],
-html.light .bg-\[\#14141a\] {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-}
-
-html.light .border-\[\#1b1c24\],
-html.light .border-\[\#22232e\],
-html.light .border-\[\#2c2d3d\],
-html.light .border-\[\#20212c\],
-html.light .border-\[\#282a3a\],
-html.light .border-\[\#2a2b38\],
-html.light .border-\[\#2a2b3a\],
-html.light .border-\[\#262736\],
-html.light .border-\[\#262632\],
-html.light .border-\[\#1f1f2a\] {
-  border-color: #e2e8f0 !important;
-}
-
-/* Service Tag Pills & Quick Calculator in Light Mode */
-html.light .bg-\[\#181924\] {
-  background-color: #f1f5f9 !important;
-  border-color: #e2e8f0 !important;
-  color: #334155 !important;
-}
-
-html.light .bg-\[\#181924\] * {
-  color: #334155 !important;
-}
-
-html.light .bg-\[\#1c1d29\] {
-  background-color: #f1f5f9 !important;
-  border-color: #e2e8f0 !important;
-  color: #0f172a !important;
-}
-
-html.light .landing-step-num {
+.landing-step-num {
   color: #ffffff !important;
-}
-
-html.light .border-\[\#20202c\] {
-  border-color: #f1f5f9 !important;
-}
-
-html.light .border-\[\#2a2a36\] {
-  border-color: #cbd5e1 !important;
-}
-
-html.light .landing-auth-card {
-  background: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08) !important;
 }
 
 html.light .landing-google-btn {
@@ -453,19 +388,6 @@ html.light .landing-google-btn:hover {
 
 html.light .landing-google-btn span {
   color: #0f172a !important;
-}
-
-html.light .landing-header {
-  background-color: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(226, 232, 240, 0.8) !important;
-}
-
-html.light .landing-logo-inner {
-  background-color: #ffffff !important;
-}
-
-html.light .landing-faq-btn:hover {
-  background-color: #f8fafc !important;
 }
 
 

@@ -1,0 +1,24 @@
+{
+  "skill": "killer-ui",
+  "version": "1.0.0",
+  "status": "ready_for_code",
+  "brand_personality": "Developer-Grade Utility & Precision",
+  "primary_emotion": "Trust, Speed & Certainty",
+  "platform": "Web Desktop & Mobile",
+  "phases": {
+    "review": "complete",
+    "system": "complete",
+    "screen": "complete",
+    "code": "in_progress"
+  },
+  "artifacts": {
+    "review_report": ".design/audit/review-report.md",
+    "darkmode_report": ".design/audit/darkmode-report.md",
+    "tokens": ".design/system/tokens.json",
+    "palette": ".design/system/palette.md",
+    "typography": ".design/system/typography.md",
+    "spacing": ".design/system/spacing.md",
+    "components": ".design/system/components.md",
+    "screens": ".design/screens/landing-page.md"
+  }
+}
