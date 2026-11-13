@@ -38,7 +38,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Sheet Content */}
-      <div className="relative w-full max-w-[430px] bg-[#15151c] border-t sm:border border-[#262630] rounded-t-3xl sm:rounded-3xl shadow-2xl z-10 max-h-[90vh] flex flex-col animate-slide-up overflow-hidden">
+      <div className="relative w-full max-w-[430px] sm:max-w-md md:max-w-lg bg-[#15151c] border-t sm:border border-[#262630] rounded-t-3xl sm:rounded-3xl shadow-2xl z-10 max-h-[90vh] flex flex-col animate-slide-up overflow-hidden">
         {/* Header */}
         <div className="p-4 pb-2 shrink-0">
           {/* Drag handle */}

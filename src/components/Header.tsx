@@ -89,16 +89,16 @@ export const Header: React.FC = () => {
 
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-1">
-              <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[160px]">
+              <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[280px]">
                 {user.firstName}
               </span>
               <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#22c55e] shrink-0" />
             </div>
             <div className="flex items-center gap-1 text-[11px] text-[#a1a1aa]">
               {user.username ? (
-                <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px]">@{user.username}</span>
+                <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">@{user.username}</span>
               ) : (
-                <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px]">No username</span>
+                <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">No username</span>
               )}
               <span className="hidden sm:inline">•</span>
               <button

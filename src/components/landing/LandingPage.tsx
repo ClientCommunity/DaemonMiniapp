@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { authApi, GoogleAuthResponse } from '../../api/endpoints';
 import { setWebUserToken } from '../../api/client';
 import { BackendUserPayload } from '../../api/adapters';
+import { useApp } from '../../context/AppContext';
 import {
   Zap,
   ShieldCheck,
@@ -19,6 +20,8 @@ import {
   Clock,
   ChevronDown,
   HelpCircle,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const GOOGLE_CLIENT_ID =
@@ -31,6 +34,9 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
+  const { theme, toggleTheme } = useApp();
+  const isLight = theme === 'light';
+
   const heroGoogleBtnRef = useRef<HTMLDivElement>(null);
   const ctaGoogleBtnRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -183,16 +189,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   return (
     <div className="w-full min-h-screen bg-[#0b0b0e] text-white flex flex-col font-sans selection:bg-[#7c3aed] selection:text-white">
       {/* Background Ambient Glows */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-[#7c3aed]/15 via-[#3b82f6]/10 to-transparent rounded-full blur-[140px] pointer-events-none z-0" />
-      <div className="fixed bottom-0 right-0 w-[600px] h-[400px] bg-[#7c3aed]/10 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className={`fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] ${isLight ? 'bg-gradient-to-b from-[#7c3aed]/10 via-[#3b82f6]/5 opacity-40' : 'bg-gradient-to-b from-[#7c3aed]/15 via-[#3b82f6]/10'} to-transparent rounded-full blur-[140px] pointer-events-none z-0`} />
+      <div className={`fixed bottom-0 right-0 w-[600px] h-[400px] ${isLight ? 'bg-[#7c3aed]/5 opacity-30' : 'bg-[#7c3aed]/10'} rounded-full blur-[140px] pointer-events-none z-0`} />
 
       {/* Modern Desktop & Mobile Top Navigation */}
-      <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-[#0b0b0e]/80 border-b border-[#262630]/60">
+      <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-[#0b0b0e]/80 border-b border-[#262630]/60 landing-header">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 shadow-lg shadow-[#7c3aed]/30 flex items-center justify-center">
-              <div className="w-full h-full bg-[#121217] rounded-[14px] flex items-center justify-center p-1">
+              <div className="w-full h-full bg-[#121217] rounded-[14px] flex items-center justify-center p-1 landing-logo-inner">
                 <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-6 h-6 object-contain" />
               </div>
             </div>
@@ -226,8 +232,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             </a>
           </nav>
 
-          {/* Header Action Button */}
-          <div className="flex items-center gap-3">
+          {/* Header Action Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className={`min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full border transition-all cursor-pointer ${
+                isLight
+                  ? 'bg-white hover:bg-slate-100 border-slate-300 shadow-sm'
+                  : 'bg-[#181820] hover:bg-[#20202c] border-[#262630]'
+              }`}
+              title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              aria-label="Toggle Theme"
+            >
+              {isLight ? (
+                <Moon className="w-4 h-4 text-[#7c3aed]" />
+              ) : (
+                <Sun className="w-4 h-4 text-[#f59e0b]" />
+              )}
+            </button>
+
             <a
               href="https://t.me/DeamonOTPbot"
               target="_blank"
@@ -294,12 +319,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
               {/* Right Column: Interactive Google Sign-In Card */}
               <div className="lg:col-span-5 flex justify-center lg:justify-end" id="auth-box">
-                <div className="w-full max-w-md p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-[#181820]/90 to-[#121217]/95 border border-[#2a2a36] shadow-2xl backdrop-blur-xl relative overflow-hidden">
+                <div className="w-full max-w-md p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-[#181820]/90 to-[#121217]/95 border border-[#2a2a36] shadow-2xl backdrop-blur-xl relative overflow-hidden landing-auth-card">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-[#7c3aed]/20 rounded-full blur-2xl pointer-events-none" />
 
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 flex items-center justify-center shrink-0">
-                      <div className="w-full h-full bg-[#121217] rounded-[14px] flex items-center justify-center">
+                      <div className="w-full h-full bg-[#121217] rounded-[14px] flex items-center justify-center landing-logo-inner">
                         <Lock className="w-5 h-5 text-[#a78bfa]" />
                       </div>
                     </div>
@@ -319,12 +344,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     </div>
                   )}
 
-                  {/* Primary Custom Dark Google Login Button */}
+                  {/* Primary Custom Google Login Button */}
                   <div className="py-2 flex flex-col items-center w-full">
                     <div className="relative w-full max-w-[320px] h-[50px] mx-auto select-none">
-                      {/* Visual Custom Dark Mode Button */}
+                      {/* Visual Custom Button */}
                       <div
-                        className={`w-full h-full rounded-full flex items-center justify-center gap-3 px-5 transition-all duration-200 border ${
+                        className={`landing-google-btn w-full h-full rounded-full flex items-center justify-center gap-3 px-5 transition-all duration-200 border ${
                           isLoading
                             ? 'bg-[#181824] border-[#7c3aed]/60 shadow-lg shadow-[#7c3aed]/20 cursor-wait'
                             : 'bg-[#151520] hover:bg-[#1d1d2c] border-[#2e2e42] hover:border-[#7c3aed]/60 shadow-lg shadow-black/40 hover:shadow-[#7c3aed]/15 cursor-pointer active:scale-[0.98]'
@@ -556,7 +581,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 >
                   <button
                     onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                    className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 cursor-pointer hover:bg-[#181822] transition-colors"
+                    className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 cursor-pointer hover:bg-[#181822] transition-colors landing-faq-btn"
                   >
                     <span className="text-sm font-bold text-white flex items-center gap-2">
                       <HelpCircle className="w-4 h-4 text-[#7c3aed] shrink-0" />
@@ -583,7 +608,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         <section className="py-20 border-t border-[#1f1f2a] relative overflow-hidden">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
             <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 mx-auto mb-6 shadow-xl shadow-[#7c3aed]/25 flex items-center justify-center">
-              <div className="w-full h-full bg-[#121217] rounded-[22px] flex items-center justify-center p-1.5">
+              <div className="w-full h-full bg-[#121217] rounded-[22px] flex items-center justify-center p-1.5 landing-logo-inner">
                 <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-10 h-10 object-contain" />
               </div>
             </div>
@@ -598,7 +623,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             <div className="mt-8 flex flex-col items-center gap-4">
               <div className="relative w-full max-w-[320px] h-[50px] mx-auto select-none">
                 <div
-                  className={`w-full h-full rounded-full flex items-center justify-center gap-3 px-5 transition-all duration-200 border ${
+                  className={`landing-google-btn w-full h-full rounded-full flex items-center justify-center gap-3 px-5 transition-all duration-200 border ${
                     isLoading
                       ? 'bg-[#181824] border-[#7c3aed]/60 shadow-lg shadow-[#7c3aed]/20 cursor-wait'
                       : 'bg-[#151520] hover:bg-[#1d1d2c] border-[#2e2e42] hover:border-[#7c3aed]/60 shadow-lg shadow-black/40 hover:shadow-[#7c3aed]/15 cursor-pointer active:scale-[0.98]'

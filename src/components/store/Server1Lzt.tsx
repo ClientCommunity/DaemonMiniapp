@@ -512,7 +512,7 @@ export const Server1Lzt: React.FC = () => {
 
 
       {/* Accounts Catalog Grid (Active in-stock listings only) */}
-      <div className="grid grid-cols-1 gap-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         {inStockItems.map((item) => (
           <div
             key={item.id}
@@ -606,7 +606,7 @@ export const Server1Lzt: React.FC = () => {
           </button>
 
           {showArchived && (
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {archivedItems.map((item) => (
                 <div
                   key={item.id}
