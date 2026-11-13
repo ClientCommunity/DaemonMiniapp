@@ -372,8 +372,13 @@ html.light .bg-\[\#181820\]:not(button):not(input):not(select):not([role="option
    Landing Page Light Mode Rules
    ========================================================================== */
 html.light .bg-\[\#0e0e12\],
-html.light .bg-\[\#0e0e12\]\/60 {
+html.light .bg-\[\#0e0e12\]\/60,
+html.light .bg-\[\#0e0e12\]\/80 {
   background-color: #f8fafc !important;
+}
+
+html.light .landing-step-num {
+  color: #ffffff !important;
 }
 
 html.light .bg-\[\#14141a\] {
