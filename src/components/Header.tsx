@@ -4,6 +4,8 @@ import { useAdmin } from '../context/AdminContext';
 import { BadgeCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Sparkles, Store, Sun, Moon } from 'lucide-react';
 import { hapticFeedback } from '../utils/haptics';
 
+const LOGO_URL = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
+
 export interface HeaderProps {
   isWeb?: boolean;
 }
@@ -82,8 +84,18 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
         {isWeb ? (
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 flex items-center justify-center shrink-0 shadow-md shadow-[#7c3aed]/25">
-              <div className="w-full h-full bg-[#121217] rounded-[10px] flex items-center justify-center p-1">
-                <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-5 h-5 object-contain" />
+              <div className="w-full h-full bg-[#121217] rounded-[10px] flex items-center justify-center p-1 overflow-hidden">
+                <img
+                  src={LOGO_URL}
+                  alt="Deamon OTP Logo"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.src.endsWith('deamon-logo.webp')) {
+                      target.src = './deamon-logo.webp';
+                    }
+                  }}
+                />
               </div>
             </div>
             <div className="flex flex-col min-w-0">

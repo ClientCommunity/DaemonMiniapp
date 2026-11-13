@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Globe,
   Lock,
-  Sparkles,
   AlertCircle,
   ExternalLink,
   Smartphone,
@@ -30,6 +29,8 @@ const GOOGLE_CLIENT_ID =
   (import.meta as unknown as { env?: Record<string, string | undefined> })?.env
     ?.VITE_GOOGLE_CLIENT_ID ||
   '844840577527-7qf3v11h62n199csg65dv9s0umbqethh.apps.googleusercontent.com';
+
+const LOGO_URL = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
 
 interface LandingPageProps {
   onLoginSuccess: (token: string, user: BackendUserPayload) => void;
@@ -296,9 +297,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 shadow-lg shadow-[#7c3aed]/30 flex items-center justify-center">
-              <div className="w-full h-full bg-[#121217] rounded-[14px] flex items-center justify-center p-1 landing-logo-inner">
-                <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-6 h-6 object-contain" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 shadow-lg shadow-[#7c3aed]/30 flex items-center justify-center shrink-0">
+              <div className="w-full h-full bg-[#121217] rounded-[14px] flex items-center justify-center p-1.5 landing-logo-inner overflow-hidden">
+                <img
+                  src={LOGO_URL}
+                  alt="Deamon OTP Logo"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.src.endsWith('deamon-logo.webp')) {
+                      target.src = './deamon-logo.webp';
+                    }
+                  }}
+                />
               </div>
             </div>
             <div>
@@ -378,16 +389,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         {/* HERO SECTION */}
         <section className="relative pt-12 pb-16 sm:pt-20 sm:pb-24 overflow-hidden">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-start">
               {/* Left Column: Headlines & Value Propositions */}
               <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
-                {/* Feature Pill */}
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#181820]/90 border border-[#262630] text-[#a78bfa] text-xs font-semibold mb-6 shadow-sm">
-                  <Sparkles className="w-3.5 h-3.5 text-[#f59e0b]" />
-                  <span>Next-Gen OTP &amp; Session Platform</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
-                </div>
-
                 <h1 className="text-3xl sm:text-5xl lg:text-5xl font-black tracking-tight leading-[1.15] text-white">
                   Instant Virtual Numbers &amp;{' '}
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#a78bfa] via-[#38bdf8] to-[#22c55e]">
@@ -682,10 +686,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </p>
             </div>
 
-            {/* Asymmetric Bento Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-              {/* Bento Card 1: 100% Automated Refund Guarantee (Span 7) */}
-              <div className="md:col-span-7 p-6 sm:p-8 rounded-3xl bg-[#14141a] border border-[#262632] relative overflow-hidden flex flex-col justify-between group shadow-sm">
+            {/* Symmetrical Feature Grid (Balanced 2x2) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Feature Card 1: 100% Automated Refund Guarantee */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#14141a] border border-[#262632] relative overflow-hidden flex flex-col justify-between group shadow-sm h-full">
                 <div className="absolute top-0 right-0 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
                 <div>
@@ -698,7 +702,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
                     100% Automated Instant Refund Guarantee
                   </h3>
-                  <p className="text-xs sm:text-sm text-[#a1a1aa] mt-3 leading-relaxed max-w-lg">
+                  <p className="text-xs sm:text-sm text-[#a1a1aa] mt-3 leading-relaxed">
                     Never worry about dead numbers. If your SMS verification code doesn&apos;t arrive within the 20-minute countdown window, you can cancel with 1 click or let it expire for an instant, automated refund directly to your balance.
                   </p>
                 </div>
@@ -715,8 +719,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </div>
               </div>
 
-              {/* Bento Card 2: Vintage Telegram Sessions & 2FA (Span 5) */}
-              <div className="md:col-span-5 p-6 sm:p-8 rounded-3xl bg-[#14141a] border border-[#262632] relative overflow-hidden flex flex-col justify-between group shadow-sm">
+              {/* Feature Card 2: Vintage Telegram Sessions & 2FA */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#14141a] border border-[#262632] relative overflow-hidden flex flex-col justify-between group shadow-sm h-full">
                 <div className="absolute top-0 right-0 w-44 h-44 bg-[#38bdf8]/10 rounded-full blur-3xl pointer-events-none" />
 
                 <div>
@@ -734,7 +738,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   </p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-[#262632] flex items-center justify-between text-xs text-[#d4d4d8]">
+                <div className="mt-8 pt-5 border-t border-[#262632] flex items-center justify-between text-xs text-[#d4d4d8]">
                   <span className="flex items-center gap-1.5">
                     <Download className="w-4 h-4 text-[#38bdf8]" />
                     Direct Zip Download
@@ -743,8 +747,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </div>
               </div>
 
-              {/* Bento Card 3: Dual-Platform Real-Time Sync (Span 5) */}
-              <div className="md:col-span-5 p-6 sm:p-8 rounded-3xl bg-[#14141a] border border-[#262632] relative overflow-hidden flex flex-col justify-between group shadow-sm">
+              {/* Feature Card 3: Dual-Platform Real-Time Sync */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#14141a] border border-[#262632] relative overflow-hidden flex flex-col justify-between group shadow-sm h-full">
                 <div>
                   <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center mb-5 text-[#a78bfa]">
                     <Radio className="w-6 h-6" />
@@ -760,7 +764,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   </p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-[#262632]">
+                <div className="mt-8 pt-5 border-t border-[#262632] flex items-center justify-between">
                   <a
                     href="https://t.me/DeamonOTPbot"
                     target="_blank"
@@ -770,11 +774,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     <span>Launch @DeamonOTPbot</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
+                  <span className="text-[10px] font-mono text-[#22c55e] bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Live Synced
+                  </span>
                 </div>
               </div>
 
-              {/* Bento Card 4: Universal Dual-Currency Wallet (Span 7) */}
-              <div className="md:col-span-7 p-6 sm:p-8 rounded-3xl bg-[#14141a] border border-[#262632] relative overflow-hidden flex flex-col justify-between group shadow-sm">
+              {/* Feature Card 4: Universal Dual-Currency Wallet */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#14141a] border border-[#262632] relative overflow-hidden flex flex-col justify-between group shadow-sm h-full">
                 <div>
                   <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mb-5 text-[#f59e0b]">
                     <CreditCard className="w-6 h-6" />
@@ -785,7 +792,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
                     Dual-Currency Wallet &amp; P2P Transfers
                   </h3>
-                  <p className="text-xs sm:text-sm text-[#a1a1aa] mt-3 leading-relaxed max-w-lg">
+                  <p className="text-xs sm:text-sm text-[#a1a1aa] mt-3 leading-relaxed">
                     Store balance in Indian Rupees (₹) or USDT ($). Enjoy zero-fee instant P2P balance transfers to any other user using their Telegram or Account ID.
                   </p>
                 </div>
@@ -797,7 +804,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   </span>
                   <span className="flex items-center gap-1.5 text-[#22c55e]">
                     <CheckCircle2 className="w-4 h-4" />
-                    INR &amp; Crypto USDT Supported
+                    INR &amp; Crypto USDT
                   </span>
                 </div>
               </div>
@@ -897,9 +904,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         {/* BOTTOM CALL TO ACTION */}
         <section className="py-20 border-b border-[#1f1f2a] relative overflow-hidden">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
-            <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 mx-auto mb-6 shadow-xl shadow-[#7c3aed]/25 flex items-center justify-center">
-              <div className="w-full h-full bg-[#121217] rounded-[22px] flex items-center justify-center p-1.5 landing-logo-inner">
-                <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-10 h-10 object-contain" />
+            <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 mx-auto mb-6 shadow-xl shadow-[#7c3aed]/25 flex items-center justify-center shrink-0">
+              <div className="w-full h-full bg-[#121217] rounded-[22px] flex items-center justify-center p-2 landing-logo-inner overflow-hidden">
+                <img
+                  src={LOGO_URL}
+                  alt="Deamon OTP Logo"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.src.endsWith('deamon-logo.webp')) {
+                      target.src = './deamon-logo.webp';
+                    }
+                  }}
+                />
               </div>
             </div>
 
@@ -974,9 +991,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Column 1: Brand Overview & Security (Span 4) */}
             <div className="lg:col-span-4 flex flex-col">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 flex items-center justify-center">
-                  <div className="w-full h-full bg-[#121217] rounded-[10px] flex items-center justify-center landing-logo-inner">
-                    <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-5 h-5 object-contain" />
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 flex items-center justify-center shrink-0">
+                  <div className="w-full h-full bg-[#121217] rounded-[10px] flex items-center justify-center p-1 landing-logo-inner overflow-hidden">
+                    <img
+                      src={LOGO_URL}
+                      alt="Deamon OTP Logo"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.endsWith('deamon-logo.webp')) {
+                          target.src = './deamon-logo.webp';
+                        }
+                      }}
+                    />
                   </div>
                 </div>
                 <span className="font-extrabold text-base tracking-tight text-white">
@@ -1033,19 +1060,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               <ul className="space-y-2.5 text-xs text-[#a1a1aa]">
                 <li className="flex items-center gap-1.5 text-[#22c55e]">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>Auto-Refund Policy</span>
+                  <a href="#features" className="hover:underline">Auto-Refund Policy</a>
                 </li>
                 <li>
-                  <span className="text-[#a1a1aa]">2FA Protection</span>
+                  <a href="#features" className="hover:text-white transition-colors">2FA Protection</a>
                 </li>
                 <li>
-                  <span className="text-[#a1a1aa]">Zero-Log Retention</span>
+                  <a href="#features" className="hover:text-white transition-colors">Zero-Log Retention</a>
                 </li>
                 <li>
-                  <span className="text-[#a1a1aa]">Terms of Service</span>
+                  <a href="#faq" className="hover:text-white transition-colors">Terms of Service</a>
                 </li>
                 <li>
-                  <span className="text-[#a1a1aa]">Fair Use Guidelines</span>
+                  <a href="#faq" className="hover:text-white transition-colors">Fair Use Guidelines</a>
                 </li>
               </ul>
             </div>
@@ -1061,10 +1088,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     href="https://t.me/DeamonOTPbot"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition-colors font-medium"
+                    className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition-colors font-semibold"
                   >
                     <Smartphone className="w-3.5 h-3.5" />
                     <span>Official Bot: @DeamonOTPbot</span>
+                    <ExternalLink className="w-3 h-3 text-[#38bdf8]" />
                   </a>
                 </li>
                 <li>
@@ -1075,13 +1103,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
                   >
                     <span>24/7 Telegram Support Desk</span>
+                    <ExternalLink className="w-3 h-3 text-[#71717a]" />
                   </a>
                 </li>
                 <li>
-                  <span className="text-[#71717a]">Community Updates Channel</span>
+                  <a
+                    href="https://t.me/DeamonOTPbot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+                  >
+                    <span>Community Updates Channel</span>
+                    <ExternalLink className="w-3 h-3 text-[#71717a]" />
+                  </a>
                 </li>
                 <li>
-                  <span className="text-[#71717a]">Dual Platform Synchronization</span>
+                  <a
+                    href="https://t.me/DeamonOTPbot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+                  >
+                    <span>Dual Platform Synchronization</span>
+                    <ExternalLink className="w-3 h-3 text-[#71717a]" />
+                  </a>
                 </li>
               </ul>
             </div>
