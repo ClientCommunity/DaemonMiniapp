@@ -71,7 +71,11 @@ export const ProfileView: React.FC = () => {
               <BadgeCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
             </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="text-xs text-[#8b5cf6] font-mono">@{user.username}</span>
+              {user.username ? (
+                <span className="text-xs text-[#8b5cf6] font-mono">@{user.username}</span>
+              ) : (
+                <span className="text-xs text-[#71717a] font-sans">No username</span>
+              )}
               {user.telegramId && (
                 <button
                   type="button"

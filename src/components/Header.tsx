@@ -95,7 +95,11 @@ export const Header: React.FC = () => {
               <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#22c55e] shrink-0" />
             </div>
             <div className="flex items-center gap-1 text-[11px] text-[#a1a1aa]">
-              <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px]">@{user.username}</span>
+              {user.username ? (
+                <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px]">@{user.username}</span>
+              ) : (
+                <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px]">No username</span>
+              )}
               <span className="hidden sm:inline">•</span>
               <button
                 type="button"

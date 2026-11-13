@@ -460,7 +460,7 @@ export const PaymentsHubTab: React.FC = () => {
                       Order #{depId} • User #{dep.user_id}
                     </span>
                     <h4 className="text-sm font-bold text-white">
-                      @{dep.username || `user_${dep.user_id}`}
+                      {dep.username ? `@${dep.username}` : 'No username'}
                     </h4>
                     <span className="text-[10px] text-[#71717a]">
                       Submitted: {dep.created_at || dep.date || 'Just now'}

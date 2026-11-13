@@ -14,6 +14,7 @@ import {
   ActiveNumberItem,
 } from '../types';
 import { BackendActiveNumber } from './endpoints';
+import { extractTelegramUser } from './client';
 
 export interface BackendUserPayload {
   id?: number;
@@ -123,35 +124,13 @@ export function adaptBackendUser(
   backendData: BackendUserPayload,
   current?: UserProfile
 ): UserProfile {
-  let tgUser: {
-    id?: number;
-    username?: string;
-    first_name?: string;
-    photo_url?: string;
-  } | undefined;
-
-  try {
-    tgUser = (window as unknown as {
-      Telegram?: {
-        WebApp?: {
-          initDataUnsafe?: {
-            user?: {
-              id?: number;
-              username?: string;
-              first_name?: string;
-              photo_url?: string;
-            };
-          };
-        };
-      };
-    })?.Telegram?.WebApp?.initDataUnsafe?.user;
-  } catch {
-    // browser mode fallback
-  }
+  const tgUser = extractTelegramUser();
 
   const userId = backendData.id ?? tgUser?.id ?? current?.id ?? 0;
-  const username = tgUser?.username || (backendData.email ? backendData.email.split('@')[0] : '') || current?.username || `user_${userId}`;
-  const firstName = backendData.name || tgUser?.first_name || current?.firstName || 'User';
+  // If user has no username, keep empty string (do NOT use user_{userId})
+  const rawUsername = tgUser?.username || (backendData.email ? backendData.email.split('@')[0] : '') || (current?.username && !current.username.startsWith('user_') && current.username !== 'No username' ? current.username : '');
+  const username = rawUsername || '';
+  const firstName = backendData.name || tgUser?.first_name || (current?.firstName && current.firstName !== 'User' ? current.firstName : (tgUser?.first_name || 'User'));
   const avatarUrl = backendData.avatar_url || tgUser?.photo_url || current?.avatarUrl || '';
 
   const prefCurrency = backendData.pref_curr === 'USDT' ? 'USDT' : (current?.prefCurrency || 'INR');

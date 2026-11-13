@@ -38,7 +38,7 @@ import {
   resellerApi,
   historyApi,
 } from '../api/endpoints';
-import { api, isTelegramWebApp, getWebUserToken, setWebUserToken } from '../api/client';
+import { api, isTelegramWebApp, getWebUserToken, setWebUserToken, extractTelegramUser } from '../api/client';
 import { hapticFeedback } from '../utils/haptics';
 import {
   adaptBackendUser,
@@ -229,7 +229,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setThemeState(newTheme);
   }, []);
 
-  const [user, setUser] = useState<UserProfile>(() => getSavedState('user', initialUserProfile));
+  const [user, setUser] = useState<UserProfile>(() => {
+    const saved = getSavedState('user', initialUserProfile);
+    const cleanSaved: UserProfile = saved && saved.username && saved.username.startsWith('user_')
+      ? { ...saved, username: '' }
+      : saved;
+
+    // Immediately hydrate from Telegram SDK or URL initData if available on initial render
+    const tgUser = extractTelegramUser();
+    if (tgUser) {
+      return {
+        ...cleanSaved,
+        id: cleanSaved.id || tgUser.id || 0,
+        telegramId: cleanSaved.telegramId || String(tgUser.id || ''),
+        firstName: tgUser.first_name || cleanSaved.firstName,
+        username: tgUser.username || cleanSaved.username || '',
+        avatarUrl: tgUser.photo_url || cleanSaved.avatarUrl || '',
+      };
+    }
+    return cleanSaved;
+  });
   const [currency, setCurrency] = useState<CurrencyPreference>(() => getSavedState('currency', 'INR'));
   const [activeTab, setActiveTab] = useState<'home' | 'store' | 'deposit' | 'history' | 'profile'>(() =>
     getSavedState('activeTab', 'home')
@@ -2021,10 +2040,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     if (
-      recipient === user.username ||
-      recipient === `@${user.username}` ||
-      recipient === user.telegramId
+      user.username &&
+      (recipient === user.username || recipient === `@${user.username}`)
     ) {
+      return { success: false, message: 'Cannot transfer funds to yourself.' };
+    }
+    if (user.telegramId && recipient === user.telegramId) {
       return { success: false, message: 'Cannot transfer funds to yourself.' };
     }
 

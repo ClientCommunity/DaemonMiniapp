@@ -50,7 +50,11 @@ export const Header: React.FC = () => {
               <BadgeCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
             </div>
             <div className="flex items-center gap-1.5 text-xs text-[#a1a1aa]">
-              <span className="font-mono truncate max-w-[80px]">@{user.username}</span>
+              {user.username ? (
+                <span className="font-mono truncate max-w-[80px]">@{user.username}</span>
+              ) : (
+                <span className="text-[11px] text-[#71717a]">No username</span>
+              )}
               <span>•</span>
               <button
                 onClick={handleCopyId}

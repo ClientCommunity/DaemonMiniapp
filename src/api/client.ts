@@ -131,6 +131,51 @@ export function isTelegramWebApp(): boolean {
   return Boolean(getTelegramInitData());
 }
 
+export interface TelegramInitUser {
+  id?: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  language_code?: string;
+}
+
+/**
+ * Synchronously retrieves Telegram user info from WebApp SDK or URL initData.
+ */
+export function extractTelegramUser(): TelegramInitUser | null {
+  try {
+    // 1. Direct Telegram WebApp SDK
+    const directUser = (
+      window as unknown as {
+        Telegram?: {
+          WebApp?: {
+            initDataUnsafe?: {
+              user?: TelegramInitUser;
+            };
+          };
+        };
+      }
+    )?.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (directUser && (directUser.id || directUser.first_name)) {
+      return directUser;
+    }
+
+    // 2. Parse from raw initData string (e.g. from URL hash tgWebAppData or query params)
+    const rawData = getTelegramInitData();
+    if (rawData) {
+      const params = new URLSearchParams(rawData);
+      const userJson = params.get('user');
+      if (userJson) {
+        return JSON.parse(userJson) as TelegramInitUser;
+      }
+    }
+  } catch {
+    // browser mode fallback
+  }
+  return null;
+}
+
 /**
  * Resolves API request path against the configured base URL.
  */
