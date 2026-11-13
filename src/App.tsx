@@ -1,18 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AdminProvider, useAdmin } from './context/AdminContext';
-import { Header } from './components/Header';
-import { BottomNav } from './components/common/BottomNav';
 import { ToastContainer } from './components/common/Toast';
 import { InitialLoadingScreen } from './components/common/InitialLoadingScreen';
 import { MaintenanceScreen } from './components/common/MaintenanceScreen';
-import { DashboardView } from './components/dashboard/DashboardView';
-import { StorefrontView } from './components/store/StorefrontView';
-import { DepositHub } from './components/deposit/DepositHub';
-import { HistoryView } from './components/history/HistoryView';
-import { ProfileView } from './components/profile/ProfileView';
-import { P2PTransferModal } from './components/profile/P2PTransferModal';
-import { TermsAcceptanceModal } from './components/common/TermsAcceptanceModal';
+import { TelegramShell } from './components/shells/TelegramShell';
+import { WebShell } from './components/shells/WebShell';
+
 // Code-split heavy non-customer components
 const AdminDashboard = React.lazy(() => import('./components/admin/AdminDashboard'));
 const LandingPage = React.lazy(() =>
@@ -20,12 +14,10 @@ const LandingPage = React.lazy(() =>
 );
 import { isTelegramWebApp, getWebUserToken } from './api/client';
 import { downloadApi } from './api/endpoints';
-import { GlobalRecoveryBanner } from './components/common/GlobalRecoveryBanner';
 
 const AppContent: React.FC = () => {
   const {
     activeTab,
-    setActiveTab,
     isInitialLoading,
     initialLoadingStep,
     initialLoadingMessage,
@@ -38,12 +30,6 @@ const AppContent: React.FC = () => {
     refreshHistory,
     refreshReseller,
     theme,
-    purchasedCredentialsModal,
-    purchasedServer2Modal,
-    selectedReceiptItem,
-    closeCredentialsModal,
-    closeServer2Modal,
-    closeReceiptDrawer,
   } = useApp();
 
   const { isAdminMode } = useAdmin();
@@ -129,66 +115,6 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  const hasOpenModal = !!(
-    purchasedCredentialsModal?.isOpen ||
-    purchasedServer2Modal?.isOpen ||
-    selectedReceiptItem ||
-    isTransferModalOpen
-  );
-
-  // Sync Telegram native BackButton with active tab and open modals (prevents accidental loss of numbers)
-  useEffect(() => {
-    try {
-      const backButton = window.Telegram?.WebApp?.BackButton;
-      if (backButton) {
-        if ((activeTab !== 'home' || hasOpenModal) && !isAdminMode) {
-          backButton.show();
-          const handleBack = () => {
-            if (purchasedCredentialsModal?.isOpen) {
-              closeCredentialsModal();
-              return;
-            }
-            if (purchasedServer2Modal?.isOpen) {
-              closeServer2Modal();
-              return;
-            }
-            if (selectedReceiptItem) {
-              closeReceiptDrawer();
-              return;
-            }
-            if (isTransferModalOpen) {
-              setIsTransferModalOpen(false);
-              return;
-            }
-            if (activeTab !== 'home') {
-              setActiveTab('home');
-            }
-          };
-          backButton.onClick(handleBack);
-          return () => {
-            backButton.offClick(handleBack);
-          };
-        } else {
-          backButton.hide();
-        }
-      }
-    } catch {
-      // not in telegram webview
-    }
-  }, [
-    activeTab,
-    setActiveTab,
-    isAdminMode,
-    hasOpenModal,
-    purchasedCredentialsModal?.isOpen,
-    purchasedServer2Modal?.isOpen,
-    selectedReceiptItem,
-    isTransferModalOpen,
-    closeCredentialsModal,
-    closeServer2Modal,
-    closeReceiptDrawer,
-  ]);
-
   // 1. When accessed via website without an authenticated Google session, present full responsive Landing Page
   if (!isTg && !webToken) {
     return (
@@ -232,50 +158,27 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Normal Customer Storefront workspace (responsive on web, native phone width on Telegram)
+  // Dual-Shell Architecture: Isolated presentation shells for Telegram vs Standalone Web
+  if (isTg) {
+    return (
+      <TelegramShell
+        isTransferModalOpen={isTransferModalOpen}
+        onOpenTransferModal={() => setIsTransferModalOpen(true)}
+        onCloseTransferModal={() => setIsTransferModalOpen(false)}
+        hasAcceptedTerms={hasAcceptedTerms}
+        onAcceptTerms={handleAcceptTerms}
+      />
+    );
+  }
+
   return (
-    <div
-      className={`relative w-full ${
-        isTg
-          ? 'max-w-[430px] mx-auto border-x border-[#181820]/40'
-          : 'max-w-4xl mx-auto px-2 sm:px-4 md:border-x md:border-[#181820]/40'
-      } min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl`}
-    >
-      {/* Toast Notifications */}
-      <ToastContainer />
-
-      {/* Persistent Sticky Header with Telegram profile & testing switcher for admins */}
-      <Header />
-
-      {/* Persistent Seamless Recovery Banner (Restores ongoing OTP or Deposit action) */}
-      <GlobalRecoveryBanner />
-
-      {/* Main View Container */}
-      <main className="flex-1 px-4 pb-28 pt-2 overflow-y-auto no-scrollbar">
-        {activeTab === 'home' && (
-          <DashboardView onOpenTransferModal={() => setIsTransferModalOpen(true)} />
-        )}
-        {activeTab === 'store' && <StorefrontView />}
-        {activeTab === 'deposit' && <DepositHub />}
-        {activeTab === 'history' && <HistoryView />}
-        {activeTab === 'profile' && <ProfileView />}
-      </main>
-
-      {/* Persistent Sticky Bottom Navigation Bar */}
-      <BottomNav />
-
-      {/* Global P2P Transfer Modal */}
-      <P2PTransferModal
-        isOpen={isTransferModalOpen}
-        onClose={() => setIsTransferModalOpen(false)}
-      />
-
-      {/* First-Time User Terms & Conditions Acceptance Modal */}
-      <TermsAcceptanceModal
-        isOpen={!hasAcceptedTerms}
-        onAccept={handleAcceptTerms}
-      />
-    </div>
+    <WebShell
+      isTransferModalOpen={isTransferModalOpen}
+      onOpenTransferModal={() => setIsTransferModalOpen(true)}
+      onCloseTransferModal={() => setIsTransferModalOpen(false)}
+      hasAcceptedTerms={hasAcceptedTerms}
+      onAcceptTerms={handleAcceptTerms}
+    />
   );
 };
 
