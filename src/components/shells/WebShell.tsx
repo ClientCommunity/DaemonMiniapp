@@ -54,8 +54,8 @@ export const WebShell: React.FC<WebShellProps> = ({
       {/* Toast Notifications */}
       <ToastContainer />
 
-      {/* Header */}
-      <Header />
+      {/* Header with Website layout (Brand on left, Profile & Balance on right) */}
+      <Header isWeb={true} />
 
       {/* Desktop Top Navigation Bar (Visible only on md+ screens) */}
       <nav className="hidden md:flex items-center justify-between gap-2 p-1.5 mt-2 mb-1 bg-[#121217]/90 backdrop-blur-md border border-[#262630] rounded-2xl shadow-sm">

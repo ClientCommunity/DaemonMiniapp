@@ -4,12 +4,16 @@ import { useAdmin } from '../context/AdminContext';
 import { BadgeCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Sparkles, Store, Sun, Moon } from 'lucide-react';
 import { hapticFeedback } from '../utils/haptics';
 
+export interface HeaderProps {
+  isWeb?: boolean;
+}
+
 /**
  * Top navigation header with Telegram profile details, connection monitor,
  * currency preference switcher, and persistent Admin Mode toggle pill for verified administrators.
- * Optimized for mobile touch ergonomics (>=44px touch targets) and small screens (<380px).
+ * Supports mobile layout (profile on left) and website layout (logo on left, profile on top right).
  */
-export const Header: React.FC = () => {
+export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
   const {
     user,
     currency,
@@ -74,46 +78,67 @@ export const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 w-full bg-[#121217]/95 backdrop-blur-md border-b border-[#262630] pt-[max(10px,env(safe-area-inset-top))] pb-2.5 px-2.5 sm:px-4">
       <div className="flex items-center justify-between gap-1 sm:gap-2 max-w-full overflow-hidden">
-        {/* User Info (Left) */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="relative shrink-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 ring-[#262630]">
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full rounded-full object-cover" />
-              ) : (
-                user.firstName.substring(0, 2).toUpperCase()
-              )}
+        {/* Left Side: Brand Logo & Title for Web, or User Profile for Mobile/Telegram */}
+        {isWeb ? (
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 flex items-center justify-center shrink-0 shadow-md shadow-[#7c3aed]/25">
+              <div className="w-full h-full bg-[#121217] rounded-[10px] flex items-center justify-center p-1">
+                <img src="/deamon-logo.png" alt="Deamon OTP Logo" className="w-5 h-5 object-contain" />
+              </div>
             </div>
-
-          </div>
-
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1">
-              <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[280px]">
-                {user.firstName}
+            <div className="flex flex-col min-w-0">
+              <span className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-1.5 truncate">
+                Deamon OTP
+                <span className="text-[9px] font-mono font-bold bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30 px-1.5 py-0.2 rounded-full">
+                  STORE
+                </span>
               </span>
-              <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#22c55e] shrink-0" />
-            </div>
-            <div className="flex items-center gap-1 text-[11px] text-[#a1a1aa]">
-              {user.username ? (
-                <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">@{user.username}</span>
-              ) : (
-                <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">No username</span>
-              )}
-              <span className="hidden sm:inline">•</span>
-              <button
-                type="button"
-                onClick={handleCopyId}
-                className="hidden sm:inline font-mono hover:text-white transition-colors shrink-0 cursor-pointer"
-                title="Click to copy ID"
-              >
-                ID: {user.telegramId}
-              </button>
+              <span className="hidden sm:block text-[10px] text-[#a1a1aa] font-medium truncate">
+                Virtual Numbers &amp; Telegram Sessions
+              </span>
             </div>
           </div>
-        </div>
+        ) : (
+          /* User Info (Left for Mobile / Telegram Shell) */
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="relative shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 ring-[#262630] overflow-hidden">
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
+                ) : (
+                  user.firstName.substring(0, 2).toUpperCase()
+                )}
+              </div>
+            </div>
 
-        {/* Right Actions: Persistent Admin Switcher + Connection Pill + Assets + Currency + Theme */}
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[280px]">
+                  {user.firstName}
+                </span>
+                <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#22c55e] shrink-0" />
+              </div>
+              <div className="flex items-center gap-1 text-[11px] text-[#a1a1aa]">
+                {user.username ? (
+                  <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">@{user.username}</span>
+                ) : (
+                  <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">No username</span>
+                )}
+                <span className="hidden sm:inline">•</span>
+                <button
+                  type="button"
+                  onClick={handleCopyId}
+                  className="hidden sm:inline font-mono hover:text-white transition-colors shrink-0 cursor-pointer"
+                  title="Click to copy ID"
+                >
+                  ID: {user.telegramId}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Right Actions: Admin + Balance + Currency + Theme + (Web Profile) */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Persistent Admin Mode Toggle Pill for Verified Admins */}
           {isAdmin && (
@@ -142,8 +167,6 @@ export const Header: React.FC = () => {
               )}
             </button>
           )}
-
-
 
           {/* Assets / Balance Pill with Sync */}
           <button
@@ -189,6 +212,38 @@ export const Header: React.FC = () => {
               <Moon className="w-3.5 h-3.5 text-[#7c3aed] hover:-rotate-12 transition-transform" />
             )}
           </button>
+
+          {/* User Profile on the Top Right for Web */}
+          {isWeb && (
+            <div className="flex items-center gap-2 pl-2 sm:pl-2.5 border-l border-[#262630]">
+              <div className="hidden sm:flex flex-col items-end min-w-0">
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[95px] md:max-w-[150px]">
+                    {user.firstName}
+                  </span>
+                  <BadgeCheck className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
+                </div>
+                <div className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
+                  {user.username ? (
+                    <span className="font-mono truncate max-w-[85px] md:max-w-[130px]">@{user.username}</span>
+                  ) : (
+                    <span className="font-sans text-[10px] text-[#71717a]">No username</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Avatar */}
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 ring-[#262630] overflow-hidden">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
+                  ) : (
+                    user.firstName.substring(0, 2).toUpperCase()
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>
