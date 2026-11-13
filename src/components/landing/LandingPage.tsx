@@ -455,15 +455,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             <a href="#servers" className="hover:text-white transition-colors">Server Architecture</a>
             <a href="#how-it-works" className="hover:text-white transition-colors">Order Flow</a>
             <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
-            <a
-              href="https://t.me/DeamonOTPbot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition-colors"
-            >
-              <span>@DeamonOTPbot</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
           </nav>
 
           {/* Header Action Buttons */}
@@ -1308,10 +1299,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </ul>
             </div>
 
-            {/* Column 4: Channels & Support (Span 3) */}
+            {/* Column 4: Telegram Bots & Support (Span 3) */}
             <div className="lg:col-span-3 flex flex-col">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-3 font-mono">
-                Channels &amp; Support
+                Telegram Bots &amp; Support
               </h4>
               <ul className="space-y-2 text-xs text-[#a1a1aa]">
                 <li>
@@ -1328,24 +1319,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </li>
                 <li>
                   <a
-                    href="https://t.me/DeamonOTPbot"
+                    href="https://t.me/patelkrish_99bot"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+                    className="inline-flex items-center gap-1.5 text-white hover:text-[#38bdf8] transition-colors font-medium"
                   >
-                    <span>24/7 Telegram Support Desk</span>
-                    <ExternalLink className="w-3 h-3 text-[#71717a]" />
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://t.me/DeamonOTPbot"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
-                  >
-                    <span>Community Updates Channel</span>
-                    <ExternalLink className="w-3 h-3 text-[#71717a]" />
+                    <Smartphone className="w-3.5 h-3.5 text-[#22c55e]" />
+                    <span>Support Bot: @patelkrish_99bot</span>
+                    <ExternalLink className="w-3 h-3 text-[#22c55e]" />
                   </a>
                 </li>
                 <li>
