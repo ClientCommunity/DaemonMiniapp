@@ -916,7 +916,7 @@ export const DepositHub: React.FC = () => {
                     type="number"
                     value={amount || ''}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    placeholder="Custom amount (Min ₹10)"
+                    placeholder={`Custom amount (Min ₹${fampayMinDeposit})`}
                     className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
                   />
                 </div>
@@ -1150,7 +1150,7 @@ export const DepositHub: React.FC = () => {
                 type="number"
                 value={amount || ''}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                placeholder="Custom amount (Min ₹10)"
+                placeholder={`Custom amount (Min ₹${upiMinDeposit})`}
                 className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
               />
             </div>
@@ -1233,7 +1233,7 @@ export const DepositHub: React.FC = () => {
                 type="number"
                 value={amount || ''}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                placeholder="Custom amount (Min ₹10)"
+                placeholder={`Custom amount (Min ₹${cwalletMinDeposit})`}
                 className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
               />
             </div>

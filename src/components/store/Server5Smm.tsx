@@ -303,21 +303,49 @@ export const Server5Smm: React.FC = () => {
     setModalQuantity(service.minQuantity || 1000);
   };
 
-  const handleModalQuantityChange = (val: number) => {
+  const handleModalQuantityInput = (val: string) => {
+    if (val === '') {
+      setModalQuantity(0);
+      return;
+    }
+    const num = parseInt(val, 10);
+    if (!isNaN(num)) {
+      setModalQuantity(Math.max(0, num));
+    }
+  };
+
+  const handleModalQuantityBlur = () => {
     if (!modalService) return;
     const min = modalService.minQuantity || 100;
     const max = modalService.maxQuantity || 50000;
-    setModalQuantity(Math.min(max, Math.max(min, val)));
+    if (!modalQuantity || modalQuantity < min) {
+      setModalQuantity(min);
+    } else if (modalQuantity > max) {
+      setModalQuantity(max);
+    }
   };
 
   const handleModalIncrement = (inc: number) => {
     if (!modalService) return;
-    handleModalQuantityChange(modalQuantity + inc);
+    const min = modalService.minQuantity || 100;
+    const max = modalService.maxQuantity || 50000;
+    const base = modalQuantity < min ? min : modalQuantity;
+    setModalQuantity(Math.min(max, base + inc));
   };
 
   const handleModalDecrement = (dec: number) => {
     if (!modalService) return;
-    handleModalQuantityChange(modalQuantity - dec);
+    const min = modalService.minQuantity || 100;
+    const max = modalService.maxQuantity || 50000;
+    const base = modalQuantity > max ? max : modalQuantity;
+    setModalQuantity(Math.max(min, base - dec));
+  };
+
+  const handleSelectPreset = (qty: number) => {
+    if (!modalService) return;
+    const min = modalService.minQuantity || 100;
+    const max = modalService.maxQuantity || 50000;
+    setModalQuantity(Math.min(max, Math.max(min, qty)));
   };
 
   const rawModalCost = modalService
@@ -331,6 +359,17 @@ export const Server5Smm: React.FC = () => {
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalService || isSubmitting) return;
+
+    const min = modalService.minQuantity || 100;
+    const max = modalService.maxQuantity || 50000;
+    if (!modalQuantity || modalQuantity < min) {
+      setModalError(`Minimum order quantity for this service is ${min.toLocaleString()}.`);
+      return;
+    }
+    if (modalQuantity > max) {
+      setModalError(`Maximum order quantity for this service is ${max.toLocaleString()}.`);
+      return;
+    }
 
     setModalError(null);
     setIsSubmitting(true);
@@ -736,11 +775,13 @@ export const Server5Smm: React.FC = () => {
                 </button>
                 <input
                   type="number"
-                  value={modalQuantity}
-                  onChange={(e) => handleModalQuantityChange(Number(e.target.value))}
+                  value={modalQuantity === 0 ? '' : modalQuantity}
+                  onChange={(e) => handleModalQuantityInput(e.target.value)}
+                  onBlur={handleModalQuantityBlur}
                   min={modalService.minQuantity}
                   max={modalService.maxQuantity}
                   step={100}
+                  placeholder={String(modalService.minQuantity || 100)}
                   className="flex-1 bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2 text-xs text-center font-mono font-bold text-white focus:outline-none focus:border-[#7c3aed]"
                 />
                 <button
@@ -752,13 +793,25 @@ export const Server5Smm: React.FC = () => {
                 </button>
               </div>
 
+              {/* Range helper note */}
+              {modalQuantity > 0 && modalQuantity < modalService.minQuantity && (
+                <span className="text-[10px] text-amber-400 font-medium">
+                  Minimum quantity for this service is {modalService.minQuantity.toLocaleString()}
+                </span>
+              )}
+              {modalQuantity > modalService.maxQuantity && (
+                <span className="text-[10px] text-amber-400 font-medium">
+                  Maximum quantity for this service is {modalService.maxQuantity.toLocaleString()}
+                </span>
+              )}
+
               {/* Quick preset chips */}
               <div className="grid grid-cols-4 gap-1.5 mt-1">
                 {presetIncrements.map((inc) => (
                   <button
                     type="button"
                     key={inc}
-                    onClick={() => handleModalQuantityChange(inc)}
+                    onClick={() => handleSelectPreset(inc)}
                     className={`py-1 rounded-lg text-[10px] font-bold border transition-colors ${
                       modalQuantity === inc
                         ? 'bg-[#7c3aed]/30 border-[#7c3aed] text-white'
@@ -824,7 +877,14 @@ export const Server5Smm: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || modalTotalCost <= 0 || user.balance < modalTotalCost}
+                disabled={
+                  isSubmitting ||
+                  !modalQuantity ||
+                  modalQuantity < modalService.minQuantity ||
+                  modalQuantity > modalService.maxQuantity ||
+                  modalTotalCost <= 0 ||
+                  user.balance < modalTotalCost
+                }
                 className="py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white shadow-violet-glow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isSubmitting ? (
