@@ -371,30 +371,41 @@ html.light .bg-\[\#181820\]:not(button):not(input):not(select):not([role="option
 /* ==========================================================================
    Landing Page Light Mode Rules
    ========================================================================== */
+html.light .bg-\[\#090a0f\],
+html.light .bg-\[\#0c0d12\],
+html.light .bg-\[\#07070a\],
 html.light .bg-\[\#0e0e12\],
 html.light .bg-\[\#0e0e12\]\/60,
 html.light .bg-\[\#0e0e12\]\/80 {
   background-color: #f8fafc !important;
 }
 
-html.light .landing-step-num {
-  color: #ffffff !important;
-}
-
+html.light .bg-\[\#12131a\],
+html.light .bg-\[\#14151c\],
+html.light .bg-\[\#151622\],
+html.light .bg-\[\#181922\],
+html.light .bg-\[\#1c1d29\],
+html.light .bg-\[\#1f202b\],
 html.light .bg-\[\#14141a\] {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
-html.light .bg-\[\#08080b\] {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-}
-
+html.light .border-\[\#1b1c24\],
+html.light .border-\[\#22232e\],
+html.light .border-\[\#2c2d3d\],
+html.light .border-\[\#20212c\],
+html.light .border-\[\#282a3a\],
+html.light .border-\[\#2a2b38\],
+html.light .border-\[\#262736\],
 html.light .border-\[\#262632\],
 html.light .border-\[\#1f1f2a\] {
   border-color: #e2e8f0 !important;
+}
+
+html.light .landing-step-num {
+  color: #ffffff !important;
 }
 
 html.light .border-\[\#20202c\] {
