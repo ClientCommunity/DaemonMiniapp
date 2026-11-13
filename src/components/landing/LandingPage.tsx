@@ -657,27 +657,85 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 <span className="hidden sm:inline">Zero processing fee • Instant automated balance crediting</span>
               </div>
 
-              {/* Badges */}
+              {/* Badges with Real Brand Icons */}
               <div className="flex flex-wrap items-center justify-center gap-2">
-                {[
-                  { name: 'Google Pay', color: 'bg-[#22c55e]' },
-                  { name: 'PhonePe', color: 'bg-[#8b5cf6]' },
-                  { name: 'Paytm / BHIM UPI', color: 'bg-[#38bdf8]' },
-                  { name: 'USDT (TRC-20 & BEP-20)', color: 'bg-[#22c55e]' },
-                  { name: 'FamPay Direct', color: 'bg-[#f59e0b]' },
-                ].map((item) => (
-                  <span
-                    key={item.name}
-                    className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
-                      isLight
-                        ? 'bg-slate-100 border-slate-200 text-slate-800'
-                        : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
-                    }`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
-                    {item.name}
-                  </span>
-                ))}
+                {/* Google Pay */}
+                <span
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
+                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
+                  }`}
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                  </svg>
+                  <span>Google Pay</span>
+                </span>
+
+                {/* PhonePe */}
+                <span
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
+                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
+                  }`}
+                >
+                  <svg className="w-4 h-4 shrink-0 rounded-full" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="12" fill="#5F259F"/>
+                    <path d="M16.5 7.5h-3.4c-.3 0-.6.2-.7.5l-.2.8h4.2c.3 0 .6.3.6.6s-.3.6-.6.6h-4.5l-.8 3.5c-.1.5.3.9.7.9h2.7c.3 0 .6.3.6.6s-.3.6-.6.6h-2.9c-1.2 0-2.2-.9-2.5-2.1L9 9.3H7c-.3 0-.6-.3-.6-.6s.3-.6.6-.6h2.4l.3-1.1c.3-1.2 1.3-2.1 2.5-2.1h4.3c.3 0 .6.3.6.6s-.3.6-.6.6z" fill="#ffffff"/>
+                    <path d="M13.2 14.5L10 19.5c-.3.4-.8.5-1.2.2-.4-.3-.5-.8-.2-1.2l3.4-4.8c.2.3.5.6.8.8h.4z" fill="#ffffff"/>
+                  </svg>
+                  <span>PhonePe</span>
+                </span>
+
+                {/* Paytm / BHIM UPI */}
+                <span
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
+                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
+                  }`}
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                    <path d="M13.5 3L6 21H10.5L18 3H13.5Z" fill="#097939"/>
+                    <path d="M18 3L10.5 21H15L22.5 3H18Z" fill="#ED7524"/>
+                  </svg>
+                  <span>Paytm / BHIM UPI</span>
+                </span>
+
+                {/* USDT (Tether) */}
+                <span
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
+                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
+                  }`}
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="12" fill="#26A17B"/>
+                    <path d="M12.9 11.2c-.1 0-.6 0-1 0-.3 0-.8 0-1 0-2.3-.1-4-.6-4-1.2 0-.6 1.7-1.1 4-1.2.2 0 .7 0 1 0 .4 0 .9 0 1 0 2.3.1 4 .6 4 1.2 0 .6-1.7 1.1-4 1.2zm0-3V6.5h3.6V4.7H7.5v1.8h3.6v1.7c-2.8.1-4.9.8-4.9 1.7 0 .9 2.1 1.6 4.9 1.7v5.3h1.8v-5.3c2.8-.1 4.9-.8 4.9-1.7 0-.9-2.1-1.6-4.9-1.7zm0 4.1v-.1c1.9-.1 3.5-.5 3.9-.9v2.2c-.9.5-2.3.8-3.9.9v-2.1zm-1.8 0v2.1c-1.6-.1-3-.4-3.9-.9v-2.2c.4.4 2 .8 3.9.9v.1z" fill="#ffffff"/>
+                  </svg>
+                  <span>USDT (TRC-20 &amp; BEP-20)</span>
+                </span>
+
+                {/* FamPay Direct */}
+                <span
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
+                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
+                  }`}
+                >
+                  <svg className="w-4 h-4 shrink-0 rounded-[4px]" viewBox="0 0 24 24" fill="none">
+                    <rect width="24" height="24" rx="4" fill="#FFA000"/>
+                    <path d="M14.8 21.5a.2.2 0 0 1-.2 0c-.6-.4-3.9-2.6-6.1-5.3-1.3-1.7 3.8-4.2 3.8-3.8 0 1.8.5 6.5 2.6 8.7.1.2 0 .3 0 .4l-.1 0zm-1.3-10.9l4.7-2.1a4.4 4.4 0 0 0 2.5-2.6l.6-1.6a.2.2 0 0 0-.1-.2l-1.7-.5a4.4 4.4 0 0 0-3 .1l-7.4 3.1a4.4 4.4 0 0 0-2.4 2.2l-.9 1.8a.2.2 0 0 0 .2.2h1.8a4.4 4.4 0 0 0 3.3-1.5z" fill="#111217"/>
+                  </svg>
+                  <span>FamPay Direct</span>
+                </span>
               </div>
             </div>
           </div>
