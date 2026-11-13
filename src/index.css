@@ -398,10 +398,28 @@ html.light .border-\[\#2c2d3d\],
 html.light .border-\[\#20212c\],
 html.light .border-\[\#282a3a\],
 html.light .border-\[\#2a2b38\],
+html.light .border-\[\#2a2b3a\],
 html.light .border-\[\#262736\],
 html.light .border-\[\#262632\],
 html.light .border-\[\#1f1f2a\] {
   border-color: #e2e8f0 !important;
+}
+
+/* Service Tag Pills & Quick Calculator in Light Mode */
+html.light .bg-\[\#181924\] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html.light .bg-\[\#181924\] * {
+  color: #334155 !important;
+}
+
+html.light .bg-\[\#1c1d29\] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
 }
 
 html.light .landing-step-num {

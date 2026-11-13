@@ -659,26 +659,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
               {/* Badges */}
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <span className="px-2.5 py-1 rounded-lg bg-[#14151c] border border-[#22232e] text-xs font-medium text-[#d4d4d8] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
-                  Google Pay
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-[#14151c] border border-[#22232e] text-xs font-medium text-[#d4d4d8] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#8b5cf6]" />
-                  PhonePe
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-[#14151c] border border-[#22232e] text-xs font-medium text-[#d4d4d8] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8]" />
-                  Paytm / BHIM UPI
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-[#14151c] border border-[#22232e] text-xs font-medium text-[#d4d4d8] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
-                  USDT (TRC-20 &amp; BEP-20)
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-[#14151c] border border-[#22232e] text-xs font-medium text-[#d4d4d8] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
-                  FamPay Direct
-                </span>
+                {[
+                  { name: 'Google Pay', color: 'bg-[#22c55e]' },
+                  { name: 'PhonePe', color: 'bg-[#8b5cf6]' },
+                  { name: 'Paytm / BHIM UPI', color: 'bg-[#38bdf8]' },
+                  { name: 'USDT (TRC-20 & BEP-20)', color: 'bg-[#22c55e]' },
+                  { name: 'FamPay Direct', color: 'bg-[#f59e0b]' },
+                ].map((item) => (
+                  <span
+                    key={item.name}
+                    className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
+                      isLight
+                        ? 'bg-slate-100 border-slate-200 text-slate-800'
+                        : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
+                    {item.name}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -758,7 +757,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search app (WhatsApp, Telegram, OpenAI...) or country (India, USA, UK...)"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#12131a] border border-[#22232e] text-xs text-white placeholder-[#71717a] focus:outline-none focus:border-[#7c3aed] transition-colors"
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-xs placeholder-[#71717a] focus:outline-none focus:border-[#7c3aed] transition-colors ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
+                      : 'bg-[#12131a] border-[#22232e] text-white'
+                  }`}
                 />
               </div>
 
@@ -766,7 +769,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 <select
                   value={selectedCountry}
                   onChange={(e) => setSelectedCountry(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#12131a] border border-[#22232e] text-xs text-white focus:outline-none focus:border-[#7c3aed] cursor-pointer"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-[#7c3aed] cursor-pointer ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
+                      : 'bg-[#12131a] border-[#22232e] text-white'
+                  }`}
                 >
                   <option value="all">All Regions &amp; Countries</option>
                   <option value="india">India 🇮🇳</option>
@@ -785,7 +792,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   onClick={() => setSelectedServiceId(service.id)}
                   className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                     selectedServiceId === service.id
-                      ? 'bg-[#151622] border-[#7c3aed] shadow-md shadow-[#7c3aed]/10'
+                      ? isLight
+                        ? 'bg-white border-[#7c3aed] shadow-md ring-2 ring-[#7c3aed]/20'
+                        : 'bg-[#151622] border-[#7c3aed] shadow-md shadow-[#7c3aed]/10'
+                      : isLight
+                      ? 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
                       : 'bg-[#12131a] border-[#20212c] hover:border-[#2e3040]'
                   }`}
                 >
@@ -807,11 +818,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                       {service.description}
                     </p>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-mono text-[#a1a1aa]">
-                      <span className="px-2 py-0.5 rounded bg-[#181924] border border-[#262736]">
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-mono">
+                      <span
+                        className={`px-2 py-0.5 rounded border ${
+                          isLight
+                            ? 'bg-slate-100 border-slate-200 text-slate-700 font-medium'
+                            : 'bg-[#181924] border-[#262736] text-[#a1a1aa]'
+                        }`}
+                      >
                         {service.format}
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-[#181924] border border-[#262736] text-[#38bdf8]">
+                      <span
+                        className={`px-2 py-0.5 rounded border ${
+                          isLight
+                            ? 'bg-sky-50 border-sky-200 text-sky-700 font-semibold'
+                            : 'bg-[#181924] border-[#262736] text-[#38bdf8]'
+                        }`}
+                      >
                         {service.speed}
                       </span>
                     </div>
@@ -834,7 +857,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         e.stopPropagation();
                         triggerGooglePrompt();
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-[#1c1d29] hover:bg-[#7c3aed] hover:text-white text-xs font-semibold text-[#d4d4d8] border border-[#2a2b3a] transition-all cursor-pointer flex items-center gap-1"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
+                        isLight
+                          ? 'bg-slate-100 hover:bg-[#7c3aed] text-slate-800 hover:text-white border-slate-200 shadow-sm'
+                          : 'bg-[#1c1d29] hover:bg-[#7c3aed] hover:text-white text-[#d4d4d8] border-[#2a2b3a]'
+                      }`}
                     >
                       <span>Get Number</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -851,9 +878,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             )}
 
             {/* Interactive Rate Estimator Bar */}
-            <div className="mt-8 p-5 rounded-xl bg-[#12131a] border border-[#22232e] flex flex-col md:flex-row items-center justify-between gap-4">
+            <div
+              className={`mt-8 p-5 rounded-xl border flex flex-col md:flex-row items-center justify-between gap-4 ${
+                isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+              }`}
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#1c1d29] border border-[#282a3a] flex items-center justify-center shrink-0 text-[#38bdf8]">
+                <div
+                  className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
+                    isLight ? 'bg-sky-50 border-sky-200 text-sky-700' : 'bg-[#1c1d29] border-[#282a3a] text-[#38bdf8]'
+                  }`}
+                >
                   <Cpu className="w-5 h-5" />
                 </div>
                 <div>
@@ -877,7 +912,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     max="100"
                     value={calcQuantity}
                     onChange={(e) => setCalcQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-16 px-2.5 py-1 rounded-lg bg-[#181924] border border-[#2a2b3a] text-xs font-mono text-center text-white focus:outline-none focus:border-[#7c3aed]"
+                    className={`w-16 px-2.5 py-1 rounded-lg border text-xs font-mono text-center focus:outline-none focus:border-[#7c3aed] ${
+                      isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-[#181924] border-[#2a2b3a] text-white'
+                    }`}
                   />
                 </div>
 
@@ -920,7 +957,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Server 1: LZT Market Imported Accounts */}
-              <div className="p-6 rounded-2xl bg-[#12131a] border border-[#22232e] flex flex-col justify-between">
+              <div
+                className={`p-6 rounded-2xl border flex flex-col justify-between ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                }`}
+              >
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[#38bdf8] flex items-center justify-center font-bold">
@@ -945,7 +986,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </div>
 
               {/* Server 2: Fresh & Vintage Telegram Sessions */}
-              <div className="p-6 rounded-2xl bg-[#12131a] border border-[#22232e] flex flex-col justify-between">
+              <div
+                className={`p-6 rounded-2xl border flex flex-col justify-between ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                }`}
+              >
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[#a78bfa] flex items-center justify-center font-bold">
@@ -970,7 +1015,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </div>
 
               {/* Server 3 & 4: Virtual SMS OTP Pools */}
-              <div className="p-6 rounded-2xl bg-[#12131a] border border-[#22232e] flex flex-col justify-between">
+              <div
+                className={`p-6 rounded-2xl border flex flex-col justify-between ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                }`}
+              >
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[#22c55e] flex items-center justify-center font-bold">
@@ -995,7 +1044,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </div>
 
               {/* Server 5: Social Media SMM Panel */}
-              <div className="p-6 rounded-2xl bg-[#12131a] border border-[#22232e] flex flex-col justify-between">
+              <div
+                className={`p-6 rounded-2xl border flex flex-col justify-between ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                }`}
+              >
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[#f59e0b] flex items-center justify-center font-bold">
@@ -1038,7 +1091,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-5 rounded-xl bg-[#12131a] border border-[#22232e]">
+              <div
+                className={`p-5 rounded-xl border ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                }`}
+              >
                 <div className="w-8 h-8 rounded-lg bg-[#7c3aed] text-white font-black text-xs flex items-center justify-center mb-3 landing-step-num">
                   1
                 </div>
@@ -1048,7 +1105,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-[#12131a] border border-[#22232e]">
+              <div
+                className={`p-5 rounded-xl border ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                }`}
+              >
                 <div className="w-8 h-8 rounded-lg bg-[#38bdf8] text-white font-black text-xs flex items-center justify-center mb-3 landing-step-num">
                   2
                 </div>
@@ -1058,7 +1119,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-[#12131a] border border-[#22232e]">
+              <div
+                className={`p-5 rounded-xl border ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                }`}
+              >
                 <div className="w-8 h-8 rounded-lg bg-[#22c55e] text-white font-black text-xs flex items-center justify-center mb-3 landing-step-num">
                   3
                 </div>
@@ -1068,7 +1133,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-[#12131a] border border-[#22232e]">
+              <div
+                className={`p-5 rounded-xl border ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                }`}
+              >
                 <div className="w-8 h-8 rounded-lg bg-[#f59e0b] text-white font-black text-xs flex items-center justify-center mb-3 landing-step-num">
                   4
                 </div>
@@ -1097,7 +1166,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               {faqItems.map((item, idx) => (
                 <div
                   key={idx}
-                  className="rounded-xl bg-[#12131a] border border-[#22232e] overflow-hidden"
+                  className={`rounded-xl border overflow-hidden ${
+                    isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
+                  }`}
                 >
                   <button
                     onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
