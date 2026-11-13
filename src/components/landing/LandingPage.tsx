@@ -433,11 +433,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               }}
             />
             <div className="flex flex-col">
-              <span className="font-extrabold text-base sm:text-lg tracking-tight text-white flex items-center gap-2">
+              <span className="font-extrabold text-base sm:text-lg tracking-tight text-white">
                 Deamon OTP
-                <span className="text-[10px] font-mono font-bold bg-emerald-500/10 text-[#22c55e] border border-emerald-500/30 px-1.5 py-0.2 rounded-full">
-                  OPERATIONAL
-                </span>
               </span>
               <span className="hidden sm:block text-[10px] text-[#71717a] font-medium">
                 Virtual Numbers &amp; Telegram Sessions
