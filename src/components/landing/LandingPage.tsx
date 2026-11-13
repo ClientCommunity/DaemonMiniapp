@@ -420,22 +420,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
       <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-[#090a0f]/90 border-b border-[#1b1c24] landing-header">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 shadow-md shadow-[#7c3aed]/25 flex items-center justify-center shrink-0">
-              <div className="w-full h-full bg-[#111217] rounded-[10px] flex items-center justify-center p-1 landing-logo-inner overflow-hidden">
-                <img
-                  src={LOGO_URL}
-                  alt="Deamon OTP Logo"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    if (!target.src.endsWith('deamon-logo.webp')) {
-                      target.src = './deamon-logo.webp';
-                    }
-                  }}
-                />
-              </div>
-            </div>
+          <div className="flex items-center gap-2.5">
+            <img
+              src={LOGO_URL}
+              alt="Deamon OTP Logo"
+              className="w-8 h-8 object-contain shrink-0"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.src.endsWith('deamon-logo.webp')) {
+                  target.src = './deamon-logo.webp';
+                }
+              }}
+            />
             <div className="flex flex-col">
               <span className="font-extrabold text-base sm:text-lg tracking-tight text-white flex items-center gap-2">
                 Deamon OTP
@@ -1256,21 +1252,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         {/* BOTTOM CALL TO ACTION */}
         <section className="py-16 sm:py-20 border-b border-[#1b1c24] relative overflow-hidden">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 mx-auto mb-5 shadow-lg shadow-[#7c3aed]/20 flex items-center justify-center shrink-0">
-              <div className="w-full h-full bg-[#111217] rounded-[14px] flex items-center justify-center p-1.5 landing-logo-inner overflow-hidden">
-                <img
-                  src={LOGO_URL}
-                  alt="Deamon OTP Logo"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    if (!target.src.endsWith('deamon-logo.webp')) {
-                      target.src = './deamon-logo.webp';
-                    }
-                  }}
-                />
-              </div>
-            </div>
+            <img
+              src={LOGO_URL}
+              alt="Deamon OTP Logo"
+              className="w-14 h-14 object-contain mx-auto mb-5 shrink-0"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.src.endsWith('deamon-logo.webp')) {
+                  target.src = './deamon-logo.webp';
+                }
+              }}
+            />
 
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Start Receiving OTPs &amp; Downloading Sessions
@@ -1343,21 +1335,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Column 1: Brand & Operational Status (Span 4) */}
             <div className="lg:col-span-4 flex flex-col">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5 flex items-center justify-center shrink-0">
-                  <div className="w-full h-full bg-[#111217] rounded-[7px] flex items-center justify-center p-1 landing-logo-inner overflow-hidden">
-                    <img
-                      src={LOGO_URL}
-                      alt="Deamon OTP Logo"
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        if (!target.src.endsWith('deamon-logo.webp')) {
-                          target.src = './deamon-logo.webp';
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
+                <img
+                  src={LOGO_URL}
+                  alt="Deamon OTP Logo"
+                  className="w-6 h-6 object-contain shrink-0"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.src.endsWith('deamon-logo.webp')) {
+                      target.src = './deamon-logo.webp';
+                    }
+                  }}
+                />
                 <span className="font-extrabold text-sm tracking-tight text-white">
                   Deamon OTP Store
                 </span>
