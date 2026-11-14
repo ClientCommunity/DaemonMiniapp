@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { authApi, GoogleAuthResponse } from '../../api/endpoints';
+import { authApi, webAuthApi, GoogleAuthResponse } from '../../api/endpoints';
 import { setWebUserToken } from '../../api/client';
 import { BackendUserPayload } from '../../api/adapters';
 import { useApp } from '../../context/AppContext';
+import { OtpVerificationModal } from '../auth/OtpVerificationModal';
+import { ForgotPasswordModal } from '../auth/ForgotPasswordModal';
+import { ResetPasswordModal } from '../auth/ResetPasswordModal';
 import {
   ShieldCheck,
   Lock,
@@ -95,6 +98,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   const [emailAuthNotice, setEmailAuthNotice] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
 
+  // Modals for Email OTP Verification, Forgot Password, and Reset Password
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+
+  // Listen for reset-password action in URL search parameters
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'reset-password' && params.get('token')) {
+        setResetToken(params.get('token')!);
+        setIsResetModalOpen(true);
+      }
+    } catch {}
+  }, []);
+
   const scrollToAuth = (mode?: 'signin' | 'register') => {
     if (mode) setAuthMode(mode);
     setEmailAuthNotice(null);
@@ -104,26 +126,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleEmailLoginSubmit = (e: React.FormEvent) => {
+  const handleEmailLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail.trim() || !loginPassword.trim()) {
       setEmailAuthNotice({ type: 'error', text: 'Please enter both your email and password.' });
       return;
     }
     setIsSubmittingEmail(true);
-    setEmailAuthNotice({
-      type: 'info',
-      text: 'Email sign-in cluster is connecting to our production API. In the meantime, 1-click Google Login is fully active!',
-    });
-    setTimeout(() => setIsSubmittingEmail(false), 800);
-  };
-
-  const handleEmailRegisterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!regUsername.trim() || !regEmail.trim() || !regPassword.trim() || !regWhatsapp.trim()) {
+    setEmailAuthNotice(null);
+    try {
+      const res = await webAuthApi.login({
+        email: loginEmail.trim(),
+        password: loginPassword,
+      });
+      if (res.success && res.token && res.user) {
+        setWebUserToken(res.token);
+        onLoginSuccess(res.token, res.user);
+      } else if (res.requires_verification) {
+        setOtpEmail(res.email || loginEmail.trim());
+        setIsOtpModalOpen(true);
+        setEmailAuthNotice({
+          type: 'info',
+          text: 'Please enter the 6-digit confirmation code sent to your email.',
+        });
+      } else {
+        setEmailAuthNotice({
+          type: 'error',
+          text: res.error || 'Failed to sign in. Please verify your credentials.',
+        });
+      }
+    } catch (err: unknown) {
       setEmailAuthNotice({
         type: 'error',
-        text: 'Please enter Username, Email, Password, and WhatsApp Mobile Number.',
+        text: err instanceof Error ? err.message : 'Network error. Please try again.',
+      });
+    } finally {
+      setIsSubmittingEmail(false);
+    }
+  };
+
+  const handleEmailRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regEmail.trim() || !regPassword.trim()) {
+      setEmailAuthNotice({
+        type: 'error',
+        text: 'Please enter your Email and Password.',
       });
       return;
     }
@@ -135,11 +182,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
       return;
     }
     setIsSubmittingEmail(true);
-    setEmailAuthNotice({
-      type: 'success',
-      text: `Account profile saved for @${regUsername}! A 6-digit confirmation OTP will be sent to ${regEmail} via official@daemonx.in. Google Login is also available immediately.`,
-    });
-    setTimeout(() => setIsSubmittingEmail(false), 800);
+    setEmailAuthNotice(null);
+    try {
+      const res = await webAuthApi.register({
+        email: regEmail.trim(),
+        password: regPassword,
+        whatsapp: regWhatsapp.trim(),
+        username: regUsername.trim(),
+      });
+      if (res.success) {
+        setOtpEmail(res.email || regEmail.trim());
+        setIsOtpModalOpen(true);
+        setEmailAuthNotice({
+          type: 'success',
+          text: 'Verification code sent! Please check your inbox.',
+        });
+      } else {
+        setEmailAuthNotice({
+          type: 'error',
+          text: res.error || 'Registration failed. Please try again.',
+        });
+      }
+    } catch (err: unknown) {
+      setEmailAuthNotice({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Network error. Please try again.',
+      });
+    } finally {
+      setIsSubmittingEmail(false);
+    }
+  };
+
+  const handleOtpSuccess = (token: string, user: BackendUserPayload) => {
+    setIsOtpModalOpen(false);
+    setWebUserToken(token);
+    onLoginSuccess(token, user);
   };
 
   // Enforce light theme mode on document root for the Lavender Dream visual identity
@@ -985,12 +1062,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         </label>
                         <button
                           type="button"
-                          onClick={() => {
-                            setEmailAuthNotice({
-                              type: 'info',
-                              text: 'Password reset links are dispatched via official@daemonx.in to your registered backup email.',
-                            });
-                          }}
+                          onClick={() => setIsForgotModalOpen(true)}
                           className="text-xs font-semibold hover:underline cursor-pointer"
                           style={{ color: '#6D28D9' }}
                         >
@@ -1040,17 +1112,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   {authMode === 'register' && (
                     <form onSubmit={handleEmailRegisterSubmit} className="space-y-2.5">
                       <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#514364' }}>
-                          Username
-                        </label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#514364' }}>
+                            Full Name / Display Name
+                          </label>
+                          <span className="text-[10px] font-medium" style={{ color: '#74638B' }}>Optional</span>
+                        </div>
                         <div className="relative">
                           <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
                           <input
                             type="text"
-                            required
                             value={regUsername}
                             onChange={(e) => setRegUsername(e.target.value)}
-                            placeholder="krish_trader"
+                            placeholder="John Doe"
                             className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border focus:outline-none transition-all"
                             style={{
                               backgroundColor: '#FAF8FF',
@@ -1119,14 +1193,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#514364' }}>
-                          WhatsApp Mobile Number
-                        </label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#514364' }}>
+                            WhatsApp Mobile Number
+                          </label>
+                          <span className="text-[10px] font-medium" style={{ color: '#74638B' }}>Optional</span>
+                        </div>
                         <div className="relative">
                           <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
                           <input
                             type="tel"
-                            required
                             value={regWhatsapp}
                             onChange={(e) => setRegWhatsapp(e.target.value)}
                             placeholder="+91 98765 43210"
@@ -2525,6 +2601,38 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           </div>
         </div>
       </footer>
+
+      {/* Auth Modals: Email OTP, Forgot Password, and Reset Password */}
+      <OtpVerificationModal
+        isOpen={isOtpModalOpen}
+        email={otpEmail}
+        onClose={() => setIsOtpModalOpen(false)}
+        onSuccess={handleOtpSuccess}
+      />
+      <ForgotPasswordModal
+        isOpen={isForgotModalOpen}
+        initialEmail={loginEmail}
+        onClose={() => setIsForgotModalOpen(false)}
+      />
+      <ResetPasswordModal
+        isOpen={isResetModalOpen}
+        token={resetToken}
+        onClose={() => {
+          setIsResetModalOpen(false);
+          if (typeof window !== 'undefined' && window.history?.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        }}
+        onSuccess={() => {
+          setIsResetModalOpen(false);
+          setAuthMode('signin');
+          setEmailAuthNotice({
+            type: 'success',
+            text: 'Password updated! Please log in with your new password.',
+          });
+          scrollToAuth('signin');
+        }}
+      />
     </div>
   );
 };
