@@ -53,7 +53,18 @@ const AppContent: React.FC = () => {
   };
 
   const isTg = isTelegramWebApp();
-  const [webToken, setWebToken] = useState<string | null>(getWebUserToken());
+  const [webToken, setWebToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const search = window.location.search || '';
+      if (search.includes('action=reset-password')) {
+        try {
+          localStorage.removeItem('deamon_web_token_v1');
+        } catch {}
+        return null;
+      }
+    }
+    return getWebUserToken();
+  });
 
   const handleGoogleLoginSuccess = async (token: string) => {
     setWebToken(token);

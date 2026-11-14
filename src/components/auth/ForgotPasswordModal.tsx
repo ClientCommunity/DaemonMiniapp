@@ -40,7 +40,8 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
     setErrorMsg(null);
 
     try {
-      const res = await webAuthApi.forgotPassword({ email: clean });
+      const clientUrl = typeof window !== 'undefined' ? window.location.href.split('?')[0].split('#')[0] : '';
+      const res = await webAuthApi.forgotPassword({ email: clean, client_url: clientUrl });
       if (res.success) {
         setIsSent(true);
       } else {

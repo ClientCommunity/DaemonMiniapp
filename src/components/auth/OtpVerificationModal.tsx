@@ -53,6 +53,29 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleVerifyDirect = async (code: string) => {
+    if (code.length !== 6 || isVerifying) return;
+
+    setIsVerifying(true);
+    setErrorMsg(null);
+
+    try {
+      const res: WebAuthResponse = await webAuthApi.verifyOtp({ email, otp: code });
+      if (res.success && res.token && res.user) {
+        setSuccessMsg('Account verified successfully! Redirecting...');
+        setTimeout(() => {
+          onSuccess(res.token!, res.user);
+        }, 600);
+      } else {
+        setErrorMsg(res.error || 'Failed to verify code. Please check and try again.');
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Network error. Please try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const handleDigitChange = (index: number, val: string) => {
     // Only accept digits
     const cleaned = val.replace(/\D/g, '');
@@ -70,9 +93,13 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
     setDigits(next);
     setErrorMsg(null);
 
-    // Auto-advance to next input
+    // Auto-advance to next input or auto-submit
     if (index < 5) {
       inputsRef.current[index + 1]?.focus();
+    } else if (index === 5 && next.every((d) => d.length === 1)) {
+      setTimeout(() => {
+        handleVerifyDirect(next.join(''));
+      }, 50);
     }
   };
 
@@ -96,6 +123,12 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
 
     const focusIdx = Math.min(pasted.length, 5);
     inputsRef.current[focusIdx]?.focus();
+
+    if (pasted.length === 6) {
+      setTimeout(() => {
+        handleVerifyDirect(pasted);
+      }, 50);
+    }
   };
 
   const formatCountdown = (seconds: number) => {
@@ -111,25 +144,7 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
       setErrorMsg('Please enter all 6 digits of your verification code.');
       return;
     }
-
-    setIsVerifying(true);
-    setErrorMsg(null);
-
-    try {
-      const res: WebAuthResponse = await webAuthApi.verifyOtp({ email, otp });
-      if (res.success && res.token && res.user) {
-        setSuccessMsg('Account verified successfully! Redirecting...');
-        setTimeout(() => {
-          onSuccess(res.token!, res.user);
-        }, 600);
-      } else {
-        setErrorMsg(res.error || 'Failed to verify code. Please check and try again.');
-      }
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Network error. Please try again.');
-    } finally {
-      setIsVerifying(false);
-    }
+    await handleVerifyDirect(otp);
   };
 
   const handleResend = async () => {

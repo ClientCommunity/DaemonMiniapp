@@ -384,7 +384,7 @@ export const webAuthApi = {
     api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/resend-otp', data),
   login: (data: { email: string; password: string }) =>
     api.post<WebAuthResponse>('/api/web/auth/login', data),
-  forgotPassword: (data: { email: string }) =>
+  forgotPassword: (data: { email: string; client_url?: string }) =>
     api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/forgot-password', data),
   verifyResetToken: (token: string) =>
     api.get<{ success: boolean; valid?: boolean; error?: string }>(`/api/web/auth/verify-reset-token?token=${encodeURIComponent(token)}`),
@@ -394,6 +394,10 @@ export const webAuthApi = {
     api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/change-password', data),
   getSettings: () =>
     api.get<WebSettingsResponse>('/api/web/profile/settings'),
+  requestTelegramLinkOtp: (telegram_user_id: number | string) =>
+    api.post<{ success: boolean; message?: string; error?: string }>('/api/web/profile/link-telegram/request', { telegram_user_id }),
+  verifyTelegramLink: (data: { telegram_user_id: number | string; otp_code: string }) =>
+    api.post<{ success: boolean; message?: string; error?: string; balance?: number; promo_balance?: number; account_link?: any }>('/api/web/profile/link-telegram/verify', data),
 };
 
 /**

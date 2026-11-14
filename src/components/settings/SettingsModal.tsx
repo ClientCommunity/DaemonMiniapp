@@ -22,7 +22,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { user, addToast, formatPrice } = useApp();
+  const { user, addToast, formatPrice, refreshUser } = useApp();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'telegram' | 'developer'>('profile');
 
   // Profile data from backend
@@ -107,7 +107,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     }
   };
 
-  const handleSendTelegramOtp = (e: React.FormEvent) => {
+  const handleSendTelegramOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanId = telegramIdInput.trim();
     if (!cleanId || !/^\d+$/.test(cleanId)) {
@@ -118,20 +118,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     setIsSendingTgOtp(true);
     setTgNotice(null);
 
-    // Simulated / staged connection initiation for review
-    setTimeout(() => {
+    try {
+      const res = await webAuthApi.requestTelegramLinkOtp(cleanId);
+      if (res.success) {
+        setTelegramOtpSent(true);
+        setTgNotice({
+          type: 'success',
+          text: res.message || `A 6-digit verification code has been dispatched to Telegram ID ${cleanId} via @DeamonOTPbot. Check your Telegram chat!`,
+        });
+      } else {
+        setTgNotice({
+          type: 'error',
+          text: res.error || 'Failed to send verification code to Telegram.',
+        });
+      }
+    } catch {
+      setTgNotice({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
       setIsSendingTgOtp(false);
-      setTelegramOtpSent(true);
-      setTgNotice({
-        type: 'success',
-        text: `A 6-digit verification code has been dispatched to Telegram ID ${cleanId} via @DeamonOTPbot. Check your Telegram chat!`,
-      });
-    }, 800);
+    }
   };
 
-  const handleVerifyTelegramLink = (e: React.FormEvent) => {
+  const handleVerifyTelegramLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (telegramOtpInput.length !== 6) {
+    const cleanId = telegramIdInput.trim();
+    const cleanOtp = telegramOtpInput.trim();
+    if (cleanOtp.length !== 6) {
       setTgNotice({ type: 'error', text: 'Please enter the 6-digit code sent to your Telegram bot.' });
       return;
     }
@@ -139,14 +151,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     setIsLinkingTg(true);
     setTgNotice(null);
 
-    setTimeout(() => {
-      setIsLinkingTg(false);
-      setTgNotice({
-        type: 'success',
-        text: 'Telegram Account Linked! Balances and order history are now combined across both platforms.',
+    try {
+      const res = await webAuthApi.verifyTelegramLink({
+        telegram_user_id: cleanId,
+        otp_code: cleanOtp,
       });
-      addToast('Telegram account linked successfully!', 'success', 'Linked');
-    }, 900);
+      if (res.success) {
+        setTgNotice({
+          type: 'success',
+          text: res.message || 'Telegram Account Linked! Balances and order history are now combined across both platforms.',
+        });
+        addToast('Telegram account linked successfully!', 'success', 'Linked');
+        webAuthApi.getSettings().then((sRes) => {
+          if (sRes.success) setSettingsData(sRes);
+        }).catch(() => {});
+        refreshUser().catch(() => {});
+      } else {
+        setTgNotice({
+          type: 'error',
+          text: res.error || 'Failed to link account. Please check the code.',
+        });
+      }
+    } catch {
+      setTgNotice({ type: 'error', text: 'Network error during linking verification.' });
+    } finally {
+      setIsLinkingTg(false);
+    }
   };
 
   return (
@@ -360,7 +390,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
               )}
 
-              {!telegramOtpSent ? (
+              {settingsData?.account_link ? (
+                <div className="p-5 rounded-2xl bg-[#1a1a24] border border-emerald-500/30 flex flex-col items-center text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-bold text-white">Accounts Linked &amp; Synchronized</h4>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      Connected to Telegram ID: <span className="font-mono text-emerald-400 font-semibold">{settingsData.account_link.telegram_user_id}</span>
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#14141b] border border-[#2a2a38] text-[11px] text-zinc-400 text-left w-full space-y-1">
+                    <p>&bull; Wallet balances are merged across website and Telegram bot.</p>
+                    <p>&bull; Order history and active OTP orders are visible across both platforms.</p>
+                    <p>&bull; Linked on: <span className="text-zinc-300 font-mono">{settingsData.account_link.created_at || 'Active'}</span></p>
+                  </div>
+                </div>
+              ) : !telegramOtpSent ? (
                 <form onSubmit={handleSendTelegramOtp} className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
