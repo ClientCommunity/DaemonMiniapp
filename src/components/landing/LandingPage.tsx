@@ -14,8 +14,6 @@ import {
   RefreshCw,
   ChevronDown,
   HelpCircle,
-  Sun,
-  Moon,
   CheckCircle2,
   Download,
   Radio,
@@ -27,6 +25,7 @@ import {
   Plus,
   Minus,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 
 const GOOGLE_CLIENT_ID =
@@ -57,8 +56,7 @@ interface ServiceItem {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
-  const { theme, toggleTheme } = useApp();
-  const isLight = theme === 'light';
+  const { theme, setTheme } = useApp();
 
   const heroGoogleBtnRef = useRef<HTMLDivElement>(null);
   const ctaGoogleBtnRef = useRef<HTMLDivElement>(null);
@@ -73,6 +71,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
   const [calcQuantity, setCalcQuantity] = useState<number>(1);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('tg_in');
+
+  // Enforce light theme mode on document root for the Lavender Dream visual identity
+  useEffect(() => {
+    try {
+      if (theme !== 'light' && typeof setTheme === 'function') {
+        setTheme('light');
+      }
+      const root = document.documentElement;
+      root.classList.remove('dark');
+      root.classList.add('light');
+      root.style.colorScheme = 'light';
+    } catch {
+      // Safe fallback
+    }
+  }, [theme, setTheme]);
 
   const handleCredentialResponse = async (response: { credential?: string }) => {
     if (!response.credential) {
@@ -142,7 +155,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           if (heroGoogleBtnRef.current) {
             heroGoogleBtnRef.current.innerHTML = '';
             google.accounts.id.renderButton(heroGoogleBtnRef.current, {
-              theme: isLight ? 'outline' : 'filled_black',
+              theme: 'outline',
               size: 'large',
               text: 'continue_with',
               shape: 'pill',
@@ -154,7 +167,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           if (ctaGoogleBtnRef.current) {
             ctaGoogleBtnRef.current.innerHTML = '';
             google.accounts.id.renderButton(ctaGoogleBtnRef.current, {
-              theme: isLight ? 'outline' : 'filled_black',
+              theme: 'outline',
               size: 'large',
               text: 'signin_with',
               shape: 'pill',
@@ -179,7 +192,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     return () => {
       if (checkInterval) clearInterval(checkInterval);
     };
-  }, [isLight]);
+  }, []);
 
   const triggerGooglePrompt = () => {
     try {
@@ -416,34 +429,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
   return (
     <div
-      className={`w-full min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-[#7c3aed] selection:text-white ${
-        isLight ? 'bg-slate-50 text-slate-900' : 'bg-[#090a0f] text-white'
-      }`}
+      className="w-full min-h-screen flex flex-col font-sans selection:bg-[#6D28D9] selection:text-white"
+      style={{
+        backgroundColor: '#FAF8FF',
+        color: '#514364',
+      }}
     >
-      {/* Subtle Structural Top Grid Accent */}
-      <div
-        className={`absolute top-0 left-0 right-0 h-96 pointer-events-none z-0 ${
-          isLight
-            ? 'bg-[radial-gradient(ellipse_80%_40%_at_50%_-20%,rgba(124,58,237,0.08),transparent)]'
-            : 'bg-[radial-gradient(ellipse_80%_40%_at_50%_-20%,rgba(124,58,237,0.12),transparent)]'
-        }`}
-      />
-
-      {/* Top Header Navigation */}
+      {/* Top Header Navigation — Lavender Dream Glass */}
       <header
-        className={`sticky top-0 z-50 w-full backdrop-blur-xl border-b transition-colors duration-200 landing-header ${
-          isLight
-            ? 'bg-white/90 border-slate-200'
-            : 'bg-[#090a0f]/90 border-[#1f202b]'
-        }`}
+        className="sticky top-0 z-50 w-full backdrop-blur-md transition-all duration-200"
+        style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.88)',
+          borderBottom: '1px solid #E5DCF4',
+          boxShadow: '0 4px 20px -4px rgba(109, 40, 217, 0.05)',
+        }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          {/* Logo & Brand */}
+          {/* Logo & Brand — Clean, NO square border or background box */}
           <div className="flex items-center gap-3">
             <img
               src={LOGO_URL}
               alt="Deamon OTP Logo"
-              className="w-8 h-8 object-contain shrink-0"
+              className="w-9 h-9 object-contain shrink-0"
               onError={(e) => {
                 const target = e.currentTarget;
                 if (!target.src.endsWith('deamon-logo.webp')) {
@@ -453,16 +460,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             />
             <div className="flex flex-col">
               <span
-                className={`font-black text-base sm:text-lg tracking-tight ${
-                  isLight ? 'text-slate-900' : 'text-white'
-                }`}
+                className="font-black text-base sm:text-lg tracking-tight"
+                style={{ color: '#211536' }}
               >
                 Deamon OTP
               </span>
               <span
-                className={`hidden sm:block text-[11px] font-medium ${
-                  isLight ? 'text-slate-500' : 'text-[#71717a]'
-                }`}
+                className="hidden sm:block text-[11px] font-medium"
+                style={{ color: '#74638B' }}
               >
                 Virtual Numbers &amp; Telegram Sessions
               </span>
@@ -470,69 +475,48 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           </div>
 
           {/* Direct Nav Anchor Links */}
-          <nav
-            className={`hidden md:flex items-center gap-7 text-xs font-semibold ${
-              isLight ? 'text-slate-600' : 'text-[#94a3b8]'
-            }`}
-          >
+          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold">
             <a
               href="#rates"
-              className={`transition-colors ${
-                isLight ? 'hover:text-slate-900' : 'hover:text-white'
-              }`}
+              className="transition-colors hover:text-[#6D28D9]"
+              style={{ color: '#514364' }}
             >
               Live Rates &amp; Stock
             </a>
             <a
               href="#servers"
-              className={`transition-colors ${
-                isLight ? 'hover:text-slate-900' : 'hover:text-white'
-              }`}
+              className="transition-colors hover:text-[#6D28D9]"
+              style={{ color: '#514364' }}
             >
               Server Architecture
             </a>
             <a
               href="#how-it-works"
-              className={`transition-colors ${
-                isLight ? 'hover:text-slate-900' : 'hover:text-white'
-              }`}
+              className="transition-colors hover:text-[#6D28D9]"
+              style={{ color: '#514364' }}
             >
               Order Flow
             </a>
             <a
               href="#faq"
-              className={`transition-colors ${
-                isLight ? 'hover:text-slate-900' : 'hover:text-white'
-              }`}
+              className="transition-colors hover:text-[#6D28D9]"
+              style={{ color: '#514364' }}
             >
               FAQ
             </a>
           </nav>
 
-          {/* Header Action Buttons */}
+          {/* Header Action Button — Primary Purple #6D28D9 */}
           <div className="flex items-center gap-3">
-            {/* Theme Switcher - Apple HIG 44px Touch Target */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
-                isLight
-                  ? 'bg-white hover:bg-slate-100 border-slate-300 shadow-sm text-[#7c3aed]'
-                  : 'bg-[#14151c] hover:bg-[#1a1b24] border-[#22232e] text-[#f59e0b]'
-              }`}
-              title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-              aria-label="Toggle Theme"
-            >
-              {isLight ? (
-                <Moon className="w-4 h-4 text-[#7c3aed]" />
-              ) : (
-                <Sun className="w-4 h-4 text-[#f59e0b]" />
-              )}
-            </button>
-
             <button
               onClick={triggerGooglePrompt}
-              className="min-h-[44px] px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] text-xs font-bold text-white shadow-md shadow-[#7c3aed]/25 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95"
+              style={{
+                backgroundColor: '#6D28D9',
+                boxShadow: '0 4px 14px 0 rgba(109, 40, 217, 0.28)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#542C85')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
             >
               <span>Sign In with Google</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -543,145 +527,166 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 flex flex-col">
-        {/* HERO SECTION */}
+        {/* HERO SECTION — Atmospheric Lavender Radial Gradients */}
         <section
-          className={`relative pt-12 pb-16 sm:pt-20 sm:pb-24 border-b ${
-            isLight ? 'border-slate-200' : 'border-[#1b1c24]'
-          }`}
+          className="relative pt-12 pb-16 sm:pt-20 sm:pb-24 border-b"
+          style={{
+            background:
+              'radial-gradient(ellipse 70% 50% at 20% 15%, rgba(196, 181, 253, 0.38), transparent 50%), radial-gradient(ellipse 65% 45% at 85% 25%, rgba(221, 208, 255, 0.45), transparent 50%), radial-gradient(ellipse 50% 40% at 50% 85%, rgba(240, 233, 255, 0.6), transparent 55%), #FAF8FF',
+            borderColor: '#E5DCF4',
+          }}
         >
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-start">
               {/* Left Column: Clear Value Proposition */}
               <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
+                {/* Highlight Pill */}
+                <div
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold mb-5 shadow-sm"
+                  style={{
+                    backgroundColor: '#F0E9FF',
+                    border: '1px solid #E5DCF4',
+                    color: '#542C85',
+                  }}
+                >
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: '#6D28D9' }} />
+                  <span>Next-Gen OTP &amp; Session Storefront</span>
+                </div>
+
                 <h1
-                  className={`text-3xl sm:text-5xl font-black tracking-tight leading-[1.12] ${
-                    isLight ? 'text-slate-900' : 'text-white'
-                  }`}
+                  className="text-3xl sm:text-5xl lg:text-[3.25rem] font-black tracking-tight leading-[1.12]"
+                  style={{ color: '#211536' }}
                 >
                   Virtual Numbers &amp;{' '}
                   <span
-                    className={
-                      isLight ? 'text-[#0284c7]' : 'text-[#38bdf8]'
-                    }
+                    className="inline-block"
+                    style={{ color: '#6D28D9' }}
                   >
                     Telegram Session Marketplace
                   </span>
                 </h1>
 
                 <p
-                  className={`mt-5 text-sm sm:text-base leading-relaxed max-w-xl ${
-                    isLight ? 'text-slate-600' : 'text-[#94a3b8]'
-                  }`}
+                  className="mt-5 text-sm sm:text-base leading-relaxed max-w-xl"
+                  style={{ color: '#514364' }}
                 >
                   Receive instant SMS verification codes for 500+ apps across 50+ countries. Download aged
                   2FA-secured Telegram accounts (.session &amp; TData) on demand. Instant UPI and Crypto balance with 100% automated refunds.
                 </p>
 
-                {/* Direct Action Buttons - 44px min-height touch targets */}
+                {/* Direct Action Buttons — 44px min-height touch targets */}
                 <div className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-3">
                   <a
                     href="#rates"
-                    className={`min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 transition-all ${
-                      isLight
-                        ? 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-900'
-                        : 'bg-[#1f202b] hover:bg-[#282a38] border border-[#2c2d3d] text-white'
-                    }`}
+                    className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 transition-all shadow-md active:scale-95"
+                    style={{
+                      backgroundColor: '#6D28D9',
+                      boxShadow: '0 4px 14px 0 rgba(109, 40, 217, 0.28)',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#542C85')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
                   >
-                    <Search className="w-4 h-4 text-[#38bdf8]" />
+                    <Search className="w-4 h-4 text-white" />
                     <span>Explore Live Rates &amp; Stock</span>
                   </a>
                   <a
                     href="https://t.me/DeamonOTPbot"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`min-h-[44px] px-5 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ${
-                      isLight
-                        ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-900'
-                        : 'bg-[#14151c] hover:bg-[#1a1b24] border-[#22232e] text-[#a1a1aa] hover:text-white'
-                    }`}
+                    className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E5DCF4',
+                      color: '#542C85',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#F0E9FF';
+                      e.currentTarget.style.borderColor = '#DDD0FF';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#FFFFFF';
+                      e.currentTarget.style.borderColor = '#E5DCF4';
+                    }}
                   >
-                    <Smartphone className="w-4 h-4 text-[#38bdf8]" />
+                    <Smartphone className="w-4 h-4" style={{ color: '#6D28D9' }} />
                     <span>Open in Telegram (@DeamonOTPbot)</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    <ArrowUpRight className="w-3.5 h-3.5" style={{ color: '#74638B' }} />
                   </a>
                 </div>
 
-                {/* Engineering Benchmarks (Zero Fluff, Real Facts) */}
+                {/* Engineering Benchmarks Strip */}
                 <div
-                  className={`grid grid-cols-2 sm:grid-cols-4 gap-4 mt-10 pt-8 border-t w-full ${
-                    isLight ? 'border-slate-200' : 'border-[#1b1c24]'
-                  }`}
+                  className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-10 pt-8 border-t w-full"
+                  style={{ borderColor: '#E5DCF4' }}
                 >
                   <div className="flex flex-col">
-                    <span className={`text-xl sm:text-2xl font-black font-mono ${isLight ? 'text-emerald-600' : 'text-[#22c55e]'}`}>
+                    <span className="text-xl sm:text-2xl font-black font-mono text-emerald-700">
                       &lt; 4s
                     </span>
-                    <span className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
+                    <span className="text-[11px] font-medium mt-0.5" style={{ color: '#74638B' }}>
                       Average SMS Arrival
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className={`text-xl sm:text-2xl font-black font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    <span className="text-xl sm:text-2xl font-black font-mono" style={{ color: '#211536' }}>
                       500+
                     </span>
-                    <span className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
+                    <span className="text-[11px] font-medium mt-0.5" style={{ color: '#74638B' }}>
                       Supported Services
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className={`text-xl sm:text-2xl font-black font-mono ${isLight ? 'text-[#0284c7]' : 'text-[#38bdf8]'}`}>
+                    <span className="text-xl sm:text-2xl font-black font-mono" style={{ color: '#6D28D9' }}>
                       100%
                     </span>
-                    <span className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
+                    <span className="text-[11px] font-medium mt-0.5" style={{ color: '#74638B' }}>
                       Automated Refunds
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className={`text-xl sm:text-2xl font-black font-mono ${isLight ? 'text-[#7c3aed]' : 'text-[#a78bfa]'}`}>
+                    <span className="text-xl sm:text-2xl font-black font-mono" style={{ color: '#542C85' }}>
                       2FA
                     </span>
-                    <span className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
+                    <span className="text-[11px] font-medium mt-0.5" style={{ color: '#74638B' }}>
                       TData &amp; .session Included
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Google Sign-In Card */}
+              {/* Right Column: Google Sign-In Card — Crisp White with Soft Lavender Shadows */}
               <div className="lg:col-span-5 flex justify-center lg:justify-end w-full" id="auth-box">
                 <div
-                  className={`w-full max-w-md p-6 sm:p-7 rounded-2xl border shadow-xl relative overflow-hidden transition-all duration-200 landing-auth-card ${
-                    isLight
-                      ? 'bg-white border-slate-200'
-                      : 'bg-[#12131a] border-[#22232e]'
-                  }`}
+                  className="w-full max-w-md p-6 sm:p-7 rounded-2xl relative overflow-hidden transition-all duration-200"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5DCF4',
+                    boxShadow: '0 12px 32px -4px rgba(109, 40, 217, 0.08), 0 4px 12px -2px rgba(109, 40, 217, 0.04)',
+                  }}
                 >
-                  <div className="flex items-center gap-3 mb-5">
+                  <div className="flex items-center gap-3.5 mb-5">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        isLight ? 'bg-violet-50 text-[#7c3aed] border border-violet-100' : 'bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] p-0.5'
-                      }`}
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                      style={{
+                        backgroundColor: '#F0E9FF',
+                        border: '1px solid #E5DCF4',
+                        color: '#6D28D9',
+                      }}
                     >
-                      {isLight ? (
-                        <Lock className="w-5 h-5 text-[#7c3aed]" />
-                      ) : (
-                        <div className="w-full h-full bg-[#111217] rounded-[10px] flex items-center justify-center landing-logo-inner">
-                          <Lock className="w-4 h-4 text-[#a78bfa]" />
-                        </div>
-                      )}
+                      <Lock className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      <h2 className="text-base font-bold" style={{ color: '#211536' }}>
                         Sign In to Storefront
                       </h2>
-                      <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-[#a1a1aa]'}`}>
+                      <p className="text-xs" style={{ color: '#74638B' }}>
                         1-click Google authentication
                       </p>
                     </div>
                   </div>
 
                   {errorMessage && (
-                    <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-400 text-xs flex items-start gap-2">
+                    <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-semibold">Authentication Notice: </span>
@@ -694,20 +699,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   <div className="py-2 flex flex-col items-center w-full">
                     <div className="relative w-full max-w-[320px] h-[48px] mx-auto select-none">
                       <div
-                        className={`landing-google-btn w-full h-full rounded-xl flex items-center justify-center gap-3 px-5 transition-all duration-200 border ${
-                          isLoading
-                            ? isLight
-                              ? 'bg-slate-100 border-[#7c3aed]/60 cursor-wait'
-                              : 'bg-[#181824] border-[#7c3aed]/60 cursor-wait'
-                            : isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-300 hover:border-[#7c3aed] shadow-sm cursor-pointer active:scale-[0.98]'
-                            : 'bg-[#181922] hover:bg-[#20212d] border-[#2a2b38] hover:border-[#7c3aed]/60 shadow-sm cursor-pointer active:scale-[0.98]'
-                        }`}
+                        className="landing-google-btn w-full h-full rounded-xl flex items-center justify-center gap-3 px-5 transition-all duration-200 border cursor-pointer active:scale-[0.98]"
+                        style={{
+                          backgroundColor: isLoading ? '#F7F3FF' : '#FFFFFF',
+                          borderColor: '#E5DCF4',
+                          boxShadow: '0 2px 8px -2px rgba(109, 40, 217, 0.08)',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                        onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
                       >
                         {isLoading ? (
                           <div className="flex items-center gap-2.5">
-                            <div className="w-4 h-4 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
-                            <span className={`text-xs font-semibold ${isLight ? 'text-[#7c3aed]' : 'text-[#c4b5fd]'}`}>
+                            <div
+                              className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin"
+                              style={{ borderColor: '#6D28D9', borderTopColor: 'transparent' }}
+                            />
+                            <span className="text-xs font-semibold" style={{ color: '#6D28D9' }}>
                               Signing in with Google...
                             </span>
                           </div>
@@ -719,7 +726,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                               <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
                               <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
                             </svg>
-                            <span className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                            <span className="text-sm font-semibold" style={{ color: '#211536' }}>
                               Continue with Google
                             </span>
                           </div>
@@ -739,27 +746,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                       />
                     </div>
 
-                    <p className={`text-[11px] text-center mt-3 ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
+                    <p className="text-[11px] text-center mt-3" style={{ color: '#74638B' }}>
                       Instant wallet allocation in Indian Rupees (₹) &amp; USDT ($)
                     </p>
                   </div>
 
                   {/* Security Points */}
                   <div
-                    className={`mt-5 pt-4 border-t space-y-2 ${
-                      isLight ? 'border-slate-200' : 'border-[#1b1c24]'
-                    }`}
+                    className="mt-5 pt-4 border-t space-y-2.5"
+                    style={{ borderColor: '#E5DCF4' }}
                   >
-                    <div className={`flex items-center gap-2 text-xs ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
-                      <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-emerald-600' : 'text-[#22c55e]'}`} />
+                    <div className="flex items-center gap-2 text-xs" style={{ color: '#514364' }}>
+                      <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
                       <span>Zero setup fee • Automatic refunds if code doesn&apos;t arrive</span>
                     </div>
-                    <div className={`flex items-center gap-2 text-xs ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
-                      <CreditCard className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#0284c7]' : 'text-[#38bdf8]'}`} />
+                    <div className="flex items-center gap-2 text-xs" style={{ color: '#514364' }}>
+                      <CreditCard className="w-3.5 h-3.5 shrink-0" style={{ color: '#6D28D9' }} />
                       <span>Instant deposit via UPI (GPay/PhonePe/Paytm) &amp; USDT</span>
                     </div>
-                    <div className={`flex items-center gap-2 text-xs ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
-                      <Radio className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#7c3aed]' : 'text-[#a78bfa]'}`} />
+                    <div className="flex items-center gap-2 text-xs" style={{ color: '#514364' }}>
+                      <Radio className="w-3.5 h-3.5 shrink-0" style={{ color: '#542C85' }} />
                       <span>Synced in real-time with @DeamonOTPbot</span>
                     </div>
                   </div>
@@ -769,37 +775,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           </div>
         </section>
 
-        {/* ACCEPTED DEPOSIT GATEWAYS STRIP */}
+        {/* ACCEPTED DEPOSIT GATEWAYS STRIP — Real Brand Icons with Soft Lavender Backdrop */}
         <section
-          className={`py-5 border-b transition-colors duration-200 ${
-            isLight
-              ? 'bg-slate-100/70 border-slate-200'
-              : 'bg-[#0c0d12] border-[#1b1c24]'
-          }`}
+          className="py-5 border-b transition-colors duration-200"
+          style={{
+            background: 'linear-gradient(180deg, #F7F3FF 0%, #FAF8FF 100%)',
+            borderColor: '#E5DCF4',
+          }}
         >
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
-              <div
-                className={`flex items-center gap-2 ${
-                  isLight ? 'text-slate-600' : 'text-[#71717a]'
-                }`}
-              >
-                <CreditCard className={`w-4 h-4 ${isLight ? 'text-emerald-600' : 'text-[#22c55e]'}`} />
-                <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <div className="flex items-center gap-2" style={{ color: '#514364' }}>
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span className="font-bold" style={{ color: '#211536' }}>
                   Accepted Deposit Methods:
                 </span>
-                <span className="hidden sm:inline">Zero processing fee • Instant automated balance crediting</span>
+                <span className="hidden sm:inline" style={{ color: '#74638B' }}>
+                  Zero processing fee • Instant automated balance crediting
+                </span>
               </div>
 
-              {/* Badges with Real Brand Icons */}
+              {/* Badges with Real Authentic Brand Icons — NO generic dots */}
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {/* Google Pay */}
                 <span
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
-                    isLight
-                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
-                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
-                  }`}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5DCF4',
+                    color: '#211536',
+                  }}
                 >
                   <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
@@ -812,11 +817,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
                 {/* PhonePe */}
                 <span
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
-                    isLight
-                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
-                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
-                  }`}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5DCF4',
+                    color: '#211536',
+                  }}
                 >
                   <svg className="w-4 h-4 shrink-0 rounded-full" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="12" fill="#5F259F"/>
@@ -828,11 +834,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
                 {/* Paytm / BHIM UPI */}
                 <span
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
-                    isLight
-                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
-                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
-                  }`}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5DCF4',
+                    color: '#211536',
+                  }}
                 >
                   <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
                     <path d="M13.5 3L6 21H10.5L18 3H13.5Z" fill="#097939"/>
@@ -843,11 +850,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
                 {/* USDT (Tether) */}
                 <span
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
-                    isLight
-                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
-                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
-                  }`}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5DCF4',
+                    color: '#211536',
+                  }}
                 >
                   <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="12" fill="#26A17B"/>
@@ -858,11 +866,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
                 {/* FamPay Direct */}
                 <span
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all ${
-                    isLight
-                      ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
-                      : 'bg-[#14151c] border-[#22232e] text-[#d4d4d8]'
-                  }`}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5DCF4',
+                    color: '#211536',
+                  }}
                 >
                   <svg className="w-4 h-4 shrink-0 rounded-[4px]" viewBox="0 0 24 24" fill="none">
                     <rect width="24" height="24" rx="4" fill="#FFA000"/>
@@ -878,37 +887,40 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         {/* INTERACTIVE LIVE SERVICE & RATE TERMINAL */}
         <section
           id="rates"
-          className={`py-16 sm:py-20 border-b ${
-            isLight ? 'border-slate-200' : 'border-[#1b1c24]'
-          }`}
+          className="py-16 sm:py-20 border-b"
+          style={{
+            background:
+              'radial-gradient(ellipse 65% 45% at 80% 20%, rgba(196, 181, 253, 0.28), transparent 50%), radial-gradient(ellipse 50% 35% at 15% 75%, rgba(221, 208, 255, 0.32), transparent 45%), #FAF8FF',
+            borderColor: '#E5DCF4',
+          }}
         >
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
               <div>
                 <span
-                  className={`text-xs font-bold uppercase tracking-wider font-mono ${
-                    isLight ? 'text-[#0284c7]' : 'text-[#38bdf8]'
-                  }`}
+                  className="text-xs font-bold uppercase tracking-wider font-mono"
+                  style={{ color: '#6D28D9' }}
                 >
                   Live Terminal
                 </span>
                 <h2
-                  className={`text-2xl sm:text-3xl font-black mt-1 ${
-                    isLight ? 'text-slate-900' : 'text-white'
-                  }`}
+                  className="text-2xl sm:text-3xl font-black mt-1"
+                  style={{ color: '#211536' }}
                 >
                   Service Rates &amp; Stock Availability
                 </h2>
-                <p className={`text-xs sm:text-sm mt-1 ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                <p className="text-xs sm:text-sm mt-1" style={{ color: '#514364' }}>
                   Search live starting prices, carriers, and delivery formats before signing in.
                 </p>
               </div>
 
-              {/* Category Filter Chips - 40px height touch targets */}
+              {/* Category Filter Chips — Soft Lavender Pills */}
               <div
-                className={`flex flex-wrap items-center gap-1.5 p-1 rounded-xl border self-start sm:self-auto ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border self-start sm:self-auto shadow-sm"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                }}
                 role="tablist"
               >
                 <button
@@ -916,13 +928,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   role="tab"
                   aria-selected={selectedCategory === 'all'}
                   onClick={() => setSelectedCategory('all')}
-                  className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                    selectedCategory === 'all'
-                      ? 'bg-[#7c3aed] text-white shadow-sm font-bold'
-                      : isLight
-                      ? 'text-slate-600 hover:text-slate-900 font-semibold'
-                      : 'text-[#a1a1aa] hover:text-white font-semibold'
-                  }`}
+                  className="min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+                  style={{
+                    backgroundColor: selectedCategory === 'all' ? '#6D28D9' : 'transparent',
+                    color: selectedCategory === 'all' ? '#FFFFFF' : '#514364',
+                    fontWeight: selectedCategory === 'all' ? '700' : '600',
+                  }}
                 >
                   All ({serviceCatalog.length})
                 </button>
@@ -931,13 +942,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   role="tab"
                   aria-selected={selectedCategory === 'otp'}
                   onClick={() => setSelectedCategory('otp')}
-                  className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                    selectedCategory === 'otp'
-                      ? 'bg-[#7c3aed] text-white shadow-sm font-bold'
-                      : isLight
-                      ? 'text-slate-600 hover:text-slate-900 font-semibold'
-                      : 'text-[#a1a1aa] hover:text-white font-semibold'
-                  }`}
+                  className="min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+                  style={{
+                    backgroundColor: selectedCategory === 'otp' ? '#6D28D9' : 'transparent',
+                    color: selectedCategory === 'otp' ? '#FFFFFF' : '#514364',
+                    fontWeight: selectedCategory === 'otp' ? '700' : '600',
+                  }}
                 >
                   SMS OTPs
                 </button>
@@ -946,13 +956,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   role="tab"
                   aria-selected={selectedCategory === 'session'}
                   onClick={() => setSelectedCategory('session')}
-                  className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                    selectedCategory === 'session'
-                      ? 'bg-[#7c3aed] text-white shadow-sm font-bold'
-                      : isLight
-                      ? 'text-slate-600 hover:text-slate-900 font-semibold'
-                      : 'text-[#a1a1aa] hover:text-white font-semibold'
-                  }`}
+                  className="min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+                  style={{
+                    backgroundColor: selectedCategory === 'session' ? '#6D28D9' : 'transparent',
+                    color: selectedCategory === 'session' ? '#FFFFFF' : '#514364',
+                    fontWeight: selectedCategory === 'session' ? '700' : '600',
+                  }}
                 >
                   Telegram Sessions
                 </button>
@@ -961,37 +970,38 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   role="tab"
                   aria-selected={selectedCategory === 'smm'}
                   onClick={() => setSelectedCategory('smm')}
-                  className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                    selectedCategory === 'smm'
-                      ? 'bg-[#7c3aed] text-white shadow-sm font-bold'
-                      : isLight
-                      ? 'text-slate-600 hover:text-slate-900 font-semibold'
-                      : 'text-[#a1a1aa] hover:text-white font-semibold'
-                  }`}
+                  className="min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+                  style={{
+                    backgroundColor: selectedCategory === 'smm' ? '#6D28D9' : 'transparent',
+                    color: selectedCategory === 'smm' ? '#FFFFFF' : '#514364',
+                    fontWeight: selectedCategory === 'smm' ? '700' : '600',
+                  }}
                 >
                   SMM Boost
                 </button>
               </div>
             </div>
 
-            {/* Interactive Search Bar & Country Filter - 44px Height Align */}
+            {/* Interactive Search Bar & Country Filter */}
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-6">
               <div className="sm:col-span-8 relative">
                 <Search
-                  className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${
-                    isLight ? 'text-slate-400' : 'text-[#71717a]'
-                  }`}
+                  className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: '#74638B' }}
                 />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search app (WhatsApp, Telegram, OpenAI...) or country (India, USA, UK...)"
-                  className={`w-full h-11 pl-10 pr-4 rounded-xl border text-xs focus:outline-none focus:border-[#7c3aed] transition-colors ${
-                    isLight
-                      ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-sm'
-                      : 'bg-[#12131a] border-[#22232e] text-white placeholder:text-[#71717a]'
-                  }`}
+                  className="w-full h-11 pl-10 pr-4 rounded-xl border text-xs focus:outline-none transition-colors shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderColor: '#E5DCF4',
+                    color: '#211536',
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
                 />
               </div>
 
@@ -999,11 +1009,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 <select
                   value={selectedCountry}
                   onChange={(e) => setSelectedCountry(e.target.value)}
-                  className={`w-full h-11 px-3.5 rounded-xl border text-xs focus:outline-none focus:border-[#7c3aed] cursor-pointer ${
-                    isLight
-                      ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
-                      : 'bg-[#12131a] border-[#22232e] text-white'
-                  }`}
+                  className="w-full h-11 px-3.5 rounded-xl border text-xs focus:outline-none cursor-pointer shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderColor: '#E5DCF4',
+                    color: '#211536',
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
                 >
                   <option value="all">All Regions &amp; Countries</option>
                   <option value="india">India 🇮🇳</option>
@@ -1014,131 +1027,149 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            {/* Service Items Table / Grid */}
+            {/* Service Items Grid — Mixed White and Soft Lavender Surfaces */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredServices.map((service) => (
-                <div
-                  key={service.id}
-                  onClick={() => setSelectedServiceId(service.id)}
-                  className={`p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
-                    selectedServiceId === service.id
-                      ? isLight
-                        ? 'bg-white border-[#7c3aed] shadow-md ring-2 ring-[#7c3aed]/20'
-                        : 'bg-[#151622] border-[#7c3aed] shadow-md shadow-[#7c3aed]/10'
-                      : isLight
-                      ? 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
-                      : 'bg-[#12131a] border-[#20212c] hover:border-[#2e3040]'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2.5">
-                      <span
-                        className={`text-xs font-medium flex items-center gap-1.5 ${
-                          isLight ? 'text-slate-500' : 'text-[#a1a1aa]'
-                        }`}
-                      >
-                        <span>{service.flag}</span>
-                        <span>{service.country}</span>
-                      </span>
-                      <span
-                        className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md border ${
-                          isLight
-                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                            : 'text-[#22c55e] bg-emerald-500/10 border-emerald-500/20'
-                        }`}
-                      >
-                        {service.successRate}
-                      </span>
-                    </div>
+              {filteredServices.map((service) => {
+                const isSelected = selectedServiceId === service.id;
 
-                    <h3 className={`text-sm font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {service.name}
-                    </h3>
-                    <p className={`text-xs mt-1.5 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#71717a]'}`}>
-                      {service.description}
-                    </p>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-mono">
-                      <span
-                        className={`px-2 py-0.5 rounded border ${
-                          isLight
-                            ? 'bg-slate-100 border-slate-200 text-slate-700 font-medium'
-                            : 'bg-[#181924] border-[#262736] text-[#94a3b8]'
-                        }`}
-                      >
-                        {service.format}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded border font-semibold ${
-                          isLight
-                            ? 'bg-sky-50 border-sky-200 text-sky-700'
-                            : 'bg-sky-500/10 border-sky-500/20 text-[#38bdf8]'
-                        }`}
-                      >
-                        {service.speed}
-                      </span>
-                    </div>
-                  </div>
-
+                return (
                   <div
-                    className={`mt-4 pt-3.5 border-t flex items-center justify-between ${
-                      isLight ? 'border-slate-100' : 'border-[#1b1c24]'
-                    }`}
+                    key={service.id}
+                    onClick={() => setSelectedServiceId(service.id)}
+                    className="p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between hover:-translate-y-0.5"
+                    style={{
+                      backgroundColor: isSelected ? '#F0E9FF' : '#FFFFFF',
+                      borderColor: isSelected ? '#6D28D9' : '#E5DCF4',
+                      boxShadow: isSelected
+                        ? '0 8px 24px rgba(109, 40, 217, 0.12)'
+                        : '0 2px 10px -2px rgba(109, 40, 217, 0.04)',
+                    }}
                   >
                     <div>
-                      <span className={`text-[10px] block ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
-                        Starting from
-                      </span>
-                      <span
-                        className={`text-sm font-black font-mono ${
-                          isLight ? 'text-emerald-600' : 'text-[#22c55e]'
-                        }`}
-                      >
-                        ₹{service.priceInr}{' '}
-                        <span className={`text-xs font-normal ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
-                          (${service.priceUsdt.toFixed(2)})
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <span
+                          className="text-xs font-medium flex items-center gap-1.5"
+                          style={{ color: '#74638B' }}
+                        >
+                          <span>{service.flag}</span>
+                          <span>{service.country}</span>
                         </span>
-                      </span>
+                        <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md border text-emerald-700 bg-emerald-50 border-emerald-200">
+                          {service.successRate}
+                        </span>
+                      </div>
+
+                      <h3
+                        className="text-sm font-bold tracking-tight"
+                        style={{ color: '#211536' }}
+                      >
+                        {service.name}
+                      </h3>
+                      <p
+                        className="text-xs mt-1.5 leading-relaxed"
+                        style={{ color: '#514364' }}
+                      >
+                        {service.description}
+                      </p>
+
+                      {/* Clean Light-Themed Badges — NO BLACK BOXES! */}
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                        <span
+                          className="px-2.5 py-0.5 rounded-md border font-medium"
+                          style={{
+                            backgroundColor: isSelected ? '#FFFFFF' : '#F0E9FF',
+                            borderColor: isSelected ? '#DDD0FF' : '#E5DCF4',
+                            color: '#542C85',
+                          }}
+                        >
+                          {service.format}
+                        </span>
+                        <span
+                          className="px-2.5 py-0.5 rounded-md border font-semibold"
+                          style={{
+                            backgroundColor: '#EDE5FF',
+                            borderColor: '#DDD0FF',
+                            color: '#6D28D9',
+                          }}
+                        >
+                          {service.speed}
+                        </span>
+                      </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        triggerGooglePrompt();
-                      }}
-                      className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
-                        isLight
-                          ? 'bg-slate-100 hover:bg-[#7c3aed] text-slate-800 hover:text-white border-slate-200 shadow-sm'
-                          : 'bg-[#1c1d29] hover:bg-[#7c3aed] hover:text-white text-[#d4d4d8] border-[#2a2b3a]'
-                      }`}
+                    <div
+                      className="mt-4 pt-3.5 border-t flex items-center justify-between"
+                      style={{ borderColor: isSelected ? '#DDD0FF' : '#F0E9FF' }}
                     >
-                      <span>Get Number</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                      <div>
+                        <span className="text-[10px] block" style={{ color: '#74638B' }}>
+                          Starting from
+                        </span>
+                        <span className="text-sm font-black font-mono text-emerald-700">
+                          ₹{service.priceInr}{' '}
+                          <span className="text-xs font-normal" style={{ color: '#74638B' }}>
+                            (${service.priceUsdt.toFixed(2)})
+                          </span>
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          triggerGooglePrompt();
+                        }}
+                        className="min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                        style={{
+                          backgroundColor: isSelected ? '#6D28D9' : '#FFFFFF',
+                          borderColor: isSelected ? '#6D28D9' : '#E5DCF4',
+                          color: isSelected ? '#FFFFFF' : '#542C85',
+                          boxShadow: '0 2px 6px -1px rgba(109, 40, 217, 0.08)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#6D28D9';
+                          e.currentTarget.style.color = '#FFFFFF';
+                          e.currentTarget.style.borderColor = '#6D28D9';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = '#FFFFFF';
+                            e.currentTarget.style.color = '#542C85';
+                            e.currentTarget.style.borderColor = '#E5DCF4';
+                          }
+                        }}
+                      >
+                        <span>Get Number</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Killer UI Empty State (Crime 7 Remediation) */}
+            {/* Empty State */}
             {filteredServices.length === 0 && (
               <div
-                className={`py-12 px-6 rounded-2xl border text-center flex flex-col items-center justify-center ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#20212c]'
-                }`}
+                className="py-12 px-6 rounded-2xl border text-center flex flex-col items-center justify-center shadow-sm"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                }}
               >
                 <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${
-                    isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#181924] text-[#71717a]'
-                  }`}
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
+                  style={{
+                    backgroundColor: '#F0E9FF',
+                    color: '#6D28D9',
+                  }}
                 >
                   <Search className="w-6 h-6" />
                 </div>
-                <h4 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <h4 className="text-base font-bold" style={{ color: '#211536' }}>
                   No matching services found
                 </h4>
-                <p className={`text-xs mt-1.5 max-w-md ${isLight ? 'text-slate-600' : 'text-[#71717a]'}`}>
+                <p className="text-xs mt-1.5 max-w-md" style={{ color: '#514364' }}>
                   No carrier pools or accounts match &quot;{searchQuery}&quot; in the selected filter. Try adjusting your query or resetting all filters.
                 </p>
                 <button
@@ -1148,7 +1179,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     setSelectedCategory('all');
                     setSelectedCountry('all');
                   }}
-                  className="mt-4 px-4 py-2 rounded-xl text-xs font-bold bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+                  className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+                  style={{ backgroundColor: '#6D28D9' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#542C85')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reset All Filters</span>
@@ -1156,29 +1190,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </div>
             )}
 
-            {/* Interactive Rate Estimator Bar with Quantity Stepper */}
+            {/* Interactive Rate Estimator Bar — Crisp White Card with Lavender Controls */}
             <div
-              className={`mt-8 p-5 sm:p-6 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-5 transition-all ${
-                isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-              }`}
+              className="mt-8 p-5 sm:p-6 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-5 transition-all shadow-sm"
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E5DCF4',
+                boxShadow: '0 8px 24px -4px rgba(109, 40, 217, 0.06)',
+              }}
             >
               <div className="flex items-center gap-3.5">
                 <div
-                  className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${
-                    isLight
-                      ? 'bg-sky-50 border-sky-200 text-sky-700'
-                      : 'bg-[#1c1d29] border-[#282a3a] text-[#38bdf8]'
-                  }`}
+                  className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0"
+                  style={{
+                    backgroundColor: '#F0E9FF',
+                    borderColor: '#E5DCF4',
+                    color: '#6D28D9',
+                  }}
                 >
                   <Cpu className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#211536' }}>
                     Quick Rate Calculator
                   </h4>
-                  <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                  <p className="text-xs mt-0.5" style={{ color: '#514364' }}>
                     Selected:{' '}
-                    <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    <span className="font-semibold" style={{ color: '#211536' }}>
                       {activeSelectedService.name}
                     </span>{' '}
                     ({activeSelectedService.country})
@@ -1189,18 +1227,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 {/* Stepper Controls */}
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>Qty:</span>
+                  <span className="text-xs" style={{ color: '#74638B' }}>Qty:</span>
                   <div
-                    className={`flex items-center rounded-xl border p-0.5 ${
-                      isLight ? 'bg-slate-50 border-slate-300' : 'bg-[#181924] border-[#2a2b3a]'
-                    }`}
+                    className="flex items-center rounded-xl border p-0.5"
+                    style={{
+                      backgroundColor: '#F7F3FF',
+                      borderColor: '#E5DCF4',
+                    }}
                   >
                     <button
                       type="button"
                       onClick={() => setCalcQuantity((prev) => Math.max(1, prev - 1))}
-                      className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
-                        isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-[#252636] text-[#a1a1aa]'
-                      }`}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      style={{ color: '#542C85' }}
                       aria-label="Decrease quantity"
                     >
                       <Minus className="w-3.5 h-3.5" />
@@ -1211,16 +1250,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                       max="100"
                       value={calcQuantity}
                       onChange={(e) => setCalcQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className={`w-12 py-1 text-xs font-mono font-bold text-center bg-transparent focus:outline-none ${
-                        isLight ? 'text-slate-900' : 'text-white'
-                      }`}
+                      className="w-12 py-1 text-xs font-mono font-bold text-center bg-transparent focus:outline-none"
+                      style={{ color: '#211536' }}
                     />
                     <button
                       type="button"
                       onClick={() => setCalcQuantity((prev) => Math.min(100, prev + 1))}
-                      className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
-                        isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-[#252636] text-[#a1a1aa]'
-                      }`}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                      style={{ color: '#542C85' }}
                       aria-label="Increase quantity"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1229,16 +1266,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </div>
 
                 <div className="text-right">
-                  <span className={`text-[10px] block ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
+                  <span className="text-[10px] block" style={{ color: '#74638B' }}>
                     Estimated Total
                   </span>
-                  <span
-                    className={`text-base sm:text-lg font-black font-mono ${
-                      isLight ? 'text-emerald-600' : 'text-[#22c55e]'
-                    }`}
-                  >
+                  <span className="text-base sm:text-lg font-black font-mono text-emerald-700">
                     ₹{activeSelectedService.priceInr * calcQuantity}{' '}
-                    <span className={`text-xs font-normal ${isLight ? 'text-slate-500' : 'text-[#71717a]'}`}>
+                    <span className="text-xs font-normal" style={{ color: '#74638B' }}>
                       (${(activeSelectedService.priceUsdt * calcQuantity).toFixed(2)})
                     </span>
                   </span>
@@ -1247,7 +1280,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 <button
                   type="button"
                   onClick={triggerGooglePrompt}
-                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-bold text-white transition-all cursor-pointer shadow-sm active:scale-95"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-md active:scale-95"
+                  style={{
+                    backgroundColor: '#6D28D9',
+                    boxShadow: '0 4px 14px 0 rgba(109, 40, 217, 0.28)',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#542C85')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
                 >
                   Sign In to Purchase
                 </button>
@@ -1256,24 +1295,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           </div>
         </section>
 
-        {/* 4-SERVER INFRASTRUCTURE (THE ACTUAL BACKEND PIPELINES) */}
+        {/* 4-SERVER INFRASTRUCTURE — Varied Card Compositions */}
         <section
           id="servers"
-          className={`py-16 sm:py-20 border-b transition-colors duration-200 ${
-            isLight
-              ? 'bg-slate-100/70 border-slate-200'
-              : 'bg-[#0c0d12] border-[#1b1c24]'
-          }`}
+          className="py-16 sm:py-20 border-b transition-colors duration-200"
+          style={{
+            background:
+              'radial-gradient(ellipse 70% 50% at 15% 30%, rgba(221, 208, 255, 0.35), transparent 50%), radial-gradient(ellipse 60% 40% at 85% 70%, rgba(196, 181, 253, 0.3), transparent 50%), #F7F3FF',
+            borderColor: '#E5DCF4',
+          }}
         >
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="text-center max-w-2xl mx-auto mb-12">
-              <span className="text-xs font-bold text-[#7c3aed] uppercase tracking-wider font-mono">
+              <span
+                className="text-xs font-bold uppercase tracking-wider font-mono"
+                style={{ color: '#6D28D9' }}
+              >
                 System Infrastructure
               </span>
-              <h2 className={`text-2xl sm:text-3xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <h2 className="text-2xl sm:text-3xl font-black mt-1" style={{ color: '#211536' }}>
                 4 Specialized Service Pipelines
               </h2>
-              <p className={`text-xs sm:text-sm mt-1.5 ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+              <p className="text-xs sm:text-sm mt-1.5" style={{ color: '#514364' }}>
                 Every server is built for a dedicated use case: verified aged sessions, live carrier OTPs, and community scaling.
               </p>
             </div>
@@ -1281,46 +1324,49 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Server 1: LZT Market Imported Accounts */}
               <div
-                className={`p-6 rounded-2xl border flex flex-col justify-between transition-all ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                }}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-                        isLight
-                          ? 'bg-sky-50 border border-sky-200 text-sky-700'
-                          : 'bg-sky-500/10 border border-sky-500/20 text-[#38bdf8]'
-                      }`}
+                      className="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
+                      style={{
+                        backgroundColor: '#F0E9FF',
+                        border: '1px solid #E5DCF4',
+                        color: '#6D28D9',
+                      }}
                     >
                       <Server className="w-5 h-5" />
                     </div>
                     <span
-                      className={`text-[11px] font-mono px-2.5 py-0.5 rounded-full border ${
-                        isLight
-                          ? 'text-sky-700 bg-sky-50 border-sky-200'
-                          : 'text-[#38bdf8] bg-sky-500/10 border-sky-500/20'
-                      }`}
+                      className="text-[11px] font-mono px-2.5 py-0.5 rounded-full border"
+                      style={{
+                        color: '#6D28D9',
+                        backgroundColor: '#F0E9FF',
+                        borderColor: '#E5DCF4',
+                      }}
                     >
                       Server 1
                     </span>
                   </div>
-                  <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <h3 className="text-base font-bold" style={{ color: '#211536' }}>
                     LZT Market Imported Accounts
                   </h3>
-                  <p className={`text-xs mt-2 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                  <p className="text-xs mt-2 leading-relaxed" style={{ color: '#514364' }}>
                     Automated access to verified international Telegram accounts imported with active 2FA credentials. Pre-checked for session health and covered by replacement warranties.
                   </p>
                 </div>
 
                 <div
-                  className={`mt-6 pt-4 border-t flex items-center justify-between text-xs ${
-                    isLight ? 'border-slate-100 text-slate-500' : 'border-[#1b1c24] text-[#71717a]'
-                  }`}
+                  className="mt-6 pt-4 border-t flex items-center justify-between text-xs"
+                  style={{ borderColor: '#F0E9FF', color: '#74638B' }}
                 >
                   <span>Instant Credential Delivery</span>
-                  <span className={`font-mono font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                  <span className="font-mono font-semibold" style={{ color: '#211536' }}>
                     24h Replacement Guard
                   </span>
                 </div>
@@ -1328,46 +1374,49 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
               {/* Server 2: Fresh & Vintage Telegram Sessions */}
               <div
-                className={`p-6 rounded-2xl border flex flex-col justify-between transition-all ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: '#FAF8FF',
+                  borderColor: '#E5DCF4',
+                }}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-                        isLight
-                          ? 'bg-purple-50 border border-purple-200 text-purple-700'
-                          : 'bg-purple-500/10 border border-purple-500/20 text-[#a78bfa]'
-                      }`}
+                      className="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
+                      style={{
+                        backgroundColor: '#EDE5FF',
+                        border: '1px solid #DDD0FF',
+                        color: '#542C85',
+                      }}
                     >
                       <Download className="w-5 h-5" />
                     </div>
                     <span
-                      className={`text-[11px] font-mono px-2.5 py-0.5 rounded-full border ${
-                        isLight
-                          ? 'text-purple-700 bg-purple-50 border-purple-200'
-                          : 'text-[#a78bfa] bg-purple-500/10 border-purple-500/20'
-                      }`}
+                      className="text-[11px] font-mono px-2.5 py-0.5 rounded-full border"
+                      style={{
+                        color: '#542C85',
+                        backgroundColor: '#EDE5FF',
+                        borderColor: '#DDD0FF',
+                      }}
                     >
                       Server 2
                     </span>
                   </div>
-                  <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <h3 className="text-base font-bold" style={{ color: '#211536' }}>
                     Vintage Telegram Sessions (2021–2025)
                   </h3>
-                  <p className={`text-xs mt-2 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                  <p className="text-xs mt-2 leading-relaxed" style={{ color: '#514364' }}>
                     Aged and virgin accounts with clean registration history. Every purchase provides both instant .session files (for Python scripts) and complete TData folders with 2FA passwords.
                   </p>
                 </div>
 
                 <div
-                  className={`mt-6 pt-4 border-t flex items-center justify-between text-xs ${
-                    isLight ? 'border-slate-100 text-slate-500' : 'border-[#1b1c24] text-[#71717a]'
-                  }`}
+                  className="mt-6 pt-4 border-t flex items-center justify-between text-xs"
+                  style={{ borderColor: '#E5DCF4', color: '#74638B' }}
                 >
                   <span>.session + TData ZIP</span>
-                  <span className={`font-mono font-semibold ${isLight ? 'text-emerald-700' : 'text-[#22c55e]'}`}>
+                  <span className="font-mono font-semibold text-emerald-700">
                     100% Tested Valid
                   </span>
                 </div>
@@ -1375,46 +1424,49 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
               {/* Server 3 & 4: Virtual SMS OTP Pools */}
               <div
-                className={`p-6 rounded-2xl border flex flex-col justify-between transition-all ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                }}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-                        isLight
-                          ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                          : 'bg-emerald-500/10 border border-emerald-500/20 text-[#22c55e]'
-                      }`}
+                      className="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
+                      style={{
+                        backgroundColor: '#F0E9FF',
+                        border: '1px solid #E5DCF4',
+                        color: '#6D28D9',
+                      }}
                     >
                       <RefreshCw className="w-5 h-5" />
                     </div>
                     <span
-                      className={`text-[11px] font-mono px-2.5 py-0.5 rounded-full border ${
-                        isLight
-                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                          : 'text-[#22c55e] bg-emerald-500/10 border-emerald-500/20'
-                      }`}
+                      className="text-[11px] font-mono px-2.5 py-0.5 rounded-full border"
+                      style={{
+                        color: '#6D28D9',
+                        backgroundColor: '#F0E9FF',
+                        borderColor: '#E5DCF4',
+                      }}
                     >
                       Servers 3 &amp; 4
                     </span>
                   </div>
-                  <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <h3 className="text-base font-bold" style={{ color: '#211536' }}>
                     Live Carrier Virtual SMS OTP Pools
                   </h3>
-                  <p className={`text-xs mt-2 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                  <p className="text-xs mt-2 leading-relaxed" style={{ color: '#514364' }}>
                     High-throughput private carrier lines for 500+ apps. Includes a 20-minute active timer. If an SMS code is not received, the order is cancelled with a 100% automated refund to your wallet.
                   </p>
                 </div>
 
                 <div
-                  className={`mt-6 pt-4 border-t flex items-center justify-between text-xs ${
-                    isLight ? 'border-slate-100 text-slate-500' : 'border-[#1b1c24] text-[#71717a]'
-                  }`}
+                  className="mt-6 pt-4 border-t flex items-center justify-between text-xs"
+                  style={{ borderColor: '#F0E9FF', color: '#74638B' }}
                 >
                   <span>20-Min Active Countdown</span>
-                  <span className={`font-mono font-semibold ${isLight ? 'text-emerald-700' : 'text-[#22c55e]'}`}>
+                  <span className="font-mono font-semibold text-emerald-700">
                     Automatic Refund Guard
                   </span>
                 </div>
@@ -1422,46 +1474,49 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
               {/* Server 5: Social Media SMM Panel */}
               <div
-                className={`p-6 rounded-2xl border flex flex-col justify-between transition-all ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: '#FAF8FF',
+                  borderColor: '#E5DCF4',
+                }}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-                        isLight
-                          ? 'bg-amber-50 border border-amber-200 text-amber-700'
-                          : 'bg-amber-500/10 border border-amber-500/20 text-[#f59e0b]'
-                      }`}
+                      className="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
+                      style={{
+                        backgroundColor: '#EDE5FF',
+                        border: '1px solid #DDD0FF',
+                        color: '#542C85',
+                      }}
                     >
                       <Zap className="w-5 h-5" />
                     </div>
                     <span
-                      className={`text-[11px] font-mono px-2.5 py-0.5 rounded-full border ${
-                        isLight
-                          ? 'text-amber-700 bg-amber-50 border-amber-200'
-                          : 'text-[#f59e0b] bg-amber-500/10 border-amber-500/20'
-                      }`}
+                      className="text-[11px] font-mono px-2.5 py-0.5 rounded-full border"
+                      style={{
+                        color: '#542C85',
+                        backgroundColor: '#EDE5FF',
+                        borderColor: '#DDD0FF',
+                      }}
                     >
                       Server 5
                     </span>
                   </div>
-                  <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <h3 className="text-base font-bold" style={{ color: '#211536' }}>
                     SMM Social Growth Panel
                   </h3>
-                  <p className={`text-xs mt-2 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                  <p className="text-xs mt-2 leading-relaxed" style={{ color: '#514364' }}>
                     Automated delivery of high-retention Telegram channel members, real post views, and custom emoji reactions. Scaled for creators and community managers with drop protection.
                   </p>
                 </div>
 
                 <div
-                  className={`mt-6 pt-4 border-t flex items-center justify-between text-xs ${
-                    isLight ? 'border-slate-100 text-slate-500' : 'border-[#1b1c24] text-[#71717a]'
-                  }`}
+                  className="mt-6 pt-4 border-t flex items-center justify-between text-xs"
+                  style={{ borderColor: '#E5DCF4', color: '#74638B' }}
                 >
                   <span>30-Day Refill Guarantee</span>
-                  <span className={`font-mono font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                  <span className="font-mono font-semibold" style={{ color: '#211536' }}>
                     Instant Execution
                   </span>
                 </div>
@@ -1470,91 +1525,113 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           </div>
         </section>
 
-        {/* ORDER LIFECYCLE FLOW */}
+        {/* ORDER LIFECYCLE FLOW — 4 Clean Sequential Cards */}
         <section
           id="how-it-works"
-          className={`py-16 sm:py-20 border-b ${
-            isLight ? 'border-slate-200' : 'border-[#1b1c24]'
-          }`}
+          className="py-16 sm:py-20 border-b"
+          style={{
+            background:
+              'radial-gradient(ellipse 60% 45% at 50% 20%, rgba(221, 208, 255, 0.35), transparent 50%), radial-gradient(ellipse 50% 35% at 85% 85%, rgba(196, 181, 253, 0.25), transparent 45%), #FAF8FF',
+            borderColor: '#E5DCF4',
+          }}
         >
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="text-center max-w-2xl mx-auto mb-12">
               <span
-                className={`text-xs font-bold uppercase tracking-wider font-mono ${
-                  isLight ? 'text-emerald-700' : 'text-[#22c55e]'
-                }`}
+                className="text-xs font-bold uppercase tracking-wider font-mono"
+                style={{ color: '#6D28D9' }}
               >
                 Order Execution
               </span>
-              <h2 className={`text-2xl sm:text-3xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <h2 className="text-2xl sm:text-3xl font-black mt-1" style={{ color: '#211536' }}>
                 How an Order Works in Practice
               </h2>
-              <p className={`text-xs sm:text-sm mt-1.5 ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+              <p className="text-xs sm:text-sm mt-1.5" style={{ color: '#514364' }}>
                 Transparent step-by-step lifecycle from wallet deposit to SMS code delivery.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div
-                className={`p-5 rounded-2xl border transition-all ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="p-5 rounded-2xl border transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                }}
               >
-                <div className="w-8 h-8 rounded-lg bg-[#7c3aed] text-white font-black text-xs flex items-center justify-center mb-3 landing-step-num shadow-sm">
+                <div
+                  className="w-8 h-8 rounded-lg text-white font-black text-xs flex items-center justify-center mb-3 shadow-sm"
+                  style={{ backgroundColor: '#6D28D9' }}
+                >
                   1
                 </div>
-                <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <h3 className="text-sm font-bold" style={{ color: '#211536' }}>
                   Sign In &amp; Top Up
                 </h3>
-                <p className={`text-xs mt-1.5 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#514364' }}>
                   Authenticate with Google in 2 seconds. Scan an instant UPI QR code or transfer USDT; balance reflects automatically.
                 </p>
               </div>
 
               <div
-                className={`p-5 rounded-2xl border transition-all ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="p-5 rounded-2xl border transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                }}
               >
-                <div className="w-8 h-8 rounded-lg bg-[#38bdf8] text-white font-black text-xs flex items-center justify-center mb-3 landing-step-num shadow-sm">
+                <div
+                  className="w-8 h-8 rounded-lg text-white font-black text-xs flex items-center justify-center mb-3 shadow-sm"
+                  style={{ backgroundColor: '#542C85' }}
+                >
                   2
                 </div>
-                <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <h3 className="text-sm font-bold" style={{ color: '#211536' }}>
                   Select App &amp; Country
                 </h3>
-                <p className={`text-xs mt-1.5 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#514364' }}>
                   Choose your service. A dedicated virtual carrier line is allocated immediately with an active 20:00 countdown timer.
                 </p>
               </div>
 
               <div
-                className={`p-5 rounded-2xl border transition-all ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="p-5 rounded-2xl border transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                }}
               >
-                <div className="w-8 h-8 rounded-lg bg-[#22c55e] text-white font-black text-xs flex items-center justify-center mb-3 landing-step-num shadow-sm">
+                <div
+                  className="w-8 h-8 rounded-lg text-white font-black text-xs flex items-center justify-center mb-3 shadow-sm"
+                  style={{ backgroundColor: '#6D28D9' }}
+                >
                   3
                 </div>
-                <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <h3 className="text-sm font-bold" style={{ color: '#211536' }}>
                   Receive SMS Code
                 </h3>
-                <p className={`text-xs mt-1.5 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#514364' }}>
                   The verification code arrives directly on your screen within seconds. Copy it with 1 click to complete activation.
                 </p>
               </div>
 
               <div
-                className={`p-5 rounded-2xl border transition-all ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                }`}
+                className="p-5 rounded-2xl border transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                }}
               >
-                <div className="w-8 h-8 rounded-lg bg-[#f59e0b] text-white font-black text-xs flex items-center justify-center mb-3 landing-step-num shadow-sm">
+                <div
+                  className="w-8 h-8 rounded-lg text-white font-black text-xs flex items-center justify-center mb-3 shadow-sm"
+                  style={{ backgroundColor: '#542C85' }}
+                >
                   4
                 </div>
-                <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <h3 className="text-sm font-bold" style={{ color: '#211536' }}>
                   Automated Refund Guard
                 </h3>
-                <p className={`text-xs mt-1.5 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+                <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#514364' }}>
                   If the code is not delivered before the timer runs out, the full amount is refunded automatically to your balance.
                 </p>
               </div>
@@ -1565,18 +1642,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         {/* FAQ SECTION */}
         <section
           id="faq"
-          className={`py-16 sm:py-20 border-b transition-colors duration-200 ${
-            isLight
-              ? 'bg-slate-100/70 border-slate-200'
-              : 'bg-[#0c0d12] border-[#1b1c24]'
-          }`}
+          className="py-16 sm:py-20 border-b transition-colors duration-200"
+          style={{
+            background:
+              'radial-gradient(ellipse 65% 45% at 20% 35%, rgba(221, 208, 255, 0.32), transparent 50%), radial-gradient(ellipse 55% 40% at 80% 65%, rgba(196, 181, 253, 0.25), transparent 50%), #F7F3FF',
+            borderColor: '#E5DCF4',
+          }}
         >
           <div className="max-w-4xl mx-auto px-4 sm:px-6">
             <div className="text-center max-w-2xl mx-auto mb-12">
-              <span className="text-xs font-bold text-[#7c3aed] uppercase tracking-wider font-mono">
+              <span
+                className="text-xs font-bold uppercase tracking-wider font-mono"
+                style={{ color: '#6D28D9' }}
+              >
                 Support &amp; Answers
               </span>
-              <h2 className={`text-2xl sm:text-3xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <h2 className="text-2xl sm:text-3xl font-black mt-1" style={{ color: '#211536' }}>
                 Frequently Asked Questions
               </h2>
             </div>
@@ -1585,40 +1666,43 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               {faqItems.map((item, idx) => (
                 <div
                   key={idx}
-                  className={`rounded-2xl border overflow-hidden transition-all ${
-                    isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#12131a] border-[#22232e]'
-                  }`}
+                  className="rounded-2xl border overflow-hidden transition-all shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderColor: '#E5DCF4',
+                  }}
                 >
                   <button
                     onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
                     aria-expanded={activeFaq === idx}
-                    className={`w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 cursor-pointer transition-colors ${
-                      isLight ? 'hover:bg-slate-50' : 'hover:bg-[#161722]'
-                    }`}
+                    className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 cursor-pointer transition-colors"
+                    style={{
+                      backgroundColor: activeFaq === idx ? '#F7F3FF' : '#FFFFFF',
+                    }}
                   >
                     <span
-                      className={`text-sm font-bold flex items-center gap-2.5 ${
-                        isLight ? 'text-slate-900' : 'text-white'
-                      }`}
+                      className="text-sm font-bold flex items-center gap-2.5"
+                      style={{ color: '#211536' }}
                     >
-                      <HelpCircle className="w-4 h-4 text-[#7c3aed] shrink-0" />
+                      <HelpCircle className="w-4 h-4 shrink-0" style={{ color: '#6D28D9' }} />
                       <span>{item.q}</span>
                     </span>
                     <ChevronDown
-                      className={`w-4 h-4 transition-transform ${
-                        activeFaq === idx
-                          ? 'rotate-180 text-[#7c3aed]'
-                          : isLight
-                          ? 'text-slate-400'
-                          : 'text-[#a1a1aa]'
-                      }`}
+                      className="w-4 h-4 transition-transform"
+                      style={{
+                        color: activeFaq === idx ? '#6D28D9' : '#74638B',
+                        transform: activeFaq === idx ? 'rotate(180deg)' : 'none',
+                      }}
                     />
                   </button>
                   {activeFaq === idx && (
                     <div
-                      className={`px-5 pb-5 text-xs leading-relaxed border-t pt-3 ${
-                        isLight ? 'border-slate-100 text-slate-600' : 'border-[#1b1c24] text-[#a1a1aa]'
-                      }`}
+                      className="px-5 pb-5 text-xs leading-relaxed border-t pt-3"
+                      style={{
+                        borderColor: '#E5DCF4',
+                        color: '#514364',
+                        backgroundColor: '#FAF8FF',
+                      }}
                     >
                       {item.a}
                     </div>
@@ -1629,13 +1713,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           </div>
         </section>
 
-        {/* BOTTOM CALL TO ACTION */}
+        {/* BOTTOM CALL TO ACTION — Rich Lavender Surface Glow */}
         <section
-          className={`py-16 sm:py-20 border-b relative overflow-hidden ${
-            isLight ? 'border-slate-200' : 'border-[#1b1c24]'
-          }`}
+          className="py-16 sm:py-20 border-b relative overflow-hidden"
+          style={{
+            background:
+              'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(221, 208, 255, 0.55), transparent 60%), radial-gradient(ellipse 60% 40% at 20% 80%, rgba(196, 181, 253, 0.35), transparent 50%), #F0E9FF',
+            borderColor: '#E5DCF4',
+          }}
         >
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
+            {/* Logo — Clean standing freely, NO square container */}
             <img
               src={LOGO_URL}
               alt="Deamon OTP Logo"
@@ -1648,30 +1736,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               }}
             />
 
-            <h2 className={`text-2xl sm:text-3xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={{ color: '#211536' }}>
               Start Receiving OTPs &amp; Downloading Sessions
             </h2>
-            <p className={`text-xs sm:text-sm mt-2 max-w-lg mx-auto ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+            <p className="text-xs sm:text-sm mt-2 max-w-lg mx-auto" style={{ color: '#514364' }}>
               Zero setup fees. Immediate access to carrier numbers, aged accounts, and social panel tools.
             </p>
 
             <div className="mt-7 flex flex-col items-center gap-4">
               <div className="relative w-full max-w-[320px] h-[48px] mx-auto select-none">
                 <div
-                  className={`landing-google-btn w-full h-full rounded-xl flex items-center justify-center gap-3 px-5 transition-all duration-200 border ${
-                    isLoading
-                      ? isLight
-                        ? 'bg-slate-100 border-[#7c3aed]/60 cursor-wait'
-                        : 'bg-[#181824] border-[#7c3aed]/60 cursor-wait'
-                      : isLight
-                      ? 'bg-white hover:bg-slate-50 border-slate-300 hover:border-[#7c3aed] shadow-sm cursor-pointer active:scale-[0.98]'
-                      : 'bg-[#181922] hover:bg-[#20212d] border-[#2a2b38] hover:border-[#7c3aed]/60 shadow-sm cursor-pointer active:scale-[0.98]'
-                  }`}
+                  className="landing-google-btn w-full h-full rounded-xl flex items-center justify-center gap-3 px-5 transition-all duration-200 border cursor-pointer active:scale-[0.98]"
+                  style={{
+                    backgroundColor: isLoading ? '#F7F3FF' : '#FFFFFF',
+                    borderColor: '#E5DCF4',
+                    boxShadow: '0 4px 16px -2px rgba(109, 40, 217, 0.12)',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
                 >
                   {isLoading ? (
                     <div className="flex items-center gap-2.5">
-                      <div className="w-4 h-4 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
-                      <span className={`text-xs font-semibold ${isLight ? 'text-[#7c3aed]' : 'text-[#c4b5fd]'}`}>
+                      <div
+                        className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin"
+                        style={{ borderColor: '#6D28D9', borderTopColor: 'transparent' }}
+                      />
+                      <span className="text-xs font-semibold" style={{ color: '#6D28D9' }}>
                         Signing in with Google...
                       </span>
                     </div>
@@ -1683,7 +1773,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
                         <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
                       </svg>
-                      <span className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                      <span className="text-sm font-semibold" style={{ color: '#211536' }}>
                         Sign In with Google
                       </span>
                     </div>
@@ -1706,12 +1796,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 href="https://t.me/DeamonOTPbot"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`inline-flex items-center gap-2 text-xs transition-colors ${
-                  isLight ? 'text-slate-600 hover:text-slate-900' : 'text-[#a1a1aa] hover:text-white'
-                }`}
+                className="inline-flex items-center gap-2 text-xs transition-colors font-medium"
+                style={{ color: '#542C85' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#6D28D9')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#542C85')}
               >
                 <span>Prefer using Telegram directly? Open @DeamonOTPbot</span>
-                <ExternalLink className="w-3.5 h-3.5 text-[#38bdf8]" />
+                <ExternalLink className="w-3.5 h-3.5" style={{ color: '#6D28D9' }} />
               </a>
             </div>
           </div>
@@ -1720,23 +1811,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
       {/* COMPREHENSIVE 4-COLUMN PROFESSIONAL FOOTER */}
       <footer
-        className={`border-t pt-12 pb-8 transition-colors duration-200 ${
-          isLight ? 'bg-white border-slate-200' : 'bg-[#07070a] border-[#1b1c24]'
-        }`}
+        className="border-t pt-12 pb-8 transition-colors duration-200"
+        style={{
+          background: 'linear-gradient(180deg, #FAF8FF 0%, #FFFFFF 100%)',
+          borderColor: '#E5DCF4',
+        }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div
-            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 pb-10 border-b ${
-              isLight ? 'border-slate-100' : 'border-[#1b1c24]'
-            }`}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 pb-10 border-b"
+            style={{ borderColor: '#E5DCF4' }}
           >
             {/* Column 1: Brand & Operational Status (Span 4) */}
             <div className="lg:col-span-4 flex flex-col">
               <div className="flex items-center gap-3 mb-3">
+                {/* Logo — Clean standing freely, NO square border */}
                 <img
                   src={LOGO_URL}
                   alt="Deamon OTP Logo"
-                  className="w-6 h-6 object-contain shrink-0"
+                  className="w-7 h-7 object-contain shrink-0"
                   onError={(e) => {
                     const target = e.currentTarget;
                     if (!target.src.endsWith('deamon-logo.webp')) {
@@ -1744,30 +1837,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     }
                   }}
                 />
-                <span className={`font-extrabold text-sm tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <span className="font-extrabold text-sm tracking-tight" style={{ color: '#211536' }}>
                   Deamon OTP Store
                 </span>
               </div>
 
-              <p className={`text-xs leading-relaxed max-w-sm mb-4 ${isLight ? 'text-slate-600' : 'text-[#71717a]'}`}>
+              <p className="text-xs leading-relaxed max-w-sm mb-4" style={{ color: '#514364' }}>
                 High-throughput carrier infrastructure for virtual SMS OTP verification, vintage 2FA Telegram accounts, and automated social panel growth.
               </p>
 
               <div className="flex flex-col gap-1.5 text-xs">
-                <div
-                  className={`inline-flex items-center gap-2 font-mono text-[11px] ${
-                    isLight ? 'text-emerald-700' : 'text-[#22c55e]'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+                <div className="inline-flex items-center gap-2 font-mono text-[11px] text-emerald-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span>All Systems Operational (99.98% Uptime)</span>
                 </div>
-                <div
-                  className={`inline-flex items-center gap-2 text-[11px] ${
-                    isLight ? 'text-slate-500' : 'text-[#a1a1aa]'
-                  }`}
-                >
-                  <ShieldCheck className={`w-3.5 h-3.5 ${isLight ? 'text-[#0284c7]' : 'text-[#38bdf8]'}`} />
+                <div className="inline-flex items-center gap-2 text-[11px]" style={{ color: '#74638B' }}>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   <span>256-Bit SSL Encrypted Transactions</span>
                 </div>
               </div>
@@ -1776,27 +1861,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Column 2: Products & Servers (Span 3) */}
             <div className="lg:col-span-3 flex flex-col">
               <h4
-                className={`text-xs font-bold uppercase tracking-wider mb-3 font-mono ${
-                  isLight ? 'text-slate-900' : 'text-white'
-                }`}
+                className="text-xs font-bold uppercase tracking-wider mb-3 font-mono"
+                style={{ color: '#211536' }}
               >
                 Products &amp; Servers
               </h4>
-              <ul className={`space-y-2 text-xs ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+              <ul className="space-y-2 text-xs" style={{ color: '#514364' }}>
                 <li>
-                  <a href="#servers" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>Server 1: LZT Market Accounts</a>
+                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Server 1: LZT Market Accounts</a>
                 </li>
                 <li>
-                  <a href="#servers" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>Server 2: Vintage Telegram Sessions</a>
+                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Server 2: Vintage Telegram Sessions</a>
                 </li>
                 <li>
-                  <a href="#servers" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>Servers 3 &amp; 4: Virtual SMS OTPs</a>
+                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Servers 3 &amp; 4: Virtual SMS OTPs</a>
                 </li>
                 <li>
-                  <a href="#servers" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>Server 5: Social Media SMM Panel</a>
+                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Server 5: Social Media SMM Panel</a>
                 </li>
                 <li>
-                  <a href="#rates" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>Live Rate Explorer</a>
+                  <a href="#rates" className="hover:text-[#6D28D9] transition-colors">Live Rate Explorer</a>
                 </li>
               </ul>
             </div>
@@ -1804,28 +1888,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Column 3: Trust & Policies (Span 2) */}
             <div className="lg:col-span-2 flex flex-col">
               <h4
-                className={`text-xs font-bold uppercase tracking-wider mb-3 font-mono ${
-                  isLight ? 'text-slate-900' : 'text-white'
-                }`}
+                className="text-xs font-bold uppercase tracking-wider mb-3 font-mono"
+                style={{ color: '#211536' }}
               >
                 Trust &amp; Security
               </h4>
-              <ul className={`space-y-2 text-xs ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
-                <li className={`flex items-center gap-1.5 ${isLight ? 'text-emerald-700' : 'text-[#22c55e]'}`}>
+              <ul className="space-y-2 text-xs" style={{ color: '#514364' }}>
+                <li className="flex items-center gap-1.5 text-emerald-700">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                   <a href="#how-it-works" className="hover:underline">100% Auto-Refund</a>
                 </li>
                 <li>
-                  <a href="#servers" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>2FA Protection</a>
+                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">2FA Protection</a>
                 </li>
                 <li>
-                  <a href="#servers" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>Zero-Log Retention</a>
+                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Zero-Log Retention</a>
                 </li>
                 <li>
-                  <a href="#faq" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>Terms of Service</a>
+                  <a href="#faq" className="hover:text-[#6D28D9] transition-colors">Terms of Service</a>
                 </li>
                 <li>
-                  <a href="#faq" className={isLight ? 'hover:text-slate-900 transition-colors' : 'hover:text-white transition-colors'}>Fair Use Guidelines</a>
+                  <a href="#faq" className="hover:text-[#6D28D9] transition-colors">Fair Use Guidelines</a>
                 </li>
               </ul>
             </div>
@@ -1833,21 +1916,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Column 4: Telegram Bots & Support (Span 3) */}
             <div className="lg:col-span-3 flex flex-col">
               <h4
-                className={`text-xs font-bold uppercase tracking-wider mb-3 font-mono ${
-                  isLight ? 'text-slate-900' : 'text-white'
-                }`}
+                className="text-xs font-bold uppercase tracking-wider mb-3 font-mono"
+                style={{ color: '#211536' }}
               >
                 Telegram Bots &amp; Support
               </h4>
-              <ul className={`space-y-2 text-xs ${isLight ? 'text-slate-600' : 'text-[#a1a1aa]'}`}>
+              <ul className="space-y-2 text-xs" style={{ color: '#514364' }}>
                 <li>
                   <a
                     href="https://t.me/DeamonOTPbot"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-1.5 font-semibold transition-colors ${
-                      isLight ? 'text-[#0284c7] hover:text-slate-900' : 'text-[#38bdf8] hover:text-white'
-                    }`}
+                    className="inline-flex items-center gap-1.5 font-semibold transition-colors"
+                    style={{ color: '#6D28D9' }}
                   >
                     <Smartphone className="w-3.5 h-3.5" />
                     <span>Official Bot: @DeamonOTPbot</span>
@@ -1859,9 +1940,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     href="https://t.me/patelkrish_99bot"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
-                      isLight ? 'text-emerald-700 hover:text-slate-900' : 'text-[#22c55e] hover:text-white'
-                    }`}
+                    className="inline-flex items-center gap-1.5 font-medium transition-colors text-emerald-700"
                   >
                     <Smartphone className="w-3.5 h-3.5" />
                     <span>Support Bot: @patelkrish_99bot</span>
@@ -1873,9 +1952,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     href="https://t.me/DeamonOTPbot"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-1.5 transition-colors ${
-                      isLight ? 'hover:text-slate-900' : 'hover:text-white'
-                    }`}
+                    className="inline-flex items-center gap-1.5 transition-colors"
+                    style={{ color: '#74638B' }}
                   >
                     <span>Dual Platform Synchronization</span>
                     <ExternalLink className="w-3 h-3 opacity-60" />
@@ -1887,12 +1965,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
           {/* Bottom Copyright Line */}
           <div
-            className={`pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs ${
-              isLight ? 'text-slate-500' : 'text-[#71717a]'
-            }`}
+            className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs"
+            style={{ color: '#74638B' }}
           >
             <div className="flex items-center gap-2">
-              <span className={`font-bold ${isLight ? 'text-slate-800' : 'text-[#d4d4d8]'}`}>
+              <span className="font-bold" style={{ color: '#211536' }}>
                 Deamon OTP Store
               </span>
               <span>• © 2026 All Rights Reserved</span>
@@ -1905,7 +1982,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 href="https://t.me/DeamonOTPbot"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`transition-colors ${isLight ? 'hover:text-slate-900' : 'hover:text-white'}`}
+                className="transition-colors hover:text-[#6D28D9]"
               >
                 Launch @DeamonOTPbot
               </a>
