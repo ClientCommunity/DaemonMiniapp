@@ -519,7 +519,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           <div className="flex items-center gap-3">
             <img
               src={LOGO_URL}
-              alt="Deamon OTP Logo"
+              alt="Daemon OTP Logo"
               className="w-9 h-9 object-contain shrink-0"
               onError={(e) => {
                 const target = e.currentTarget;
@@ -533,7 +533,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 className="font-black text-base sm:text-lg tracking-tight"
                 style={{ color: '#211536' }}
               >
-                Deamon OTP
+                Daemon OTP
               </span>
               <span
                 className="hidden sm:block text-[11px] font-medium"
@@ -2201,7 +2201,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Logo — Clean standing freely, NO square container */}
             <img
               src={LOGO_URL}
-              alt="Deamon OTP Logo"
+              alt="Daemon OTP Logo"
               className="w-14 h-14 object-contain mx-auto mb-5 shrink-0"
               onError={(e) => {
                 const target = e.currentTarget;
@@ -2322,7 +2322,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               <div className="flex items-center gap-3 mb-3">
                 <img
                   src={LOGO_URL}
-                  alt="Deamon OTP Logo"
+                  alt="Daemon OTP Logo"
                   className="w-7 h-7 object-contain shrink-0"
                   onError={(e) => {
                     const target = e.currentTarget;
@@ -2332,7 +2332,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   }}
                 />
                 <span className="font-extrabold text-sm tracking-tight" style={{ color: '#211536' }}>
-                  Deamon OTP Store
+                  Daemon OTP
                 </span>
               </div>
 
@@ -2505,7 +2505,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           >
             <div className="flex items-center gap-2">
               <span className="font-bold" style={{ color: '#211536' }}>
-                Deamon OTP Store
+                Daemon OTP
               </span>
               <span>• © 2026 All Rights Reserved</span>
             </div>
