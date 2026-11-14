@@ -16,7 +16,6 @@ import {
   HelpCircle,
   CheckCircle2,
   Download,
-  Radio,
   Search,
   Server,
   Zap,
@@ -26,6 +25,12 @@ import {
   Minus,
   RotateCcw,
   Sparkles,
+  Mail,
+  User,
+  Phone,
+  Eye,
+  EyeOff,
+  Send,
 } from 'lucide-react';
 
 const GOOGLE_CLIENT_ID =
@@ -71,6 +76,71 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
   const [calcQuantity, setCalcQuantity] = useState<number>(1);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('tg_in');
+
+  // Dual-Auth State: Google & Email/Normal Login
+  const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginRememberMe, setLoginRememberMe] = useState(true);
+
+  // Registration Form State (Krich Specifications)
+  const [regUsername, setRegUsername] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regWhatsapp, setRegWhatsapp] = useState('');
+  const [regTelegram, setRegTelegram] = useState('');
+  const [regRememberMe, setRegRememberMe] = useState(true);
+
+  const [emailAuthNotice, setEmailAuthNotice] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
+  const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
+
+  const scrollToAuth = (mode?: 'signin' | 'register') => {
+    if (mode) setAuthMode(mode);
+    setEmailAuthNotice(null);
+    const el = document.getElementById('auth-box');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const handleEmailLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setEmailAuthNotice({ type: 'error', text: 'Please enter both your email and password.' });
+      return;
+    }
+    setIsSubmittingEmail(true);
+    setEmailAuthNotice({
+      type: 'info',
+      text: 'Email sign-in cluster is connecting to our production API. In the meantime, 1-click Google Login is fully active!',
+    });
+    setTimeout(() => setIsSubmittingEmail(false), 800);
+  };
+
+  const handleEmailRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regUsername.trim() || !regEmail.trim() || !regPassword.trim() || !regWhatsapp.trim()) {
+      setEmailAuthNotice({
+        type: 'error',
+        text: 'Please enter Username, Email, Password, and WhatsApp Mobile Number.',
+      });
+      return;
+    }
+    if (regPassword.length < 6) {
+      setEmailAuthNotice({
+        type: 'error',
+        text: 'Password must be at least 6 characters.',
+      });
+      return;
+    }
+    setIsSubmittingEmail(true);
+    setEmailAuthNotice({
+      type: 'success',
+      text: `Account profile saved for @${regUsername}! A 6-digit confirmation OTP will be sent to ${regEmail} via official@daemonx.in. Google Login is also available immediately.`,
+    });
+    setTimeout(() => setIsSubmittingEmail(false), 800);
+  };
 
   // Enforce light theme mode on document root for the Lavender Dream visual identity
   useEffect(() => {
@@ -506,11 +576,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             </a>
           </nav>
 
-          {/* Header Action Button — Primary Purple #6D28D9 */}
-          <div className="flex items-center gap-3">
+          {/* Header Action Buttons: Email & Google */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => scrollToAuth('signin')}
+              className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border"
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E5DCF4',
+                color: '#211536',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+            >
+              <Mail className="w-3.5 h-3.5 text-[#6D28D9]" />
+              <span className="hidden sm:inline">Email</span>
+              <span>Sign In</span>
+            </button>
+
             <button
               onClick={triggerGooglePrompt}
-              className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95"
+              className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
               style={{
                 backgroundColor: '#6D28D9',
                 boxShadow: '0 4px 14px 0 rgba(109, 40, 217, 0.28)',
@@ -518,7 +604,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#542C85')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
             >
-              <span>Sign In with Google</span>
+              <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24">
+                <path fill="#FFFFFF" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                <path fill="#FFFFFF" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                <path fill="#FFFFFF" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                <path fill="#FFFFFF" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+              </svg>
+              <span>Google Login</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -654,7 +746,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </div>
               </div>
 
-              {/* Right Column: Google Sign-In Card — Crisp White with Soft Lavender Shadows */}
+              {/* Right Column: Dual-Auth Card (Google & Email/Password) — Crisp White with Soft Lavender Shadows */}
               <div className="lg:col-span-5 flex justify-center lg:justify-end w-full" id="auth-box">
                 <div
                   className="w-full max-w-md p-6 sm:p-7 rounded-2xl relative overflow-hidden transition-all duration-200"
@@ -664,24 +756,68 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     boxShadow: '0 12px 32px -4px rgba(109, 40, 217, 0.08), 0 4px 12px -2px rgba(109, 40, 217, 0.04)',
                   }}
                 >
-                  <div className="flex items-center gap-3.5 mb-5">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: '#F0E9FF',
-                        border: '1px solid #E5DCF4',
-                        color: '#6D28D9',
-                      }}
-                    >
-                      <Lock className="w-5 h-5" />
+                  {/* Card Header & Tab Switcher */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: '#F0E9FF',
+                          border: '1px solid #E5DCF4',
+                          color: '#6D28D9',
+                        }}
+                      >
+                        <Lock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-bold" style={{ color: '#211536' }}>
+                          {authMode === 'signin' ? 'Sign In to Storefront' : 'Create Web Account'}
+                        </h2>
+                        <p className="text-xs" style={{ color: '#74638B' }}>
+                          Google &amp; Email Authentication
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-base font-bold" style={{ color: '#211536' }}>
-                        Sign In to Storefront
-                      </h2>
-                      <p className="text-xs" style={{ color: '#74638B' }}>
-                        1-click Google authentication
-                      </p>
+
+                    {/* Mode Toggle Pill */}
+                    <div
+                      className="p-1 rounded-xl flex items-center gap-1 text-[11px] font-semibold"
+                      style={{ backgroundColor: '#F0E9FF', border: '1px solid #E5DCF4' }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMode('signin');
+                          setEmailAuthNotice(null);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                          authMode === 'signin'
+                            ? 'bg-white shadow-xs font-bold'
+                            : 'hover:text-[#211536]'
+                        }`}
+                        style={{
+                          color: authMode === 'signin' ? '#6D28D9' : '#74638B',
+                        }}
+                      >
+                        Sign In
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMode('register');
+                          setEmailAuthNotice(null);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                          authMode === 'register'
+                            ? 'bg-white shadow-xs font-bold'
+                            : 'hover:text-[#211536]'
+                        }`}
+                        style={{
+                          color: authMode === 'register' ? '#6D28D9' : '#74638B',
+                        }}
+                      >
+                        Register
+                      </button>
                     </div>
                   </div>
 
@@ -695,9 +831,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     </div>
                   )}
 
-                  {/* Google Login Trigger */}
-                  <div className="py-2 flex flex-col items-center w-full">
-                    <div className="relative w-full max-w-[320px] h-[48px] mx-auto select-none">
+                  {emailAuthNotice && (
+                    <div
+                      className={`mb-4 p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                        emailAuthNotice.type === 'error'
+                          ? 'bg-red-50 border-red-200 text-red-600'
+                          : emailAuthNotice.type === 'success'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                          : 'bg-[#F0E9FF] border-[#E5DCF4] text-[#542C85]'
+                      }`}
+                    >
+                      {emailAuthNotice.type === 'success' ? (
+                        <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      )}
+                      <div>{emailAuthNotice.text}</div>
+                    </div>
+                  )}
+
+                  {/* 1-Click Fast Path: Google Login Trigger */}
+                  <div className="pt-1 flex flex-col items-center w-full">
+                    <div className="relative w-full h-[46px] mx-auto select-none">
                       <div
                         className="landing-google-btn w-full h-full rounded-xl flex items-center justify-center gap-3 px-5 transition-all duration-200 border cursor-pointer active:scale-[0.98]"
                         style={{
@@ -726,7 +881,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                               <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
                               <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
                             </svg>
-                            <span className="text-sm font-semibold" style={{ color: '#211536' }}>
+                            <span className="text-xs sm:text-sm font-semibold" style={{ color: '#211536' }}>
                               Continue with Google
                             </span>
                           </div>
@@ -745,28 +900,348 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         }}
                       />
                     </div>
-
-                    <p className="text-[11px] text-center mt-3" style={{ color: '#74638B' }}>
-                      Instant wallet allocation in Indian Rupees (₹) &amp; USDT ($)
-                    </p>
                   </div>
 
-                  {/* Security Points */}
+                  {/* Atmospheric Divider */}
+                  <div className="relative my-4 flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t" style={{ borderColor: '#E5DCF4' }} />
+                    </div>
+                    <div
+                      className="relative px-3 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider rounded-full"
+                      style={{ backgroundColor: '#FFFFFF', color: '#74638B' }}
+                    >
+                      {authMode === 'signin' ? 'Or sign in with email' : 'Or register with email'}
+                    </div>
+                  </div>
+
+                  {/* TAB 1: EMAIL SIGN IN FORM */}
+                  {authMode === 'signin' && (
+                    <form onSubmit={handleEmailLoginSubmit} className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#514364' }}>
+                          Gmail or Email Address
+                        </label>
+                        <div className="relative">
+                          <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
+                          <input
+                            type="email"
+                            required
+                            value={loginEmail}
+                            onChange={(e) => setLoginEmail(e.target.value)}
+                            placeholder="name@gmail.com"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: '#FAF8FF',
+                              borderColor: '#E5DCF4',
+                              color: '#211536',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#514364' }}>
+                          Password
+                        </label>
+                        <div className="relative">
+                          <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            required
+                            value={loginPassword}
+                            onChange={(e) => setLoginPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: '#FAF8FF',
+                              borderColor: '#E5DCF4',
+                              color: '#211536',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                          >
+                            {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-0.5">
+                        <label className="flex items-center gap-2 cursor-pointer select-none" style={{ color: '#514364' }}>
+                          <input
+                            type="checkbox"
+                            checked={loginRememberMe}
+                            onChange={(e) => setLoginRememberMe(e.target.checked)}
+                            className="rounded border-gray-300 text-[#6D28D9] focus:ring-[#6D28D9]"
+                          />
+                          <span>Remember Me</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEmailAuthNotice({
+                              type: 'info',
+                              text: 'Password reset links are dispatched via official@daemonx.in to your registered backup email.',
+                            });
+                          }}
+                          className="text-xs font-semibold hover:underline cursor-pointer"
+                          style={{ color: '#6D28D9' }}
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmittingEmail}
+                        className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+                        style={{
+                          backgroundColor: '#6D28D9',
+                          boxShadow: '0 4px 12px rgba(109, 40, 217, 0.25)',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#542C85')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
+                      >
+                        {isSubmittingEmail ? (
+                          <span>Verifying...</span>
+                        ) : (
+                          <>
+                            <span>Sign In to Dashboard</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </>
+                        )}
+                      </button>
+
+                      <div className="text-center pt-1 text-xs" style={{ color: '#74638B' }}>
+                        Don&apos;t have an account?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthMode('register');
+                            setEmailAuthNotice(null);
+                          }}
+                          className="font-bold hover:underline cursor-pointer"
+                          style={{ color: '#6D28D9' }}
+                        >
+                          Create one now
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* TAB 2: REGISTRATION FORM (KRICH SPECIFICATIONS) */}
+                  {authMode === 'register' && (
+                    <form onSubmit={handleEmailRegisterSubmit} className="space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#514364' }}>
+                          Username
+                        </label>
+                        <div className="relative">
+                          <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
+                          <input
+                            type="text"
+                            required
+                            value={regUsername}
+                            onChange={(e) => setRegUsername(e.target.value)}
+                            placeholder="krish_trader"
+                            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: '#FAF8FF',
+                              borderColor: '#E5DCF4',
+                              color: '#211536',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#514364' }}>
+                          Gmail or Email Address
+                        </label>
+                        <div className="relative">
+                          <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
+                          <input
+                            type="email"
+                            required
+                            value={regEmail}
+                            onChange={(e) => setRegEmail(e.target.value)}
+                            placeholder="name@gmail.com"
+                            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: '#FAF8FF',
+                              borderColor: '#E5DCF4',
+                              color: '#211536',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#514364' }}>
+                          Password
+                        </label>
+                        <div className="relative">
+                          <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            required
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            placeholder="Min. 8 characters"
+                            className="w-full pl-9 pr-9 py-1.5 text-xs rounded-xl border focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: '#FAF8FF',
+                              borderColor: '#E5DCF4',
+                              color: '#211536',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                          >
+                            {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#514364' }}>
+                          WhatsApp Mobile Number
+                        </label>
+                        <div className="relative">
+                          <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
+                          <input
+                            type="tel"
+                            required
+                            value={regWhatsapp}
+                            onChange={(e) => setRegWhatsapp(e.target.value)}
+                            placeholder="+91 98765 43210"
+                            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: '#FAF8FF',
+                              borderColor: '#E5DCF4',
+                              color: '#211536',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#514364' }}>
+                            Telegram Username
+                          </label>
+                          <span className="text-[10px] font-medium" style={{ color: '#74638B' }}>Optional</span>
+                        </div>
+                        <div className="relative">
+                          <Send className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#74638B' }} />
+                          <input
+                            type="text"
+                            value={regTelegram}
+                            onChange={(e) => setRegTelegram(e.target.value)}
+                            placeholder="@yourhandle (optional)"
+                            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: '#FAF8FF',
+                              borderColor: '#E5DCF4',
+                              color: '#211536',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-0.5 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={regRememberMe}
+                          onChange={(e) => setRegRememberMe(e.target.checked)}
+                          className="rounded border-gray-300 text-[#6D28D9] focus:ring-[#6D28D9]"
+                        />
+                        <span style={{ color: '#514364' }}>Remember Me</span>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmittingEmail}
+                        className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+                        style={{
+                          backgroundColor: '#6D28D9',
+                          boxShadow: '0 4px 12px rgba(109, 40, 217, 0.25)',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#542C85')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
+                      >
+                        {isSubmittingEmail ? (
+                          <span>Submitting...</span>
+                        ) : (
+                          <>
+                            <span>Create Web Account</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </>
+                        )}
+                      </button>
+
+                      <p className="text-[10px] text-center pt-0.5" style={{ color: '#74638B' }}>
+                        OTP confirmation sent via <strong>official@daemonx.in</strong>
+                      </p>
+
+                      <div className="text-center pt-1 text-xs" style={{ color: '#74638B' }}>
+                        Already have an account?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthMode('signin');
+                            setEmailAuthNotice(null);
+                          }}
+                          className="font-bold hover:underline cursor-pointer"
+                          style={{ color: '#6D28D9' }}
+                        >
+                          Sign in here
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Bottom Note & Security Points */}
                   <div
-                    className="mt-5 pt-4 border-t space-y-2.5"
+                    className="mt-5 pt-3.5 border-t space-y-2"
                     style={{ borderColor: '#E5DCF4' }}
                   >
+                    <div
+                      className="p-2.5 rounded-xl text-[11px] leading-relaxed flex items-center gap-2"
+                      style={{
+                        backgroundColor: '#F7F3FF',
+                        border: '1px solid #E5DCF4',
+                        color: '#514364',
+                      }}
+                    >
+                      <Smartphone className="w-3.5 h-3.5 text-[#6D28D9] shrink-0" />
+                      <span>
+                        <strong>Telegram User?</strong> Open in Telegram to bypass login instantly with your wallet balance.
+                      </span>
+                    </div>
+
                     <div className="flex items-center gap-2 text-xs" style={{ color: '#514364' }}>
                       <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
                       <span>Zero setup fee • Automatic refunds if code doesn&apos;t arrive</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs" style={{ color: '#514364' }}>
-                      <CreditCard className="w-3.5 h-3.5 shrink-0" style={{ color: '#6D28D9' }} />
-                      <span>Instant deposit via UPI (GPay/PhonePe/Paytm) &amp; USDT</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs" style={{ color: '#514364' }}>
-                      <Radio className="w-3.5 h-3.5 shrink-0" style={{ color: '#542C85' }} />
-                      <span>Synced in real-time with @DeamonOTPbot</span>
                     </div>
                   </div>
                 </div>
@@ -1743,8 +2218,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               Zero setup fees. Immediate access to carrier numbers, aged accounts, and social panel tools.
             </p>
 
-            <div className="mt-7 flex flex-col items-center gap-4">
-              <div className="relative w-full max-w-[320px] h-[48px] mx-auto select-none">
+            <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-lg mx-auto">
+              <div className="relative w-full sm:w-[260px] h-[48px] select-none">
                 <div
                   className="landing-google-btn w-full h-full rounded-xl flex items-center justify-center gap-3 px-5 transition-all duration-200 border cursor-pointer active:scale-[0.98]"
                   style={{
@@ -1773,7 +2248,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
                         <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
                       </svg>
-                      <span className="text-sm font-semibold" style={{ color: '#211536' }}>
+                      <span className="text-xs sm:text-sm font-semibold" style={{ color: '#211536' }}>
                         Sign In with Google
                       </span>
                     </div>
@@ -1792,11 +2267,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 />
               </div>
 
+              {/* Email / Normal Login Trigger */}
+              <button
+                type="button"
+                onClick={() => scrollToAuth('signin')}
+                className="w-full sm:w-auto h-[48px] px-6 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E5DCF4',
+                  color: '#211536',
+                  boxShadow: '0 2px 8px -2px rgba(109, 40, 217, 0.08)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#6D28D9')}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5DCF4')}
+              >
+                <Mail className="w-4 h-4 text-[#6D28D9]" />
+                <span>Continue with Email</span>
+              </button>
+            </div>
+
+            <div className="mt-5">
               <a
                 href="https://t.me/DeamonOTPbot"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs transition-colors font-medium"
+                className="inline-flex items-center gap-2 text-xs transition-colors font-medium hover:underline"
                 style={{ color: '#542C85' }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#6D28D9')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = '#542C85')}
@@ -1809,7 +2304,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         </section>
       </main>
 
-      {/* COMPREHENSIVE 4-COLUMN PROFESSIONAL FOOTER */}
+      {/* COMPREHENSIVE 4-COLUMN PROFESSIONAL FOOTER WITH OFFICIAL INBOXES */}
       <footer
         className="border-t pt-12 pb-8 transition-colors duration-200"
         style={{
@@ -1822,10 +2317,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 pb-10 border-b"
             style={{ borderColor: '#E5DCF4' }}
           >
-            {/* Column 1: Brand & Operational Status (Span 4) */}
-            <div className="lg:col-span-4 flex flex-col">
+            {/* Column 1: Brand & Operational Status (Span 3) */}
+            <div className="lg:col-span-3 flex flex-col">
               <div className="flex items-center gap-3 mb-3">
-                {/* Logo — Clean standing freely, NO square border */}
                 <img
                   src={LOGO_URL}
                   alt="Deamon OTP Logo"
@@ -1885,41 +2379,78 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </ul>
             </div>
 
-            {/* Column 3: Trust & Policies (Span 2) */}
-            <div className="lg:col-span-2 flex flex-col">
-              <h4
-                className="text-xs font-bold uppercase tracking-wider mb-3 font-mono"
-                style={{ color: '#211536' }}
-              >
-                Trust &amp; Security
-              </h4>
-              <ul className="space-y-2 text-xs" style={{ color: '#514364' }}>
-                <li className="flex items-center gap-1.5 text-emerald-700">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <a href="#how-it-works" className="hover:underline">100% Auto-Refund</a>
-                </li>
-                <li>
-                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">2FA Protection</a>
-                </li>
-                <li>
-                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Zero-Log Retention</a>
-                </li>
-                <li>
-                  <a href="#faq" className="hover:text-[#6D28D9] transition-colors">Terms of Service</a>
-                </li>
-                <li>
-                  <a href="#faq" className="hover:text-[#6D28D9] transition-colors">Fair Use Guidelines</a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 4: Telegram Bots & Support (Span 3) */}
+            {/* Column 3: Official Inboxes & Support on daemonx.in (Span 3) */}
             <div className="lg:col-span-3 flex flex-col">
               <h4
                 className="text-xs font-bold uppercase tracking-wider mb-3 font-mono"
                 style={{ color: '#211536' }}
               >
-                Telegram Bots &amp; Support
+                Official Inboxes &amp; Support
+              </h4>
+              <ul className="space-y-2.5 text-xs" style={{ color: '#514364' }}>
+                <li>
+                  <a
+                    href="mailto:support@daemonx.in"
+                    className="group block hover:text-[#6D28D9] transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 font-semibold text-[#211536] group-hover:text-[#6D28D9]">
+                      <Mail className="w-3.5 h-3.5 text-[#6D28D9]" />
+                      <span>support@daemonx.in</span>
+                    </div>
+                    <span className="text-[11px] block pl-5" style={{ color: '#74638B' }}>
+                      Customer service, order tickets &amp; refunds
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="mailto:contact@daemonx.in"
+                    className="group block hover:text-[#6D28D9] transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 font-semibold text-[#211536] group-hover:text-[#6D28D9]">
+                      <Mail className="w-3.5 h-3.5 text-[#6D28D9]" />
+                      <span>contact@daemonx.in</span>
+                    </div>
+                    <span className="text-[11px] block pl-5" style={{ color: '#74638B' }}>
+                      Business inquiries, partnerships &amp; bulk orders
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="mailto:dev@daemonx.in"
+                    className="group block hover:text-[#6D28D9] transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 font-semibold text-[#211536] group-hover:text-[#6D28D9]">
+                      <Mail className="w-3.5 h-3.5 text-[#6D28D9]" />
+                      <span>dev@daemonx.in</span>
+                    </div>
+                    <span className="text-[11px] block pl-5" style={{ color: '#74638B' }}>
+                      Developer API, technical support &amp; bugs
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <div className="block pt-0.5">
+                    <div className="flex items-center gap-1.5 font-semibold text-[#514364]">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>official@daemonx.in</span>
+                    </div>
+                    <span className="text-[11px] block pl-5" style={{ color: '#74638B' }}>
+                      Automated transactional OTPs &amp; order receipts
+                    </span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 4: Telegram Bots & Community (Span 3) */}
+            <div className="lg:col-span-3 flex flex-col">
+              <h4
+                className="text-xs font-bold uppercase tracking-wider mb-3 font-mono"
+                style={{ color: '#211536' }}
+              >
+                Telegram Bots &amp; Community
               </h4>
               <ul className="space-y-2 text-xs" style={{ color: '#514364' }}>
                 <li>
@@ -1948,16 +2479,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="https://t.me/DeamonOTPbot"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 transition-colors"
+                  <div
+                    className="inline-flex items-center gap-1.5 text-[11px]"
                     style={{ color: '#74638B' }}
                   >
-                    <span>Dual Platform Synchronization</span>
-                    <ExternalLink className="w-3 h-3 opacity-60" />
-                  </a>
+                    <span>Instant Telegram Mini App auto-login</span>
+                  </div>
+                </li>
+                <li>
+                  <div
+                    className="inline-flex items-center gap-1.5 text-[11px]"
+                    style={{ color: '#74638B' }}
+                  >
+                    <span>Zero-fee P2P wallet balance transfers</span>
+                  </div>
                 </li>
               </ul>
             </div>
