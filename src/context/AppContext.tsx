@@ -1017,7 +1017,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const orderId = `S2_${Date.now().toString().slice(-6)}`;
     const isBulk = quantity > 1;
-    const requestedFormat = format || (isBulk ? 'session' : 'account');
+    const requestedFormat: Server2DeliveryFormat = isBulk ? 'session' : (format || 'account');
     const deliveryTitle = isBulk
       ? `Bulk ZIP (${quantity}x ${stockItem.country} Sessions)`
       : `${stockItem.country} Telegram (${stockItem.accountYear})`;
