@@ -124,7 +124,8 @@ export const Server2Sessions: React.FC = () => {
     if (!itemForPurchase || isPurchasing) return;
     setIsPurchasing(true);
     try {
-      const success = purchaseServer2Session(itemForPurchase, quantity, deliveryFormat);
+      const effectiveFormat: Server2DeliveryFormat = quantity > 1 ? 'session' : deliveryFormat;
+      const success = purchaseServer2Session(itemForPurchase, quantity, effectiveFormat);
       if (success) {
         setItemForPurchase(null);
       }
