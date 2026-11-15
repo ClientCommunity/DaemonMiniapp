@@ -34,6 +34,8 @@ import {
   Eye,
   EyeOff,
   Send,
+  ShoppingBag,
+  X,
 } from 'lucide-react';
 
 const GOOGLE_CLIENT_ID =
@@ -105,6 +107,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [resetToken, setResetToken] = useState('');
 
+  // Buy Login Prompt Modal state
+  const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+  const [buyModalItem, setBuyModalItem] = useState<{
+    name: string;
+    country: string;
+    flag: string;
+    priceInr: number;
+    priceUsdt: number;
+    format: string;
+    qty: number;
+  } | null>(null);
+  const modalGoogleBtnRef = useRef<HTMLDivElement>(null);
+
+  const handleOpenBuyModal = (service: ServiceItem, qty: number = 1) => {
+    setBuyModalItem({
+      name: service.name,
+      country: service.country,
+      flag: service.flag,
+      priceInr: service.priceInr,
+      priceUsdt: service.priceUsdt,
+      format: service.format,
+      qty,
+    });
+    setAuthMode('signin');
+    setEmailAuthNotice(null);
+    setIsBuyModalOpen(true);
+  };
+
   // Listen for reset-password action in URL search parameters
   useEffect(() => {
     try {
@@ -140,6 +170,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         password: loginPassword,
       });
       if (res.success && res.token && res.user) {
+        setIsBuyModalOpen(false);
         setWebUserToken(res.token);
         onLoginSuccess(res.token, res.user);
       } else if (res.requires_verification) {
@@ -215,6 +246,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
   const handleOtpSuccess = (token: string, user: BackendUserPayload) => {
     setIsOtpModalOpen(false);
+    setIsBuyModalOpen(false);
     setWebUserToken(token);
     onLoginSuccess(token, user);
   };
@@ -246,6 +278,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     try {
       const res: GoogleAuthResponse = await authApi.loginWithGoogle(response.credential);
       if (res.success && res.token && res.user) {
+        setIsBuyModalOpen(false);
         setWebUserToken(res.token);
         onLoginSuccess(res.token, res.user);
       } else {
@@ -340,6 +373,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
       if (checkInterval) clearInterval(checkInterval);
     };
   }, []);
+
+  // Render Google Sign-In button inside Buy Login Modal when opened
+  useEffect(() => {
+    if (isBuyModalOpen && modalGoogleBtnRef.current) {
+      try {
+        const google = (window as unknown as {
+          google?: {
+            accounts?: {
+              id?: {
+                renderButton: (element: HTMLElement, options: Record<string, unknown>) => void;
+              };
+            };
+          };
+        })?.google;
+        if (google?.accounts?.id?.renderButton) {
+          modalGoogleBtnRef.current.innerHTML = '';
+          google.accounts.id.renderButton(modalGoogleBtnRef.current, {
+            theme: 'outline',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'pill',
+            width: 320,
+            logo_alignment: 'left',
+          });
+        }
+      } catch (e) {
+        console.error('Failed to render modal Google button:', e);
+      }
+    }
+  }, [isBuyModalOpen, authMode]);
 
   const triggerGooglePrompt = () => {
     try {
@@ -447,8 +510,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
       description: 'Fresh clean-history Telegram account with full 2FA credentials and instant archive download.',
     },
     {
-      id: 'tg_lzt_global',
-      name: 'LZT Market Imported Telegram Account',
+      id: 'tg_global_2fa',
+      name: 'Global 2FA Telegram Account',
       category: 'session',
       server: 'Server 1',
       country: 'United States / Europe',
@@ -1668,9 +1731,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          triggerGooglePrompt();
+                          handleOpenBuyModal(service, 1);
                         }}
-                        className="min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                        className="min-h-[36px] px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm"
                         style={{
                           backgroundColor: isSelected ? '#6D28D9' : '#FFFFFF',
                           borderColor: isSelected ? '#6D28D9' : '#E5DCF4',
@@ -1690,8 +1753,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                           }
                         }}
                       >
-                        <span>Get Number</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                        <span>Buy Now</span>
                       </button>
                     </div>
                   </div>
@@ -1830,8 +1893,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
                 <button
                   type="button"
-                  onClick={triggerGooglePrompt}
-                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-md active:scale-95"
+                  onClick={() => handleOpenBuyModal(activeSelectedService, calcQuantity)}
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-md active:scale-95 flex items-center gap-2"
                   style={{
                     backgroundColor: '#6D28D9',
                     boxShadow: '0 4px 14px 0 rgba(109, 40, 217, 0.28)',
@@ -1839,7 +1902,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#542C85')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
                 >
-                  Sign In to Purchase
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>
+                    Buy Now ({calcQuantity > 1 ? `${calcQuantity}x · ` : ''}₹{activeSelectedService.priceInr * calcQuantity})
+                  </span>
                 </button>
               </div>
             </div>
@@ -1873,7 +1939,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Server 1: LZT Market Imported Accounts */}
+              {/* Server 1: Global 2FA Accounts */}
               <div
                 className="p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
                 style={{
@@ -1905,10 +1971,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     </span>
                   </div>
                   <h3 className="text-base font-bold" style={{ color: '#211536' }}>
-                    LZT Market Imported Accounts
+                    Global 2FA Verified Accounts
                   </h3>
                   <p className="text-xs mt-2 leading-relaxed" style={{ color: '#514364' }}>
-                    Automated access to verified international Telegram accounts imported with active 2FA credentials. Pre-checked for session health and covered by replacement warranties.
+                    Automated access to verified international Telegram accounts with active 2FA credentials. Pre-checked for session health and covered by replacement warranties.
                   </p>
                 </div>
 
@@ -2438,7 +2504,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
               </h4>
               <ul className="space-y-2 text-xs" style={{ color: '#514364' }}>
                 <li>
-                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Server 1: LZT Market Accounts</a>
+                  <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Server 1: Global 2FA Accounts</a>
                 </li>
                 <li>
                   <a href="#servers" className="hover:text-[#6D28D9] transition-colors">Server 2: Vintage Telegram Sessions</a>
@@ -2633,6 +2699,292 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           scrollToAuth('signin');
         }}
       />
+
+      {/* Buy Login Prompt Modal */}
+      {isBuyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div
+            className="relative w-full max-w-md rounded-3xl border p-6 sm:p-7 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar"
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderColor: '#E5DCF4',
+              boxShadow: '0 20px 40px -8px rgba(109, 40, 217, 0.25)',
+            }}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setIsBuyModalOpen(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-[#74638B] hover:text-[#211536] hover:bg-[#F0E9FF] transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Product Snapshot */}
+            {buyModalItem && (
+              <div
+                className="mb-5 p-3.5 rounded-2xl border flex items-center justify-between"
+                style={{
+                  backgroundColor: '#F7F3FF',
+                  borderColor: '#E5DCF4',
+                }}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-2xl shrink-0">{buyModalItem.flag}</span>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-[#211536] truncate block">
+                      {buyModalItem.name}
+                    </span>
+                    <span className="text-[10px] text-[#74638B] block truncate">
+                      {buyModalItem.country} · {buyModalItem.format}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0 pl-2">
+                  <span className="text-sm font-black font-mono text-emerald-700">
+                    ₹{buyModalItem.priceInr * buyModalItem.qty}
+                  </span>
+                  {buyModalItem.qty > 1 && (
+                    <span className="text-[10px] text-[#74638B] block">
+                      ({buyModalItem.qty}x items)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Header */}
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-extrabold text-[#211536]">
+                {authMode === 'signin' ? 'Sign In to Buy' : 'Create Free Account'}
+              </h3>
+              <p className="text-xs text-[#514364] mt-1">
+                {authMode === 'signin'
+                  ? 'Sign in to access your wallet and complete your purchase.'
+                  : 'Register with email or Google to get instant access to your numbers.'}
+              </p>
+            </div>
+
+            {/* Mode Switcher Tabs */}
+            <div
+              className="p-1 rounded-xl flex items-center gap-1 text-xs font-semibold mb-4"
+              style={{ backgroundColor: '#F0E9FF', border: '1px solid #E5DCF4' }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('signin');
+                  setEmailAuthNotice(null);
+                }}
+                className={`flex-1 py-1.5 rounded-lg text-center transition-all cursor-pointer ${
+                  authMode === 'signin'
+                    ? 'bg-white shadow-xs font-bold text-[#6D28D9]'
+                    : 'text-[#74638B] hover:text-[#211536]'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('register');
+                  setEmailAuthNotice(null);
+                }}
+                className={`flex-1 py-1.5 rounded-lg text-center transition-all cursor-pointer ${
+                  authMode === 'register'
+                    ? 'bg-white shadow-xs font-bold text-[#6D28D9]'
+                    : 'text-[#74638B] hover:text-[#211536]'
+                }`}
+              >
+                Create Account
+              </button>
+            </div>
+
+            {/* Notice Banner */}
+            {emailAuthNotice && (
+              <div
+                className={`mb-4 p-3 rounded-xl text-xs flex items-start gap-2 border ${
+                  emailAuthNotice.type === 'error'
+                    ? 'bg-red-50 border-red-200 text-red-600'
+                    : emailAuthNotice.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : 'bg-purple-50 border-purple-200 text-purple-700'
+                }`}
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{emailAuthNotice.text}</span>
+              </div>
+            )}
+
+            {/* Google Sign-in */}
+            <div className="flex flex-col items-center justify-center my-2">
+              <div ref={modalGoogleBtnRef} className="flex justify-center w-full min-h-[44px]" />
+            </div>
+
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#E5DCF4]" />
+              </div>
+              <span className="relative bg-white px-3 text-[11px] font-mono uppercase text-[#74638B]">
+                Or with Email
+              </span>
+            </div>
+
+            {/* Sign-in Form */}
+            {authMode === 'signin' ? (
+              <form onSubmit={handleEmailLoginSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#211536] mb-1">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-[#74638B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E5DCF4] bg-[#FDFBFF] text-[#211536] focus:border-[#6D28D9] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-[#211536]">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBuyModalOpen(false);
+                        setIsForgotModalOpen(true);
+                      }}
+                      className="text-[11px] font-medium text-[#6D28D9] hover:underline cursor-pointer"
+                    >
+                      Forgot?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-[#74638B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E5DCF4] bg-[#FDFBFF] text-[#211536] focus:border-[#6D28D9] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#74638B] cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingEmail}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-[#6D28D9] hover:bg-[#542C85] transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
+                >
+                  {isSubmittingEmail ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  )}
+                  <span>Sign In &amp; Continue</span>
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleEmailRegisterSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#211536] mb-1">Username</label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-[#74638B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value)}
+                      placeholder="Choose a username"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E5DCF4] bg-[#FDFBFF] text-[#211536] focus:border-[#6D28D9] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#211536] mb-1">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-[#74638B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E5DCF4] bg-[#FDFBFF] text-[#211536] focus:border-[#6D28D9] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#211536] mb-1">Create Password</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-[#74638B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Min 6 characters"
+                      className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#E5DCF4] bg-[#FDFBFF] text-[#211536] focus:border-[#6D28D9] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#74638B] cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#211536] mb-1">
+                    WhatsApp Number <span className="text-[10px] text-[#74638B] font-normal">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-[#74638B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="tel"
+                      value={regWhatsapp}
+                      onChange={(e) => setRegWhatsapp(e.target.value)}
+                      placeholder="+91 9876543210"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E5DCF4] bg-[#FDFBFF] text-[#211536] focus:border-[#6D28D9] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingEmail}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-[#6D28D9] hover:bg-[#542C85] transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
+                >
+                  {isSubmittingEmail ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>Create Account &amp; Verify Email</span>
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
