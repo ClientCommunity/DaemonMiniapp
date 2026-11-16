@@ -101,8 +101,46 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
 
   // Modals for Email OTP Verification, Forgot Password, and Reset Password
-  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
-  const [otpEmail, setOtpEmail] = useState('');
+  const PENDING_OTP_KEY = 'krish_pending_otp_verification';
+
+  const [initialPendingOtp] = useState<{ email: string; expiresAt: number } | null>(() => {
+    try {
+      if (typeof window === 'undefined') return null;
+      const raw = localStorage.getItem(PENDING_OTP_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed.email && parsed.expiresAt && parsed.expiresAt > Date.now()) {
+        return parsed;
+      }
+      localStorage.removeItem(PENDING_OTP_KEY);
+    } catch {}
+    return null;
+  });
+
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState<boolean>(() => !!initialPendingOtp);
+  const [otpEmail, setOtpEmail] = useState<string>(() => initialPendingOtp?.email || '');
+
+  const openOtpModal = (email: string) => {
+    const clean = email.trim();
+    try {
+      localStorage.setItem(
+        PENDING_OTP_KEY,
+        JSON.stringify({
+          email: clean,
+          expiresAt: Date.now() + 10 * 60 * 1000,
+        })
+      );
+    } catch {}
+    setOtpEmail(clean);
+    setIsOtpModalOpen(true);
+  };
+
+  const closeOtpModal = () => {
+    try {
+      localStorage.removeItem(PENDING_OTP_KEY);
+    } catch {}
+    setIsOtpModalOpen(false);
+  };
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [resetToken, setResetToken] = useState('');
@@ -175,8 +213,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         setWebUserToken(res.token);
         onLoginSuccess(res.token, res.user, targetTab);
       } else if (res.requires_verification) {
-        setOtpEmail(res.email || loginEmail.trim());
-        setIsOtpModalOpen(true);
+        openOtpModal(res.email || loginEmail.trim());
         setEmailAuthNotice({
           type: 'info',
           text: 'Please enter the 6-digit confirmation code sent to your email.',
@@ -223,8 +260,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         username: regUsername.trim(),
       });
       if (res.success) {
-        setOtpEmail(res.email || regEmail.trim());
-        setIsOtpModalOpen(true);
+        openOtpModal(res.email || regEmail.trim());
         setEmailAuthNotice({
           type: 'success',
           text: 'Verification code sent! Please check your inbox.',
@@ -247,7 +283,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
   const handleOtpSuccess = (token: string, user: BackendUserPayload) => {
     const targetTab = buyModalItem ? 'store' : undefined;
-    setIsOtpModalOpen(false);
+    closeOtpModal();
     setIsBuyModalOpen(false);
     setWebUserToken(token);
     onLoginSuccess(token, user, targetTab);
@@ -2676,7 +2712,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
       <OtpVerificationModal
         isOpen={isOtpModalOpen}
         email={otpEmail}
-        onClose={() => setIsOtpModalOpen(false)}
+        onClose={closeOtpModal}
         onSuccess={handleOtpSuccess}
       />
       <ForgotPasswordModal

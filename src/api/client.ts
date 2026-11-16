@@ -283,6 +283,13 @@ export async function apiRequest<T>(
           window.dispatchEvent(new CustomEvent('krish:admin_unauthorized'));
         }
       }
+      // Handle 401 Unauthorized for website users: clear expired session & notify listeners
+      if (webUserSessionToken && !getTelegramInitData()) {
+        setWebUserToken(null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('krish:web_unauthorized'));
+        }
+      }
     }
 
     const errorMsg =

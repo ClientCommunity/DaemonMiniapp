@@ -729,8 +729,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         );
 
         // Fast Direct Auth: Authenticate user in a single round-trip (< 800ms)
-        const authRes = await authApi.authenticate().catch(() => null);
-        const isOnline = !!authRes?.success;
+        let authRes: any = null;
+        let isOnline = false;
+        try {
+          authRes = await authApi.authenticate();
+          isOnline = !!authRes?.success;
+        } catch (authErr: any) {
+          const errMsg = String(authErr?.message || '');
+          if (errMsg.includes('401') || errMsg.includes('Unauthorized') || errMsg.includes('status 401')) {
+            if (!isTelegramWebApp()) {
+              setWebUserToken(null);
+            }
+            isOnline = true; // Backend is healthy; web session token expired
+          } else {
+            isOnline = false;
+          }
+        }
 
         if (isMounted) {
           setBackendConnected(isOnline);
@@ -746,7 +760,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         }
 
-        if (isOnline) {
+        if (isOnline && authRes?.success) {
           // Asynchronously stream secondary profile data in parallel (non-blocking)
           resellerApi.getStats().then((resellerRes) => {
             if (isMounted && resellerRes) {
@@ -768,7 +782,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           // Refresh store catalogues in background - DO NOT block initial splash!
           refreshStore().catch(() => {});
-        } else {
+        } else if (!isOnline) {
           if (isMounted) {
             addToast('Backend not connected. Running in offline/preview mode.', 'warning', 'Not Connected');
           }

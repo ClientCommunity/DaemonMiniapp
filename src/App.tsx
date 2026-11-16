@@ -12,7 +12,7 @@ const AdminDashboard = React.lazy(() => import('./components/admin/AdminDashboar
 const LandingPage = React.lazy(() =>
   import('./components/landing/LandingPage').then((m) => ({ default: m.LandingPage }))
 );
-import { isTelegramWebApp, getWebUserToken } from './api/client';
+import { isTelegramWebApp, getWebUserToken, setWebUserToken } from './api/client';
 import { downloadApi } from './api/endpoints';
 
 const AppContent: React.FC = () => {
@@ -58,14 +58,20 @@ const AppContent: React.FC = () => {
     if (typeof window !== 'undefined') {
       const search = window.location.search || '';
       if (search.includes('action=reset-password')) {
-        try {
-          localStorage.removeItem('deamon_web_token_v1');
-        } catch {}
+        setWebUserToken(null);
         return null;
       }
     }
     return getWebUserToken();
   });
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setWebToken(null);
+    };
+    window.addEventListener('krish:web_unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('krish:web_unauthorized', handleUnauthorized);
+  }, []);
 
   const handleLoginSuccess = async (
     token: string,

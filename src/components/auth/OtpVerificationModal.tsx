@@ -15,12 +15,28 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const getRemainingSeconds = (): number => {
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem('krish_pending_otp_verification');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.expiresAt) {
+            const rem = Math.floor((parsed.expiresAt - Date.now()) / 1000);
+            return Math.max(0, Math.min(600, rem));
+          }
+        }
+      }
+    } catch {}
+    return 600;
+  };
+
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(600); // 10 minutes
+  const [countdown, setCountdown] = useState<number>(() => getRemainingSeconds());
   const [resendCooldown, setResendCooldown] = useState(60); // 60s cooldown
 
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -31,7 +47,7 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
       setDigits(['', '', '', '', '', '']);
       setErrorMsg(null);
       setSuccessMsg(null);
-      setCountdown(600);
+      setCountdown(getRemainingSeconds());
       setResendCooldown(60);
       setTimeout(() => inputsRef.current[0]?.focus(), 150);
     }
@@ -155,6 +171,15 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
     try {
       const res = await webAuthApi.resendOtp({ email });
       if (res.success) {
+        try {
+          localStorage.setItem(
+            'krish_pending_otp_verification',
+            JSON.stringify({
+              email,
+              expiresAt: Date.now() + 10 * 60 * 1000,
+            })
+          );
+        } catch {}
         setSuccessMsg('A new verification code has been dispatched to your email.');
         setResendCooldown(60);
         setCountdown(600);

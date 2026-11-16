@@ -69,10 +69,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     setTimeout(() => setCopiedId(false), 2000);
   };
 
+  const hasPassword = settingsData?.has_password ?? true;
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPassword || !newPassword) {
-      setPasswordNotice({ type: 'error', text: 'All password fields are required.' });
+    if (hasPassword && !currentPassword) {
+      setPasswordNotice({ type: 'error', text: 'Current password is required.' });
+      return;
+    }
+    if (!newPassword) {
+      setPasswordNotice({ type: 'error', text: 'New password is required.' });
       return;
     }
     if (newPassword.length < 6) {
@@ -89,14 +95,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     try {
       const res = await webAuthApi.changePassword({
-        current_password: currentPassword,
+        current_password: hasPassword ? currentPassword : '',
         new_password: newPassword,
       });
       if (res.success) {
-        setPasswordNotice({ type: 'success', text: 'Password updated successfully!' });
+        setPasswordNotice({
+          type: 'success',
+          text: hasPassword
+            ? 'Password updated successfully!'
+            : 'Password set successfully! You can now also log in using your email and password.',
+        });
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
+        if (settingsData) {
+          setSettingsData({ ...settingsData, has_password: true });
+        }
       } else {
         setPasswordNotice({ type: 'error', text: res.error || 'Failed to change password.' });
       }
@@ -299,7 +313,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           {activeTab === 'security' && (
             <form onSubmit={handleChangePassword} className="space-y-4">
               <p className="text-xs text-zinc-400">
-                To update your password, enter your current password and choose a new one with at least 6 characters.
+                {hasPassword
+                  ? 'To update your password, enter your current password and choose a new one with at least 6 characters.'
+                  : 'Set a password for your account so you can also log in directly using your email and password.'}
               </p>
 
               {passwordNotice && (
@@ -314,30 +330,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">Current Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#1a1a24] border border-[#2a2a38] text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              {hasPassword && (
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1.5">Current Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#1a1a24] border border-[#2a2a38] text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">New Password</label>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                  {hasPassword ? 'New Password' : 'Create Password'}
+                </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
@@ -352,7 +372,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">Confirm New Password</label>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                  {hasPassword ? 'Confirm New Password' : 'Confirm Password'}
+                </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
@@ -368,10 +390,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
               <button
                 type="submit"
-                disabled={isChangingPassword || !currentPassword || !newPassword}
+                disabled={isChangingPassword || !newPassword || !confirmPassword || (hasPassword && !currentPassword)}
                 className="w-full py-3 px-4 rounded-xl font-bold text-xs text-white bg-violet-600 hover:bg-violet-700 active:scale-[0.99] transition-all shadow-md shadow-violet-600/30 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
-                {isChangingPassword ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Update Password</span>}
+                {isChangingPassword ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span>{hasPassword ? 'Update Password' : 'Set Account Password'}</span>
+                )}
               </button>
             </form>
           )}

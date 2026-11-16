@@ -361,6 +361,7 @@ export interface WebSettingsResponse {
   whatsapp_number: string;
   telegram_username: string;
   is_verified: boolean;
+  has_password?: boolean;
   created_at: string;
   account_link?: {
     web_user_id: number;
@@ -390,7 +391,7 @@ export const webAuthApi = {
     api.get<{ success: boolean; valid?: boolean; error?: string }>(`/api/web/auth/verify-reset-token?token=${encodeURIComponent(token)}`),
   resetPassword: (data: { token: string; new_password: string }) =>
     api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/reset-password', data),
-  changePassword: (data: { current_password: string; new_password: string }) =>
+  changePassword: (data: { current_password?: string; new_password: string }) =>
     api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/change-password', data),
   getSettings: () =>
     api.get<WebSettingsResponse>('/api/web/profile/settings'),
