@@ -241,32 +241,35 @@ html.light .text-\[\#d4d4d8\] {
   color: #334155 !important;
 }
 
-/* Default text-white becomes slate-900 in light mode */
-html.light .text-white {
+/* Default text-white becomes slate-900 in light mode for typography, while colored buttons/pills retain white */
+html.light p.text-white,
+html.light h1.text-white,
+html.light h2.text-white,
+html.light h3.text-white,
+html.light h4.text-white,
+html.light span.text-white:not([class*="bg-"]):not(button *):not(a *) {
   color: #0f172a !important;
 }
 
-/* Solid Colored Action Buttons, Pills, Badges & Alerts MUST PRESERVE White Text */
+/* Solid Colored Action Buttons & Badges MUST PRESERVE White Text */
 html.light button.bg-\[\#7c3aed\],
 html.light button.bg-\[\#7c3aed\] *,
+html.light a.bg-\[\#7c3aed\],
+html.light a.bg-\[\#7c3aed\] *,
 html.light button.bg-\[\#6d28d9\],
 html.light button.bg-\[\#6d28d9\] *,
-html.light .bg-\[\#7c3aed\]:not([class*="/"]):not(div[class*="/"]),
-html.light .bg-\[\#7c3aed\]:not([class*="/"]):not(div[class*="/"]) *,
-html.light .bg-\[\#6d28d9\],
-html.light .bg-\[\#6d28d9\] *,
+html.light a.bg-\[\#6d28d9\],
+html.light a.bg-\[\#6d28d9\] *,
+html.light .landing-primary-btn,
+html.light .landing-primary-btn *,
 html.light button.bg-purple-600,
 html.light button.bg-purple-600 *,
-html.light button[class*="bg-gradient-to"],
-html.light button[class*="bg-gradient-to"] *,
 html.light button.bg-red-500,
 html.light button.bg-red-500 *,
 html.light button.bg-red-600,
 html.light button.bg-red-600 *,
 html.light button.bg-\[\#ef4444\],
 html.light button.bg-\[\#ef4444\] *,
-html.light .bg-\[\#ef4444\]:not([class*="/"]),
-html.light .bg-\[\#ef4444\]:not([class*="/"]) *,
 html.light button.bg-emerald-600,
 html.light button.bg-emerald-600 *,
 html.light button.bg-blue-600,
@@ -367,4 +370,27 @@ html.light .glass-card {
 html.light .bg-\[\#181820\]:not(button):not(input):not(select):not([role="option"]) {
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
 }
+
+/* ==========================================================================
+   Killer UI: Landing Page Design Tokens & Surfaces
+   ========================================================================== */
+.landing-step-num {
+  color: #ffffff !important;
+}
+
+html.light .landing-google-btn {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+}
+
+html.light .landing-google-btn:hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+html.light .landing-google-btn span {
+  color: #0f172a !important;
+}
+
 

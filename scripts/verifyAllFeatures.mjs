@@ -174,6 +174,9 @@ assert(fs.existsSync(headerTsxPath), 'Header.tsx exists');
 assert(fs.existsSync(adminContextPath), 'AdminContext.tsx exists');
 
 const appContent = fs.readFileSync(appTsxPath, 'utf-8');
+const tgShellPath = path.join(srcDir, 'components', 'shells', 'TelegramShell.tsx');
+const tgShellContent = fs.existsSync(tgShellPath) ? fs.readFileSync(tgShellPath, 'utf-8') : '';
+const storefrontContent = appContent + tgShellContent;
 const headerContent = fs.readFileSync(headerTsxPath, 'utf-8');
 const adminContextContent = fs.readFileSync(adminContextPath, 'utf-8');
 
@@ -185,11 +188,11 @@ assert(
 
 // Assert ordinary users without admin flag see only storefront views
 assert(
-  appContent.includes('<DashboardView') &&
-  appContent.includes('<StorefrontView') &&
-  appContent.includes('<DepositHub') &&
-  appContent.includes('<HistoryView') &&
-  appContent.includes('<ProfileView'),
+  storefrontContent.includes('<DashboardView') &&
+  storefrontContent.includes('<StorefrontView') &&
+  storefrontContent.includes('<DepositHub') &&
+  storefrontContent.includes('<HistoryView') &&
+  storefrontContent.includes('<ProfileView'),
   'App.tsx renders customer storefront views when isAdminMode is false'
 );
 

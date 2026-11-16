@@ -335,6 +335,72 @@ export const authApi = {
     api.post<Server1FiltersResponse>('/api/user/server1-filters', filters),
 };
 
+export interface WebRegisterResponse {
+  success: boolean;
+  message?: string;
+  email?: string;
+  user_id?: number;
+  error?: string;
+  already_exists?: boolean;
+}
+
+export interface WebAuthResponse {
+  success: boolean;
+  token?: string;
+  user?: any;
+  message?: string;
+  error?: string;
+  requires_verification?: boolean;
+  email?: string;
+}
+
+export interface WebSettingsResponse {
+  success: boolean;
+  user_id: number;
+  email: string;
+  whatsapp_number: string;
+  telegram_username: string;
+  is_verified: boolean;
+  has_password?: boolean;
+  created_at: string;
+  account_link?: {
+    web_user_id: number;
+    telegram_user_id: number;
+    created_at: string;
+  } | null;
+  balance: number;
+  promo_balance: number;
+  error?: string;
+}
+
+/**
+ * Web Authentication & Account Credentials
+ */
+export const webAuthApi = {
+  register: (data: { email: string; password: string; whatsapp?: string; username?: string }) =>
+    api.post<WebRegisterResponse>('/api/web/auth/register', data),
+  verifyOtp: (data: { email: string; otp: string }) =>
+    api.post<WebAuthResponse>('/api/web/auth/verify-otp', data),
+  resendOtp: (data: { email: string }) =>
+    api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/resend-otp', data),
+  login: (data: { email: string; password: string }) =>
+    api.post<WebAuthResponse>('/api/web/auth/login', data),
+  forgotPassword: (data: { email: string; client_url?: string }) =>
+    api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/forgot-password', data),
+  verifyResetToken: (token: string) =>
+    api.get<{ success: boolean; valid?: boolean; error?: string }>(`/api/web/auth/verify-reset-token?token=${encodeURIComponent(token)}`),
+  resetPassword: (data: { token: string; new_password: string }) =>
+    api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/reset-password', data),
+  changePassword: (data: { current_password?: string; new_password: string }) =>
+    api.post<{ success: boolean; message?: string; error?: string }>('/api/web/auth/change-password', data),
+  getSettings: () =>
+    api.get<WebSettingsResponse>('/api/web/profile/settings'),
+  requestTelegramLinkOtp: (telegram_user_id: number | string) =>
+    api.post<{ success: boolean; message?: string; error?: string }>('/api/web/profile/link-telegram/request', { telegram_user_id }),
+  verifyTelegramLink: (data: { telegram_user_id: number | string; otp_code: string }) =>
+    api.post<{ success: boolean; message?: string; error?: string; balance?: number; promo_balance?: number; account_link?: any }>('/api/web/profile/link-telegram/verify', data),
+};
+
 /**
  * Store Stock Endpoints (Servers 1 through 5)
  */

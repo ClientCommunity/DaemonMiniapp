@@ -532,7 +532,7 @@ export const Server5Smm: React.FC = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {sortedServices.length === 0 ? (
                 <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-2">
                   <Rocket className="w-6 h-6 text-[#71717a]" />
