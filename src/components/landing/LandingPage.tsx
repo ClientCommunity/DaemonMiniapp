@@ -46,7 +46,7 @@ const GOOGLE_CLIENT_ID =
 const LOGO_URL = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
 
 interface LandingPageProps {
-  onLoginSuccess: (token: string, user: BackendUserPayload) => void;
+  onLoginSuccess: (token: string, user: BackendUserPayload, targetTab?: 'home' | 'store' | 'deposit' | 'history' | 'profile') => void;
 }
 
 interface ServiceItem {
@@ -170,9 +170,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         password: loginPassword,
       });
       if (res.success && res.token && res.user) {
+        const targetTab = buyModalItem ? 'store' : undefined;
         setIsBuyModalOpen(false);
         setWebUserToken(res.token);
-        onLoginSuccess(res.token, res.user);
+        onLoginSuccess(res.token, res.user, targetTab);
       } else if (res.requires_verification) {
         setOtpEmail(res.email || loginEmail.trim());
         setIsOtpModalOpen(true);
@@ -245,10 +246,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   };
 
   const handleOtpSuccess = (token: string, user: BackendUserPayload) => {
+    const targetTab = buyModalItem ? 'store' : undefined;
     setIsOtpModalOpen(false);
     setIsBuyModalOpen(false);
     setWebUserToken(token);
-    onLoginSuccess(token, user);
+    onLoginSuccess(token, user, targetTab);
   };
 
   // Enforce light theme mode on document root for the Lavender Dream visual identity
@@ -278,9 +280,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     try {
       const res: GoogleAuthResponse = await authApi.loginWithGoogle(response.credential);
       if (res.success && res.token && res.user) {
+        const targetTab = buyModalItem ? 'store' : undefined;
         setIsBuyModalOpen(false);
         setWebUserToken(res.token);
-        onLoginSuccess(res.token, res.user);
+        onLoginSuccess(res.token, res.user, targetTab);
       } else {
         setErrorMessage(res.error || 'Failed to authenticate with Google. Please try again.');
       }
@@ -389,12 +392,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         })?.google;
         if (google?.accounts?.id?.renderButton) {
           modalGoogleBtnRef.current.innerHTML = '';
+          const computedWidth = Math.min(320, Math.max(220, (typeof window !== 'undefined' ? window.innerWidth : 320) - 64));
           google.accounts.id.renderButton(modalGoogleBtnRef.current, {
             theme: 'outline',
             size: 'large',
             text: 'continue_with',
             shape: 'pill',
-            width: 320,
+            width: computedWidth,
             logo_alignment: 'left',
           });
         }

@@ -18,6 +18,7 @@ import { downloadApi } from './api/endpoints';
 const AppContent: React.FC = () => {
   const {
     activeTab,
+    setActiveTab,
     isInitialLoading,
     initialLoadingStep,
     initialLoadingMessage,
@@ -66,8 +67,15 @@ const AppContent: React.FC = () => {
     return getWebUserToken();
   });
 
-  const handleGoogleLoginSuccess = async (token: string) => {
+  const handleLoginSuccess = async (
+    token: string,
+    _user?: unknown,
+    targetTab?: 'home' | 'store' | 'deposit' | 'history' | 'profile'
+  ) => {
     setWebToken(token);
+    if (targetTab) {
+      setActiveTab(targetTab);
+    }
     await refreshUser();
     await refreshStore();
   };
@@ -132,7 +140,7 @@ const AppContent: React.FC = () => {
       <div className="relative w-full min-h-screen bg-[#0b0b0e] text-white flex flex-col">
         <ToastContainer />
         <React.Suspense fallback={<InitialLoadingScreen />}>
-          <LandingPage onLoginSuccess={handleGoogleLoginSuccess} />
+          <LandingPage onLoginSuccess={handleLoginSuccess} />
         </React.Suspense>
       </div>
     );

@@ -114,6 +114,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       setTgNotice({ type: 'error', text: 'Please enter a valid numeric Telegram User ID.' });
       return;
     }
+    if (cleanId === user.telegramId) {
+      setTgNotice({ type: 'error', text: 'Cannot link an account to itself.' });
+      return;
+    }
+    if (cleanId.length > 12) {
+      setTgNotice({
+        type: 'error',
+        text: 'That is a 14-digit Website ID. Please enter your 9-10 digit Telegram User ID from @DeamonOTPbot.',
+      });
+      return;
+    }
 
     setIsSendingTgOtp(true);
     setTgNotice(null);
