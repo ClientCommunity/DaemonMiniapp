@@ -199,8 +199,17 @@ html.light .from-\[\#181820\] {
   --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;
 }
 
-html.light .to-\[\#121217\] {
+html.light .to-\[\#121217\],
+html.light .to-\[\#121218\] {
   --tw-gradient-to: #f8fafc var(--tw-gradient-to-position) !important;
+}
+
+html.light .hover\:from-\[\#1d1d2b\]:hover {
+  --tw-gradient-from: #f8fafc var(--tw-gradient-from-position) !important;
+}
+
+html.light .hover\:to-\[\#161620\]:hover {
+  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
 }
 
 /* Borders and Dividers */
@@ -233,37 +242,116 @@ html.light h6 {
 }
 
 html.light .text-\[\#a1a1aa\],
-html.light .text-\[\#71717a\] {
+html.light .text-\[\#71717a\],
+html.light .text-zinc-500 {
   color: #64748b !important;
 }
 
-html.light .text-\[\#d4d4d8\] {
+html.light .text-\[\#d4d4d8\],
+html.light .text-zinc-300,
+html.light .text-zinc-400 {
   color: #334155 !important;
 }
 
-/* Default text-white becomes slate-900 in light mode for typography, while colored buttons/pills retain white */
+/* Dark mode slight boost for secondary text contrast (WCAG AA compliant) */
+html.dark .text-\[\#71717a\] {
+  color: #8e8e99 !important;
+}
+
+/* Default text-white becomes slate-900 in light mode across all containers, cards, and typography */
 html.light p.text-white,
 html.light h1.text-white,
 html.light h2.text-white,
 html.light h3.text-white,
 html.light h4.text-white,
-html.light span.text-white:not([class*="bg-"]):not(button *):not(a *) {
+html.light h5.text-white,
+html.light h6.text-white,
+html.light div.text-white,
+html.light label.text-white,
+html.light strong.text-white,
+html.light b.text-white,
+html.light li.text-white,
+html.light td.text-white,
+html.light th.text-white,
+html.light span.text-white {
   color: #0f172a !important;
+}
+
+/* Secondary & Neutral Slate/Card buttons in Light Mode (Quick Actions, P2P, Copy ID, Stepper +/-) */
+html.light button.bg-\[\#181820\],
+html.light button.bg-\[\#181820\] span,
+html.light button.bg-\[\#181820\] div,
+html.light button.bg-\[\#181820\] p,
+html.light button.bg-\[\#181820\] strong,
+html.light button.bg-\[\#1f1f2a\],
+html.light button.bg-\[\#1f1f2a\] span,
+html.light button.bg-\[\#1f1f2a\] div,
+html.light button.bg-\[\#1f1f2a\] p,
+html.light button.bg-\[\#1f1f2a\] strong,
+html.light button.bg-\[\#262630\],
+html.light button.bg-\[\#262630\] span,
+html.light button.bg-\[\#262630\] div,
+html.light button.bg-\[\#262630\] p,
+html.light button.bg-\[\#262630\] strong,
+html.light button.bg-\[\#262632\],
+html.light button.bg-\[\#262632\] span,
+html.light button.bg-\[\#262632\] div,
+html.light button.bg-\[\#262632\] p,
+html.light button.bg-\[\#262632\] strong,
+html.light button.bg-\[\#15151c\],
+html.light button.bg-\[\#15151c\] span,
+html.light button.bg-\[\#15151c\] div,
+html.light button.bg-\[\#15151c\] p,
+html.light button.bg-\[\#15151c\] strong {
+  color: #0f172a !important;
+}
+
+/* Prevent hover:text-white from making text white on light buttons */
+html.light button.bg-\[\#181820\]:hover,
+html.light button.bg-\[\#181820\]:hover span,
+html.light button.bg-\[\#1f1f2a\]:hover,
+html.light button.bg-\[\#1f1f2a\]:hover span,
+html.light button.bg-\[\#262630\]:hover,
+html.light button.bg-\[\#262630\]:hover span,
+html.light button.bg-\[\#121217\]:hover,
+html.light button.bg-\[\#121217\]:hover span {
+  color: #0f172a !important;
+}
+
+/* Selected Payment Method in DepositHub */
+html.light button.bg-\[\#7c3aed\]\/20,
+html.light button.bg-\[\#7c3aed\]\/20 *,
+html.light .bg-\[\#7c3aed\]\/20.text-white,
+html.light .bg-\[\#7c3aed\]\/20 .text-white {
+  background-color: #f5f3ff !important;
+  border-color: #7c3aed !important;
+  color: #5b21b6 !important;
+}
+
+/* Active Numbers Arrived OTP Code Display */
+html.light .bg-\[\#22c55e\]\/10 div.text-white {
+  color: #14532d !important;
+  text-shadow: none !important;
+  filter: none !important;
 }
 
 /* Solid Colored Action Buttons & Badges MUST PRESERVE White Text */
 html.light button.bg-\[\#7c3aed\],
 html.light button.bg-\[\#7c3aed\] *,
-html.light a.bg-\[\#7c3aed\],
-html.light a.bg-\[\#7c3aed\] *,
 html.light button.bg-\[\#6d28d9\],
 html.light button.bg-\[\#6d28d9\] *,
+html.light button.from-\[\#7c3aed\],
+html.light button.from-\[\#7c3aed\] *,
+html.light a.bg-\[\#7c3aed\],
+html.light a.bg-\[\#7c3aed\] *,
 html.light a.bg-\[\#6d28d9\],
 html.light a.bg-\[\#6d28d9\] *,
 html.light .landing-primary-btn,
 html.light .landing-primary-btn *,
 html.light button.bg-purple-600,
 html.light button.bg-purple-600 *,
+html.light button.bg-purple-700,
+html.light button.bg-purple-700 *,
 html.light button.bg-red-500,
 html.light button.bg-red-500 *,
 html.light button.bg-red-600,
@@ -272,6 +360,8 @@ html.light button.bg-\[\#ef4444\],
 html.light button.bg-\[\#ef4444\] *,
 html.light button.bg-emerald-600,
 html.light button.bg-emerald-600 *,
+html.light button.bg-emerald-700,
+html.light button.bg-emerald-700 *,
 html.light button.bg-blue-600,
 html.light button.bg-blue-600 *,
 html.light .toast-container,
@@ -281,18 +371,29 @@ html.light [data-theme-white] * {
   color: #ffffff !important;
 }
 
-/* Secondary & Neutral Slate buttons in Light Mode (Copy ID, filters, pills) */
-html.light button.bg-\[\#1f1f2a\],
-html.light button.bg-\[\#1f1f2a\] * {
-  color: #0f172a !important;
-}
-html.light button.bg-\[\#1f1f2a\] svg {
-  color: #64748b !important;
+/* Explicit high specificity for text-white inside solid action buttons */
+html.light button.bg-\[\#7c3aed\] .text-white,
+html.light button.bg-\[\#6d28d9\] .text-white,
+html.light button.from-\[\#7c3aed\] .text-white,
+html.light a.bg-\[\#7c3aed\] .text-white,
+html.light a.bg-\[\#6d28d9\] .text-white,
+html.light button.bg-purple-600 .text-white,
+html.light button.bg-red-500 .text-white,
+html.light button.bg-red-600 .text-white,
+html.light button.bg-\[\#ef4444\] .text-white,
+html.light button.bg-emerald-600 .text-white,
+html.light button.bg-blue-600 .text-white,
+html.light .landing-primary-btn .text-white,
+html.light [data-theme-white] .text-white {
+  color: #ffffff !important;
 }
 
 /* Green & Amber solid buttons/badges with black text */
 html.light .text-black,
+html.light button.bg-\[\#22c55e\],
 html.light button.bg-\[\#22c55e\] *,
+html.light button.from-\[\#22c55e\],
+html.light button.from-\[\#22c55e\] *,
 html.light button.bg-emerald-500 *,
 html.light button.bg-emerald-400 *,
 html.light .bg-\[\#22c55e\]:not([class*="/"]) * {
@@ -310,9 +411,35 @@ html.light .text-yellow-400 {
   color: #d97706 !important;
 }
 
+html.light .text-amber-100,
+html.light .text-amber-200,
+html.light .text-amber-300 {
+  color: #92400e !important; /* amber-800: crisp contrast on light surfaces */
+}
+
+html.light .text-\[\#f59e0b\] {
+  color: #b45309 !important; /* amber-700 */
+}
+
+html.light button.bg-amber-500\/15,
+html.light button.bg-amber-500\/15 * {
+  color: #92400e !important;
+}
+
+html.light button.bg-amber-500\/15:hover,
+html.light button.bg-amber-500\/15:hover * {
+  color: #000000 !important;
+}
+
 html.light .text-purple-400,
 html.light .text-\[\#8b5cf6\] {
   color: #7c3aed !important;
+}
+
+html.light .text-\[\#c084fc\],
+html.light .text-\[\#c4b5fd\],
+html.light .text-\[\#a78bfa\] {
+  color: #6d28d9 !important; /* violet-700: high contrast in place of pale lavender */
 }
 
 html.light .text-blue-400 {
