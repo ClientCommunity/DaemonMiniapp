@@ -140,12 +140,12 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // 1. When accessed via website without an authenticated Google session, present full responsive Landing Page
+  // 1. When accessed via website without an authenticated web session, present full responsive Landing Page directly
   if (!isTg && !webToken) {
     return (
-      <div className="relative w-full min-h-screen bg-[#0b0b0e] text-white flex flex-col">
+      <div className="relative w-full min-h-screen flex flex-col">
         <ToastContainer />
-        <React.Suspense fallback={<InitialLoadingScreen />}>
+        <React.Suspense fallback={null}>
           <LandingPage onLoginSuccess={handleLoginSuccess} />
         </React.Suspense>
       </div>
@@ -154,11 +154,32 @@ const AppContent: React.FC = () => {
 
   // 2. Initial synchronization loading screen (for Telegram WebApp or returning web users)
   if (isInitialLoading) {
+    if (isTg) {
+      return (
+        <InitialLoadingScreen
+          step={initialLoadingStep}
+          statusMessage={initialLoadingMessage}
+        />
+      );
+    }
+
+    // Modern minimal circling spinner for returning logged-in web users
     return (
-      <InitialLoadingScreen
-        step={initialLoadingStep}
-        statusMessage={initialLoadingMessage}
-      />
+      <div className="relative w-full min-h-screen bg-[#0b0b0e] text-white flex flex-col items-center justify-center p-4 select-none">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <div className="relative w-12 h-12 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin" />
+          </div>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <span className="text-sm font-semibold text-white tracking-wide">
+              Connecting to Daemon OTP...
+            </span>
+            <span className="text-xs text-zinc-400">
+              {initialLoadingMessage || 'Restoring your session'}
+            </span>
+          </div>
+        </div>
+      </div>
     );
   }
 
