@@ -28,21 +28,19 @@ export const ServerSelector: React.FC = () => {
     }`;
 
   return (
-    <div className="w-full flex flex-col gap-1.5 py-1.5 select-none">
-      {/* ROW 1: Server 1 (Cheap Quality - Yellow dot) & Server 2 (Good Quality - Green dot) */}
-      <div className="grid grid-cols-2 gap-1.5">
-        {/* Server 1: Cheap Quality */}
+    <div className="w-full flex flex-col gap-2 py-1.5 select-none">
+      {/* DESKTOP VIEW (md+): Unified 5-Column Horizontal Segmented Control */}
+      <div className="hidden md:grid md:grid-cols-5 gap-2.5">
+        {/* Server 1 */}
         <button
           onClick={() => setSelectedServer(1)}
           className={getBtnClasses(selectedServer === 1)}
           type="button"
         >
-          {/* Yellow Notification Dot on top right */}
           <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_6px_#f59e0b]"></span>
           </span>
-
           <TelegramIcon
             className={`w-4 h-4 shrink-0 transition-colors ${
               selectedServer === 1 ? 'text-white' : 'text-[#229ED9]'
@@ -53,7 +51,7 @@ export const ServerSelector: React.FC = () => {
               Server 1
             </span>
             <span
-              className={`text-[9.5px] leading-tight truncate ${
+              className={`text-[10px] leading-tight truncate ${
                 selectedServer === 1 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
@@ -62,18 +60,16 @@ export const ServerSelector: React.FC = () => {
           </div>
         </button>
 
-        {/* Server 2: Good Quality */}
+        {/* Server 2 */}
         <button
           onClick={() => setSelectedServer(2)}
           className={getBtnClasses(selectedServer === 2)}
           type="button"
         >
-          {/* Green Notification Dot on top right */}
           <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_#22c55e]"></span>
           </span>
-
           <TelegramIcon
             className={`w-4 h-4 shrink-0 transition-colors ${
               selectedServer === 2 ? 'text-white' : 'text-[#229ED9]'
@@ -84,7 +80,7 @@ export const ServerSelector: React.FC = () => {
               Server 2
             </span>
             <span
-              className={`text-[9.5px] leading-tight truncate ${
+              className={`text-[10px] leading-tight truncate ${
                 selectedServer === 2 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
@@ -92,40 +88,8 @@ export const ServerSelector: React.FC = () => {
             </span>
           </div>
         </button>
-      </div>
 
-      {/* ROW 2: Social Media Service / SMM (Server 5) - Full Width Banner */}
-      <button
-        onClick={() => setSelectedServer(5)}
-        className={`${getBtnClasses(selectedServer === 5)} w-full py-2.5`}
-        type="button"
-      >
-        <Users
-          className={`w-4 h-4 shrink-0 transition-colors ${
-            selectedServer === 5 ? 'text-white' : isLight ? 'text-[#7c3aed]' : 'text-[#a78bfa]'
-          }`}
-        />
-        <div className="flex items-center gap-2">
-          <span className={`text-[13px] font-bold leading-tight ${selectedServer === 5 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
-            Social Media Service
-          </span>
-          <span
-            className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium border ${
-              selectedServer === 5
-                ? 'bg-white/20 text-white border-white/30'
-                : isLight
-                ? 'bg-violet-50 text-violet-700 border-violet-200'
-                : 'bg-[#252538] text-[#a78bfa] border-[#383850]'
-            }`}
-          >
-            SMM Hub
-          </span>
-        </div>
-      </button>
-
-      {/* ROW 3: Server 3 & Server 4 (All apps) */}
-      <div className="grid grid-cols-2 gap-1.5">
-        {/* Server 3: All apps */}
+        {/* Server 3 */}
         <button
           onClick={() => setSelectedServer(3)}
           className={getBtnClasses(selectedServer === 3)}
@@ -141,7 +105,7 @@ export const ServerSelector: React.FC = () => {
               Server 3
             </span>
             <span
-              className={`text-[9.5px] leading-tight truncate ${
+              className={`text-[10px] leading-tight truncate ${
                 selectedServer === 3 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
@@ -150,7 +114,7 @@ export const ServerSelector: React.FC = () => {
           </div>
         </button>
 
-        {/* Server 4: All apps */}
+        {/* Server 4 */}
         <button
           onClick={() => setSelectedServer(4)}
           className={getBtnClasses(selectedServer === 4)}
@@ -166,7 +130,7 @@ export const ServerSelector: React.FC = () => {
               Server 4
             </span>
             <span
-              className={`text-[9.5px] leading-tight truncate ${
+              className={`text-[10px] leading-tight truncate ${
                 selectedServer === 4 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
               }`}
             >
@@ -174,6 +138,181 @@ export const ServerSelector: React.FC = () => {
             </span>
           </div>
         </button>
+
+        {/* Server 5: SMM */}
+        <button
+          onClick={() => setSelectedServer(5)}
+          className={getBtnClasses(selectedServer === 5)}
+          type="button"
+        >
+          <Users
+            className={`w-4 h-4 shrink-0 transition-colors ${
+              selectedServer === 5 ? 'text-white' : isLight ? 'text-[#7c3aed]' : 'text-[#a78bfa]'
+            }`}
+          />
+          <div className="flex flex-col items-start min-w-0">
+            <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 5 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+              Server 5
+            </span>
+            <span
+              className={`text-[10px] leading-tight truncate ${
+                selectedServer === 5 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
+              }`}
+            >
+              Social Media
+            </span>
+          </div>
+        </button>
+      </div>
+
+      {/* MOBILE / TELEGRAM VIEW (< md): 2-1-2 Stacking */}
+      <div className="flex flex-col gap-1.5 md:hidden">
+        {/* ROW 1: Server 1 & Server 2 */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {/* Server 1: Cheap Quality */}
+          <button
+            onClick={() => setSelectedServer(1)}
+            className={getBtnClasses(selectedServer === 1)}
+            type="button"
+          >
+            {/* Yellow Notification Dot on top right */}
+            <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_6px_#f59e0b]"></span>
+            </span>
+
+            <TelegramIcon
+              className={`w-4 h-4 shrink-0 transition-colors ${
+                selectedServer === 1 ? 'text-white' : 'text-[#229ED9]'
+              }`}
+            />
+            <div className="flex flex-col items-start min-w-0">
+              <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 1 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+                Server 1
+              </span>
+              <span
+                className={`text-[9.5px] leading-tight truncate ${
+                  selectedServer === 1 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
+                }`}
+              >
+                Cheap Quality
+              </span>
+            </div>
+          </button>
+
+          {/* Server 2: Good Quality */}
+          <button
+            onClick={() => setSelectedServer(2)}
+            className={getBtnClasses(selectedServer === 2)}
+            type="button"
+          >
+            {/* Green Notification Dot on top right */}
+            <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_#22c55e]"></span>
+            </span>
+
+            <TelegramIcon
+              className={`w-4 h-4 shrink-0 transition-colors ${
+                selectedServer === 2 ? 'text-white' : 'text-[#229ED9]'
+              }`}
+            />
+            <div className="flex flex-col items-start min-w-0">
+              <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 2 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+                Server 2
+              </span>
+              <span
+                className={`text-[9.5px] leading-tight truncate ${
+                  selectedServer === 2 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
+                }`}
+              >
+                Good Quality
+              </span>
+            </div>
+          </button>
+        </div>
+
+        {/* ROW 2: Social Media Service / SMM (Server 5) - Full Width Banner */}
+        <button
+          onClick={() => setSelectedServer(5)}
+          className={`${getBtnClasses(selectedServer === 5)} w-full py-2.5`}
+          type="button"
+        >
+          <Users
+            className={`w-4 h-4 shrink-0 transition-colors ${
+              selectedServer === 5 ? 'text-white' : isLight ? 'text-[#7c3aed]' : 'text-[#a78bfa]'
+            }`}
+          />
+          <div className="flex items-center gap-2">
+            <span className={`text-[13px] font-bold leading-tight ${selectedServer === 5 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+              Social Media Service
+            </span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium border ${
+                selectedServer === 5
+                  ? 'bg-white/20 text-white border-white/30'
+                  : isLight
+                  ? 'bg-violet-50 text-violet-700 border-violet-200'
+                  : 'bg-[#252538] text-[#a78bfa] border-[#383850]'
+              }`}
+            >
+              SMM Hub
+            </span>
+          </div>
+        </button>
+
+        {/* ROW 3: Server 3 & Server 4 (All apps) */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {/* Server 3: All apps */}
+          <button
+            onClick={() => setSelectedServer(3)}
+            className={getBtnClasses(selectedServer === 3)}
+            type="button"
+          >
+            <Zap
+              className={`w-4 h-4 shrink-0 transition-colors ${
+                selectedServer === 3 ? 'text-white' : isLight ? 'text-amber-500' : 'text-[#eab308]'
+              }`}
+            />
+            <div className="flex flex-col items-start min-w-0">
+              <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 3 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+                Server 3
+              </span>
+              <span
+                className={`text-[9.5px] leading-tight truncate ${
+                  selectedServer === 3 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
+                }`}
+              >
+                All apps
+              </span>
+            </div>
+          </button>
+
+          {/* Server 4: All apps */}
+          <button
+            onClick={() => setSelectedServer(4)}
+            className={getBtnClasses(selectedServer === 4)}
+            type="button"
+          >
+            <WhatsAppIcon
+              className={`w-4 h-4 shrink-0 transition-colors ${
+                selectedServer === 4 ? 'text-white' : 'text-[#25D366]'
+              }`}
+            />
+            <div className="flex flex-col items-start min-w-0">
+              <span className={`text-[12px] font-bold leading-tight truncate ${selectedServer === 4 ? 'text-white' : isLight ? 'text-[#0f172a]' : 'text-white'}`}>
+                Server 4
+              </span>
+              <span
+                className={`text-[9.5px] leading-tight truncate ${
+                  selectedServer === 4 ? 'text-white/85' : isLight ? 'text-[#64748b]' : 'text-[#71717a]'
+                }`}
+              >
+                All apps
+              </span>
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   );

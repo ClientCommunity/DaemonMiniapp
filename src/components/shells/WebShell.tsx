@@ -9,6 +9,7 @@ import { StorefrontView } from '../store/StorefrontView';
 import { DepositHub } from '../deposit/DepositHub';
 import { HistoryView } from '../history/HistoryView';
 import { ProfileView } from '../profile/ProfileView';
+import { SettingsView } from '../settings/SettingsView';
 import { P2PTransferModal } from '../profile/P2PTransferModal';
 import { TermsAcceptanceModal } from '../common/TermsAcceptanceModal';
 import {
@@ -17,6 +18,7 @@ import {
   Wallet,
   Clock,
   User,
+  Settings,
 } from 'lucide-react';
 
 export interface WebShellProps {
@@ -33,6 +35,7 @@ const navTabs = [
   { id: 'deposit', label: 'Deposit Funds', icon: Wallet },
   { id: 'history', label: 'Order History', icon: Clock },
   { id: 'profile', label: 'My Account', icon: User },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 
 /**
@@ -47,10 +50,15 @@ export const WebShell: React.FC<WebShellProps> = ({
   hasAcceptedTerms,
   onAcceptTerms,
 }) => {
-  const { activeTab, setActiveTab } = useApp();
+  const { activeTab, setActiveTab, theme } = useApp();
+  const isLight = theme === 'light';
 
   return (
-    <div className="relative w-full max-w-5xl mx-auto px-2 sm:px-6 md:border-x md:border-[#181820]/40 min-h-screen bg-[#0b0b0e] text-white flex flex-col shadow-2xl">
+    <div
+      className={`relative w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-screen flex flex-col transition-colors duration-200 ${
+        isLight ? 'bg-[#FAF8FF] text-[#211536]' : 'bg-[#0b0b0e] text-white shadow-2xl'
+      }`}
+    >
       {/* Toast Notifications */}
       <ToastContainer />
 
@@ -58,7 +66,13 @@ export const WebShell: React.FC<WebShellProps> = ({
       <Header isWeb={true} />
 
       {/* Desktop Top Navigation Bar (Visible only on md+ screens) */}
-      <nav className="hidden md:flex items-center justify-between gap-2 p-1.5 mt-2 mb-1 bg-[#121217]/90 backdrop-blur-md border border-[#262630] rounded-2xl shadow-sm">
+      <nav
+        className={`hidden md:flex items-center justify-between gap-2 p-1.5 mt-3 mb-2 backdrop-blur-md border rounded-2xl transition-all ${
+          isLight
+            ? 'bg-white/95 border-[#E5DCF4] shadow-sm'
+            : 'bg-[#121217]/90 border-[#262630] shadow-sm'
+        }`}
+      >
         <div className="flex items-center gap-1.5 flex-1">
           {navTabs.map((tab) => {
             const Icon = tab.icon;
@@ -70,6 +84,8 @@ export const WebShell: React.FC<WebShellProps> = ({
                 className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   isActive
                     ? 'bg-[#7c3aed] text-white shadow-md shadow-[#7c3aed]/30 font-bold'
+                    : isLight
+                    ? 'text-[#514364] hover:text-[#211536] hover:bg-[#F3EEFF]'
                     : 'text-[#a1a1aa] hover:text-white hover:bg-[#181820]'
                 }`}
               >
@@ -85,7 +101,7 @@ export const WebShell: React.FC<WebShellProps> = ({
       <GlobalRecoveryBanner />
 
       {/* Main View Container: responsive pb-24 on mobile vs pb-8 on desktop */}
-      <main className="flex-1 px-2 sm:px-4 pb-24 md:pb-8 pt-2 overflow-y-auto no-scrollbar">
+      <main className="flex-1 w-full pb-24 md:pb-8 pt-2 overflow-y-auto no-scrollbar">
         {activeTab === 'home' && (
           <DashboardView onOpenTransferModal={onOpenTransferModal} />
         )}
@@ -93,6 +109,7 @@ export const WebShell: React.FC<WebShellProps> = ({
         {activeTab === 'deposit' && <DepositHub />}
         {activeTab === 'history' && <HistoryView />}
         {activeTab === 'profile' && <ProfileView />}
+        {activeTab === 'settings' && <SettingsView />}
       </main>
 
       {/* Bottom Navigation (Only visible on mobile viewports, hidden on desktop md+) */}

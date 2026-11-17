@@ -18,13 +18,11 @@ import {
   Settings,
 } from 'lucide-react';
 import { isTelegramWebApp, setWebUserToken } from '../../api/client';
-import { SettingsModal } from '../settings/SettingsModal';
 
 export const ProfileView: React.FC = () => {
-  const { user, transferableBalance, formatPrice, addToast, theme, toggleTheme } = useApp();
+  const { user, transferableBalance, formatPrice, addToast, theme, toggleTheme, setActiveTab } = useApp();
 
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
 
   const handleOpenTerms = () => {
@@ -51,7 +49,7 @@ export const ProfileView: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col pt-2 pb-12">
+    <div className="w-full max-w-4xl mx-auto flex flex-col pt-2 pb-12">
       {/* Profile Overview Card */}
       <div className="p-4 mb-4 rounded-2xl bg-[#181820] border border-[#262630] relative overflow-hidden shadow-sm">
         <div className="flex items-center gap-3.5">
@@ -201,7 +199,7 @@ export const ProfileView: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setIsSettingsOpen(true)}
+          onClick={() => setActiveTab('settings')}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-xs font-semibold text-white shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <span>Manage</span>
@@ -287,10 +285,6 @@ export const ProfileView: React.FC = () => {
       <P2PTransferModal
         isOpen={isTransferModalOpen}
         onClose={() => setIsTransferModalOpen(false)}
-      />
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

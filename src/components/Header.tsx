@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#121217]/95 backdrop-blur-md border-b border-[#262630] pt-[max(10px,env(safe-area-inset-top))] pb-2.5 px-2.5 sm:px-4">
-      <div className="flex items-center justify-between gap-1 sm:gap-2 max-w-full overflow-hidden">
+      <div className={`flex items-center justify-between gap-1 sm:gap-2 w-full overflow-hidden ${isWeb ? 'max-w-7xl mx-auto' : 'max-w-full'}`}>
         {/* Left Side: Brand Logo & Title for Web, or User Profile for Mobile/Telegram */}
         {isWeb ? (
           <div className="flex items-center gap-2.5 min-w-0">

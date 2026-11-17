@@ -48,7 +48,7 @@ export const QuickActions: React.FC = () => {
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-2 my-4">
+    <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2 my-2">
       {actions.map((action, idx) => {
         const Icon = action.icon;
         return (

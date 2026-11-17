@@ -10,6 +10,7 @@ import { StorefrontView } from '../store/StorefrontView';
 import { DepositHub } from '../deposit/DepositHub';
 import { HistoryView } from '../history/HistoryView';
 import { ProfileView } from '../profile/ProfileView';
+import { SettingsView } from '../settings/SettingsView';
 import { P2PTransferModal } from '../profile/P2PTransferModal';
 import { TermsAcceptanceModal } from '../common/TermsAcceptanceModal';
 
@@ -126,6 +127,7 @@ export const TelegramShell: React.FC<TelegramShellProps> = ({
         {activeTab === 'deposit' && <DepositHub />}
         {activeTab === 'history' && <HistoryView />}
         {activeTab === 'profile' && <ProfileView />}
+        {activeTab === 'settings' && <SettingsView />}
       </main>
 
       {/* Persistent Sticky Bottom Navigation Bar */}

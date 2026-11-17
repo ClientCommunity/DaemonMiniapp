@@ -521,7 +521,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
       </div>
 
       {/* Virtual Services List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 w-full">
         {isServerLoading[serverId] && serverItems.length === 0 ? (
           <Server34SkeletonList count={6} />
         ) : serverItems.length === 0 ? (

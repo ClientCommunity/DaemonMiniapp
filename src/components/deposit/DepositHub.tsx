@@ -766,7 +766,7 @@ export const DepositHub: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col pt-2 pb-10">
+    <div className="w-full max-w-4xl mx-auto flex flex-col pt-2 pb-10">
       {/* Header Banner */}
       <div className="p-4 mb-4 rounded-2xl bg-gradient-to-r from-[#181820] to-[#121217] border border-[#262630] relative overflow-hidden shadow-lg">
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#22c55e]/10 rounded-full filter blur-2xl pointer-events-none" />
@@ -1020,70 +1020,75 @@ export const DepositHub: React.FC = () => {
                 </div>
               </div>
 
-              {/* STEP 1: Pay exact amount via QR or UPI ID */}
-              <div className="w-full bg-[#121217] border border-[#262630] rounded-xl p-3 sm:p-3.5 mb-3.5 text-left">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold text-[#a78bfa] uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-4 h-4 rounded-full bg-[#7c3aed] text-white flex items-center justify-center text-[10px] font-bold">1</span>
-                    <span>Step 1: Transfer Exact Amount</span>
-                  </span>
-                  <span className="text-[10px] font-mono text-[#a1a1aa]">Ref: <code className="text-[#8b5cf6]">{activeInvoice.reference}</code></span>
-                </div>
-
-                {/* Amount Highlight */}
-                <div className="flex items-center justify-between bg-[#181820] border border-[#262630] rounded-xl p-2.5 sm:p-3 mb-2.5">
-                  <span className="text-xs text-[#a1a1aa] font-medium">Amount to Transfer:</span>
-                  <span className="text-xl font-black font-mono text-[#22c55e]">₹{activeInvoice.amount}</span>
-                </div>
-
-                {/* Dynamic QR Code (Dual Layer: Backend Base64 Data URI with Browser SVG Fallback) */}
-                <div className="w-48 h-48 mx-auto bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
-                  <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
-                    {!qrImgError && activeInvoice.qrUrl ? (
-                      <img
-                        src={activeInvoice.qrUrl}
-                        alt={`UPI Auto ₹${activeInvoice.amount}`}
-                        className="w-40 h-40 object-contain"
-                        onError={() => setQrImgError(true)}
-                      />
-                    ) : (
-                      <QRCodeSVG
-                        value={
-                          activeInvoice.upiUri ||
-                          `upi://pay?pa=${activeInvoice.upiId || merchantUpi || 'Patel.96@fam'}&pn=Payment&am=${activeInvoice.amount}&tn=${activeInvoice.reference}&cu=INR`
-                        }
-                        size={152}
-                        level="M"
-                      />
-                    )}
+              {/* Desktop 2-Column Checkout Layout (md+) vs Mobile Stacking (< md) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full items-start mb-2">
+                {/* STEP 1: Pay exact amount via QR or UPI ID */}
+                <div className="w-full bg-[#121217] border border-[#262630] rounded-xl p-3 sm:p-3.5 text-left">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-[#a78bfa] uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-[#7c3aed] text-white flex items-center justify-center text-[10px] font-bold">1</span>
+                      <span>Step 1: Transfer Exact Amount</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-[#a1a1aa]">Ref: <code className="text-[#8b5cf6]">{activeInvoice.reference}</code></span>
                   </div>
-                </div>
 
-                <div className="text-center text-[10px] text-[#71717a] my-1.5">
-                  Scan using GPay, PhonePe, Paytm, CRED or any UPI app
-                </div>
+                  {/* Amount Highlight */}
+                  <div className="flex items-center justify-between bg-[#181820] border border-[#262630] rounded-xl p-2.5 sm:p-3 mb-2.5">
+                    <span className="text-xs text-[#a1a1aa] font-medium">Amount to Transfer:</span>
+                    <span className="text-xl font-black font-mono text-[#22c55e]">₹{activeInvoice.amount}</span>
+                  </div>
 
-                {/* UPI ID Copy Box */}
-                {activeInvoice.upiId ? (
-                  <div className="w-full flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2 mt-2">
-                    <div className="flex flex-col text-left min-w-0 pr-2">
-                      <span className="text-[9px] text-[#71717a] uppercase font-bold">UPI VPA</span>
-                      <span className="text-xs font-mono font-bold text-white truncate">{activeInvoice.upiId}</span>
+                  {/* Dynamic QR Code (Dual Layer: Backend Base64 Data URI with Browser SVG Fallback) */}
+                  <div className="w-48 h-48 mx-auto bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center my-2 relative">
+                    <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+                      {!qrImgError && activeInvoice.qrUrl ? (
+                        <img
+                          src={activeInvoice.qrUrl}
+                          alt={`UPI Auto ₹${activeInvoice.amount}`}
+                          className="w-40 h-40 object-contain"
+                          onError={() => setQrImgError(true)}
+                        />
+                      ) : (
+                        <QRCodeSVG
+                          value={
+                            activeInvoice.upiUri ||
+                            `upi://pay?pa=${activeInvoice.upiId || merchantUpi || 'Patel.96@fam'}&pn=Payment&am=${activeInvoice.amount}&tn=${activeInvoice.reference}&cu=INR`
+                          }
+                          size={152}
+                          level="M"
+                        />
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleCopyUpi}
-                      className="min-h-[36px] flex items-center gap-1.5 bg-[#1f1f2a] hover:bg-[#262630] active:scale-95 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#262630] text-white transition-all shrink-0 cursor-pointer"
-                    >
-                      {copiedUpi ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
-                      <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
-                    </button>
                   </div>
-                ) : null}
-              </div>
 
-              {/* STEP 2: Input FamPay Txn ID or 12-Digit UTR with 60s smart auto-verify */}
-              {renderUpiVerificationSection(true)}
+                  <div className="text-center text-[10px] text-[#71717a] my-1.5">
+                    Scan using GPay, PhonePe, Paytm, CRED or any UPI app
+                  </div>
+
+                  {/* UPI ID Copy Box */}
+                  {activeInvoice.upiId ? (
+                    <div className="w-full flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2 mt-2">
+                      <div className="flex flex-col text-left min-w-0 pr-2">
+                        <span className="text-[9px] text-[#71717a] uppercase font-bold">UPI VPA</span>
+                        <span className="text-xs font-mono font-bold text-white truncate">{activeInvoice.upiId}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyUpi}
+                        className="min-h-[36px] flex items-center gap-1.5 bg-[#1f1f2a] hover:bg-[#262630] active:scale-95 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#262630] text-white transition-all shrink-0 cursor-pointer"
+                      >
+                        {copiedUpi ? <Check className="w-3.5 h-3.5 text-[#22c55e]" /> : <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />}
+                        <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* STEP 2: Input FamPay Txn ID or 12-Digit UTR with 60s smart auto-verify */}
+                <div className="w-full">
+                  {renderUpiVerificationSection(true)}
+                </div>
+              </div>
 
               {/* Cancel / Change Amount button */}
               <button

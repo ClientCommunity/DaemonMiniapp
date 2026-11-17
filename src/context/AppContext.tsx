@@ -58,7 +58,7 @@ export interface AppContextType {
   user: UserProfile;
   transferableBalance: number;
   currency: CurrencyPreference;
-  activeTab: 'home' | 'store' | 'deposit' | 'history' | 'profile';
+  activeTab: 'home' | 'store' | 'deposit' | 'history' | 'profile' | 'settings';
   selectedServer: 1 | 2 | 3 | 4 | 5;
   activeOtpSession: ActiveOtpSession | null;
   activeNumbers: ActiveNumberItem[];
@@ -107,7 +107,7 @@ export interface AppContextType {
   closeServer2Modal: () => void;
 
   // Actions
-  setActiveTab: (tab: 'home' | 'store' | 'deposit' | 'history' | 'profile') => void;
+  setActiveTab: (tab: 'home' | 'store' | 'deposit' | 'history' | 'profile' | 'settings') => void;
   setSelectedServer: (server: 1 | 2 | 3 | 4 | 5) => void;
   toggleCurrency: () => void;
   formatPrice: (amountInr: number) => string;
@@ -250,7 +250,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return cleanSaved;
   });
   const [currency, setCurrency] = useState<CurrencyPreference>(() => getSavedState('currency', 'INR'));
-  const [activeTab, setActiveTab] = useState<'home' | 'store' | 'deposit' | 'history' | 'profile'>(() =>
+  const [activeTab, setActiveTab] = useState<'home' | 'store' | 'deposit' | 'history' | 'profile' | 'settings'>(() =>
     getSavedState('activeTab', 'home')
   );
   const [selectedServer, setSelectedServer] = useState<1 | 2 | 3 | 4 | 5>(() =>

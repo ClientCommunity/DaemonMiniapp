@@ -108,7 +108,7 @@ export const HistoryView: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col pt-2 pb-10">
+    <div className="w-full max-w-5xl mx-auto flex flex-col pt-2 pb-10">
       {/* Header */}
       <div className="p-3 mb-3 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between">
         <div className="flex flex-col">
