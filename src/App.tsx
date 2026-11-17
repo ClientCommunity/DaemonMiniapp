@@ -13,7 +13,8 @@ const LandingPage = React.lazy(() =>
   import('./components/landing/LandingPage').then((m) => ({ default: m.LandingPage }))
 );
 import { isTelegramWebApp, getWebUserToken, setWebUserToken } from './api/client';
-import { downloadApi } from './api/endpoints';
+import { downloadApi, webAuthApi } from './api/endpoints';
+import { MergeCelebrationModal } from './components/common/MergeCelebrationModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -35,6 +36,10 @@ const AppContent: React.FC = () => {
 
   const { isAdminMode } = useAdmin();
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [mergeCelebration, setMergeCelebration] = useState<{
+    telegramId: number | string;
+    message?: string;
+  } | null>(null);
 
   // First-time visitor Terms & Conditions acceptance gate
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean>(() => {
@@ -82,9 +87,55 @@ const AppContent: React.FC = () => {
     if (targetTab) {
       setActiveTab(targetTab);
     }
+    // Check if login/register auto-merged a Telegram account
+    const userObj = _user as { account_merged?: { telegram_user_id: number | string; message?: string } } | undefined;
+    if (userObj?.account_merged?.telegram_user_id) {
+      setMergeCelebration({
+        telegramId: userObj.account_merged.telegram_user_id,
+        message: userObj.account_merged.message,
+      });
+    }
     await refreshUser();
     await refreshStore();
   };
+
+  // 1-Click Fast Connect: Capture ?merge_token=... from URL on website load
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      const mToken = params.get('merge_token');
+      if (mToken) {
+        sessionStorage.setItem('krish_merge_token', mToken);
+        const cleanUrl = window.location.pathname + (window.location.hash || '');
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    } catch {}
+  }, []);
+
+  // 1-Click Fast Connect: If logged in on website and pending merge_token exists, claim it
+  useEffect(() => {
+    if (!isTg && webToken && backendConnected) {
+      const pendingToken = sessionStorage.getItem('krish_merge_token');
+      if (pendingToken) {
+        webAuthApi
+          .claimMergeToken(pendingToken)
+          .then((res) => {
+            sessionStorage.removeItem('krish_merge_token');
+            if (res.success && res.merged_telegram_id) {
+              setMergeCelebration({
+                telegramId: res.merged_telegram_id,
+                message: res.message || 'Accounts merged successfully!',
+              });
+              refreshUser().catch(() => {});
+            }
+          })
+          .catch(() => {
+            sessionStorage.removeItem('krish_merge_token');
+          });
+      }
+    }
+  }, [isTg, webToken, backendConnected, refreshUser]);
 
   // Stale-While-Revalidate (SWR): Refresh active tab data seamlessly in background
   useEffect(() => {
@@ -218,13 +269,21 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <WebShell
-      isTransferModalOpen={isTransferModalOpen}
-      onOpenTransferModal={() => setIsTransferModalOpen(true)}
-      onCloseTransferModal={() => setIsTransferModalOpen(false)}
-      hasAcceptedTerms={hasAcceptedTerms}
-      onAcceptTerms={handleAcceptTerms}
-    />
+    <>
+      <MergeCelebrationModal
+        isOpen={Boolean(mergeCelebration)}
+        onClose={() => setMergeCelebration(null)}
+        telegramId={mergeCelebration?.telegramId || ''}
+        message={mergeCelebration?.message}
+      />
+      <WebShell
+        isTransferModalOpen={isTransferModalOpen}
+        onOpenTransferModal={() => setIsTransferModalOpen(true)}
+        onCloseTransferModal={() => setIsTransferModalOpen(false)}
+        hasAcceptedTerms={hasAcceptedTerms}
+        onAcceptTerms={handleAcceptTerms}
+      />
+    </>
   );
 };
 

@@ -399,6 +399,28 @@ export const webAuthApi = {
     api.post<{ success: boolean; message?: string; error?: string }>('/api/web/profile/link-telegram/request', { telegram_user_id }),
   verifyTelegramLink: (data: { telegram_user_id: number | string; otp_code: string }) =>
     api.post<{ success: boolean; message?: string; error?: string; balance?: number; promo_balance?: number; account_link?: any }>('/api/web/profile/link-telegram/verify', data),
+
+  // 1-Click Fast Connect (Option 3)
+  generateTelegramMergeToken: () =>
+    api.post<{ success: boolean; token?: string; merge_url?: string; expires_in?: number; error?: string }>('/api/telegram/merge-token'),
+  claimMergeToken: (token: string) =>
+    api.post<{ success: boolean; message?: string; error?: string; merged_telegram_id?: number; balance?: number; promo_balance?: number; account_link?: any }>(
+      '/api/web/profile/claim-merge-token',
+      { token }
+    ),
+
+  // Pre-seed verified backup email (Option 2)
+  requestTelegramBackupEmailOtp: (email: string) =>
+    api.post<{ success: boolean; message?: string; error?: string }>('/api/telegram/backup-email/request-otp', { email }),
+  verifyTelegramBackupEmailOtp: (data: { email: string; otp_code: string }) =>
+    api.post<{ success: boolean; merged_now?: boolean; message?: string; error?: string; email?: string; web_user_id?: number; balance?: number; promo_balance?: number }>(
+      '/api/telegram/backup-email/verify-otp',
+      data
+    ),
+  getTelegramBackupStatus: () =>
+    api.get<{ success: boolean; telegram_user_id?: number; is_linked?: boolean; account_link?: any; pending_backup_email?: string; error?: string }>(
+      '/api/telegram/backup-status'
+    ),
 };
 
 /**
