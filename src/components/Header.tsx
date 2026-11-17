@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
-import { BadgeCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Sparkles, Store, Sun, Moon } from 'lucide-react';
+import { BadgeCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Sparkles, Store, Sun, Moon, ChevronDown } from 'lucide-react';
 import { hapticFeedback } from '../utils/haptics';
+import { ProfileDropdownCard } from './common/ProfileDropdownCard';
 
 const LOGO_URL = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
 
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
   } = useApp();
 
   const [isSyncingBalance, setIsSyncingBalance] = React.useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const isLight = theme === 'light';
 
   const handleSyncBalance = async () => {
@@ -51,13 +53,6 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
     enterAdminMode,
     enterUserMode,
   } = useAdmin();
-
-  const handleCopyId = () => {
-    hapticFeedback.light();
-    navigator.clipboard?.writeText(user.telegramId);
-    hapticFeedback.success();
-    addToast(`Account ID ${user.telegramId} copied to clipboard!`, 'info', 'Copied');
-  };
 
   const handleToggleCurrency = () => {
     hapticFeedback.selection();
@@ -117,41 +112,48 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
           </div>
         ) : (
           /* User Info (Left for Mobile / Telegram Shell) */
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="relative shrink-0">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 ring-[#262630] overflow-hidden">
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
-                ) : (
-                  user.firstName.substring(0, 2).toUpperCase()
-                )}
+          <div className="relative flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+              className="flex items-center gap-2 min-w-0 text-left rounded-xl p-1 -ml-1 transition-all hover:bg-white/5 active:scale-95 cursor-pointer"
+              title="Account & Settings"
+            >
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 ring-[#262630] overflow-hidden">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
+                  ) : (
+                    user.firstName.substring(0, 2).toUpperCase()
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[280px]">
-                  {user.firstName}
-                </span>
-                <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#22c55e] shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[280px]">
+                    {user.firstName}
+                  </span>
+                  <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#22c55e] shrink-0" />
+                  <ChevronDown className={`w-3 h-3 text-[#a1a1aa] transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+                </div>
+                <div className="flex items-center gap-1 text-[11px] text-[#a1a1aa]">
+                  {user.username ? (
+                    <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">@{user.username}</span>
+                  ) : (
+                    <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">No username</span>
+                  )}
+                  <span className="hidden sm:inline">•</span>
+                  <span className="hidden sm:inline font-mono">ID: {user.telegramId}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-[#a1a1aa]">
-                {user.username ? (
-                  <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">@{user.username}</span>
-                ) : (
-                  <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">No username</span>
-                )}
-                <span className="hidden sm:inline">•</span>
-                <button
-                  type="button"
-                  onClick={handleCopyId}
-                  className="hidden sm:inline font-mono hover:text-white transition-colors shrink-0 cursor-pointer"
-                  title="Click to copy ID"
-                >
-                  ID: {user.telegramId}
-                </button>
-              </div>
-            </div>
+            </button>
+
+            <ProfileDropdownCard
+              isOpen={isProfileMenuOpen}
+              onClose={() => setIsProfileMenuOpen(false)}
+              align="left"
+            />
           </div>
         )}
 
@@ -244,37 +246,53 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
 
           {/* User Profile on the Top Right for Web */}
           {isWeb && (
-            <div className={`flex items-center gap-2 pl-2 sm:pl-2.5 border-l ${isLight ? 'border-[#E5DCF4]' : 'border-[#262630]'}`}>
-              <div className="hidden sm:flex flex-col items-end min-w-0">
-                <div className="flex items-center gap-1">
-                  <span className={`font-bold text-xs sm:text-sm tracking-tight truncate max-w-[95px] md:max-w-[150px] ${
-                    isLight ? 'text-[#211536]' : 'text-white'
-                  }`}>
-                    {user.firstName}
-                  </span>
-                  <BadgeCheck className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                className={`flex items-center gap-2 pl-2 sm:pl-2.5 border-l transition-all cursor-pointer rounded-xl py-1 px-1.5 hover:bg-violet-500/10 active:scale-95 ${
+                  isLight ? 'border-[#E5DCF4]' : 'border-[#262630]'
+                }`}
+                title="Account Menu"
+              >
+                <div className="hidden sm:flex flex-col items-end min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className={`font-bold text-xs sm:text-sm tracking-tight truncate max-w-[95px] md:max-w-[150px] ${
+                      isLight ? 'text-[#211536]' : 'text-white'
+                    }`}>
+                      {user.firstName}
+                    </span>
+                    <BadgeCheck className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
+                  </div>
+                  <div className={`flex items-center gap-1 text-[10px] ${isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'}`}>
+                    {user.username ? (
+                      <span className="font-mono truncate max-w-[85px] md:max-w-[130px]">@{user.username}</span>
+                    ) : (
+                      <span className="font-sans text-[10px] text-[#71717a]">No username</span>
+                    )}
+                  </div>
                 </div>
-                <div className={`flex items-center gap-1 text-[10px] ${isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'}`}>
-                  {user.username ? (
-                    <span className="font-mono truncate max-w-[85px] md:max-w-[130px]">@{user.username}</span>
-                  ) : (
-                    <span className="font-sans text-[10px] text-[#71717a]">No username</span>
-                  )}
-                </div>
-              </div>
 
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 overflow-hidden ${
-                  isLight ? 'ring-[#E5DCF4]' : 'ring-[#262630]'
-                }`}>
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
-                  ) : (
-                    user.firstName.substring(0, 2).toUpperCase()
-                  )}
+                {/* Avatar */}
+                <div className="relative shrink-0">
+                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 overflow-hidden ${
+                    isLight ? 'ring-[#E5DCF4]' : 'ring-[#262630]'
+                  }`}>
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
+                    ) : (
+                      user.firstName.substring(0, 2).toUpperCase()
+                    )}
+                  </div>
                 </div>
-              </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-[#a1a1aa] transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <ProfileDropdownCard
+                isOpen={isProfileMenuOpen}
+                onClose={() => setIsProfileMenuOpen(false)}
+                align="right"
+              />
             </div>
           )}
         </div>
