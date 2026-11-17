@@ -135,8 +135,9 @@ export const SettingsView: React.FC = () => {
       } else {
         addToast(res.error || 'Failed to generate fast connect link.', 'error', 'Error');
       }
-    } catch {
-      addToast('Network error generating merge link.', 'error', 'Error');
+    } catch (err: unknown) {
+      const errMsg = (err as any)?.response?.data?.error || (err as any)?.message || 'Network error generating merge link.';
+      addToast(errMsg, 'error', 'Error');
     } finally {
       setIsGeneratingMergeLink(false);
     }
@@ -162,8 +163,9 @@ export const SettingsView: React.FC = () => {
       } else {
         setBackupNotice({ type: 'error', text: res.error || 'Failed to send verification code.' });
       }
-    } catch {
-      setBackupNotice({ type: 'error', text: 'Network error requesting verification code.' });
+    } catch (err: unknown) {
+      const errMsg = (err as any)?.response?.data?.error || (err as any)?.message || 'Network error requesting verification code.';
+      setBackupNotice({ type: 'error', text: errMsg });
     } finally {
       setIsSendingBackupOtp(false);
     }
@@ -215,8 +217,9 @@ export const SettingsView: React.FC = () => {
       } else {
         setBackupNotice({ type: 'error', text: res.error || 'Failed to verify backup code.' });
       }
-    } catch {
-      setBackupNotice({ type: 'error', text: 'Network error verifying backup code.' });
+    } catch (err: unknown) {
+      const errMsg = (err as any)?.response?.data?.error || (err as any)?.message || 'Network error verifying backup code.';
+      setBackupNotice({ type: 'error', text: errMsg });
     } finally {
       setIsVerifyingBackupOtp(false);
     }
@@ -274,8 +277,9 @@ export const SettingsView: React.FC = () => {
       } else {
         setPasswordNotice({ type: 'error', text: res.error || 'Failed to change password.' });
       }
-    } catch {
-      setPasswordNotice({ type: 'error', text: 'Network error. Please try again.' });
+    } catch (err: unknown) {
+      const errMsg = (err as any)?.response?.data?.error || (err as any)?.message || 'Network error. Please try again.';
+      setPasswordNotice({ type: 'error', text: errMsg });
     } finally {
       setIsChangingPassword(false);
     }
@@ -317,8 +321,9 @@ export const SettingsView: React.FC = () => {
           text: res.error || 'Failed to send verification code to Telegram.',
         });
       }
-    } catch {
-      setTgNotice({ type: 'error', text: 'Network error. Please try again.' });
+    } catch (err: unknown) {
+      const errMsg = (err as any)?.response?.data?.error || (err as any)?.message || 'Network error. Please try again.';
+      setTgNotice({ type: 'error', text: errMsg });
     } finally {
       setIsSendingTgOtp(false);
     }
@@ -357,8 +362,9 @@ export const SettingsView: React.FC = () => {
           text: res.error || 'Failed to link account. Please check the code.',
         });
       }
-    } catch {
-      setTgNotice({ type: 'error', text: 'Network error during linking verification.' });
+    } catch (err: unknown) {
+      const errMsg = (err as any)?.response?.data?.error || (err as any)?.message || 'Network error during linking verification.';
+      setTgNotice({ type: 'error', text: errMsg });
     } finally {
       setIsLinkingTg(false);
     }

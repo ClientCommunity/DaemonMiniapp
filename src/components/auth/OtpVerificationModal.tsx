@@ -80,13 +80,14 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
       if (res.success && res.token && res.user) {
         setSuccessMsg('Account verified successfully! Redirecting...');
         setTimeout(() => {
-          onSuccess(res.token!, res.user);
+          onSuccess(res.token!, { ...res.user, account_merged: res.account_merged });
         }, 600);
       } else {
         setErrorMsg(res.error || 'Failed to verify code. Please check and try again.');
       }
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Network error. Please try again.');
+      const respErr = (err as any)?.response?.data?.error;
+      setErrorMsg(respErr || (err instanceof Error ? err.message : 'Network error. Please try again.'));
     } finally {
       setIsVerifying(false);
     }

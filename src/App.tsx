@@ -32,6 +32,7 @@ const AppContent: React.FC = () => {
     refreshHistory,
     refreshReseller,
     theme,
+    addToast,
   } = useApp();
 
   const { isAdminMode } = useAdmin();
@@ -88,11 +89,12 @@ const AppContent: React.FC = () => {
       setActiveTab(targetTab);
     }
     // Check if login/register auto-merged a Telegram account
-    const userObj = _user as { account_merged?: { telegram_user_id: number | string; message?: string } } | undefined;
-    if (userObj?.account_merged?.telegram_user_id) {
+    const userObj = _user as any;
+    const mergeData = userObj?.account_merged || userObj?.user?.account_merged;
+    if (mergeData?.telegram_user_id) {
       setMergeCelebration({
-        telegramId: userObj.account_merged.telegram_user_id,
-        message: userObj.account_merged.message,
+        telegramId: mergeData.telegram_user_id,
+        message: mergeData.message,
       });
     }
     await refreshUser();
@@ -107,6 +109,9 @@ const AppContent: React.FC = () => {
       const mToken = params.get('merge_token');
       if (mToken) {
         sessionStorage.setItem('krish_merge_token', mToken);
+        try {
+          localStorage.setItem('krish_merge_token', mToken);
+        } catch {}
         const cleanUrl = window.location.pathname + (window.location.hash || '');
         window.history.replaceState({}, document.title, cleanUrl);
       }
@@ -116,12 +121,18 @@ const AppContent: React.FC = () => {
   // 1-Click Fast Connect: If logged in on website and pending merge_token exists, claim it
   useEffect(() => {
     if (!isTg && webToken && backendConnected) {
-      const pendingToken = sessionStorage.getItem('krish_merge_token');
+      let pendingToken: string | null = null;
+      try {
+        pendingToken = sessionStorage.getItem('krish_merge_token') || localStorage.getItem('krish_merge_token');
+      } catch {}
       if (pendingToken) {
         webAuthApi
           .claimMergeToken(pendingToken)
           .then((res) => {
-            sessionStorage.removeItem('krish_merge_token');
+            try {
+              sessionStorage.removeItem('krish_merge_token');
+              localStorage.removeItem('krish_merge_token');
+            } catch {}
             if (res.success && res.merged_telegram_id) {
               setMergeCelebration({
                 telegramId: res.merged_telegram_id,
@@ -130,12 +141,20 @@ const AppContent: React.FC = () => {
               refreshUser().catch(() => {});
             }
           })
-          .catch(() => {
-            sessionStorage.removeItem('krish_merge_token');
+          .catch((err: any) => {
+            try {
+              sessionStorage.removeItem('krish_merge_token');
+              localStorage.removeItem('krish_merge_token');
+            } catch {}
+            const errMsg =
+              err?.response?.data?.error ||
+              err?.message ||
+              'Fast Connect link has expired. Please generate a fresh one from Telegram.';
+            addToast(errMsg, 'error', 'Connection Expired');
           });
       }
     }
-  }, [isTg, webToken, backendConnected, refreshUser]);
+  }, [isTg, webToken, backendConnected, refreshUser, addToast]);
 
   // Stale-While-Revalidate (SWR): Refresh active tab data seamlessly in background
   useEffect(() => {

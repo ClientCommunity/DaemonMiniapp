@@ -74,6 +74,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [hasPendingMergeToken, setHasPendingMergeToken] = useState<boolean>(() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      return Boolean(sessionStorage.getItem('krish_merge_token') || localStorage.getItem('krish_merge_token'));
+    } catch {
+      return false;
+    }
+  });
 
   // Live Service Explorer State
   const [searchQuery, setSearchQuery] = useState('');
@@ -212,7 +220,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         const targetTab = buyModalItem ? 'store' : undefined;
         setIsBuyModalOpen(false);
         setWebUserToken(res.token);
-        onLoginSuccess(res.token, res.user, targetTab);
+        onLoginSuccess(res.token, { ...res.user, account_merged: res.account_merged }, targetTab);
       } else if (res.requires_verification) {
         openOtpModal(res.email || loginEmail.trim());
         setEmailAuthNotice({
@@ -327,7 +335,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         const targetTab = buyModalItem ? 'store' : undefined;
         setIsBuyModalOpen(false);
         setWebUserToken(res.token);
-        onLoginSuccess(res.token, res.user, targetTab);
+        onLoginSuccess(res.token, { ...res.user, account_merged: (res as any).account_merged }, targetTab);
       } else {
         setErrorMessage(res.error || 'Failed to authenticate with Google. Please try again.');
       }
@@ -806,6 +814,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           </div>
         </div>
       </header>
+
+      {/* 1-Click Fast Connect Detected Banner */}
+      {hasPendingMergeToken && (
+        <div className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-md relative z-40">
+          <div className="max-w-6xl mx-auto flex items-center gap-2 justify-center flex-1">
+            <Sparkles className="w-4 h-4 shrink-0 text-amber-300 animate-pulse" />
+            <span>
+              <strong>Fast Connect Active:</strong> Log in or create your account below to immediately link your Telegram account and combine balances!
+            </span>
+          </div>
+          <button
+            onClick={() => setHasPendingMergeToken(false)}
+            className="p-1 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 flex flex-col">

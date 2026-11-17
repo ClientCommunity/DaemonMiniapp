@@ -30,6 +30,7 @@ export interface BackendUserPayload {
   name?: string;
   avatar_url?: string;
   auth_provider?: string;
+  account_merged?: { telegram_user_id: number | string; message?: string };
 }
 
 export interface BackendServer1Item {

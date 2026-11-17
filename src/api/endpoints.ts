@@ -303,6 +303,7 @@ export interface GoogleAuthResponse {
   token?: string;
   user?: BackendUserPayload;
   error?: string;
+  account_merged?: { telegram_user_id: number | string; message?: string };
 }
 
 export interface Server1Filters {
@@ -352,6 +353,7 @@ export interface WebAuthResponse {
   error?: string;
   requires_verification?: boolean;
   email?: string;
+  account_merged?: { telegram_user_id: number | string; message?: string };
 }
 
 export interface WebSettingsResponse {
