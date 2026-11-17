@@ -106,10 +106,14 @@ export const ProfileDropdownCard: React.FC<ProfileDropdownCardProps> = ({
 
       <div
         ref={cardRef}
-        className={`absolute z-50 w-72 max-w-[calc(100vw-24px)] rounded-2xl p-3 border backdrop-blur-2xl shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-150 ${positionClasses} ${
+        style={{
+          backgroundColor: isLight ? '#ffffff' : '#14141c',
+          opacity: 1,
+        }}
+        className={`absolute z-50 w-72 max-w-[calc(100vw-24px)] rounded-2xl p-3 border shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-150 ${positionClasses} ${
           isLight
-            ? 'bg-white/98 border-[#E5DCF4] text-[#211536] shadow-purple-950/10'
-            : 'bg-[#14141c]/98 border-[#262635] text-white shadow-black/80'
+            ? 'bg-white border-[#E5DCF4] text-[#211536] shadow-purple-950/20'
+            : 'bg-[#14141c] border-[#262635] text-white shadow-black/90'
         } ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
