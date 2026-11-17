@@ -77,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
     <header className={`sticky top-0 z-40 w-full backdrop-blur-md border-b pt-[max(10px,env(safe-area-inset-top))] pb-2.5 px-2.5 sm:px-4 transition-colors duration-200 ${
       isLight ? 'bg-white/90 border-[#E5DCF4]' : 'bg-[#121217]/95 border-[#262630]'
     }`}>
-      <div className={`flex items-center justify-between gap-1 sm:gap-2 w-full overflow-hidden ${isWeb ? 'max-w-7xl mx-auto' : 'max-w-full'}`}>
+      <div className={`flex items-center justify-between gap-1 sm:gap-2 w-full ${isWeb ? 'max-w-7xl mx-auto' : 'max-w-full'}`}>
         {/* Left Side: Brand Logo & Title for Web, or User Profile for Mobile/Telegram */}
         {isWeb ? (
           <div className="flex items-center gap-2.5 min-w-0">
@@ -115,7 +115,10 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
           <div className="relative flex-1 min-w-0">
             <button
               type="button"
-              onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsProfileMenuOpen((prev) => !prev);
+              }}
               className="flex items-center gap-2 min-w-0 text-left rounded-xl p-1 -ml-1 transition-all hover:bg-white/5 active:scale-95 cursor-pointer"
               title="Account & Settings"
             >
@@ -249,7 +252,10 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsProfileMenuOpen((prev) => !prev);
+                }}
                 className={`flex items-center gap-2 pl-2 sm:pl-2.5 border-l transition-all cursor-pointer rounded-xl py-1 px-1.5 hover:bg-violet-500/10 active:scale-95 ${
                   isLight ? 'border-[#E5DCF4]' : 'border-[#262630]'
                 }`}

@@ -371,8 +371,18 @@ export const SettingsView: React.FC = () => {
   };
 
   const isTg = isTelegramWebApp();
+  const isLinked = Boolean(settingsData?.account_link);
 
-  const navItems = [
+  // If in Telegram and not linked to website, ensure security sub-tab cannot be active
+  useEffect(() => {
+    if (isTg && !isLinked && activeSubTab === 'security') {
+      setActiveSubTab('telegram');
+    }
+  }, [isTg, isLinked, activeSubTab]);
+
+  type SubTab = 'telegram' | 'developer' | 'security' | 'profile' | 'preferences';
+
+  const navItems: { id: SubTab; label: string; icon: any; desc: string; badge?: string }[] = [
     {
       id: 'telegram',
       label: isTg ? 'Website Merge & Backup' : 'Telegram Account Sync',
@@ -386,12 +396,16 @@ export const SettingsView: React.FC = () => {
       desc: 'REST API keys & automation webhooks',
       badge: 'Soon',
     },
-    {
-      id: 'security',
-      label: 'Password & Security',
-      icon: Key,
-      desc: 'Change password or set account key',
-    },
+    ...(!isTg || isLinked
+      ? [
+          {
+            id: 'security' as SubTab,
+            label: 'Password & Security',
+            icon: Key,
+            desc: 'Change password or set account key',
+          },
+        ]
+      : []),
     {
       id: 'profile',
       label: 'Account Overview',
@@ -404,7 +418,7 @@ export const SettingsView: React.FC = () => {
       icon: Sliders,
       desc: 'Theme mode & currency formats',
     },
-  ] as const;
+  ];
 
   return (
     <div className="w-full max-w-6xl mx-auto py-4 px-2 sm:px-4">

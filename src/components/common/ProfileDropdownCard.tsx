@@ -94,15 +94,25 @@ export const ProfileDropdownCard: React.FC<ProfileDropdownCardProps> = ({
   }
 
   return (
-    <div
-      ref={cardRef}
-      className={`absolute z-50 w-72 max-w-[calc(100vw-24px)] rounded-2xl p-3 border backdrop-blur-2xl shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-150 ${positionClasses} ${
-        isLight
-          ? 'bg-white/95 border-[#E5DCF4] text-[#211536] shadow-purple-950/10'
-          : 'bg-[#14141c]/95 border-[#262635] text-white shadow-black/80'
-      } ${className}`}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <>
+      {/* Fixed backdrop to reliably capture and dismiss on outside clicks */}
+      <div
+        className="fixed inset-0 z-40 bg-black/15 sm:bg-transparent"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      />
+
+      <div
+        ref={cardRef}
+        className={`absolute z-50 w-72 max-w-[calc(100vw-24px)] rounded-2xl p-3 border backdrop-blur-2xl shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-150 ${positionClasses} ${
+          isLight
+            ? 'bg-white/98 border-[#E5DCF4] text-[#211536] shadow-purple-950/10'
+            : 'bg-[#14141c]/98 border-[#262635] text-white shadow-black/80'
+        } ${className}`}
+        onClick={(e) => e.stopPropagation()}
+      >
       {/* User Info Header */}
       <div className="flex items-center gap-3 p-2 rounded-xl mb-2 bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-transparent border border-violet-500/15">
         <div className="relative shrink-0">
@@ -276,5 +286,6 @@ export const ProfileDropdownCard: React.FC<ProfileDropdownCardProps> = ({
         )}
       </div>
     </div>
+    </>
   );
 };
