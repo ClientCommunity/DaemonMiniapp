@@ -26,8 +26,12 @@ export const ProfileView: React.FC = () => {
   const [copiedId, setCopiedId] = useState(false);
 
   const handleOpenTerms = () => {
-    const url = 'https://t.me/deamonotpbot/terms';
+    const url = 'https://profather.in/DeamonOTPbot';
     try {
+      if (window.Telegram?.WebApp?.openLink) {
+        window.Telegram.WebApp.openLink(url);
+        return;
+      }
       if (window.Telegram?.WebApp?.openTelegramLink) {
         window.Telegram.WebApp.openTelegramLink(url);
         return;
@@ -193,7 +197,9 @@ export const ProfileView: React.FC = () => {
           <div className="flex flex-col">
             <span className="text-xs font-bold text-white">Settings &amp; Security</span>
             <span className="text-[10px] text-[#a1a1aa]">
-              Password, Telegram connection &amp; security
+              {isTelegramWebApp()
+                ? 'Merge with website, security & preferences'
+                : 'Password, Telegram connection & security'}
             </span>
           </div>
         </div>

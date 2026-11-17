@@ -16,9 +16,12 @@ import {
   ArrowLeft,
   Sliders,
   ArrowLeftRight,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { webAuthApi, WebSettingsResponse } from '../../api/endpoints';
+import { isTelegramWebApp } from '../../api/client';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -212,10 +215,17 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const isTg = isTelegramWebApp();
+
   const navItems = [
     { id: 'profile', label: 'Profile Details', icon: Shield, desc: 'Your ID, email & wallet credentials' },
     { id: 'security', label: 'Password & Security', icon: Key, desc: 'Change password or set account key' },
-    { id: 'telegram', label: 'Telegram Account', icon: Smartphone, desc: 'Merge bot & website balances' },
+    {
+      id: 'telegram',
+      label: isTg ? 'Website Merge & Backup' : 'Telegram Account',
+      icon: isTg ? Globe : Smartphone,
+      desc: isTg ? 'Merge and backup this account to website' : 'Merge bot & website balances',
+    },
     { id: 'preferences', label: 'Appearance & Currency', icon: Sliders, desc: 'Theme mode & currency formats' },
     { id: 'developer', label: 'Developer API', icon: Code, desc: 'REST API keys & automation webhooks' },
   ] as const;
@@ -225,7 +235,7 @@ export const SettingsView: React.FC = () => {
       {/* Top Breadcrumb Navigation */}
       <div className="flex items-center justify-between mb-6">
         <button
-          onClick={() => setGlobalActiveTab('store')}
+          onClick={() => setGlobalActiveTab(isTg ? 'profile' : 'store')}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
             isLight
               ? 'bg-white hover:bg-violet-50 text-[#514364] border border-[#E5DCF4] shadow-sm'
@@ -233,7 +243,7 @@ export const SettingsView: React.FC = () => {
           }`}
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Storefront</span>
+          <span>{isTg ? 'Back to Account' : 'Back to Storefront'}</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -514,128 +524,208 @@ export const SettingsView: React.FC = () => {
               </form>
             )}
 
-            {/* TAB 3: TELEGRAM BOT LINKING */}
+            {/* TAB 3: TELEGRAM BOT LINKING OR WEB BACKUP */}
             {activeSubTab === 'telegram' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className={`text-base font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
-                    Telegram Bot Integration
-                  </h3>
-                  <p className={`text-xs mt-0.5 ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
-                    Link your Telegram Bot account with this website account to merge your wallet balance and order history.
-                  </p>
-                </div>
-
-                {tgNotice && (
-                  <div
-                    className={`p-3.5 rounded-2xl text-xs font-semibold ${
-                      tgNotice.type === 'success'
-                        ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-600'
-                        : 'bg-rose-500/10 border border-rose-500/30 text-rose-600'
-                    }`}
-                  >
-                    {tgNotice.text}
+              isTg ? (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className={`text-base font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
+                      Merge &amp; Backup Account to Website
+                    </h3>
+                    <p className={`text-xs mt-0.5 ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                      Merge and backup your Telegram account to our website platform to access your balance, active OTPs, and purchase history anywhere.
+                    </p>
                   </div>
-                )}
 
-                {settingsData?.account_link ? (
-                  <div className={`p-6 rounded-3xl border flex flex-col items-center text-center space-y-3 ${
-                    isLight ? 'bg-[#FAF8FF] border-emerald-500/30' : 'bg-[#1a1a24] border-emerald-500/30'
-                  }`}>
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
-                      <CheckCircle2 className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className={`text-base font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
-                        Accounts Linked &amp; Synchronized
-                      </h4>
-                      <p className={`text-xs mt-1 ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
-                        Connected to Telegram User ID: <span className="font-mono text-emerald-600 font-bold">{settingsData.account_link.telegram_user_id}</span>
-                      </p>
-                    </div>
-                    <div className={`p-4 rounded-2xl border text-xs text-left w-full space-y-1.5 ${
-                      isLight ? 'bg-white border-[#E5DCF4] text-[#514364]' : 'bg-[#14141b] border-[#2a2a38] text-zinc-400'
+                  {settingsData?.account_link ? (
+                    <div className={`p-6 rounded-3xl border flex flex-col items-center text-center space-y-3 ${
+                      isLight ? 'bg-[#FAF8FF] border-emerald-500/30' : 'bg-[#1a1a24] border-emerald-500/30'
                     }`}>
-                      <p>&bull; Wallet balances are merged across both website and Telegram bot.</p>
-                      <p>&bull; Order history and active OTP orders are visible across both platforms in real-time.</p>
-                      <p>&bull; Connected since: <span className="font-mono font-semibold">{settingsData.account_link.created_at || 'Active'}</span></p>
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className={`text-base font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
+                          Account Merged with Website
+                        </h4>
+                        <p className={`text-xs mt-1 ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                          Connected to Telegram User ID: <span className="font-mono text-emerald-600 font-bold">{settingsData.account_link.telegram_user_id}</span>
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-2xl border text-xs text-left w-full space-y-1.5 ${
+                        isLight ? 'bg-white border-[#E5DCF4] text-[#514364]' : 'bg-[#14141b] border-[#2a2a38] text-zinc-400'
+                      }`}>
+                        <p>&bull; Wallet balances are merged across both website and Telegram bot.</p>
+                        <p>&bull; Order history and active OTP orders are visible across both platforms in real-time.</p>
+                        <p>&bull; Connected since: <span className="font-mono font-semibold">{settingsData.account_link.created_at || 'Active'}</span></p>
+                      </div>
                     </div>
+                  ) : (
+                    <div className={`p-6 rounded-3xl border flex flex-col items-center text-center space-y-4 ${
+                      isLight ? 'bg-[#FAF8FF] border-[#E5DCF4]' : 'bg-[#1a1a24] border-[#2a2a38]'
+                    }`}>
+                      <div className="w-12 h-12 rounded-2xl bg-[#7C3AED]/15 text-[#7C3AED] flex items-center justify-center">
+                        <Globe className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className={`text-base font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
+                          Merge with daemonx.in
+                        </h4>
+                        <p className={`text-xs ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                          Your Telegram User ID: <span className="font-mono font-bold text-[#7C3AED]">{user.telegramId || user.id}</span>
+                        </p>
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border text-xs text-left w-full space-y-2 ${
+                        isLight ? 'bg-white border-[#E5DCF4] text-[#514364]' : 'bg-[#14141b] border-[#2a2a38] text-zinc-400'
+                      }`}>
+                        <p className="font-semibold text-xs text-violet-400">How to combine your account:</p>
+                        <p>1. Open <span className="font-bold">daemonx.in</span> in your phone or PC browser.</p>
+                        <p>2. Create a free account or log in.</p>
+                        <p>3. Go to <span className="font-bold">Settings &rarr; Telegram Account</span> and enter your Telegram ID (<span className="font-mono font-bold text-violet-400">{user.telegramId || user.id}</span>) to instantly combine.</p>
+                      </div>
+
+                      <a
+                        href="https://daemonx.in"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          if (window.Telegram?.WebApp?.openLink) {
+                            e.preventDefault();
+                            window.Telegram.WebApp.openLink('https://daemonx.in');
+                          }
+                        }}
+                        className="w-full py-3.5 px-4 rounded-xl font-bold text-xs text-white bg-[#7C3AED] hover:bg-[#6D28D9] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#7C3AED]/30 cursor-pointer"
+                      >
+                        <Globe className="w-4 h-4" />
+                        <span>Open Website (daemonx.in) to Merge Account</span>
+                        <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className={`text-base font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
+                      Telegram Bot Integration
+                    </h3>
+                    <p className={`text-xs mt-0.5 ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                      Link your Telegram Bot account with this website account to merge your wallet balance and order history.
+                    </p>
                   </div>
-                ) : !telegramOtpSent ? (
-                  <form onSubmit={handleSendTelegramOtp} className="space-y-4">
-                    <div>
-                      <label className={`block text-xs font-semibold mb-1.5 ${isLight ? 'text-[#211536]' : 'text-zinc-300'}`}>
-                        Your Telegram Numeric User ID
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={telegramIdInput}
-                        onChange={(e) => setTelegramIdInput(e.target.value)}
-                        placeholder="e.g. 7507183871"
-                        className={`w-full px-4 py-3 rounded-xl text-sm font-mono transition-all focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
-                          isLight
-                            ? 'bg-[#FAF8FF] border border-[#E5DCF4] text-[#211536] placeholder-[#A494B8] focus:border-[#7C3AED]'
-                            : 'bg-[#1a1a24] border border-[#2a2a38] text-white placeholder-zinc-500 focus:border-violet-500'
-                        }`}
-                      />
-                      <p className={`text-[11px] mt-1.5 ${isLight ? 'text-[#74638B]' : 'text-zinc-500'}`}>
-                        Our bot will send a private 6-digit confirmation code directly to your Telegram chat to verify account ownership.
-                      </p>
-                    </div>
 
-                    <button
-                      type="submit"
-                      disabled={isSendingTgOtp || !telegramIdInput.trim()}
-                      className="w-full py-3.5 px-4 rounded-xl font-bold text-xs text-white bg-[#7C3AED] hover:bg-[#6D28D9] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-md shadow-[#7C3AED]/30"
+                  {tgNotice && (
+                    <div
+                      className={`p-3.5 rounded-2xl text-xs font-semibold ${
+                        tgNotice.type === 'success'
+                          ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-600'
+                          : 'bg-rose-500/10 border border-rose-500/30 text-rose-600'
+                      }`}
                     >
-                      {isSendingTgOtp ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Send Telegram Verification Code</span>}
-                    </button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleVerifyTelegramLink} className="space-y-4">
-                    <div>
-                      <label className={`block text-xs font-semibold mb-1.5 ${isLight ? 'text-[#211536]' : 'text-zinc-300'}`}>
-                        Enter 6-Digit Telegram Bot Code
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        required
-                        value={telegramOtpInput}
-                        onChange={(e) => setTelegramOtpInput(e.target.value.replace(/\D/g, ''))}
-                        placeholder="••••••"
-                        className={`w-full px-4 py-3 rounded-xl text-center text-xl font-bold font-mono tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
-                          isLight
-                            ? 'bg-[#FAF8FF] border border-[#E5DCF4] text-[#211536] placeholder-[#A494B8] focus:border-[#7C3AED]'
-                            : 'bg-[#1a1a24] border border-[#2a2a38] text-white placeholder-zinc-600 focus:border-violet-500'
-                        }`}
-                      />
+                      {tgNotice.text}
                     </div>
+                  )}
 
-                    <div className="flex items-center gap-3">
+                  {settingsData?.account_link ? (
+                    <div className={`p-6 rounded-3xl border flex flex-col items-center text-center space-y-3 ${
+                      isLight ? 'bg-[#FAF8FF] border-emerald-500/30' : 'bg-[#1a1a24] border-emerald-500/30'
+                    }`}>
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className={`text-base font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
+                          Accounts Linked &amp; Synchronized
+                        </h4>
+                        <p className={`text-xs mt-1 ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                          Connected to Telegram User ID: <span className="font-mono text-emerald-600 font-bold">{settingsData.account_link.telegram_user_id}</span>
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-2xl border text-xs text-left w-full space-y-1.5 ${
+                        isLight ? 'bg-white border-[#E5DCF4] text-[#514364]' : 'bg-[#14141b] border-[#2a2a38] text-zinc-400'
+                      }`}>
+                        <p>&bull; Wallet balances are merged across both website and Telegram bot.</p>
+                        <p>&bull; Order history and active OTP orders are visible across both platforms in real-time.</p>
+                        <p>&bull; Connected since: <span className="font-mono font-semibold">{settingsData.account_link.created_at || 'Active'}</span></p>
+                      </div>
+                    </div>
+                  ) : !telegramOtpSent ? (
+                    <form onSubmit={handleSendTelegramOtp} className="space-y-4">
+                      <div>
+                        <label className={`block text-xs font-semibold mb-1.5 ${isLight ? 'text-[#211536]' : 'text-zinc-300'}`}>
+                          Your Telegram Numeric User ID
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={telegramIdInput}
+                          onChange={(e) => setTelegramIdInput(e.target.value)}
+                          placeholder="e.g. 7507183871"
+                          className={`w-full px-4 py-3 rounded-xl text-sm font-mono transition-all focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
+                            isLight
+                              ? 'bg-[#FAF8FF] border border-[#E5DCF4] text-[#211536] placeholder-[#A494B8] focus:border-[#7C3AED]'
+                              : 'bg-[#1a1a24] border border-[#2a2a38] text-white placeholder-zinc-500 focus:border-violet-500'
+                          }`}
+                        />
+                        <p className={`text-[11px] mt-1.5 ${isLight ? 'text-[#74638B]' : 'text-zinc-500'}`}>
+                          Our bot will send a private 6-digit confirmation code directly to your Telegram chat to verify account ownership.
+                        </p>
+                      </div>
+
                       <button
                         type="submit"
-                        disabled={isLinkingTg || telegramOtpInput.length !== 6}
-                        className="flex-1 py-3.5 px-4 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-md shadow-emerald-600/30"
+                        disabled={isSendingTgOtp || !telegramIdInput.trim()}
+                        className="w-full py-3.5 px-4 rounded-xl font-bold text-xs text-white bg-[#7C3AED] hover:bg-[#6D28D9] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-md shadow-[#7C3AED]/30"
                       >
-                        {isLinkingTg ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Verify &amp; Link Accounts</span>}
+                        {isSendingTgOtp ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Send Telegram Verification Code</span>}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setTelegramOtpSent(false)}
-                        className={`py-3.5 px-4 rounded-xl font-semibold text-xs transition-colors ${
-                          isLight
-                            ? 'bg-white hover:bg-violet-50 text-[#514364] border border-[#E5DCF4]'
-                            : 'bg-[#1f1f2b] hover:bg-[#262635] text-zinc-300 border border-[#2a2a38]'
-                        }`}
-                      >
-                        Change ID
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleVerifyTelegramLink} className="space-y-4">
+                      <div>
+                        <label className={`block text-xs font-semibold mb-1.5 ${isLight ? 'text-[#211536]' : 'text-zinc-300'}`}>
+                          Enter 6-Digit Telegram Bot Code
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          required
+                          value={telegramOtpInput}
+                          onChange={(e) => setTelegramOtpInput(e.target.value.replace(/\D/g, ''))}
+                          placeholder="••••••"
+                          className={`w-full px-4 py-3 rounded-xl text-center text-xl font-bold font-mono tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
+                            isLight
+                              ? 'bg-[#FAF8FF] border border-[#E5DCF4] text-[#211536] placeholder-[#A494B8] focus:border-[#7C3AED]'
+                              : 'bg-[#1a1a24] border border-[#2a2a38] text-white placeholder-zinc-600 focus:border-violet-500'
+                          }`}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="submit"
+                          disabled={isLinkingTg || telegramOtpInput.length !== 6}
+                          className="flex-1 py-3.5 px-4 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-md shadow-emerald-600/30"
+                        >
+                          {isLinkingTg ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Verify &amp; Link Accounts</span>}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTelegramOtpSent(false)}
+                          className={`py-3.5 px-4 rounded-xl font-semibold text-xs transition-colors ${
+                            isLight
+                              ? 'bg-white hover:bg-violet-50 text-[#514364] border border-[#E5DCF4]'
+                              : 'bg-[#1f1f2b] hover:bg-[#262635] text-zinc-300 border border-[#2a2a38]'
+                          }`}
+                        >
+                          Change ID
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )
             )}
 
             {/* TAB 4: PREFERENCES & APPEARANCE */}

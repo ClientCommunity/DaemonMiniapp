@@ -83,17 +83,19 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
         {/* Left Side: Brand Logo & Title for Web, or User Profile for Mobile/Telegram */}
         {isWeb ? (
           <div className="flex items-center gap-2.5 min-w-0">
-            <img
-              src={LOGO_URL}
-              alt="Deamon OTP Logo"
-              className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0"
-              onError={(e) => {
-                const target = e.currentTarget;
-                if (!target.src.endsWith('deamon-logo.webp')) {
-                  target.src = './deamon-logo.webp';
-                }
-              }}
-            />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#0b0b0e] border border-white/10 flex items-center justify-center p-1 shadow-sm shrink-0">
+              <img
+                src={LOGO_URL}
+                alt="Deamon OTP Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.src.endsWith('deamon-logo.webp')) {
+                    target.src = './deamon-logo.webp';
+                  }
+                }}
+              />
+            </div>
             <div className="flex flex-col min-w-0">
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-1.5 truncate">
                 Deamon OTP

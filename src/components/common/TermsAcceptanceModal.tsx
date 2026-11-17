@@ -41,8 +41,12 @@ export const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
     e.preventDefault();
     e.stopPropagation();
     hapticFeedback.light();
-    const url = 'https://t.me/deamonotpbot/terms';
+    const url = 'https://profather.in/DeamonOTPbot';
     try {
+      if (window.Telegram?.WebApp?.openLink) {
+        window.Telegram.WebApp.openLink(url);
+        return;
+      }
       if (window.Telegram?.WebApp?.openTelegramLink) {
         window.Telegram.WebApp.openTelegramLink(url);
         return;

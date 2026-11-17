@@ -96,6 +96,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   const [regWhatsapp, setRegWhatsapp] = useState('');
   const [regTelegram, setRegTelegram] = useState('');
   const [regRememberMe, setRegRememberMe] = useState(true);
+  const [regAgreedTerms, setRegAgreedTerms] = useState(false);
 
   const [emailAuthNotice, setEmailAuthNotice] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
@@ -247,6 +248,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
       setEmailAuthNotice({
         type: 'error',
         text: 'Password must be at least 6 characters.',
+      });
+      return;
+    }
+    if (!regAgreedTerms) {
+      setEmailAuthNotice({
+        type: 'error',
+        text: 'Please review and agree to the Terms & Conditions to create an account.',
       });
       return;
     }
@@ -695,19 +703,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          {/* Logo & Brand — Clean, NO square border or background box */}
+          {/* Logo & Brand — Clean black backdrop badge */}
           <div className="flex items-center gap-3">
-            <img
-              src={LOGO_URL}
-              alt="Daemon OTP Logo"
-              className="w-9 h-9 object-contain shrink-0"
-              onError={(e) => {
-                const target = e.currentTarget;
-                if (!target.src.endsWith('deamon-logo.webp')) {
-                  target.src = './deamon-logo.webp';
-                }
-              }}
-            />
+            <div className="w-10 h-10 rounded-xl bg-[#0b0b0e] border border-black/10 flex items-center justify-center p-1.5 shadow-sm shrink-0">
+              <img
+                src={LOGO_URL}
+                alt="Daemon OTP Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.src.endsWith('deamon-logo.webp')) {
+                    target.src = './deamon-logo.webp';
+                  }
+                }}
+              />
+            </div>
             <div className="flex flex-col">
               <span
                 className="font-black text-base sm:text-lg tracking-tight"
@@ -1347,20 +1357,46 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-0.5 text-xs">
+                      <div className="flex items-center justify-between pt-0.5 text-xs">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={regRememberMe}
+                            onChange={(e) => setRegRememberMe(e.target.checked)}
+                            className="rounded border-[#E5DCF4] text-[#6D28D9] focus:ring-[#6D28D9]"
+                          />
+                          <span style={{ color: '#514364' }}>Remember Me</span>
+                        </label>
+                      </div>
+
+                      <div className="flex items-start gap-2 pt-0.5 text-xs">
                         <input
                           type="checkbox"
-                          checked={regRememberMe}
-                          onChange={(e) => setRegRememberMe(e.target.checked)}
-                          className="rounded border-gray-300 text-[#6D28D9] focus:ring-[#6D28D9]"
+                          id="heroRegTermsAgree"
+                          required
+                          checked={regAgreedTerms}
+                          onChange={(e) => setRegAgreedTerms(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 rounded border-[#E5DCF4] text-[#6D28D9] focus:ring-[#6D28D9] cursor-pointer shrink-0"
                         />
-                        <span style={{ color: '#514364' }}>Remember Me</span>
+                        <label htmlFor="heroRegTermsAgree" className="text-[11px] leading-tight select-none cursor-pointer" style={{ color: '#514364' }}>
+                          I agree to the{' '}
+                          <a
+                            href="https://profather.in/DeamonOTPbot"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold underline hover:opacity-80"
+                            style={{ color: '#6D28D9' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Terms &amp; Conditions
+                          </a>
+                        </label>
                       </div>
 
                       <button
                         type="submit"
-                        disabled={isSubmittingEmail}
-                        className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+                        disabled={isSubmittingEmail || !regAgreedTerms}
+                        className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
                         style={{
                           backgroundColor: '#6D28D9',
                           boxShadow: '0 4px 12px rgba(109, 40, 217, 0.25)',
@@ -2377,18 +2413,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           }}
         >
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
-            {/* Logo — Clean standing freely, NO square container */}
-            <img
-              src={LOGO_URL}
-              alt="Daemon OTP Logo"
-              className="w-14 h-14 object-contain mx-auto mb-5 shrink-0"
-              onError={(e) => {
-                const target = e.currentTarget;
-                if (!target.src.endsWith('deamon-logo.webp')) {
-                  target.src = './deamon-logo.webp';
-                }
-              }}
-            />
+            {/* Logo — Clean black backdrop badge */}
+            <div className="w-14 h-14 rounded-2xl bg-[#0b0b0e] border border-black/10 flex items-center justify-center p-2 shadow-sm mx-auto mb-5 shrink-0">
+              <img
+                src={LOGO_URL}
+                alt="Daemon OTP Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.src.endsWith('deamon-logo.webp')) {
+                    target.src = './deamon-logo.webp';
+                  }
+                }}
+              />
+            </div>
 
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={{ color: '#211536' }}>
               Start Receiving OTPs &amp; Downloading Sessions
@@ -2499,17 +2537,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Column 1: Brand & Operational Status (Span 3) */}
             <div className="lg:col-span-3 flex flex-col">
               <div className="flex items-center gap-3 mb-3">
-                <img
-                  src={LOGO_URL}
-                  alt="Daemon OTP Logo"
-                  className="w-7 h-7 object-contain shrink-0"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    if (!target.src.endsWith('deamon-logo.webp')) {
-                      target.src = './deamon-logo.webp';
-                    }
-                  }}
-                />
+                <div className="w-8 h-8 rounded-xl bg-[#0b0b0e] border border-black/10 flex items-center justify-center p-1 shadow-sm shrink-0">
+                  <img
+                    src={LOGO_URL}
+                    alt="Daemon OTP Logo"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.src.endsWith('deamon-logo.webp')) {
+                        target.src = './deamon-logo.webp';
+                      }
+                    }}
+                  />
+                </div>
                 <span className="font-extrabold text-sm tracking-tight" style={{ color: '#211536' }}>
                   Daemon OTP
                 </span>
@@ -2691,6 +2731,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
             <div className="flex items-center gap-4 text-[11px]">
               <span>Dual-Platform Architecture (Web &amp; Telegram)</span>
+              <span>•</span>
+              <a
+                href="https://profather.in/DeamonOTPbot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors hover:text-[#6D28D9] font-medium underline"
+              >
+                Terms &amp; Conditions
+              </a>
               <span>•</span>
               <a
                 href="https://t.me/DeamonOTPbot"
@@ -3005,9 +3054,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                   </div>
                 </div>
 
+                <div className="flex items-start gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="modalRegTermsAgree"
+                    required
+                    checked={regAgreedTerms}
+                    onChange={(e) => setRegAgreedTerms(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-[#E5DCF4] text-[#6D28D9] focus:ring-[#6D28D9] cursor-pointer shrink-0"
+                  />
+                  <label htmlFor="modalRegTermsAgree" className="text-xs text-[#514364] leading-tight select-none cursor-pointer">
+                    I agree to the{' '}
+                    <a
+                      href="https://profather.in/DeamonOTPbot"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#6D28D9] font-bold underline hover:text-[#542C85]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Terms &amp; Conditions
+                    </a>
+                  </label>
+                </div>
+
                 <button
                   type="submit"
-                  disabled={isSubmittingEmail}
+                  disabled={isSubmittingEmail || !regAgreedTerms}
                   className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-[#6D28D9] hover:bg-[#542C85] transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
                 >
                   {isSubmittingEmail ? (
