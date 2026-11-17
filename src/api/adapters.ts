@@ -485,13 +485,40 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
     category = 'account_purchase';
   }
 
+  // Extract OTP code safely (filtering out metadata, sender IDs like 777000, and database statuses)
+  const invalidOtpCodes = [
+    'none', 'null', 'undefined', 'waiting', 'cancelled', 'canceled',
+    'refunded', 'archived', '777000', 'zip delivered', 'bot_logged_out'
+  ];
+  let rawOtp: string | undefined = (item as any).otp ? String((item as any).otp).trim() : undefined;
+  if (rawOtp && invalidOtpCodes.includes(rawOtp.toLowerCase())) {
+    rawOtp = undefined;
+  }
+  let otpCode: string | undefined = rawOtp;
+  if (!otpCode) {
+    const otpMatch = details.match(/(?:OTP:\s*)([0-9A-Za-z-]+)/i);
+    if (otpMatch && otpMatch[1] && !invalidOtpCodes.includes(otpMatch[1].trim().toLowerCase())) {
+      otpCode = otpMatch[1].trim();
+    } else {
+      otpCode = undefined;
+    }
+  }
+
   const detailsLower = details.toLowerCase();
   const explicitStatus = String(item.status || '').trim().toLowerCase();
 
-  if (type === 'refund' || item.refunded && (explicitStatus === 'cancelled' || explicitStatus === 'canceled' || explicitStatus === 'partial' || explicitStatus === 'refunded')) {
+  if (type === 'refund' || item.refunded || explicitStatus === 'cancelled' || explicitStatus === 'canceled' || explicitStatus === 'refunded') {
     status = 'refunded';
   } else if (explicitStatus === 'failed' || detailsLower.includes('fail') || detailsLower.includes('not placed')) {
     status = 'failed';
+  } else if (explicitStatus === 'waiting' || explicitStatus === 'pending' || detailsLower.includes('waiting') || detailsLower.includes('pending')) {
+    status = 'waiting';
+  } else if (explicitStatus === 'processing' || explicitStatus === 'inprogress' || explicitStatus === 'in_progress' || detailsLower.includes('progress')) {
+    status = 'in_progress';
+  } else if (explicitStatus === 'archived') {
+    status = otpCode ? 'success' : (item.refunded ? 'refunded' : 'failed');
+  } else if (category === 'otp_activation') {
+    status = otpCode ? 'success' : (item.refunded ? 'refunded' : (explicitStatus === 'waiting' ? 'waiting' : 'failed'));
   } else if (category === 'account_purchase') {
     // Delivered accounts and sessions are fulfilled upon purchase
     if (detailsLower.includes('cancel') || detailsLower.includes('refund')) {
@@ -499,12 +526,6 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
     } else {
       status = 'success';
     }
-  } else if (explicitStatus === 'waiting' || explicitStatus === 'pending' || detailsLower.includes('waiting') || detailsLower.includes('pending')) {
-    status = 'waiting';
-  } else if (explicitStatus === 'processing' || explicitStatus === 'inprogress' || explicitStatus === 'in_progress' || detailsLower.includes('progress')) {
-    status = 'in_progress';
-  } else if (explicitStatus === 'cancelled' || explicitStatus === 'canceled' || explicitStatus === 'partial' || item.refunded || detailsLower.includes('cancel') || detailsLower.includes('refund')) {
-    status = 'refunded';
   } else {
     status = 'success';
   }
@@ -516,17 +537,6 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
     const phoneMatch = details.match(/(?:Number:\s*)(\+?[0-9,\s-]+)/i);
     if (phoneMatch && phoneMatch[1]) {
       phone = phoneMatch[1].trim();
-    }
-  }
-
-  // Extract OTP code from details if present (e.g., "OTP: 48192")
-  let otpCode: string | undefined = (item as any).otp;
-  if (!otpCode || otpCode === 'None' || otpCode === 'WAITING') {
-    const otpMatch = details.match(/(?:OTP:\s*)([0-9A-Za-z-]+)/i);
-    if (otpMatch && otpMatch[1] && otpMatch[1].toLowerCase() !== 'none' && otpMatch[1].toUpperCase() !== 'WAITING') {
-      otpCode = otpMatch[1].trim();
-    } else {
-      otpCode = undefined;
     }
   }
 

@@ -1697,18 +1697,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     [addToast]
   );
 
-  // Archive / Dismiss all active numbers at once
+  // Archive / Dismiss all active numbers at once (retaining any active waiting virtual numbers)
   const archiveAllActiveNumbers = useCallback(async () => {
     hapticFeedback.medium();
-    setActiveNumbers([]);
-    setActiveOtpSession(null);
-    try {
-      localStorage.removeItem(`${LOCAL_STORAGE_KEY}_activeNumbers`);
-    } catch {}
+    setActiveNumbers((prev) => {
+      const remaining = prev.filter(
+        (item) => (item.server === 3 || item.server === 4) && !item.otpCode && item.status !== 'received'
+      );
+      try {
+        localStorage.setItem(`${LOCAL_STORAGE_KEY}_activeNumbers`, JSON.stringify(remaining));
+      } catch {}
+      return remaining;
+    });
     try {
       await otpApi.archive('all');
     } catch {}
-    addToast('All active numbers dismissed. Saved in History.', 'info', 'Archived All');
+    addToast('Completed numbers dismissed. Saved in History.', 'info', 'Archived All');
   }, [addToast]);
 
   // Terminate Server 2 bot Telethon session on Telegram & delete local session

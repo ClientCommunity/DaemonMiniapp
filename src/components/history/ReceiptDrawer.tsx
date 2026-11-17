@@ -70,7 +70,16 @@ export const ReceiptDrawer: React.FC = () => {
     addToast('Opening download link...', 'info', 'Saved');
   };
 
-  const effectiveOtp = liveOtp || item.otpCode;
+  const isInvalidOtpString = (val?: string | null): boolean => {
+    if (!val) return true;
+    const lower = val.trim().toLowerCase();
+    return [
+      'none', 'null', 'undefined', 'waiting', 'cancelled', 'canceled',
+      'refunded', 'archived', '777000', 'zip delivered', 'bot_logged_out'
+    ].includes(lower);
+  };
+  const rawCandidate = liveOtp || item.otpCode;
+  const effectiveOtp = isInvalidOtpString(rawCandidate) ? null : rawCandidate;
   const hasPhone = !!item.phone;
   const isAccountOrOtp = item.category === 'account_purchase' || item.category === 'otp_activation';
   const isBulkZip =

@@ -389,14 +389,16 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
             )
           )}
 
-          <button
-            onClick={() => archiveActiveNumber(orderId || phone)}
-            className="flex items-center gap-1 text-[11px] font-semibold text-zinc-400 hover:text-white px-2 py-1 rounded-lg bg-[#1f1f2a] border border-[#262630] transition-colors active:scale-95"
-            title="Archive from active list (accessible anytime in History)"
-          >
-            <CheckCheck className="w-3.5 h-3.5 text-[#22c55e]" />
-            <span>Done / Archive</span>
-          </button>
+          {(isReceived || server < 3) && (
+            <button
+              onClick={() => archiveActiveNumber(orderId || phone)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-zinc-400 hover:text-white px-2 py-1 rounded-lg bg-[#1f1f2a] border border-[#262630] transition-colors active:scale-95"
+              title="Archive from active list (accessible anytime in History)"
+            >
+              <CheckCheck className="w-3.5 h-3.5 text-[#22c55e]" />
+              <span>Done / Archive</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
