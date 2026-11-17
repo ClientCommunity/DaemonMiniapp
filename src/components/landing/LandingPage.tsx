@@ -703,9 +703,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          {/* Logo & Brand — Clean black backdrop badge */}
+          {/* Logo & Brand — Clean circular black badge */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#0b0b0e] border border-black/10 flex items-center justify-center p-1.5 shadow-sm shrink-0">
+            <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center p-1.5 shadow-sm shrink-0 overflow-hidden">
               <img
                 src={LOGO_URL}
                 alt="Daemon OTP Logo"
@@ -2413,8 +2413,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
           }}
         >
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
-            {/* Logo — Clean black backdrop badge */}
-            <div className="w-14 h-14 rounded-2xl bg-[#0b0b0e] border border-black/10 flex items-center justify-center p-2 shadow-sm mx-auto mb-5 shrink-0">
+            {/* Logo — Clean circular black badge */}
+            <div className="w-14 h-14 rounded-full bg-black flex items-center justify-center p-2 shadow-sm mx-auto mb-5 shrink-0 overflow-hidden">
               <img
                 src={LOGO_URL}
                 alt="Daemon OTP Logo"
@@ -2537,7 +2537,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Column 1: Brand & Operational Status (Span 3) */}
             <div className="lg:col-span-3 flex flex-col">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 rounded-xl bg-[#0b0b0e] border border-black/10 flex items-center justify-center p-1 shadow-sm shrink-0">
+                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center p-1 shadow-sm shrink-0 overflow-hidden">
                   <img
                     src={LOGO_URL}
                     alt="Daemon OTP Logo"

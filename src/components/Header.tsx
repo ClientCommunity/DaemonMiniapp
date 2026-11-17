@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
         {/* Left Side: Brand Logo & Title for Web, or User Profile for Mobile/Telegram */}
         {isWeb ? (
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#0b0b0e] border border-white/10 flex items-center justify-center p-1 shadow-sm shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black flex items-center justify-center p-1 shadow-sm shrink-0 overflow-hidden">
               <img
                 src={LOGO_URL}
                 alt="Deamon OTP Logo"
