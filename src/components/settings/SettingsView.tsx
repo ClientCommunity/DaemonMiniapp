@@ -18,6 +18,10 @@ import {
   ArrowLeftRight,
   Globe,
   ExternalLink,
+  Sparkles,
+  Zap,
+  Terminal,
+  Clock,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { webAuthApi, WebSettingsResponse } from '../../api/endpoints';
@@ -38,7 +42,7 @@ export const SettingsView: React.FC = () => {
 
   const isLight = theme === 'light';
 
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'security' | 'telegram' | 'preferences' | 'developer'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'telegram' | 'developer' | 'security' | 'profile' | 'preferences'>('telegram');
 
   // Profile data from backend
   const [settingsData, setSettingsData] = useState<WebSettingsResponse | null>(null);
@@ -218,16 +222,37 @@ export const SettingsView: React.FC = () => {
   const isTg = isTelegramWebApp();
 
   const navItems = [
-    { id: 'profile', label: 'Profile Details', icon: Shield, desc: 'Your ID, email & wallet credentials' },
-    { id: 'security', label: 'Password & Security', icon: Key, desc: 'Change password or set account key' },
     {
       id: 'telegram',
-      label: isTg ? 'Website Merge & Backup' : 'Telegram Account',
+      label: isTg ? 'Website Merge & Backup' : 'Telegram Account Sync',
       icon: isTg ? Globe : Smartphone,
       desc: isTg ? 'Merge and backup this account to website' : 'Merge bot & website balances',
     },
-    { id: 'preferences', label: 'Appearance & Currency', icon: Sliders, desc: 'Theme mode & currency formats' },
-    { id: 'developer', label: 'Developer API', icon: Code, desc: 'REST API keys & automation webhooks' },
+    {
+      id: 'developer',
+      label: 'Developer API',
+      icon: Code,
+      desc: 'REST API keys & automation webhooks',
+      badge: 'Soon',
+    },
+    {
+      id: 'security',
+      label: 'Password & Security',
+      icon: Key,
+      desc: 'Change password or set account key',
+    },
+    {
+      id: 'profile',
+      label: 'Account Overview',
+      icon: Shield,
+      desc: 'Your ID, email & wallet credentials',
+    },
+    {
+      id: 'preferences',
+      label: 'Appearance & Currency',
+      icon: Sliders,
+      desc: 'Theme mode & currency formats',
+    },
   ] as const;
 
   return (
@@ -282,6 +307,7 @@ export const SettingsView: React.FC = () => {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSubTab === item.id;
+                const hasBadge = 'badge' in item && Boolean(item.badge);
                 return (
                   <button
                     key={item.id}
@@ -295,13 +321,39 @@ export const SettingsView: React.FC = () => {
                     }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
-                    <div className="min-w-0 hidden sm:block md:block">
-                      <div className="text-xs font-semibold leading-tight truncate">{item.label}</div>
+                    <div className="min-w-0 hidden sm:block md:block flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-semibold leading-tight truncate">{item.label}</span>
+                        {hasBadge && (
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                              isActive
+                                ? 'bg-amber-400 text-black font-extrabold shadow-sm'
+                                : 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
                       <div className={`text-[10px] leading-tight truncate mt-0.5 ${isActive ? 'text-white/80' : isLight ? 'text-[#74638B]' : 'text-zinc-500'}`}>
                         {item.desc}
                       </div>
                     </div>
-                    <span className="sm:hidden text-xs font-semibold">{item.label}</span>
+                    <span className="sm:hidden text-xs font-semibold flex items-center gap-1.5">
+                      <span>{item.label}</span>
+                      {hasBadge && (
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                            isActive
+                              ? 'bg-amber-400 text-black font-extrabold'
+                              : 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 );
               })}
@@ -803,40 +855,93 @@ export const SettingsView: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 5: DEVELOPER API */}
+            {/* TAB: DEVELOPER API (COMING SOON) */}
             {activeSubTab === 'developer' && (
-              <div className="space-y-6 text-center py-8">
-                <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto ${
-                  isLight ? 'bg-violet-50 text-[#7C3AED] border border-[#E5DCF4]' : 'bg-[#1f1f2b] text-violet-400 border border-[#2a2a38]'
-                }`}>
-                  <Code className="w-8 h-8" />
-                </div>
-                <div className="space-y-2">
-                  <div className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-[#7C3AED]/10 text-[#7C3AED] border border-[#7C3AED]/20 uppercase tracking-wider">
-                    Developer Portal
+              <div className="space-y-6 text-center py-4 sm:py-6">
+                {/* Glowing Badge & Icon */}
+                <div className="relative inline-block mx-auto">
+                  <div
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center mx-auto transition-transform hover:scale-105 ${
+                      isLight
+                        ? 'bg-violet-50 text-[#7C3AED] border border-[#E5DCF4] shadow-md shadow-violet-500/10'
+                        : 'bg-[#1a1a24] text-violet-400 border border-[#2a2a38] shadow-lg shadow-black/40'
+                    }`}
+                  >
+                    <Code className="w-8 h-8 sm:w-10 sm:h-10" />
                   </div>
-                  <h4 className={`text-lg font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
+                  <div className="absolute -bottom-2 left-1/2 -translate-y-1/2 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-black shadow-md shrink-0 whitespace-nowrap">
+                    Coming Soon
+                  </div>
+                </div>
+
+                <div className="space-y-2 max-w-lg mx-auto pt-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#7C3AED]/10 text-[#7C3AED] border border-[#7C3AED]/20 uppercase tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Developer &amp; Reseller Portal
+                  </div>
+                  <h3 className={`text-xl sm:text-2xl font-black tracking-tight ${isLight ? 'text-[#211536]' : 'text-white'}`}>
                     REST API &amp; Webhook Access
-                  </h4>
-                  <p className={`text-xs max-w-md mx-auto leading-relaxed ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
-                    Automate number ordering, subscribe to instant SMS webhooks, and manage reselling balances programmatically.
+                  </h3>
+                  <p className={`text-xs sm:text-sm leading-relaxed ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                    We are building a robust, high-speed REST API and webhook pipeline for developers and volume resellers. Integrate automated OTP receiving directly into your backend services and bots.
                   </p>
                 </div>
 
-                <div className={`p-4 rounded-2xl border text-left max-w-md mx-auto ${
-                  isLight ? 'bg-[#FAF8FF] border-[#E5DCF4]' : 'bg-[#1a1a24] border-[#2a2a38]'
-                }`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-semibold ${isLight ? 'text-[#211536]' : 'text-white'}`}>
-                      Public API Base URL
-                    </span>
-                    <span className="text-[10px] font-mono text-emerald-500 font-bold">LIVE</span>
+                {/* Features in Development Preview Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto text-left pt-1">
+                  <div className={`p-4 rounded-2xl border ${isLight ? 'bg-[#FAF8FF] border-[#E5DCF4]' : 'bg-[#1a1a24] border-[#2a2a38]'}`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Terminal className="w-4 h-4 text-[#7C3AED]" />
+                      <span className={`text-xs font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>REST API v1</span>
+                    </div>
+                    <p className={`text-[11px] leading-relaxed ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                      Order virtual numbers, fetch OTP codes, and manage rentals via HTTPS requests.
+                    </p>
                   </div>
-                  <div className={`p-2.5 rounded-xl font-mono text-xs truncate border ${
-                    isLight ? 'bg-white border-[#E5DCF4] text-[#7C3AED]' : 'bg-[#14141b] border-[#2a2a38] text-violet-400'
-                  }`}>
-                    https://fahhh.duckdns.org/api/
+
+                  <div className={`p-4 rounded-2xl border ${isLight ? 'bg-[#FAF8FF] border-[#E5DCF4]' : 'bg-[#1a1a24] border-[#2a2a38]'}`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Zap className="w-4 h-4 text-amber-500" />
+                      <span className={`text-xs font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>Real-Time Webhooks</span>
+                    </div>
+                    <p className={`text-[11px] leading-relaxed ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                      Instant HTTP callbacks pushed to your server the moment an SMS code arrives.
+                    </p>
                   </div>
+
+                  <div className={`p-4 rounded-2xl border ${isLight ? 'bg-[#FAF8FF] border-[#E5DCF4]' : 'bg-[#1a1a24] border-[#2a2a38]'}`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Key className="w-4 h-4 text-emerald-500" />
+                      <span className={`text-xs font-bold ${isLight ? 'text-[#211536]' : 'text-white'}`}>Scoped API Keys</span>
+                    </div>
+                    <p className={`text-[11px] leading-relaxed ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                      Generate and rotate API keys with rate-limiting, IP allowlisting &amp; usage limits.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Coming Soon Notice Card */}
+                <div
+                  className={`p-4 rounded-2xl border max-w-xl mx-auto flex items-center justify-between gap-3 text-left ${
+                    isLight ? 'bg-[#FAF8FF] border-amber-500/30' : 'bg-[#1a1a24] border-amber-500/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className={`text-xs font-bold truncate ${isLight ? 'text-[#211536]' : 'text-white'}`}>
+                        Under Active Development
+                      </div>
+                      <div className={`text-[11px] truncate ${isLight ? 'text-[#74638B]' : 'text-zinc-400'}`}>
+                        Sandbox environment &amp; documentation will be announced here soon.
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold font-mono px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30 shrink-0">
+                    Coming Soon
+                  </span>
                 </div>
               </div>
             )}

@@ -177,7 +177,7 @@ export const DepositHub: React.FC = () => {
   const [fampayEnabled, setFampayEnabled] = useState<boolean>(true);
   const [upiEnabled, setUpiEnabled] = useState<boolean>(true);
   const [cwalletEnabled, setCwalletEnabled] = useState<boolean>(true);
-  const [fampayMinDeposit, setFampayMinDeposit] = useState<number>(10);
+  const [fampayMinDeposit, setFampayMinDeposit] = useState<number>(50);
   const [upiMinDeposit, setUpiMinDeposit] = useState<number>(50);
   const [cwalletMinDeposit, setCwalletMinDeposit] = useState<number>(50);
   const [manualMethods, setManualMethods] = useState<ManualMethodItem[]>([]);
@@ -222,8 +222,11 @@ export const DepositHub: React.FC = () => {
           setCwalletEnabled(isCwOn);
 
           if (res.fampay_min_deposit) setFampayMinDeposit(res.fampay_min_deposit);
+          else if (res.min_deposit) setFampayMinDeposit(res.min_deposit);
           if (res.upi_min_deposit) setUpiMinDeposit(res.upi_min_deposit);
+          else if (res.min_deposit) setUpiMinDeposit(res.min_deposit);
           if (res.cwallet_min_deposit) setCwalletMinDeposit(res.cwallet_min_deposit);
+          else if (res.min_deposit) setCwalletMinDeposit(res.min_deposit);
 
           if (!isFpOn && selectedMethod === 'fampay') {
             setSelectedMethod(isUpiOn ? 'upi_direct' : 'usdt_bep20');
@@ -306,7 +309,8 @@ export const DepositHub: React.FC = () => {
   // Explicit user trigger: Generates the dynamic QR invoice only when requested
   const handleMakeInvoice = async () => {
     if (amount < fampayMinDeposit) {
-      addToast(`Minimum deposit amount for Instant QR is ₹${fampayMinDeposit}.`, 'error', 'Invalid Amount');
+      hapticFeedback.error();
+      addToast(`Please enter an amount of ₹${fampayMinDeposit} or greater.`, 'error', 'Minimum Amount');
       return;
     }
 
@@ -917,9 +921,26 @@ export const DepositHub: React.FC = () => {
                     value={amount || ''}
                     onChange={(e) => setAmount(Number(e.target.value))}
                     placeholder={`Custom amount (Min ₹${fampayMinDeposit})`}
-                    className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
+                    className={`w-full bg-[#0b0b0e] border rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none transition-colors ${
+                      amount > 0 && amount < fampayMinDeposit
+                        ? 'border-rose-500/70 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-[#262630] focus:border-[#7c3aed]'
+                    }`}
                   />
                 </div>
+
+                {/* Minimum Amount Inline Notice */}
+                {amount > 0 && amount < fampayMinDeposit ? (
+                  <div className="mt-2.5 flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold animate-pulse">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>Please enter an amount of ₹{fampayMinDeposit} or greater.</span>
+                  </div>
+                ) : amount >= fampayMinDeposit ? (
+                  <div className="mt-2 flex items-center gap-1.5 px-2 text-[11px] font-medium text-emerald-400">
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Valid deposit amount (₹{amount})</span>
+                  </div>
+                ) : null}
               </div>
 
               {/* Deposit Rules & Guidelines Card */}
@@ -980,12 +1001,21 @@ export const DepositHub: React.FC = () => {
                 <button
                   onClick={handleMakeInvoice}
                   disabled={isGenerating || amount < fampayMinDeposit}
-                  className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white font-extrabold text-sm shadow-violet-glow transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`w-full mt-4 flex items-center justify-center gap-2 py-3.5 rounded-xl font-extrabold text-sm transition-all active:scale-[0.98] ${
+                    amount > 0 && amount < fampayMinDeposit
+                      ? 'bg-rose-500/15 border border-rose-500/30 text-rose-300 cursor-not-allowed opacity-90'
+                      : 'bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white shadow-violet-glow disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+                  }`}
                 >
                   {isGenerating ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       <span>Generating Invoice...</span>
+                    </>
+                  ) : amount > 0 && amount < fampayMinDeposit ? (
+                    <>
+                      <AlertTriangle className="w-4 h-4 text-rose-400" />
+                      <span>Enter ₹{fampayMinDeposit} or greater</span>
                     </>
                   ) : (
                     <>
@@ -1156,9 +1186,19 @@ export const DepositHub: React.FC = () => {
                 value={amount || ''}
                 onChange={(e) => setAmount(Number(e.target.value))}
                 placeholder={`Custom amount (Min ₹${upiMinDeposit})`}
-                className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
+                className={`w-full bg-[#0b0b0e] border rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none transition-colors ${
+                  amount > 0 && amount < upiMinDeposit
+                    ? 'border-rose-500/70 focus:border-rose-500 ring-1 ring-rose-500/20'
+                    : 'border-[#262630] focus:border-[#7c3aed]'
+                }`}
               />
             </div>
+            {amount > 0 && amount < upiMinDeposit && (
+              <div className="mt-2.5 flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold animate-pulse">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>Please enter an amount of ₹{upiMinDeposit} or greater.</span>
+              </div>
+            )}
           </div>
 
           <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col text-left">
