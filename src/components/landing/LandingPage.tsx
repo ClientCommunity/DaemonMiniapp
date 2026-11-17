@@ -1449,122 +1449,85 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </span>
               </div>
 
-              {/* Badges with Real Authentic Brand Logos */}
+              {/* Badges with Real Authentic Vector Brand Logos */}
               <div className="flex flex-wrap items-center justify-center gap-2.5">
                 {/* Google Pay */}
                 <span
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md hover:border-violet-300"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-xs hover:shadow-sm hover:border-violet-300"
                   style={{
                     backgroundColor: '#FFFFFF',
                     border: '1px solid #E5DCF4',
                     color: '#211536',
                   }}
                 >
-                  <svg className="w-5 h-4 shrink-0" viewBox="0 0 40 24" fill="none">
-                    <rect width="40" height="24" rx="4" fill="#F8FAFC" stroke="#E2E8F0" strokeWidth="0.8"/>
-                    {/* Google G */}
-                    <path d="M14.5 12.1c0-.4-.03-.7-.1-.99H10v1.87h2.52c-.11.59-.44 1.08-.94 1.41v1.17h1.52c.89-.82 1.4-2.02 1.4-3.46z" fill="#4285F4"/>
-                    <path d="M10 16.7c1.27 0 2.33-.42 3.11-1.14l-1.52-1.17c-.42.28-.96.45-1.59.45-1.22 0-2.26-.83-2.63-1.94H5.78v1.21c.78 1.55 2.38 2.59 4.22 2.59z" fill="#34A853"/>
-                    <path d="M7.37 12.9c-.1-.28-.15-.59-.15-.9s.05-.62.15-.9V9.89H5.78C5.45 10.55 5.26 11.25 5.26 12s.19 1.45.52 2.11l1.59-1.21z" fill="#FBBC04"/>
-                    <path d="M10 7.8c.69 0 1.31.24 1.8.7l1.35-1.35C12.33 6.38 11.27 6 10 6 8.16 6 6.56 7.04 5.78 8.59l1.59 1.21c.37-1.11 1.41-2 2.63-2z" fill="#EA4335"/>
-                    {/* Pay Text */}
-                    <path d="M17.5 8h-1.3v8h1.3V8zm3.5 5.1c0-.3-.04-.6-.13-.9h-2.1v1.8h1.2c-.17.5-.5.85-.94 1.1l.65 1.2c.87-.47 1.32-1.4 1.32-3.2zm-2.2-3.1c-.67 0-1.2.53-1.2 1.2s.53 1.2 1.2 1.2 1.2-.53 1.2-1.2-.53-1.2-1.2-1.2zm4.5 0c-1.1 0-1.9.8-1.9 1.9s.8 1.9 1.9 1.9 1.9-.8 1.9-1.9-.8-1.9-1.9-1.9zm0 2.9c-.53 0-.96-.43-.96-.96s.43-.96.96-.96.96.43.96.96-.43.96-.96.96z" fill="#5F6368"/>
-                  </svg>
+                  <img src="/icons/gpay.svg" alt="Google Pay" className="h-4 w-auto object-contain" />
                   <span>Google Pay</span>
                 </span>
 
                 {/* PhonePe */}
                 <span
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md hover:border-violet-300"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-xs hover:shadow-sm hover:border-violet-300"
                   style={{
                     backgroundColor: '#FFFFFF',
                     border: '1px solid #E5DCF4',
                     color: '#211536',
                   }}
                 >
-                  <svg className="w-4 h-4 shrink-0 rounded-full shadow-xs" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="12" fill="#5F259F"/>
-                    {/* Authentic PhonePe Devanagari Pe Glyph */}
-                    <path d="M16.8 6.5h-4c-.3 0-.6.2-.7.5l-.2.7h4.4c.3 0 .5.2.5.5s-.2.5-.5.5h-4.8l-.8 3.5c-.1.5.3.8.7.8h2.6c.3 0 .5.2.5.5s-.2.5-.5.5h-2.8c-1.1 0-2.1-.8-2.4-1.9l-1-4.7H6.5c-.3 0-.5-.2-.5-.5s.2-.5.5-.5h2.3l.3-1c.3-1.1 1.3-1.9 2.4-1.9h4.3c.3 0 .5.2.5.5s-.2.5-.5.5z" fill="#ffffff"/>
-                    <path d="M13.6 13.8l-3.3 4.9c-.2.3-.7.4-1 .2-.3-.2-.4-.7-.2-1l3.5-4.8c.2.3.4.5.7.7h.3z" fill="#ffffff"/>
-                  </svg>
+                  <img src="/icons/phonepe.svg" alt="PhonePe" className="w-4 h-4 rounded-full object-contain shadow-xs" />
                   <span>PhonePe</span>
                 </span>
 
                 {/* Paytm */}
                 <span
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md hover:border-violet-300"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-xs hover:shadow-sm hover:border-violet-300"
                   style={{
                     backgroundColor: '#FFFFFF',
                     border: '1px solid #E5DCF4',
                     color: '#211536',
                   }}
                 >
-                  <svg className="h-3.5 w-10 shrink-0" viewBox="0 0 52 16" fill="none">
-                    {/* Authentic Paytm Mark: 'Pay' in navy #002970, 'tm' in cyan #00BAF2 */}
-                    <path d="M4.5 1h-3C.7 1 0 1.7 0 2.5v11c0 .8.7 1.5 1.5 1.5h1.8c.8 0 1.5-.7 1.5-1.5v-3.2h-.3c1.9 0 3.5-1.6 3.5-3.5V4.5C8 2.6 6.4 1 4.5 1zm.2 5.8c0 .8-.7 1.5-1.5 1.5H3.1V3.2h.1c.8 0 1.5.7 1.5 1.5v2.1z" fill="#002970"/>
-                    <path d="M13.8 5.5h-1.8c-.8 0-1.5.7-1.5 1.5v.3c-.6-.6-1.5-1-2.5-1-1.9 0-3.5 1.6-3.5 3.5v.4c0 1.9 1.6 3.5 3.5 3.5 1 0 1.9-.4 2.5-1v.3c0 .8.7 1.5 1.5 1.5h1.8V5.5zm-3.3 4.6c0 .9-.7 1.6-1.6 1.6s-1.6-.7-1.6-1.6v-.2c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v.2z" fill="#002970"/>
-                    <path d="M19.2 5.5l-2.1 6.5-2.1-6.5h-2.1l3.2 8.8-1.5 3.7h2.1l5.7-12.5h-3.2z" fill="#002970"/>
-                    <path d="M25 5.5v-2h-1.8v2h-1.2v1.8h1.2v4.2c0 1.1.9 2 2 2h1.5v-1.8h-1.2c-.3 0-.5-.2-.5-.5V7.3h1.7V5.5H25z" fill="#00BAF2"/>
-                    <path d="M37 5.5h-1.8c-.8 0-1.5.7-1.5 1.5v.5c-.6-.7-1.5-1.1-2.5-1.1-.9 0-1.8.4-2.3 1-.5-.6-1.4-1-2.3-1-1.8 0-3.2 1.4-3.2 3.2v4.4h1.8v-4.2c0-.8.6-1.4 1.4-1.4s1.4.6 1.4 1.4v4.2h1.8v-4.2c0-.8.6-1.4 1.4-1.4s1.4.6 1.4 1.4v4.2H37V5.5z" fill="#00BAF2"/>
-                  </svg>
+                  <img src="/icons/paytm.svg" alt="Paytm" className="h-3.5 w-auto object-contain" />
                   <span>Paytm</span>
                 </span>
 
                 {/* BHIM UPI */}
                 <span
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md hover:border-violet-300"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-xs hover:shadow-sm hover:border-violet-300"
                   style={{
                     backgroundColor: '#FFFFFF',
                     border: '1px solid #E5DCF4',
                     color: '#211536',
                   }}
                 >
-                  <svg className="h-3.5 w-10 shrink-0" viewBox="0 0 46 16" fill="none">
-                    {/* Official NPCI UPI Chevrons */}
-                    <path d="M7.5 1L2 15h3.6l5.5-14H7.5z" fill="#097939"/>
-                    <path d="M11.5 1L6 15h3.6l5.5-14h-3.6z" fill="#ED7524"/>
-                    {/* UPI Text */}
-                    <path d="M18 3h2.6v6.5c0 1.1.8 1.9 1.9 1.9s1.9-.8 1.9-1.9V3H27v6.5c0 2.5-2 4.5-4.5 4.5S18 12 18 9.5V3z" fill="#1B1C1E"/>
-                    <path d="M29 3h4.5c2 0 3.7 1.7 3.7 3.7s-1.7 3.7-3.7 3.7h-1.9V14H29V3zm2.6 2.3v2.8h1.9c.8 0 1.4-.6 1.4-1.4s-.6-1.4-1.4-1.4h-1.9z" fill="#1B1C1E"/>
-                    <path d="M39.5 3h2.6v11h-2.6V3z" fill="#1B1C1E"/>
-                  </svg>
+                  <img src="/icons/upi.svg" alt="BHIM UPI" className="h-3.5 w-auto object-contain" />
                   <span>BHIM UPI</span>
                 </span>
 
                 {/* USDT (Tether) */}
                 <span
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md hover:border-violet-300"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-xs hover:shadow-sm hover:border-violet-300"
                   style={{
                     backgroundColor: '#FFFFFF',
                     border: '1px solid #E5DCF4',
                     color: '#211536',
                   }}
                 >
-                  <svg className="w-4 h-4 shrink-0 rounded-full shadow-xs" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="12" fill="#26A17B"/>
-                    {/* Official Tether Monogram */}
-                    <path d="M13.4 11.1c-.1 0-.5 0-.9 0-.3 0-.8 0-.9 0-2.1-.1-3.7-.5-3.7-1.1 0-.6 1.6-1 3.7-1.1.2 0 .6 0 .9 0 .4 0 .8 0 .9 0 2.1.1 3.7.5 3.7 1.1 0 .5-1.6 1-3.7 1.1zm0-2.7V6.9h3.3V5.2h-7.6v1.7h3.3v1.5c-2.6.1-4.5.7-4.5 1.6 0 .8 1.9 1.5 4.5 1.6v4.9h1.7v-4.9c2.6-.1 4.5-.7 4.5-1.6 0-.8-1.9-1.5-4.5-1.6zm0 3.8v-.1c1.7-.1 3.2-.4 3.5-.8v2c-.8.4-2.1.7-3.5.8v-1.9zm-1.7 0v1.9c-1.4-.1-2.7-.4-3.5-.8v-2c.4.4 1.8.7 3.5.8v.1z" fill="#ffffff"/>
-                  </svg>
+                  <img src="/icons/tether.svg" alt="USDT" className="w-4 h-4 rounded-full object-contain" />
                   <span>USDT (TRC-20 &amp; BEP-20)</span>
                 </span>
 
                 {/* FamPay Direct */}
                 <span
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-sm hover:shadow-md hover:border-violet-300"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-xs hover:shadow-sm hover:border-violet-300"
                   style={{
                     backgroundColor: '#FFFFFF',
                     border: '1px solid #E5DCF4',
                     color: '#211536',
                   }}
                 >
-                  <svg className="w-4 h-4 shrink-0 rounded-[4px] shadow-xs" viewBox="0 0 24 24" fill="none">
-                    <rect width="24" height="24" rx="5" fill="#FFB703"/>
-                    {/* Official Fam Logo Silhouette */}
-                    <path d="M15 5.5l-4.5 2a2.5 2.5 0 00-1.5 2.3v1.8a2.5 2.5 0 001.5 2.3l4.5 2V5.5z" fill="#111217"/>
-                    <circle cx="9" cy="17" r="2" fill="#111217"/>
-                    <path d="M16.5 8.5l-1.8.8a1 1 0 00-.5.7v5a1 1 0 00.5.7l1.8.8V8.5z" fill="#111217" opacity="0.6"/>
-                  </svg>
+                  <div className="w-4 h-4 rounded-[4px] bg-[#FFAD00] flex items-center justify-center p-0.5 shadow-xs">
+                    <img src="/icons/fampay.svg" alt="FamPay" className="w-full h-full object-contain filter brightness-0" />
+                  </div>
                   <span>FamPay Direct</span>
                 </span>
               </div>
