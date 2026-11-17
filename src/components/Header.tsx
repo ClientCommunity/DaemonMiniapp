@@ -28,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
   } = useApp();
 
   const [isSyncingBalance, setIsSyncingBalance] = React.useState(false);
+  const isLight = theme === 'light';
 
   const handleSyncBalance = async () => {
     hapticFeedback.light();
@@ -78,12 +79,14 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#121217]/95 backdrop-blur-md border-b border-[#262630] pt-[max(10px,env(safe-area-inset-top))] pb-2.5 px-2.5 sm:px-4">
+    <header className={`sticky top-0 z-40 w-full backdrop-blur-md border-b pt-[max(10px,env(safe-area-inset-top))] pb-2.5 px-2.5 sm:px-4 transition-colors duration-200 ${
+      isLight ? 'bg-white/90 border-[#E5DCF4]' : 'bg-[#121217]/95 border-[#262630]'
+    }`}>
       <div className={`flex items-center justify-between gap-1 sm:gap-2 w-full overflow-hidden ${isWeb ? 'max-w-7xl mx-auto' : 'max-w-full'}`}>
         {/* Left Side: Brand Logo & Title for Web, or User Profile for Mobile/Telegram */}
         {isWeb ? (
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black flex items-center justify-center p-1 shadow-sm shrink-0 overflow-hidden">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black flex items-center justify-center p-1.5 shadow-sm shrink-0 overflow-hidden">
               <img
                 src={LOGO_URL}
                 alt="Deamon OTP Logo"
@@ -97,13 +100,17 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
               />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-1.5 truncate">
+              <span className={`font-extrabold text-sm sm:text-base tracking-tight flex items-center gap-1.5 truncate ${
+                isLight ? 'text-[#211536]' : 'text-white'
+              }`}>
                 Deamon OTP
                 <span className="text-[9px] font-mono font-bold bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30 px-1.5 py-0.2 rounded-full">
                   STORE
                 </span>
               </span>
-              <span className="hidden sm:block text-[10px] text-[#a1a1aa] font-medium truncate">
+              <span className={`hidden sm:block text-[10px] font-medium truncate ${
+                isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'
+              }`}>
                 Virtual Numbers &amp; Telegram Sessions
               </span>
             </div>
@@ -183,22 +190,30 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
             type="button"
             onClick={handleSyncBalance}
             disabled={isSyncingBalance}
-            className="min-h-[38px] flex items-center gap-1 sm:gap-1.5 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-2.5 py-1 sm:px-3 transition-all shadow-sm cursor-pointer"
+            className={`min-h-[38px] flex items-center gap-1 sm:gap-1.5 active:scale-95 border rounded-full px-2.5 py-1 sm:px-3 transition-all shadow-sm cursor-pointer ${
+              isLight
+                ? 'bg-[#FAF8FF] hover:bg-white text-[#211536] border-[#E5DCF4]'
+                : 'bg-[#181820] hover:bg-[#1f1f2a] text-white border-[#262630]'
+            }`}
             title="Click to sync wallet balance"
             aria-label="Assets and Balance"
           >
-            <span className="text-[10px] text-[#a1a1aa] font-medium hidden sm:inline">Balance:</span>
+            <span className={`text-[10px] font-medium hidden sm:inline ${isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'}`}>Balance:</span>
             <span className="text-xs font-bold font-mono text-[#22c55e]">
               {formatPrice(user.balance)}
             </span>
-            <RefreshCw className={`w-3 h-3 text-[#a1a1aa] ${isSyncingBalance ? 'animate-spin text-[#8b5cf6]' : ''}`} />
+            <RefreshCw className={`w-3 h-3 ${isSyncingBalance ? 'animate-spin text-[#8b5cf6]' : isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'}`} />
           </button>
 
           {/* Currency Switcher */}
           <button
             type="button"
             onClick={handleToggleCurrency}
-            className="min-h-[38px] min-w-[38px] flex items-center justify-center gap-1 bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full px-2 py-1 transition-all shadow-sm cursor-pointer"
+            className={`min-h-[38px] min-w-[38px] flex items-center justify-center gap-1 active:scale-95 border rounded-full px-2 py-1 transition-all shadow-sm cursor-pointer ${
+              isLight
+                ? 'bg-[#FAF8FF] hover:bg-white border-[#E5DCF4]'
+                : 'bg-[#181820] hover:bg-[#1f1f2a] border-[#262630]'
+            }`}
             title="Switch Currency (INR / USDT)"
             aria-label="Toggle currency between INR and USDT"
           >
@@ -212,7 +227,11 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
           <button
             type="button"
             onClick={handleToggleTheme}
-            className="min-h-[38px] min-w-[38px] flex items-center justify-center bg-[#181820] hover:bg-[#1f1f2a] active:scale-95 border border-[#262630] rounded-full transition-all shadow-sm cursor-pointer"
+            className={`min-h-[38px] min-w-[38px] flex items-center justify-center active:scale-95 border rounded-full transition-all shadow-sm cursor-pointer ${
+              isLight
+                ? 'bg-[#FAF8FF] hover:bg-white border-[#E5DCF4]'
+                : 'bg-[#181820] hover:bg-[#1f1f2a] border-[#262630]'
+            }`}
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label="Toggle Dark and Light theme"
           >
@@ -225,15 +244,17 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
 
           {/* User Profile on the Top Right for Web */}
           {isWeb && (
-            <div className="flex items-center gap-2 pl-2 sm:pl-2.5 border-l border-[#262630]">
+            <div className={`flex items-center gap-2 pl-2 sm:pl-2.5 border-l ${isLight ? 'border-[#E5DCF4]' : 'border-[#262630]'}`}>
               <div className="hidden sm:flex flex-col items-end min-w-0">
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[95px] md:max-w-[150px]">
+                  <span className={`font-bold text-xs sm:text-sm tracking-tight truncate max-w-[95px] md:max-w-[150px] ${
+                    isLight ? 'text-[#211536]' : 'text-white'
+                  }`}>
                     {user.firstName}
                   </span>
                   <BadgeCheck className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-[#a1a1aa]">
+                <div className={`flex items-center gap-1 text-[10px] ${isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'}`}>
                   {user.username ? (
                     <span className="font-mono truncate max-w-[85px] md:max-w-[130px]">@{user.username}</span>
                   ) : (
@@ -244,7 +265,9 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
 
               {/* Avatar */}
               <div className="relative shrink-0">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 ring-[#262630] overflow-hidden">
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 overflow-hidden ${
+                  isLight ? 'ring-[#E5DCF4]' : 'ring-[#262630]'
+                }`}>
                   {user.avatarUrl ? (
                     <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
                   ) : (
