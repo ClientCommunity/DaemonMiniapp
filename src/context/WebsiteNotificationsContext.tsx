@@ -118,20 +118,35 @@ function writeSessionShown(sessionKey: string, ids: Set<number>): void {
   } catch {}
 }
 
-export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const SW_BASE = ((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '');
+const SW_URL = `${SW_BASE}/sw.js`;
+
+export const WebsiteNotificationsProvider: React.FC<{
+  children: React.ReactNode;
+  suppressAutoPopup?: boolean;
+}> = ({ children, suppressAutoPopup = false }) => {
   const { user, addToast } = useApp();
   const isTg = isTelegramWebApp();
-  const userScope = String(user?.telegramId || 'web');
-  const storageKey = `krish_web_broadcast_state_v1_${userScope}`;
-  const sessionKey = `krish_web_broadcast_session_v1_${userScope}`;
+  const resolvedUserId = String(user?.telegramId || '').trim();
+  const isUserReady = Boolean(resolvedUserId);
+  const storageKey = `krish_web_broadcast_state_v1_${resolvedUserId || 'pending'}`;
+  const sessionKey = `krish_web_broadcast_session_v1_${resolvedUserId || 'pending'}`;
 
   const [broadcasts, setBroadcasts] = useState<WebsiteBroadcastRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stateMap, setStateMap] = useState<BroadcastStateMap>(() => readStateMap(storageKey));
+  const [stateMap, setStateMap] = useState<BroadcastStateMap>(() =>
+    isUserReady ? readStateMap(storageKey) : {}
+  );
   const [activePopup, setActivePopup] = useState<WebsiteBroadcastRecord | null>(null);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
+
+  // Refs to guard async checks against overlapping modals / double quota burns
+  const activePopupRef = useRef<WebsiteBroadcastRecord | null>(activePopup);
+  activePopupRef.current = activePopup;
+  const isInboxOpenRef = useRef<boolean>(isInboxOpen);
+  isInboxOpenRef.current = isInboxOpen;
+  const suppressAutoPopupRef = useRef<boolean>(suppressAutoPopup);
+  suppressAutoPopupRef.current = suppressAutoPopup;
 
   // Browser Web Push states
   const pushSupported =
@@ -149,28 +164,71 @@ export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode 
   const [isPushSubscribed, setIsPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
 
-  const stateMapRef = useRef(stateMap);
-  stateMapRef.current = stateMap;
-
-  // Reload per-user local state if user identity changes
+  // Reload per-user local state once real user ID is ready
   useEffect(() => {
+    if (!isUserReady) return;
     setStateMap(readStateMap(storageKey));
-  }, [storageKey]);
+  }, [isUserReady, storageKey]);
 
   const updateStateMap = useCallback(
     (updater: (prev: BroadcastStateMap) => BroadcastStateMap) => {
+      if (!isUserReady) return;
       setStateMap((prev) => {
         const next = updater(prev);
         writeStateMap(storageKey, next);
         return next;
       });
     },
-    [storageKey]
+    [isUserReady, storageKey]
+  );
+
+  // Try to surface at most ONE eligible unread popup ONLY when no other modal/popup is blocking
+  const tryOpenEligiblePopup = useCallback(
+    (list: WebsiteBroadcastRecord[], mapSnapshot: BroadcastStateMap) => {
+      if (
+        !isUserReady ||
+        suppressAutoPopupRef.current ||
+        isInboxOpenRef.current ||
+        activePopupRef.current
+      ) {
+        return;
+      }
+
+      const sessionShown = readSessionShown(sessionKey);
+      const candidate = list.find((b) => {
+        const st = mapSnapshot[String(b.id)];
+        const maxViews = Math.min(2, Math.max(1, Number(b.max_popup_views || 1)));
+        if (st?.opened) return false;
+        if ((st?.popupCount || 0) >= maxViews) return false;
+        if (sessionShown.has(b.id)) return false;
+        return true;
+      });
+
+      if (!candidate) return;
+
+      // Record display ONLY right as we actually open the popup (never burns quota silently!)
+      sessionShown.add(candidate.id);
+      writeSessionShown(sessionKey, sessionShown);
+
+      const prevEntry = mapSnapshot[String(candidate.id)] || { opened: false, popupCount: 0 };
+      const nextMap: BroadcastStateMap = {
+        ...mapSnapshot,
+        [String(candidate.id)]: {
+          opened: prevEntry.opened,
+          popupCount: prevEntry.popupCount + 1,
+        },
+      };
+      writeStateMap(storageKey, nextMap);
+      setStateMap(nextMap);
+      activePopupRef.current = candidate;
+      setActivePopup(candidate);
+    },
+    [isUserReady, sessionKey, storageKey]
   );
 
   // Fetch active broadcasts & auto-prune expired local entries + decide auto-popup (max 1x/2x)
   const refreshBroadcasts = useCallback(async () => {
-    if (isTg) return;
+    if (isTg || !isUserReady) return;
     setLoading(true);
     try {
       const res = await webBroadcastApi.getActive();
@@ -195,45 +253,17 @@ export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode 
         setStateMap(cleanedMap);
       }
 
-      // Pick at most ONE eligible unread broadcast to auto-popup (newest first)
-      const sessionShown = readSessionShown(sessionKey);
-      const candidate = list.find((b) => {
-        const st = cleanedMap[String(b.id)];
-        const maxViews = Math.min(2, Math.max(1, Number(b.max_popup_views || 1)));
-        if (st?.opened) return false;
-        if ((st?.popupCount || 0) >= maxViews) return false;
-        if (sessionShown.has(b.id)) return false;
-        return true;
-      });
-
-      if (candidate) {
-        // Immediately record this popup display in session + persistent counter so reloads/polls never double-pop
-        sessionShown.add(candidate.id);
-        writeSessionShown(sessionKey, sessionShown);
-
-        const prevEntry = cleanedMap[String(candidate.id)] || { opened: false, popupCount: 0 };
-        const nextMap: BroadcastStateMap = {
-          ...cleanedMap,
-          [String(candidate.id)]: {
-            opened: prevEntry.opened,
-            popupCount: prevEntry.popupCount + 1,
-          },
-        };
-        writeStateMap(storageKey, nextMap);
-        setStateMap(nextMap);
-
-        setActivePopup((curr) => curr || candidate);
-      }
+      tryOpenEligiblePopup(list, cleanedMap);
     } catch {
       // silent network resilience
     } finally {
       setLoading(false);
     }
-  }, [isTg, storageKey, sessionKey]);
+  }, [isTg, isUserReady, storageKey, tryOpenEligiblePopup]);
 
-  // Initial load + gentle 60-second background check while tab is visible
+  // Initial load (strictly after user identity resolves) + 60-second background check while tab is visible
   useEffect(() => {
-    if (isTg) return;
+    if (isTg || !isUserReady) return;
     refreshBroadcasts();
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
@@ -241,7 +271,14 @@ export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode 
       }
     }, 60_000);
     return () => clearInterval(interval);
-  }, [isTg, refreshBroadcasts]);
+  }, [isTg, isUserReady, refreshBroadcasts]);
+
+  // When Terms / Merge Celebration modal closes, check if an eligible popup was waiting
+  useEffect(() => {
+    if (!suppressAutoPopup && isUserReady && broadcasts.length > 0) {
+      tryOpenEligiblePopup(broadcasts, readStateMap(storageKey));
+    }
+  }, [suppressAutoPopup, isUserReady, broadcasts, storageKey, tryOpenEligiblePopup]);
 
   // Check VAPID availability & existing Service Worker Push subscription once
   useEffect(() => {
@@ -259,7 +296,7 @@ export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode 
       .catch(() => {});
 
     navigator.serviceWorker
-      .getRegistration('/sw.js')
+      .getRegistration(SW_URL)
       .then((reg) => reg?.pushManager.getSubscription())
       .then((sub) => {
         if (!cancelled && sub) {
@@ -288,6 +325,7 @@ export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode 
           [String(id)]: { ...cur, opened: true },
         };
       });
+      setActivePopup((curr) => (curr && curr.id === id ? null : curr));
     },
     [updateStateMap]
   );
@@ -301,6 +339,7 @@ export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode 
       }
       return next;
     });
+    setActivePopup(null);
   }, [broadcasts, updateStateMap]);
 
   const dismissPopup = useCallback(
@@ -346,7 +385,7 @@ export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode 
         return;
       }
 
-      const reg = await navigator.serviceWorker.register('/sw.js');
+      const reg = await navigator.serviceWorker.register(SW_URL);
       await navigator.serviceWorker.ready;
 
       let sub = await reg.pushManager.getSubscription();
@@ -386,7 +425,7 @@ export const WebsiteNotificationsProvider: React.FC<{ children: React.ReactNode 
     if (!pushSupported) return;
     setPushBusy(true);
     try {
-      const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+      const reg = await navigator.serviceWorker.getRegistration(SW_URL);
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
         const ep = sub.endpoint;

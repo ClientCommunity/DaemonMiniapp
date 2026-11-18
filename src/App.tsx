@@ -291,7 +291,9 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <WebsiteNotificationsProvider>
+    <WebsiteNotificationsProvider
+      suppressAutoPopup={!hasAcceptedTerms || Boolean(mergeCelebration)}
+    >
       <MergeCelebrationModal
         isOpen={Boolean(mergeCelebration)}
         onClose={() => setMergeCelebration(null)}

@@ -109,7 +109,11 @@ export const NotificationInboxModal: React.FC = () => {
             <div className="relative w-9 h-9 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-400">
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-[#181823]" />
+                <span
+                  className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ${
+                    isLight ? 'ring-[#FAF8FF]' : 'ring-[#181823]'
+                  }`}
+                />
               )}
             </div>
             <div>
@@ -291,7 +295,11 @@ export const NotificationInboxModal: React.FC = () => {
                     >
                       <Icon className="w-4 h-4" />
                       {!opened && (
-                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-[#1a1829]" />
+                        <span
+                          className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ${
+                            isLight ? 'ring-violet-50' : 'ring-[#1a1829]'
+                          }`}
+                        />
                       )}
                     </div>
 

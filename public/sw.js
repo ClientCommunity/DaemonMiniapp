@@ -25,13 +25,18 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const scopeBase = self.registration && self.registration.scope ? self.registration.scope : '/';
+  const defaultUrl = new URL('./', scopeBase).href;
+  const iconUrl = new URL('./deamon-logo.png', scopeBase).href;
+  const resolvedUrl = payload.url && payload.url !== '/' ? payload.url : defaultUrl;
+
   const options = {
     body: payload.body,
-    icon: '/deamon-logo.png',
-    badge: '/deamon-logo.png',
+    icon: iconUrl,
+    badge: iconUrl,
     tag: payload.tag || 'daemon-broadcast',
     renotify: true,
-    data: { url: payload.url || '/' },
+    data: { url: resolvedUrl },
   };
 
   event.waitUntil(self.registration.showNotification(payload.title || 'Daemon OTP', options));
@@ -39,7 +44,9 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const scopeBase = self.registration && self.registration.scope ? self.registration.scope : '/';
+  const fallbackUrl = new URL('./', scopeBase).href;
+  const targetUrl = (event.notification.data && event.notification.data.url) || fallbackUrl;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

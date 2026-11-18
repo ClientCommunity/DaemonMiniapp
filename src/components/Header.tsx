@@ -254,12 +254,12 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
             )}
           </button>
 
-          {/* Desktop Website Notification Bell (hidden on congested mobile view where Account red-dot guides user) */}
+          {/* Desktop Website Notification Bell (hidden below md where mobile BottomNav + Account red-dot guides user) */}
           {isWeb && isWebNotificationsEnabled && (
             <button
               type="button"
               onClick={openInbox}
-              className={`hidden sm:flex relative min-h-[38px] min-w-[38px] items-center justify-center active:scale-95 border rounded-full transition-all shadow-sm cursor-pointer ${
+              className={`hidden md:flex relative min-h-[38px] min-w-[38px] items-center justify-center active:scale-95 border rounded-full transition-all shadow-sm cursor-pointer ${
                 isLight
                   ? 'bg-[#FAF8FF] hover:bg-white border-[#E5DCF4] text-[#514364] hover:text-[#7c3aed]'
                   : 'bg-[#181820] hover:bg-[#1f1f2a] border-[#262630] text-zinc-300 hover:text-white'
@@ -269,7 +269,11 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-extrabold flex items-center justify-center ring-2 ring-[#121217] animate-pulse">
+                <span
+                  className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-extrabold flex items-center justify-center ring-2 animate-pulse ${
+                    isLight ? 'ring-white' : 'ring-[#121217]'
+                  }`}
+                >
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}

@@ -73,6 +73,7 @@ export const WebsiteBroadcastsTab: React.FC = () => {
   // Confirmation & Action State
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
   const [publishing, setPublishing] = useState<boolean>(false);
+  const [savingDefault, setSavingDefault] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadBroadcasts = useCallback(async (syncDefaultInput = false) => {
@@ -83,11 +84,13 @@ export const WebsiteBroadcastsTab: React.FC = () => {
       if (res?.success) {
         setBroadcasts(Array.isArray(res.broadcasts) ? res.broadcasts : []);
         setPushSubscribers(Number(res.push_subscriber_count || 0));
-        setPushReady(Boolean(res.push_ready));
+        const ready = Boolean(res.push_ready);
+        setPushReady(ready);
         const defHrs = Number(res.default_retention_hours || 72);
         setDefaultRetentionHours(defHrs);
         if (syncDefaultInput) {
           setRetentionHours(String(defHrs));
+          setSendPush(ready);
         }
       } else {
         setLoadError(res?.error || 'Could not load website broadcasts.');
@@ -133,6 +136,29 @@ export const WebsiteBroadcastsTab: React.FC = () => {
     setConfirmOpen(true);
   };
 
+  const handleSaveDefaultRetention = async () => {
+    if (!isRetentionValid) {
+      addToast('Retention period must be between 1 and 720 hours (30 days).', 'error');
+      return;
+    }
+    setSavingDefault(true);
+    try {
+      const res = await adminApi.updateBroadcastSettings(parsedHours);
+      if (res?.success) {
+        const updated = Number(res.default_retention_hours || parsedHours);
+        setDefaultRetentionHours(updated);
+        setRetentionHours(String(updated));
+        addToast(`Default auto-delete updated to ${formatDurationHours(updated)}`, 'success');
+      } else {
+        addToast(res?.error || 'Failed to update default retention', 'error');
+      }
+    } catch {
+      addToast('Network error updating default retention', 'error');
+    } finally {
+      setSavingDefault(false);
+    }
+  };
+
   const handleConfirmPublish = async () => {
     if (!isRetentionValid) return;
     setPublishing(true);
@@ -143,7 +169,7 @@ export const WebsiteBroadcastsTab: React.FC = () => {
         priority,
         max_popup_views: maxPopupViews,
         retention_hours: parsedHours,
-        send_push: sendPush,
+        send_push: pushReady && sendPush,
         save_as_default_retention: saveAsDefault,
       });
 
@@ -411,7 +437,7 @@ export const WebsiteBroadcastsTab: React.FC = () => {
                 ))}
               </div>
 
-              <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-[#a1a1aa]">Custom (hours):</span>
                   <input
@@ -423,6 +449,15 @@ export const WebsiteBroadcastsTab: React.FC = () => {
                     onChange={(e) => setRetentionHours(e.target.value)}
                     className="w-20 bg-[#181820] border border-[#262630] rounded-lg px-2 py-1 text-xs font-mono text-white outline-none"
                   />
+                  <button
+                    type="button"
+                    disabled={savingDefault || !isRetentionValid || parsedHours === defaultRetentionHours}
+                    onClick={handleSaveDefaultRetention}
+                    className="px-2.5 py-1 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 text-[10px] font-bold text-violet-300 transition-colors disabled:opacity-40 cursor-pointer"
+                    title="Save this duration as the new default without publishing"
+                  >
+                    {savingDefault ? 'Saving...' : 'Save Default'}
+                  </button>
                 </div>
                 <label className="flex items-center gap-1.5 text-[10px] text-[#a1a1aa] cursor-pointer select-none">
                   <input
@@ -431,7 +466,7 @@ export const WebsiteBroadcastsTab: React.FC = () => {
                     onChange={(e) => setSaveAsDefault(e.target.checked)}
                     className="accent-[#7c3aed]"
                   />
-                  <span>Save as default</span>
+                  <span>Also save on publish</span>
                 </label>
               </div>
             </div>
@@ -473,17 +508,35 @@ export const WebsiteBroadcastsTab: React.FC = () => {
                 </p>
               </div>
 
-              <label className="flex items-center justify-between gap-2 pt-2 border-t border-[#20202a] cursor-pointer select-none">
-                <span className="text-[11px] text-zinc-200 font-semibold">
-                  Also send Browser Push ({pushSubscribers} subscribed)
-                </span>
-                <input
-                  type="checkbox"
-                  checked={sendPush}
-                  onChange={(e) => setSendPush(e.target.checked)}
-                  className="accent-[#7c3aed] w-4 h-4"
-                />
-              </label>
+              <div className="pt-2 border-t border-[#20202a] space-y-1">
+                <label
+                  className={`flex items-center justify-between gap-2 select-none ${
+                    pushReady ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'
+                  }`}
+                >
+                  <span className="text-[11px] text-zinc-200 font-semibold flex items-center gap-1.5 flex-wrap">
+                    <span>Also send Browser Push ({pushSubscribers} subscribed)</span>
+                    {!pushReady && (
+                      <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        Standby
+                      </span>
+                    )}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={pushReady && sendPush}
+                    disabled={!pushReady}
+                    onChange={(e) => setSendPush(e.target.checked)}
+                    className="accent-[#7c3aed] w-4 h-4 disabled:opacity-50"
+                  />
+                </label>
+                {!pushReady && (
+                  <p className="text-[10px] text-amber-300/80">
+                    In-app auto-popup &amp; notification bell are fully active. Install{' '}
+                    <span className="font-mono">pywebpush</span> on the server to enable OS push.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -664,10 +717,10 @@ export const WebsiteBroadcastsTab: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-[#a1a1aa]">Browser Web Push</span>
                   <span className="font-bold text-cyan-300">
-                    {sendPush && pushReady
-                      ? `Enabled (${pushSubscribers} subscribers)`
-                      : sendPush && !pushReady
+                    {!pushReady
                       ? 'Standby (In-App delivery active)'
+                      : sendPush
+                      ? `Enabled (${pushSubscribers} subscribers)`
                       : 'Off (In-App only)'}
                   </span>
                 </div>
