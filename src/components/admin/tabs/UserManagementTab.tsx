@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   adminApi,
   AdminUserInfo,
@@ -105,6 +105,10 @@ export const UserManagementTab: React.FC = () => {
   // Default Users-tab Population Overview (Read-Only Summary)
   const [summary, setSummary] = useState<AdminUsersSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  // Race-safety counter for lookup / clear
+  const lookupSeqRef = useRef(0);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,13 +132,16 @@ export const UserManagementTab: React.FC = () => {
 
   const loadSummary = useCallback(async () => {
     setSummaryLoading(true);
+    setSummaryError(null);
     try {
       const res = await adminApi.getUsersSummary();
       if (res?.success && res.summary) {
         setSummary(res.summary);
+      } else {
+        setSummaryError(res?.error || 'Could not load user counts.');
       }
     } catch {
-      // keep previous summary silently
+      setSummaryError('Network error loading user counts.');
     } finally {
       setSummaryLoading(false);
     }
@@ -166,12 +173,14 @@ export const UserManagementTab: React.FC = () => {
         return;
       }
 
+      const reqSeq = ++lookupSeqRef.current;
       if (!silent) {
         setLoading(true);
         setSearched(true);
       }
       try {
         const res = await adminApi.searchUser(trimmed);
+        if (reqSeq !== lookupSeqRef.current) return;
         if (res?.success && res.user) {
           setUser(res.user);
           setOrders(Array.isArray(res.orders) ? res.orders : []);
@@ -183,6 +192,7 @@ export const UserManagementTab: React.FC = () => {
           addToast(res?.error || 'User not found in database', 'error');
         }
       } catch {
+        if (reqSeq !== lookupSeqRef.current) return;
         if (!silent) {
           setUser(null);
           setOrders([]);
@@ -190,7 +200,7 @@ export const UserManagementTab: React.FC = () => {
           addToast('Failed to lookup user', 'error');
         }
       } finally {
-        if (!silent) setLoading(false);
+        if (!silent && reqSeq === lookupSeqRef.current) setLoading(false);
       }
     },
     [addToast]
@@ -203,6 +213,8 @@ export const UserManagementTab: React.FC = () => {
   };
 
   const handleClearSearch = () => {
+    lookupSeqRef.current += 1;
+    setLoading(false);
     setSearchQuery('');
     setUser(null);
     setOrders([]);
@@ -340,7 +352,7 @@ export const UserManagementTab: React.FC = () => {
     addToast(`${label} copied`, 'info');
   };
 
-  // Compute live Before -> After preview for confirmation modal
+  // Compute live Before -> After preview mirroring backend adjust_user_balance_debit_db / credit_user_balance
   const previewBalances = (() => {
     if (!user || !pendingAdjustment) return null;
     const curTotal = Number(user.balance || 0);
@@ -353,36 +365,58 @@ export const UserManagementTab: React.FC = () => {
     const amt = pendingAdjustment.amount;
 
     if (pendingAdjustment.type === 'credit') {
+      const nextTotal = curTotal + amt;
+      const nextPromo = pendingAdjustment.isPromo ? curPromo + amt : curPromo;
+      const nextTrans = pendingAdjustment.isPromo ? curTrans : curTrans + amt;
       return {
         curTarget: pendingAdjustment.isPromo ? curPromo : curTrans,
-        nextTarget: (pendingAdjustment.isPromo ? curPromo : curTrans) + amt,
+        nextTarget: pendingAdjustment.isPromo ? nextPromo : nextTrans,
+        curPromo,
+        nextPromo,
         curTotal,
-        nextTotal: curTotal + amt,
+        nextTotal,
+        promoSpill: 0,
       };
     }
 
-    // Debit (floored at 0)
+    // Debit (floored at 0) — exact mirror of admin_repo.adjust_user_balance_debit_db
     if (pendingAdjustment.isPromo) {
       const deducted = Math.min(curPromo, amt);
+      const nextPromo = curPromo - deducted;
+      const nextTotal = Math.max(0, curTotal - deducted);
       return {
         curTarget: curPromo,
-        nextTarget: Math.max(0, curPromo - amt),
+        nextTarget: nextPromo,
+        curPromo,
+        nextPromo,
         curTotal,
-        nextTotal: Math.max(0, curTotal - deducted),
+        nextTotal,
+        promoSpill: 0,
       };
     }
-    const deducted = Math.min(curTrans, amt);
+
+    // Main Debit deducts from total balance and clamps promo_balance = min(curPromo, nextTotal)
+    const deducted = Math.min(curTotal, amt);
+    const nextTotal = curTotal - deducted;
+    const nextPromo = Math.min(curPromo, nextTotal);
+    const nextTrans = Math.max(0, nextTotal - nextPromo);
+    const promoSpill = Math.max(0, curPromo - nextPromo);
     return {
       curTarget: curTrans,
-      nextTarget: Math.max(0, curTrans - amt),
+      nextTarget: nextTrans,
+      curPromo,
+      nextPromo,
       curTotal,
-      nextTotal: Math.max(0, curTotal - deducted),
+      nextTotal,
+      promoSpill,
     };
   })();
 
   const accountType =
     user?.account_type ||
-    (user && user.user_id >= 90000000000000
+    (user && (user.linked_telegram_id || user.linked_web_id)
+      ? 'linked'
+      : user && user.user_id >= 90000000000000
       ? 'website'
       : user?.email
       ? 'linked'
@@ -437,6 +471,19 @@ export const UserManagementTab: React.FC = () => {
           </div>
         </div>
 
+        {summaryError && !summary && (
+          <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/25 text-[11px] text-rose-300">
+            <span>{summaryError}</span>
+            <button
+              type="button"
+              onClick={loadSummary}
+              className="font-bold underline hover:text-white shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
           {/* Total Users */}
           <div className="bg-[#121217] border border-[#262630] rounded-xl p-3">
@@ -445,9 +492,9 @@ export const UserManagementTab: React.FC = () => {
               <Users className="w-3.5 h-3.5 text-[#8b5cf6]" />
             </div>
             <div className="text-lg font-extrabold text-white font-mono">
-              {summary ? summary.total_users.toLocaleString() : summaryLoading ? '—' : '0'}
+              {summary ? summary.total_users.toLocaleString() : '—'}
             </div>
-            <span className="text-[10px] text-[#71717a]">All registered accounts</span>
+            <span className="text-[10px] text-[#71717a]">Unique accounts</span>
           </div>
 
           {/* Bot / Mini App Users */}
@@ -457,19 +504,19 @@ export const UserManagementTab: React.FC = () => {
               <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
             </div>
             <div className="text-lg font-extrabold text-white font-mono">
-              {summary ? summary.telegram_users.toLocaleString() : summaryLoading ? '—' : '0'}
+              {summary ? summary.telegram_users.toLocaleString() : '—'}
             </div>
             <span className="text-[10px] text-[#71717a]">Telegram user IDs</span>
           </div>
 
-          {/* Website Users (14-digit) */}
+          {/* Website Users (14-digit unlinked) */}
           <div className="bg-[#121217] border border-cyan-500/25 rounded-xl p-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-semibold text-cyan-300">Website Users</span>
+              <span className="text-[10px] font-semibold text-cyan-300">Website Only</span>
               <Globe className="w-3.5 h-3.5 text-cyan-400" />
             </div>
             <div className="text-lg font-extrabold text-cyan-300 font-mono">
-              {summary ? summary.website_users.toLocaleString() : summaryLoading ? '—' : '0'}
+              {summary ? summary.website_users.toLocaleString() : '—'}
             </div>
             <span className="text-[10px] text-[#71717a]">14-digit Web accounts</span>
           </div>
@@ -481,7 +528,7 @@ export const UserManagementTab: React.FC = () => {
               <Link2 className="w-3.5 h-3.5 text-emerald-400" />
             </div>
             <div className="text-lg font-extrabold text-emerald-300 font-mono">
-              {summary ? summary.linked_users.toLocaleString() : summaryLoading ? '—' : '0'}
+              {summary ? summary.linked_users.toLocaleString() : '—'}
             </div>
             <span className="text-[10px] text-[#71717a]">
               {summary
@@ -613,6 +660,32 @@ export const UserManagementTab: React.FC = () => {
                       <span>ID: {user.user_id}</span>
                       <Copy className="w-3 h-3 text-[#71717a]" />
                     </button>
+
+                    {user.linked_telegram_id && user.linked_telegram_id !== user.user_id && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(user.linked_telegram_id!, 'Linked Telegram ID')}
+                        className="font-mono hover:text-white flex items-center gap-1 cursor-pointer text-emerald-300 text-[11px]"
+                        title="Click to copy Linked Telegram ID"
+                      >
+                        <Link2 className="w-3 h-3 shrink-0" />
+                        <span>TG: {user.linked_telegram_id}</span>
+                        <Copy className="w-2.5 h-2.5 text-[#71717a]" />
+                      </button>
+                    )}
+
+                    {user.linked_web_id && user.linked_web_id !== user.user_id && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(user.linked_web_id!, 'Linked Website ID')}
+                        className="font-mono hover:text-white flex items-center gap-1 cursor-pointer text-cyan-300 text-[11px]"
+                        title="Click to copy Linked Website ID"
+                      >
+                        <Globe className="w-3 h-3 shrink-0" />
+                        <span>Web: {user.linked_web_id}</span>
+                        <Copy className="w-2.5 h-2.5 text-[#71717a]" />
+                      </button>
+                    )}
 
                     {user.email && (
                       <button
@@ -919,7 +992,14 @@ export const UserManagementTab: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2 text-[10px] text-[#a1a1aa] flex-wrap font-mono">
                             <span>#{ord.id}</span>
-                            {ord.phone && <span>• {ord.phone}</span>}
+                            {ord.phone && (
+                              <span
+                                className="truncate max-w-[180px] sm:max-w-[260px]"
+                                title={String(ord.phone)}
+                              >
+                                • {ord.phone}
+                              </span>
+                            )}
                             {ord.otp &&
                               ord.otp !== 'WAITING' &&
                               ord.otp !== 'CANCELLED' && (
@@ -1089,6 +1169,16 @@ export const UserManagementTab: React.FC = () => {
                     </span>
                   </span>
                 </div>
+                {previewBalances.promoSpill > 0 && (
+                  <div className="flex items-center justify-between gap-2 text-amber-300">
+                    <span>Promo Balance (Spillover)</span>
+                    <span className="font-mono font-bold">
+                      ₹{previewBalances.curPromo.toLocaleString()} → ₹
+                      {previewBalances.nextPromo.toLocaleString()} (-₹
+                      {previewBalances.promoSpill.toLocaleString()})
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[#a1a1aa]">Total Balance</span>
                   <span className="font-mono text-white font-bold">

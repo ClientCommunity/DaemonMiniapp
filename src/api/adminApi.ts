@@ -259,6 +259,8 @@ export interface AdminUserServerBreakdown {
 export interface AdminUserInfo {
   user_id: number;
   account_type?: 'website' | 'telegram' | 'linked';
+  linked_telegram_id?: number | null;
+  linked_web_id?: number | null;
   name?: string;
   username?: string;
   first_name?: string;
