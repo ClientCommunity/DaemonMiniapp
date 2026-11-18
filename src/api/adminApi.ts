@@ -7,7 +7,13 @@
  * 4. User & Wallet Management (/api/admin/users/search, /api/admin/users/balance, /api/admin/users/ban)
  * 5. Marketing & System Settings (/api/admin/reseller/*, /api/admin/promo-codes/*, /api/admin/system/*, /api/admin/settings)
  */
-import { api, downloadFile } from './client';
+import {
+  api,
+  downloadFile,
+  resolveApiUrl,
+  getTelegramInitData,
+  getAdminToken,
+} from './client';
 
 import { PinnedServiceItem } from './endpoints';
 
@@ -185,10 +191,14 @@ export interface PendingDeposit {
   id?: number;
   user_id: number;
   username?: string;
+  user_name?: string | null;
+  user_email?: string | null;
   amount: number;
   method: string;
   method_name?: string;
   utr: string;
+  proof_type?: string;
+  has_proof_image?: boolean;
   status: string;
   created_at: string;
   date?: string;
@@ -597,6 +607,25 @@ export const adminApi = {
       deposit_id: depositId,
       rejection_reason: rejectionReason,
     });
+  },
+
+  fetchDepositProofBlobUrl: async (depositId: number): Promise<string> => {
+    const url = resolveApiUrl(`/api/admin/deposits/${depositId}/proof`);
+    const headers = new Headers();
+    const initData = getTelegramInitData();
+    const adminToken = getAdminToken();
+    if (initData) {
+      headers.set('X-Telegram-Init-Data', initData);
+    }
+    if (adminToken) {
+      headers.set('Authorization', `Bearer ${adminToken}`);
+    }
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) {
+      throw new Error(`Could not load proof image (${resp.status})`);
+    }
+    const blob = await resp.blob();
+    return window.URL.createObjectURL(blob);
   },
 
   getFampayGateways: async (): Promise<{ success: boolean; gateways: FampayGateway[] }> => {

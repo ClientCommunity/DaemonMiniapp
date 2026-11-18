@@ -1,5 +1,6 @@
 import {
   api,
+  apiRequest,
   resolveApiUrl,
   getTelegramInitData,
   getAdminToken,
@@ -257,6 +258,24 @@ export interface ManualDepositCancelResponse {
   deposit_id?: number;
   utr?: string;
   status?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface UpiDirectScreenshotResponse {
+  success: boolean;
+  deposit_id?: number;
+  amount?: number;
+  status?: string;
+  proof_type?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface UpiDirectBotHandoffResponse {
+  success: boolean;
+  amount?: number;
+  expires_in?: number;
   message?: string;
   error?: string;
 }
@@ -607,6 +626,19 @@ export const depositApi = {
   cancelManualVerify: (depositId: number) =>
     api.post<ManualDepositCancelResponse>('/api/deposit/manual/cancel-verify', {
       deposit_id: depositId,
+    }),
+  submitUpiDirectScreenshot: (amount: number, file: File) => {
+    const formData = new FormData();
+    formData.append('amount', String(amount));
+    formData.append('screenshot', file, file.name);
+    return apiRequest<UpiDirectScreenshotResponse>('/api/deposit/upi-direct/screenshot', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  startUpiDirectBotHandoff: (amount: number) =>
+    api.post<UpiDirectBotHandoffResponse>('/api/deposit/upi-direct/bot-handoff', {
+      amount,
     }),
 };
 

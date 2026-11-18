@@ -17,7 +17,100 @@ import {
   QrCode,
   Sliders,
   Zap,
+  Image as ImageIcon,
+  ZoomIn,
+  X,
+  Loader2,
 } from 'lucide-react';
+
+interface DepositProofThumbnailProps {
+  depositId: number;
+  onOpenFull: (blobUrl: string) => void;
+}
+
+const DepositProofThumbnail: React.FC<DepositProofThumbnailProps> = ({ depositId, onOpenFull }) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<boolean>(false);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+    setLoading(true);
+    setError(false);
+
+    adminApi
+      .fetchDepositProofBlobUrl(depositId)
+      .then((url) => {
+        if (!active) {
+          window.URL.revokeObjectURL(url);
+          return;
+        }
+        createdUrl = url;
+        setBlobUrl(url);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+      if (createdUrl) {
+        window.URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [depositId]);
+
+  return (
+    <div className="bg-[#121217] border border-[#7c3aed]/35 rounded-xl p-2.5 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#a78bfa] flex items-center gap-1.5">
+          <ImageIcon className="w-3.5 h-3.5" />
+          <span>Payment Screenshot Proof</span>
+        </span>
+        {blobUrl && (
+          <button
+            type="button"
+            onClick={() => onOpenFull(blobUrl)}
+            className="inline-flex items-center gap-1 text-[10px] font-bold text-[#c4b5fd] hover:text-white bg-[#7c3aed]/20 hover:bg-[#7c3aed]/35 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+          >
+            <ZoomIn className="w-3 h-3" />
+            <span>View Full</span>
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="h-28 rounded-lg bg-[#0b0b0e] border border-[#262630] flex items-center justify-center gap-2 text-[11px] text-[#71717a]">
+          <Loader2 className="w-4 h-4 animate-spin text-[#8b5cf6]" />
+          <span>Loading screenshot...</span>
+        </div>
+      ) : error || !blobUrl ? (
+        <div className="h-20 rounded-lg bg-[#0b0b0e] border border-[#262630] flex items-center justify-center text-[11px] text-[#71717a]">
+          Screenshot preview unavailable (check Telegram Bot)
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onOpenFull(blobUrl)}
+          className="w-full rounded-lg overflow-hidden bg-black/50 border border-[#262630] hover:border-[#7c3aed]/60 transition-all max-h-48 flex items-center justify-center cursor-pointer group relative"
+        >
+          <img
+            src={blobUrl}
+            alt={`Deposit #${depositId} proof`}
+            className="max-h-48 w-auto object-contain"
+          />
+          <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/75 text-[10px] font-bold text-white opacity-90 group-hover:opacity-100 flex items-center gap-1">
+            <ZoomIn className="w-3 h-3" /> Tap to zoom
+          </span>
+        </button>
+      )}
+    </div>
+  );
+};
 
 export const PaymentsHubTab: React.FC = () => {
   const { addToast } = useApp();
@@ -32,6 +125,21 @@ export const PaymentsHubTab: React.FC = () => {
   const [rejectModalOpen, setRejectModalOpen] = useState<boolean>(false);
   const [rejectingDeposit, setRejectingDeposit] = useState<PendingDeposit | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('UTR verification failed / not credited');
+  const [proofLightbox, setProofLightbox] = useState<{
+    url: string;
+    depositId: number;
+    amount: number;
+    userId: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!proofLightbox) return;
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') setProofLightbox(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [proofLightbox]);
 
   const loadPendingDeposits = useCallback(async () => {
     setPendingLoading(true);
@@ -432,7 +540,7 @@ export const PaymentsHubTab: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-[#a1a1aa]">
-                Review FamPay Transaction IDs & 12-digit UPI UTR references. 1-click approval atomically credits user wallet balance.
+                Review FamPay/UPI Transaction IDs, 12-digit UTRs &amp; payment screenshots. 1-click approval atomically credits user wallet balance.
               </p>
             </div>
 
@@ -454,50 +562,92 @@ export const PaymentsHubTab: React.FC = () => {
                 className="bg-[#181820] border border-[#262630] rounded-2xl p-4 shadow-sm space-y-3 hover:border-[#3b3b4a] transition-all"
               >
                 {/* Header: User & Amount */}
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
                     <span className="text-[11px] font-mono text-[#8b5cf6] block">
                       Order #{depId} • User #{dep.user_id}
                     </span>
-                    <h4 className="text-sm font-bold text-white">
-                      {dep.username ? `@${dep.username}` : 'No username'}
+                    <h4 className="text-sm font-bold text-white truncate">
+                      {dep.user_name
+                        ? dep.user_name
+                        : dep.username
+                        ? `@${dep.username}`
+                        : dep.user_id >= 90000000000000
+                        ? 'Website User'
+                        : 'Telegram User'}
                     </h4>
-                    <span className="text-[10px] text-[#71717a]">
-                      Submitted: {dep.created_at || dep.date || 'Just now'}
+                    {dep.user_email && (
+                      <span className="text-[10px] text-cyan-300 font-mono block truncate">
+                        {dep.user_email}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-[#71717a] block">
+                      {dep.method_name || dep.method || 'Manual UPI'} • {dep.created_at || dep.date || 'Just now'}
                     </span>
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <span className="text-xl font-bold text-[#22c55e] block">
                       ₹{dep.amount}
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30 font-semibold">
-                      Pending Proof
-                    </span>
-                  </div>
-                </div>
-
-                {/* UTR Box with 1-Click Copy */}
-                <div className="bg-[#121217] border border-[#262630] rounded-xl p-3 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-[#71717a] block font-semibold uppercase">
-                      FamPay Txn ID / UTR
-                    </span>
-                    <span className="font-mono text-sm font-bold text-[#f59e0b] tracking-wider">
-                      {dep.utr || 'N/A'}
-                    </span>
-                  </div>
-
-                  {dep.utr && (
-                    <button
-                      onClick={() => handleCopy(dep.utr, 'UTR')}
-                      className="p-1.5 rounded-lg bg-[#181820] hover:bg-[#22222d] text-[#a1a1aa] hover:text-white transition-colors cursor-pointer"
-                      title="Copy UTR"
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded border font-semibold ${
+                        dep.proof_type === 'screenshot' || dep.has_proof_image
+                          ? 'bg-[#7c3aed]/15 text-[#c4b5fd] border-[#7c3aed]/35'
+                          : dep.proof_type === 'custom_ref'
+                          ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                          : 'bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30'
+                      }`}
                     >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  )}
+                      {dep.proof_type === 'screenshot' || dep.has_proof_image
+                        ? 'Screenshot Proof'
+                        : dep.proof_type === 'custom_ref'
+                        ? 'Custom Txn ID'
+                        : 'Pending Proof'}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Screenshot Preview (Website or Mini App -> Bot uploads) */}
+                {dep.has_proof_image && (
+                  <DepositProofThumbnail
+                    depositId={depId}
+                    onOpenFull={(blobUrl) =>
+                      setProofLightbox({
+                        url: blobUrl,
+                        depositId: depId,
+                        amount: dep.amount,
+                        userId: dep.user_id,
+                      })
+                    }
+                  />
+                )}
+
+                {/* UTR / Custom Transaction ID Box with 1-Click Copy */}
+                {(dep.utr || !dep.has_proof_image) && (
+                  <div className="bg-[#121217] border border-[#262630] rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-[#71717a] block font-semibold uppercase">
+                        {dep.proof_type === 'custom_ref'
+                          ? 'Submitted Transaction ID'
+                          : 'FamPay Txn ID / UTR'}
+                      </span>
+                      <span className="font-mono text-sm font-bold text-[#f59e0b] tracking-wider break-all">
+                        {dep.utr || 'N/A'}
+                      </span>
+                    </div>
+
+                    {dep.utr && (
+                      <button
+                        onClick={() => handleCopy(dep.utr, 'Transaction ID')}
+                        className="p-1.5 rounded-lg bg-[#181820] hover:bg-[#22222d] text-[#a1a1aa] hover:text-white transition-colors cursor-pointer shrink-0"
+                        title="Copy Transaction ID"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Notes if available */}
                 {dep.notes && (
@@ -948,6 +1098,45 @@ export const PaymentsHubTab: React.FC = () => {
           >
             Save Minimum Deposit Limits
           </button>
+        </div>
+      )}
+
+      {/* Full-Resolution Screenshot Lightbox Modal */}
+      {proofLightbox && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setProofLightbox(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-[#14141c] border border-[#2d2d40] rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 border-b border-[#262635] flex items-center justify-between gap-2 bg-[#12121a]">
+              <div>
+                <h4 className="text-sm font-bold text-white">
+                  Deposit #{proofLightbox.depositId} — ₹{proofLightbox.amount}
+                </h4>
+                <span className="text-[11px] font-mono text-[#a1a1aa]">
+                  User #{proofLightbox.userId} • Payment Screenshot Proof
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProofLightbox(null)}
+                className="p-1.5 rounded-lg bg-[#1f1f2b] hover:bg-[#2a2a3a] text-[#a1a1aa] hover:text-white cursor-pointer"
+                aria-label="Close screenshot viewer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 overflow-auto flex items-center justify-center bg-black/60 flex-1">
+              <img
+                src={proofLightbox.url}
+                alt={`Deposit #${proofLightbox.depositId} full screenshot`}
+                className="max-w-full max-h-[75vh] object-contain rounded-lg"
+              />
+            </div>
+          </div>
         </div>
       )}
 
