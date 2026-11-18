@@ -215,19 +215,70 @@ export interface CustomPayment {
   enabled?: number;
 }
 
+export interface AdminUsersSummary {
+  total_users: number;
+  telegram_users: number;
+  website_users: number;
+  linked_users: number;
+  total_web_accessible: number;
+  banned_users: number;
+}
+
+export interface AdminUserOrderRecord {
+  id: number | string;
+  country?: string;
+  year?: number | string;
+  price?: number;
+  phone?: string;
+  otp?: string | null;
+  server?: string;
+  date?: string;
+  refunded?: number | boolean;
+  refund_amount?: number;
+  reason?: string;
+  updated_at?: string;
+}
+
+export interface AdminUserDepositRecord {
+  id: number | string;
+  amount: number;
+  method_name?: string;
+  status?: string;
+  date?: string;
+}
+
+export interface AdminUserServerBreakdown {
+  total_orders: number;
+  total_spent: number;
+  server1_2?: { orders: number; spent: number };
+  server3?: { orders: number; spent: number };
+  server4?: { orders: number; spent: number };
+  server5?: { orders: number; spent: number };
+}
+
 export interface AdminUserInfo {
   user_id: number;
+  account_type?: 'website' | 'telegram' | 'linked';
+  name?: string;
   username?: string;
   first_name?: string;
+  email?: string;
+  whatsapp_number?: string;
+  auth_provider?: string;
+  is_verified?: boolean;
   balance: number;
   promo_balance: number;
   transferable_balance: number;
   sales_balance: number;
   total_deposited: number;
-  banned: number;
+  total_orders?: number;
+  total_spent?: number;
+  server_breakdown?: AdminUserServerBreakdown;
+  banned: number | boolean;
   joined_date?: string;
-  orders?: unknown[];
-  deposits?: unknown[];
+  pref_curr?: string;
+  orders?: AdminUserOrderRecord[];
+  deposits?: AdminUserDepositRecord[];
 }
 
 export interface AdjustBalancePayload {
@@ -624,13 +675,34 @@ export const adminApi = {
 
   // --- Tab 4: User & Wallet Management ---
 
+  getUsersSummary: async (): Promise<{
+    success: boolean;
+    summary?: AdminUsersSummary;
+    error?: string;
+  }> => {
+    return api.get<{
+      success: boolean;
+      summary?: AdminUsersSummary;
+      error?: string;
+    }>('/api/admin/users/summary');
+  },
+
   searchUser: async (
     query: string
-  ): Promise<{ success: boolean; user?: AdminUserInfo; error?: string }> => {
-    return api.get<{ success: boolean; user?: AdminUserInfo; error?: string }>(
-      '/api/admin/users/search',
-      { query }
-    );
+  ): Promise<{
+    success: boolean;
+    user?: AdminUserInfo;
+    orders?: AdminUserOrderRecord[];
+    deposits?: AdminUserDepositRecord[];
+    error?: string;
+  }> => {
+    return api.get<{
+      success: boolean;
+      user?: AdminUserInfo;
+      orders?: AdminUserOrderRecord[];
+      deposits?: AdminUserDepositRecord[];
+      error?: string;
+    }>('/api/admin/users/search', { query });
   },
 
   adjustUserBalance: async (
@@ -638,8 +710,14 @@ export const adminApi = {
   ): Promise<{
     success: boolean;
     user_id?: number;
+    balance?: number;
+    promo_balance?: number;
+    transferable_balance?: number;
+    sales_balance?: number;
     new_balance?: number;
     new_promo_balance?: number;
+    deducted?: number;
+    notified_channel?: 'telegram' | 'in_app';
     error?: string;
   }> => {
     return api.post('/api/admin/users/balance', payload);
