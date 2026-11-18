@@ -64,6 +64,7 @@ export interface BackendServer2Item {
 export interface BackendServer34Item {
   id?: string;
   service_code?: string;
+  server_code?: string;
   operator_code?: string;
   name?: string;
   country?: string;

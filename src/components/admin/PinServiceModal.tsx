@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { adminApi } from '../../api/adminApi';
 import { PinnedServiceItem, storeApi } from '../../api/endpoints';
@@ -19,6 +19,9 @@ import {
   Share2,
   Loader2,
   ChevronDown,
+  ArrowUpDown,
+  RotateCcw,
+  Filter,
 } from 'lucide-react';
 
 export interface PreselectedServiceInfo {
@@ -45,12 +48,18 @@ interface UniformCatalogItem {
   server_no: number;
   service_id: string;
   service_name: string;
+  app_name?: string;
+  service_code?: string;
   category_name?: string;
   country_name?: string;
   country_code?: string;
   price?: number;
   stock?: number;
+  quality_tier?: 'good' | 'cheap';
+  account_year?: number;
 }
+
+type SortOption = 'default' | 'price_asc' | 'price_desc' | 'stock_desc';
 
 const BADGE_PRESETS = [
   { label: 'Hot', icon: Flame, color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
@@ -61,6 +70,115 @@ const BADGE_PRESETS = [
   { label: 'Popular', icon: Sparkles, color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
 ];
 
+const POPULAR_OTP_APPS: Array<{
+  code: string;
+  label: string;
+  match: (serviceCode: string, appNameLower: string) => boolean;
+}> = [
+  {
+    code: 'wa',
+    label: 'WhatsApp',
+    match: (c, n) => c === 'wa' || n.includes('whatsapp'),
+  },
+  {
+    code: 'tg',
+    label: 'Telegram',
+    match: (c, n) => c === 'tg' || n.includes('telegram'),
+  },
+  {
+    code: 'ig',
+    label: 'Instagram',
+    match: (c, n) => c === 'ig' || n.includes('instagram') || n.includes('insta'),
+  },
+  {
+    code: 'go',
+    label: 'Google',
+    match: (c, n) => c === 'go' || n.includes('google') || n.includes('gmail'),
+  },
+  {
+    code: 'snap',
+    label: 'Snapchat',
+    match: (c, n) => c === 'snap' || c === 'fu' || n.includes('snapchat') || n.includes('snap'),
+  },
+  {
+    code: 'fb',
+    label: 'Facebook',
+    match: (c, n) => c === 'fb' || n.includes('facebook'),
+  },
+  {
+    code: 'tk',
+    label: 'TikTok',
+    match: (c, n) => c === 'tk' || c === 'tiktok' || n.includes('tiktok'),
+  },
+  {
+    code: 'tw',
+    label: 'Twitter/X',
+    match: (c, n) => c === 'tw' || n.includes('twitter') || n === 'x',
+  },
+  {
+    code: 'ds',
+    label: 'Discord',
+    match: (c, n) => c === 'ds' || c === 'dc' || n.includes('discord'),
+  },
+  {
+    code: 'openai',
+    label: 'OpenAI',
+    match: (c, n) => c === 'openai' || c === 'oa' || n.includes('openai') || n.includes('chatgpt'),
+  },
+  {
+    code: 'steam',
+    label: 'Steam',
+    match: (c, n) => c === 'steam' || n.includes('steam'),
+  },
+];
+
+const SMM_PLATFORMS = [
+  { id: 'all', label: 'All' },
+  { id: 'telegram', label: 'Telegram' },
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'tiktok', label: 'TikTok' },
+  { id: 'twitter', label: 'Twitter (X)' },
+  { id: 'facebook', label: 'Facebook' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'snapchat', label: 'Snapchat' },
+];
+
+const PAGE_CHUNK_SIZE = 60;
+
+function matchesOtpAppFilter(item: UniformCatalogItem, selectedApp: string): boolean {
+  if (!selectedApp || selectedApp === 'all') return true;
+  const code = (item.service_code || '').toLowerCase().trim();
+  const appNameLower = (item.app_name || item.service_name || '').toLowerCase().trim();
+
+  const popular = POPULAR_OTP_APPS.find((p) => p.code === selectedApp);
+  if (popular) {
+    return popular.match(code, appNameLower);
+  }
+
+  // Exact match for custom app picked from All Apps dropdown (format: "app:<lowercase name>")
+  if (selectedApp.startsWith('app:')) {
+    const targetName = selectedApp.slice(4);
+    return appNameLower === targetName;
+  }
+
+  return appNameLower.includes(selectedApp.toLowerCase());
+}
+
+function matchesMultiWordQuery(haystackParts: Array<string | number | undefined>, query: string): boolean {
+  const tokens = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return true;
+  const haystack = haystackParts
+    .filter((p) => p !== undefined && p !== null)
+    .map((p) => String(p).toLowerCase())
+    .join(' ');
+  return tokens.every((token) => haystack.includes(token));
+}
+
 export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   isOpen,
   onClose,
@@ -70,6 +188,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   pinnedList = [],
 }) => {
   const { addToast } = useApp();
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [activeServer, setActiveServer] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,24 +198,64 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   const [isManualMode, setIsManualMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Server 1 & Server 2 local catalogs
-  const [modalServer1, setModalServer1] = useState<any[]>([]);
-  const [modalServer2, setModalServer2] = useState<any[]>([]);
+  // Per-server filter & sort states (mirroring User Storefront)
+  const [sortOrder, setSortOrder] = useState<SortOption>('default');
+  // Server 1 filters
+  const [s1InStockOnly, setS1InStockOnly] = useState(false);
+  // Server 2 filters
+  const [s2Tier, setS2Tier] = useState<'all' | 'good' | 'cheap'>('all');
+  const [s2Year, setS2Year] = useState<string>('all');
+  // Server 3 & 4 filters
+  const [otpAppFilter, setOtpAppFilter] = useState<string>('all');
+  const [otpCountryFilter, setOtpCountryFilter] = useState<string>('all');
+  const [isAllAppsOpen, setIsAllAppsOpen] = useState(false);
+  const [allAppsSearch, setAllAppsSearch] = useState('');
+  // Server 5 filters
+  const [s5Platform, setS5Platform] = useState<string>('all');
+  const [s5Category, setS5Category] = useState<string>('all');
+  const [s5CategoriesList, setS5CategoriesList] = useState<
+    Array<{ category: string; platform: string; count: number }>
+  >([]);
+
+  // Progressive rendering / infinite scroll count for client-side catalogs (S1–S4)
+  const [visibleCount, setVisibleCount] = useState<number>(PAGE_CHUNK_SIZE);
+
+  // Full cached catalogs for Servers 1, 2, 3, 4
+  const [modalServer1, setModalServer1] = useState<UniformCatalogItem[]>([]);
+  const [modalServer2, setModalServer2] = useState<UniformCatalogItem[]>([]);
+  const [modalServer3, setModalServer3] = useState<UniformCatalogItem[]>([]);
+  const [modalServer4, setModalServer4] = useState<UniformCatalogItem[]>([]);
   const [isLoadingS1, setIsLoadingS1] = useState(false);
   const [isLoadingS2, setIsLoadingS2] = useState(false);
+  const [isLoadingS3, setIsLoadingS3] = useState(false);
+  const [isLoadingS4, setIsLoadingS4] = useState(false);
 
-  // Server 3, 4, 5 dynamic server-side search results
-  const [s3Results, setS3Results] = useState<UniformCatalogItem[]>([]);
-  const [isSearchingS3, setIsSearchingS3] = useState(false);
-
-  const [s4Results, setS4Results] = useState<UniformCatalogItem[]>([]);
-  const [isSearchingS4, setIsSearchingS4] = useState(false);
-
+  // Server 5 paginated server-side results
   const [s5Results, setS5Results] = useState<UniformCatalogItem[]>([]);
+  const [s5Total, setS5Total] = useState<number>(0);
   const [isSearchingS5, setIsSearchingS5] = useState(false);
   const [s5Page, setS5Page] = useState(1);
   const [hasMoreS5, setHasMoreS5] = useState(false);
   const [isLoadingMoreS5, setIsLoadingMoreS5] = useState(false);
+
+  const resetFiltersForServer = useCallback(() => {
+    setSearchQuery('');
+    setSortOrder('default');
+    setS1InStockOnly(false);
+    setS2Tier('all');
+    setS2Year('all');
+    setOtpAppFilter('all');
+    setOtpCountryFilter('all');
+    setIsAllAppsOpen(false);
+    setAllAppsSearch('');
+    setS5Platform('all');
+    setS5Category('all');
+    setS5Page(1);
+    setVisibleCount(PAGE_CHUNK_SIZE);
+    if (listScrollRef.current) {
+      listScrollRef.current.scrollTop = 0;
+    }
+  }, []);
 
   // Sync initial service when modal opens
   useEffect(() => {
@@ -110,15 +269,23 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
           setActiveServer(defaultServer);
         }
         setSelectedService(null);
-        setSearchQuery('');
         setBadge('Hot');
         setDisplayOrder('0');
         setIsManualMode(false);
+        resetFiltersForServer();
       }
     }
-  }, [isOpen, initialService, defaultServer]);
+  }, [isOpen, initialService, defaultServer, resetFiltersForServer]);
 
-  // Load Server 1 Full Catalog (153 countries) on-demand
+  // Reset visible scroll window whenever active filters or search change
+  useEffect(() => {
+    setVisibleCount(PAGE_CHUNK_SIZE);
+    if (listScrollRef.current) {
+      listScrollRef.current.scrollTop = 0;
+    }
+  }, [activeServer, searchQuery, sortOrder, s1InStockOnly, s2Tier, s2Year, otpAppFilter, otpCountryFilter]);
+
+  // 1. Load Server 1 Full Catalog (all 153 countries) once on-demand
   useEffect(() => {
     if (!isOpen || activeServer !== 1 || modalServer1.length > 0) return;
     let cancelled = false;
@@ -127,7 +294,17 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
       .getServer1()
       .then((res) => {
         if (!cancelled && res?.items && Array.isArray(res.items)) {
-          setModalServer1(res.items.map(adaptServer1Item));
+          const adapted = res.items.map(adaptServer1Item).map((item) => ({
+            server_no: 1,
+            service_id: item.countryCode || item.country,
+            service_name: `${item.country} Account`,
+            category_name: 'Telegram Global',
+            country_name: item.country,
+            country_code: item.countryCode,
+            price: item.priceInr,
+            stock: item.stockCount,
+          }));
+          setModalServer1(adapted);
         }
       })
       .catch(() => {})
@@ -139,7 +316,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     };
   }, [isOpen, activeServer, modalServer1.length]);
 
-  // Load Server 2 Full Catalog on-demand
+  // 2. Load Server 2 Full Catalog (Good + Cheap) once on-demand
   useEffect(() => {
     if (!isOpen || activeServer !== 2 || modalServer2.length > 0) return;
     let cancelled = false;
@@ -150,11 +327,26 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     ])
       .then(([goodRes, cheapRes]) => {
         if (!cancelled) {
-          const combined = [
-            ...((goodRes?.items || []).map((it) => adaptServer2Item(it, 'good'))),
-            ...((cheapRes?.items || []).map((it) => adaptServer2Item(it, 'cheap'))),
+          const combinedRaw = [
+            ...(goodRes?.items || []).map((it) => adaptServer2Item(it, 'good')),
+            ...(cheapRes?.items || []).map((it) => adaptServer2Item(it, 'cheap')),
           ];
-          setModalServer2(combined);
+          setModalServer2(
+            combinedRaw.map((item) => ({
+              server_no: 2,
+              service_id: `${item.country}_${item.qualityTier}_${item.accountYear}_${item.priceInr}`,
+              service_name: `${item.country} ${item.accountYear} (${
+                item.qualityTier === 'good' ? 'Good' : 'Cheap'
+              })`,
+              category_name: `Telegram ${item.qualityTier.toUpperCase()} Session`,
+              country_name: item.country,
+              country_code: item.countryCode,
+              price: item.priceInr,
+              stock: item.stockCount,
+              quality_tier: item.qualityTier,
+              account_year: item.accountYear,
+            }))
+          );
         }
       })
       .catch(() => {})
@@ -166,99 +358,119 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     };
   }, [isOpen, activeServer, modalServer2.length]);
 
-  // Server 3 Server-Side Search (Debounced across all 8,215 DGOTP services)
+  // 3. Load Server 3 FULL Cached Catalog once on-demand (no limit -> uses backend 60s RAM cache!)
   useEffect(() => {
-    if (!isOpen || activeServer !== 3) return;
+    if (!isOpen || activeServer !== 3 || modalServer3.length > 0) return;
     let cancelled = false;
-    setIsSearchingS3(true);
-
-    const t = setTimeout(async () => {
-      try {
-        const q = searchQuery.trim();
-        const res = await storeApi.getServer3({
-          search: q || undefined,
-          limit: 60,
-        });
+    setIsLoadingS3(true);
+    storeApi
+      .getServer3()
+      .then((res) => {
         if (!cancelled && res?.items && Array.isArray(res.items)) {
-          setS3Results(
-            res.items.map((it: any) => ({
-              server_no: 3,
-              service_id: `${it.service_code}_${it.server_code}`,
-              service_name: `${it.name} (${it.country})`,
-              category_name: `${it.name} OTP`,
-              country_name: it.country,
-              country_code: it.server_code,
-              price: it.price,
-              stock: undefined,
-            }))
+          setModalServer3(
+            res.items.map((it) => {
+              const rawName = (it.name || it.service_code || 'Service').trim();
+              const country = (it.country || 'India').trim();
+              return {
+                server_no: 3,
+                service_id: `${it.service_code}_${it.server_code}`,
+                service_name: `${rawName} (${country})`,
+                app_name: rawName,
+                service_code: it.service_code,
+                category_name: `${rawName} OTP`,
+                country_name: country,
+                country_code: it.server_code,
+                price: it.price,
+                stock: undefined,
+              };
+            })
           );
         }
-      } catch {
-        // silent failover
-      } finally {
-        if (!cancelled) setIsSearchingS3(false);
-      }
-    }, 200);
-
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsLoadingS3(false);
+      });
     return () => {
       cancelled = true;
-      clearTimeout(t);
     };
-  }, [isOpen, activeServer, searchQuery]);
+  }, [isOpen, activeServer, modalServer3.length]);
 
-  // Server 4 Server-Side Search (Debounced across all 8,000+ carrier combinations)
+  // 4. Load Server 4 FULL Cached Catalog once on-demand (no limit -> uses backend 60s RAM cache!)
   useEffect(() => {
-    if (!isOpen || activeServer !== 4) return;
+    if (!isOpen || activeServer !== 4 || modalServer4.length > 0) return;
     let cancelled = false;
-    setIsSearchingS4(true);
-
-    const t = setTimeout(async () => {
-      try {
-        const q = searchQuery.trim();
-        const res = await storeApi.getServer4({
-          search: q || undefined,
-          limit: 60,
-        });
+    setIsLoadingS4(true);
+    storeApi
+      .getServer4()
+      .then((res) => {
         if (!cancelled && res?.items && Array.isArray(res.items)) {
-          setS4Results(
-            res.items.map((it: any) => ({
-              server_no: 4,
-              service_id: `${it.service_code}_${it.country_code}`,
-              service_name: it.name,
-              category_name: 'Carrier OTP',
-              country_name: it.country,
-              country_code: it.country_code,
-              price: it.price,
-              stock: it.stock,
-            }))
+          setModalServer4(
+            res.items.map((it) => {
+              const rawTitle = (it.name || 'Service').trim();
+              const cleanApp = rawTitle.replace(/\s*\([^)]*\)\s*$/, '').trim() || rawTitle;
+              const country = (it.country || 'Global').trim();
+              return {
+                server_no: 4,
+                service_id: `${it.service_code}_${it.country_code}`,
+                service_name: rawTitle,
+                app_name: cleanApp,
+                service_code: it.service_code,
+                category_name: 'Carrier OTP',
+                country_name: country,
+                country_code: it.country_code,
+                price: it.price,
+                stock: it.stock,
+              };
+            })
           );
         }
-      } catch {
-        // silent failover
-      } finally {
-        if (!cancelled) setIsSearchingS4(false);
-      }
-    }, 200);
-
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsLoadingS4(false);
+      });
     return () => {
       cancelled = true;
-      clearTimeout(t);
     };
-  }, [isOpen, activeServer, searchQuery]);
+  }, [isOpen, activeServer, modalServer4.length]);
 
-  // Server 5 Server-Side Search (Debounced across all 9,126 SMM services with pagination)
+  // 5a. Load Server 5 Categories once on-demand
+  useEffect(() => {
+    if (!isOpen || activeServer !== 5 || s5CategoriesList.length > 0) return;
+    let cancelled = false;
+    storeApi
+      .getServer5Categories()
+      .then((res) => {
+        if (!cancelled && res?.success && Array.isArray(res.categories)) {
+          setS5CategoriesList(res.categories);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeServer, s5CategoriesList.length]);
+
+  // 5b. Server 5 Server-Side Filtered & Paginated Search (Debounced across all 9,000+ SMM services)
   useEffect(() => {
     if (!isOpen || activeServer !== 5) return;
     let cancelled = false;
     setIsSearchingS5(true);
     setS5Page(1);
 
+    const apiSort =
+      sortOrder === 'price_asc' || sortOrder === 'price_desc' ? sortOrder : undefined;
+
     const t = setTimeout(async () => {
       try {
         const res = await storeApi.getServer5({
           page: 1,
           limit: 40,
+          platform: s5Platform !== 'all' ? s5Platform : undefined,
+          category: s5Category !== 'all' ? s5Category : undefined,
           search: searchQuery.trim() || undefined,
+          sort: apiSort,
         });
         if (!cancelled && res?.success && Array.isArray(res.items)) {
           setS5Results(
@@ -273,7 +485,11 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
               stock: undefined,
             }))
           );
+          setS5Total(Number(res.total ?? res.items.length));
           setHasMoreS5(Boolean(res.has_more));
+          if (listScrollRef.current) {
+            listScrollRef.current.scrollTop = 0;
+          }
         }
       } catch {
         // silent
@@ -286,17 +502,23 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [isOpen, activeServer, searchQuery]);
+  }, [isOpen, activeServer, searchQuery, s5Platform, s5Category, sortOrder]);
 
-  const handleLoadMoreS5 = async () => {
+  const handleLoadMoreS5 = useCallback(async () => {
     if (isLoadingMoreS5 || !hasMoreS5) return;
     setIsLoadingMoreS5(true);
     const nextPage = s5Page + 1;
+    const apiSort =
+      sortOrder === 'price_asc' || sortOrder === 'price_desc' ? sortOrder : undefined;
+
     try {
       const res = await storeApi.getServer5({
         page: nextPage,
         limit: 40,
+        platform: s5Platform !== 'all' ? s5Platform : undefined,
+        category: s5Category !== 'all' ? s5Category : undefined,
         search: searchQuery.trim() || undefined,
+        sort: apiSort,
       });
       if (res?.success && Array.isArray(res.items)) {
         const nextItems: UniformCatalogItem[] = res.items.map((item) => ({
@@ -311,6 +533,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         }));
         setS5Results((prev) => [...prev, ...nextItems]);
         setS5Page(nextPage);
+        setS5Total(Number(res.total ?? 0));
         setHasMoreS5(Boolean(res.has_more));
       }
     } catch {
@@ -318,59 +541,192 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     } finally {
       setIsLoadingMoreS5(false);
     }
-  };
+  }, [isLoadingMoreS5, hasMoreS5, s5Page, sortOrder, s5Platform, s5Category, searchQuery]);
 
-  // Uniform catalog items list for currently active server
+  // Derived filter options for Server 2 (Available Years + Tier counts)
+  const s2FilterMeta = useMemo(() => {
+    const yearsSet = new Set<number>();
+    let goodCount = 0;
+    let cheapCount = 0;
+    for (const item of modalServer2) {
+      if (item.quality_tier === 'good') goodCount++;
+      if (item.quality_tier === 'cheap') cheapCount++;
+      if (item.account_year) yearsSet.add(item.account_year);
+    }
+    const years = Array.from(yearsSet).sort((a, b) => b - a);
+    return { years, goodCount, cheapCount, total: modalServer2.length };
+  }, [modalServer2]);
+
+  // Derived filter options for Server 3 & 4 (Popular App chips, All Unique Apps, Available Countries)
+  const otpFilterMeta = useMemo(() => {
+    const source = activeServer === 3 ? modalServer3 : activeServer === 4 ? modalServer4 : [];
+    if (source.length === 0) {
+      return {
+        popularChips: [] as Array<{ code: string; label: string; count: number }>,
+        allUniqueApps: [] as Array<{ key: string; label: string; count: number }>,
+        countries: [] as Array<{ name: string; count: number }>,
+        activeAppLabel: 'All Apps',
+      };
+    }
+
+    // Count popular apps
+    const popularCounts = new Map<string, number>();
+    const allAppsMap = new Map<string, { label: string; count: number }>();
+
+    for (const item of source) {
+      const code = (item.service_code || '').toLowerCase().trim();
+      const appLabel = (item.app_name || item.service_name || 'Service').trim();
+      const appLower = appLabel.toLowerCase();
+
+      for (const pop of POPULAR_OTP_APPS) {
+        if (pop.match(code, appLower)) {
+          popularCounts.set(pop.code, (popularCounts.get(pop.code) || 0) + 1);
+          break;
+        }
+      }
+
+      const existingApp = allAppsMap.get(appLower);
+      if (existingApp) {
+        existingApp.count += 1;
+      } else {
+        allAppsMap.set(appLower, { label: appLabel, count: 1 });
+      }
+    }
+
+    const popularChips = POPULAR_OTP_APPS.map((pop) => ({
+      code: pop.code,
+      label: pop.label,
+      count: popularCounts.get(pop.code) || 0,
+    })).filter((p) => p.count > 0);
+
+    const allUniqueApps = Array.from(allAppsMap.entries())
+      .map(([lower, meta]) => ({
+        key: `app:${lower}`,
+        label: meta.label,
+        count: meta.count,
+      }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    // Countries scoped to the selected App (so admin only sees countries that actually offer that App!)
+    const countryMap = new Map<string, number>();
+    for (const item of source) {
+      if (!matchesOtpAppFilter(item, otpAppFilter)) continue;
+      const cName = (item.country_name || '').trim();
+      if (!cName) continue;
+      countryMap.set(cName, (countryMap.get(cName) || 0) + 1);
+    }
+
+    const countries = Array.from(countryMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    let activeAppLabel = 'All Apps';
+    if (otpAppFilter !== 'all') {
+      const pop = POPULAR_OTP_APPS.find((p) => p.code === otpAppFilter);
+      if (pop) {
+        activeAppLabel = pop.label;
+      } else if (otpAppFilter.startsWith('app:')) {
+        const found = allAppsMap.get(otpAppFilter.slice(4));
+        activeAppLabel = found?.label || otpAppFilter.slice(4);
+      }
+    }
+
+    return { popularChips, allUniqueApps, countries, activeAppLabel };
+  }, [activeServer, modalServer3, modalServer4, otpAppFilter]);
+
+  // Reset country filter if the selected country is not available for the newly selected app
+  useEffect(() => {
+    if ((activeServer === 3 || activeServer === 4) && otpCountryFilter !== 'all') {
+      const stillAvailable = otpFilterMeta.countries.some((c) => c.name === otpCountryFilter);
+      if (!stillAvailable && otpFilterMeta.countries.length > 0) {
+        setOtpCountryFilter('all');
+      }
+    }
+  }, [activeServer, otpCountryFilter, otpFilterMeta.countries]);
+
+  // Filtered Server 5 categories scoped to selected platform
+  const filteredS5Categories = useMemo(() => {
+    if (s5Platform === 'all') return s5CategoriesList;
+    const pLow = s5Platform.toLowerCase();
+    return s5CategoriesList.filter(
+      (c) =>
+        (c.platform || '').toLowerCase() === pLow ||
+        (c.category || '').toLowerCase().includes(pLow)
+    );
+  }, [s5CategoriesList, s5Platform]);
+
+  // Filtered All Apps list inside S3/S4 inline picker
+  const filteredAllApps = useMemo(() => {
+    const q = allAppsSearch.trim().toLowerCase();
+    if (!q) return otpFilterMeta.allUniqueApps.slice(0, 80);
+    return otpFilterMeta.allUniqueApps
+      .filter((a) => a.label.toLowerCase().includes(q))
+      .slice(0, 80);
+  }, [otpFilterMeta.allUniqueApps, allAppsSearch]);
+
+  // Uniform filtered & sorted catalog for currently active server
   const filteredCatalog = useMemo<UniformCatalogItem[]>(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const applySort = (items: UniformCatalogItem[]) => {
+      if (sortOrder === 'default') return items;
+      const copy = [...items];
+      if (sortOrder === 'price_asc') {
+        copy.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+      } else if (sortOrder === 'price_desc') {
+        copy.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+      } else if (sortOrder === 'stock_desc') {
+        copy.sort((a, b) => (b.stock ?? -1) - (a.stock ?? -1));
+      }
+      return copy;
+    };
 
     if (activeServer === 1) {
-      return modalServer1
-        .filter(
-          (item) =>
-            !q ||
-            item.country.toLowerCase().includes(q) ||
-            item.countryCode.toLowerCase().includes(q)
-        )
-        .map((item) => ({
-          server_no: 1,
-          service_id: item.countryCode || item.country,
-          service_name: `${item.country} Account`,
-          category_name: 'Telegram Global',
-          country_name: item.country,
-          country_code: item.countryCode,
-          price: item.priceInr,
-          stock: item.stockCount,
-        }));
+      const list = modalServer1.filter((item) => {
+        if (s1InStockOnly && (item.stock ?? 0) <= 0) return false;
+        return matchesMultiWordQuery(
+          [item.country_name, item.country_code, item.service_name, item.service_id],
+          searchQuery
+        );
+      });
+      return applySort(list);
     }
 
     if (activeServer === 2) {
-      return modalServer2
-        .filter(
-          (item) =>
-            !q ||
-            item.country.toLowerCase().includes(q) ||
-            item.qualityTier.toLowerCase().includes(q) ||
-            String(item.accountYear).includes(q)
-        )
-        .map((item) => ({
-          server_no: 2,
-          service_id: `${item.country}_${item.qualityTier}_${item.accountYear}_${item.priceInr}`,
-          service_name: `${item.country} ${item.accountYear} (${item.qualityTier === 'good' ? 'Good' : 'Cheap'})`,
-          category_name: `Telegram ${item.qualityTier.toUpperCase()} Session`,
-          country_name: item.country,
-          country_code: item.countryCode,
-          price: item.priceInr,
-          stock: item.stockCount,
-        }));
+      const list = modalServer2.filter((item) => {
+        if (s2Tier !== 'all' && item.quality_tier !== s2Tier) return false;
+        if (s2Year !== 'all' && String(item.account_year) !== s2Year) return false;
+        return matchesMultiWordQuery(
+          [
+            item.country_name,
+            item.country_code,
+            item.quality_tier,
+            item.account_year,
+            item.service_name,
+            item.service_id,
+          ],
+          searchQuery
+        );
+      });
+      return applySort(list);
     }
 
-    if (activeServer === 3) {
-      return s3Results;
-    }
-
-    if (activeServer === 4) {
-      return s4Results;
+    if (activeServer === 3 || activeServer === 4) {
+      const source = activeServer === 3 ? modalServer3 : modalServer4;
+      const list = source.filter((item) => {
+        if (!matchesOtpAppFilter(item, otpAppFilter)) return false;
+        if (otpCountryFilter !== 'all' && item.country_name !== otpCountryFilter) return false;
+        return matchesMultiWordQuery(
+          [
+            item.service_name,
+            item.app_name,
+            item.country_name,
+            item.country_code,
+            item.service_code,
+            item.service_id,
+          ],
+          searchQuery
+        );
+      });
+      return applySort(list);
     }
 
     if (activeServer === 5) {
@@ -378,7 +734,56 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
 
     return [];
-  }, [activeServer, searchQuery, modalServer1, modalServer2, s3Results, s4Results, s5Results]);
+  }, [
+    activeServer,
+    searchQuery,
+    sortOrder,
+    s1InStockOnly,
+    s2Tier,
+    s2Year,
+    otpAppFilter,
+    otpCountryFilter,
+    modalServer1,
+    modalServer2,
+    modalServer3,
+    modalServer4,
+    s5Results,
+  ]);
+
+  // Slice rendered items for client-side servers (S1–S4) to keep DOM super light while scrolling
+  const displayedCatalog = useMemo(() => {
+    if (activeServer === 5) return filteredCatalog;
+    return filteredCatalog.slice(0, visibleCount);
+  }, [activeServer, filteredCatalog, visibleCount]);
+
+  const hasMoreClientItems = activeServer !== 5 && visibleCount < filteredCatalog.length;
+
+  // Scroll-to-load-more handler for ALL servers (S1–S4 client windowing + S5 server pagination)
+  const handleListScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (distanceFromBottom > 120) return;
+
+      if (activeServer === 5) {
+        if (hasMoreS5 && !isLoadingMoreS5) {
+          handleLoadMoreS5();
+        }
+      } else if (visibleCount < filteredCatalog.length) {
+        setVisibleCount((prev) => Math.min(prev + PAGE_CHUNK_SIZE, filteredCatalog.length));
+      }
+    },
+    [activeServer, hasMoreS5, isLoadingMoreS5, handleLoadMoreS5, visibleCount, filteredCatalog.length]
+  );
+
+  const hasActiveFilters =
+    Boolean(searchQuery.trim()) ||
+    sortOrder !== 'default' ||
+    (activeServer === 1 && s1InStockOnly) ||
+    (activeServer === 2 && (s2Tier !== 'all' || s2Year !== 'all')) ||
+    ((activeServer === 3 || activeServer === 4) &&
+      (otpAppFilter !== 'all' || otpCountryFilter !== 'all')) ||
+    (activeServer === 5 && (s5Platform !== 'all' || s5Category !== 'all'));
 
   // Check if currently selected service is already pinned
   const existingPin = useMemo(() => {
@@ -415,7 +820,6 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     setSubmitting(true);
     try {
       if (existingPin) {
-        // Update existing pin badge/order
         await adminApi.updatePinnedService(existingPin.id, {
           badge: badge.trim() || 'Hot',
           display_order: parseInt(displayOrder, 10) || 0,
@@ -423,7 +827,6 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         });
         addToast(`Updated pin for "${selectedService.service_name}"`, 'success');
       } else {
-        // Create new pin
         await adminApi.addPinnedService({
           server_no: selectedService.server_no,
           service_id: selectedService.service_id,
@@ -468,17 +871,19 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   const isServerLoading =
     (activeServer === 1 && isLoadingS1) ||
     (activeServer === 2 && isLoadingS2) ||
-    (activeServer === 3 && isSearchingS3) ||
-    (activeServer === 4 && isSearchingS4) ||
+    (activeServer === 3 && isLoadingS3) ||
+    (activeServer === 4 && isLoadingS4) ||
     (activeServer === 5 && isSearchingS5);
+
+  const totalAvailableCount = activeServer === 5 ? s5Total : filteredCatalog.length;
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-[#181820] border border-[#262635] w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-[#181820] border border-[#262635] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-[#262630] flex items-center justify-between bg-[#14141a]">
+        <div className="px-5 py-3.5 border-b border-[#262630] flex items-center justify-between bg-[#14141a]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
               <Pin className="w-4 h-4 text-amber-400" />
@@ -493,7 +898,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                 )}
               </h3>
               <p className="text-[11px] text-[#a1a1aa]">
-                Featured at the top of the Home Dashboard & Store tab for all users.
+                Featured at the top of the Home Dashboard &amp; Store tab for all users.
               </p>
             </div>
           </div>
@@ -506,7 +911,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-4 no-scrollbar">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 no-scrollbar">
           {/* Server Selector Tabs */}
           <div>
             <label className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider block mb-1.5">
@@ -529,8 +934,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                     onClick={() => {
                       setActiveServer(s.no);
                       setSelectedService(null);
-                      setSearchQuery('');
-                      setS5Page(1);
+                      resetFiltersForServer();
                     }}
                     className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[10px] font-bold transition-all ${
                       isCurrent
@@ -546,72 +950,389 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
             </div>
           </div>
 
-          {/* Service Search Bar & Mode Switch */}
+          {/* Service Search Bar, Per-Server Filters & Mode Switch */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
+            <div className="flex items-center justify-between mb-1.5 gap-2">
+              <label className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
                 <span>Select Service from Server {activeServer}:</span>
-                {!isServerLoading && filteredCatalog.length > 0 && (
+                {!isServerLoading && totalAvailableCount > 0 && (
                   <span className="text-[10px] text-amber-400 font-mono font-bold lowercase">
-                    ({filteredCatalog.length} {activeServer === 1 ? 'countries' : 'services'})
+                    ({totalAvailableCount.toLocaleString()}{' '}
+                    {activeServer === 1 ? 'countries' : 'services'})
                   </span>
                 )}
               </label>
-              <button
-                type="button"
-                onClick={() => setIsManualMode(!isManualMode)}
-                className="text-[11px] text-amber-400 hover:text-amber-300 font-medium underline"
-              >
-                {isManualMode ? 'Back to Catalog Picker' : 'Enter Manually'}
-              </button>
+              <div className="flex items-center gap-2.5 shrink-0">
+                {!isManualMode && hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={resetFiltersForServer}
+                    className="flex items-center gap-1 text-[10px] text-[#a1a1aa] hover:text-white font-semibold"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsManualMode(!isManualMode)}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 font-medium underline"
+                >
+                  {isManualMode ? 'Back to Catalog Picker' : 'Enter Manually'}
+                </button>
+              </div>
             </div>
 
             {!isManualMode ? (
-              <div className="space-y-2">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-[#71717a] absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder={`Search Server ${activeServer} catalog (e.g. ${
-                      activeServer === 5
-                        ? 'Instagram, Telegram, YouTube...'
-                        : activeServer === 2
-                        ? 'Bangladesh, 2025, Good...'
-                        : activeServer === 1
-                        ? 'USA, Russia, Algeria, India...'
-                        : activeServer === 3
-                        ? 'Discord, Telegram, WhatsApp, Steam...'
-                        : 'WhatsApp, Telegram, Myanmar, India...'
-                    })`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-[#121217] border border-[#262630] focus:border-amber-500/60 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-[#71717a] outline-none transition-colors"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-2.5 text-xs text-[#71717a] hover:text-white"
+              <div className="space-y-2.5">
+                {/* Search Input + Sort Selector Row */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-[#71717a] absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder={`Search Server ${activeServer} (e.g. ${
+                        activeServer === 5
+                          ? 'Instagram followers, 1024...'
+                          : activeServer === 2
+                          ? 'Bangladesh 2025 good...'
+                          : activeServer === 1
+                          ? 'USA, Russia, Algeria, India...'
+                          : activeServer === 3
+                          ? 'WhatsApp India, Telegram, Discord...'
+                          : 'WhatsApp India, Telegram USA...'
+                      })`}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-[#121217] border border-[#262630] focus:border-amber-500/60 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-[#71717a] outline-none transition-colors"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-2.5 text-xs text-[#71717a] hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Universal Sort Control */}
+                  <div className="relative shrink-0">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-[#a1a1aa] absolute left-2.5 top-2.5 pointer-events-none" />
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value as SortOption)}
+                      aria-label="Sort services"
+                      className="bg-[#121217] border border-[#262630] focus:border-amber-500/60 rounded-xl pl-8 pr-6 py-2 text-[11px] font-semibold text-white outline-none appearance-none cursor-pointer"
                     >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+                      <option value="default">Default</option>
+                      <option value="price_asc">Price: Low → High</option>
+                      <option value="price_desc">Price: High → Low</option>
+                      {(activeServer === 1 || activeServer === 2 || activeServer === 4) && (
+                        <option value="stock_desc">Stock: High → Low</option>
+                      )}
+                    </select>
+                    <ChevronDown className="w-3 h-3 text-[#71717a] absolute right-2 top-3 pointer-events-none" />
+                  </div>
                 </div>
 
-                {/* Catalog List */}
-                <div className="max-h-56 overflow-y-auto rounded-xl border border-[#262630] bg-[#121217] divide-y divide-[#20202a]">
+                {/* === SERVER 1 FILTERS === */}
+                {activeServer === 1 && (
+                  <div className="flex items-center justify-between gap-2 flex-wrap bg-[#121217] px-3 py-2 rounded-xl border border-[#262630]">
+                    <span className="text-[10px] text-[#a1a1aa] flex items-center gap-1.5 font-medium">
+                      <Filter className="w-3 h-3 text-amber-400" />
+                      Server 1 Country Filter:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setS1InStockOnly((prev) => !prev)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                        s1InStockOnly
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                          : 'bg-[#181820] text-[#a1a1aa] border-[#262630] hover:text-white'
+                      }`}
+                    >
+                      {s1InStockOnly ? '✓ In-Stock Only' : 'Show In-Stock Only'}
+                    </button>
+                  </div>
+                )}
+
+                {/* === SERVER 2 FILTERS (Quality Tier + Account Year) === */}
+                {activeServer === 2 && (
+                  <div className="flex items-center justify-between gap-2 flex-wrap bg-[#121217] px-3 py-2 rounded-xl border border-[#262630]">
+                    <div className="flex items-center gap-1.5">
+                      {(
+                        [
+                          { id: 'all', label: `All (${s2FilterMeta.total})` },
+                          { id: 'good', label: `Good (${s2FilterMeta.goodCount})` },
+                          { id: 'cheap', label: `Cheap (${s2FilterMeta.cheapCount})` },
+                        ] as const
+                      ).map((tier) => (
+                        <button
+                          key={tier.id}
+                          type="button"
+                          onClick={() => setS2Tier(tier.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                            s2Tier === tier.id
+                              ? 'bg-amber-500 text-black border-amber-500'
+                              : 'bg-[#181820] text-[#a1a1aa] border-[#262630] hover:text-white'
+                          }`}
+                        >
+                          {tier.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {s2FilterMeta.years.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-[#71717a] font-semibold">Year:</span>
+                        <select
+                          value={s2Year}
+                          onChange={(e) => setS2Year(e.target.value)}
+                          className="bg-[#181820] border border-[#262630] rounded-lg px-2 py-1 text-[10px] font-bold text-white outline-none cursor-pointer"
+                        >
+                          <option value="all">All Years</option>
+                          {s2FilterMeta.years.map((yr) => (
+                            <option key={yr} value={String(yr)}>
+                              {yr}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* === SERVER 3 & 4 FILTERS (Popular App Chips + All Apps Picker + Country Dropdown) === */}
+                {(activeServer === 3 || activeServer === 4) && !isServerLoading && (
+                  <div className="space-y-2 bg-[#121217] p-2.5 rounded-xl border border-[#262630]">
+                    {/* Popular App Chips Row */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpAppFilter('all');
+                          setIsAllAppsOpen(false);
+                        }}
+                        className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                          otpAppFilter === 'all'
+                            ? 'bg-amber-500 text-black border-amber-500'
+                            : 'bg-[#181820] text-[#a1a1aa] border-[#262630] hover:text-white'
+                        }`}
+                      >
+                        All Apps
+                      </button>
+
+                      {otpFilterMeta.popularChips.map((chip) => {
+                        const isActive = otpAppFilter === chip.code;
+                        return (
+                          <button
+                            key={chip.code}
+                            type="button"
+                            onClick={() => {
+                              setOtpAppFilter(chip.code);
+                              setIsAllAppsOpen(false);
+                            }}
+                            className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                              isActive
+                                ? 'bg-amber-500 text-black border-amber-500'
+                                : 'bg-[#181820] text-[#a1a1aa] border-[#262630] hover:text-white'
+                            }`}
+                          >
+                            <span>{chip.label}</span>
+                            <span
+                              className={`text-[9px] font-mono ${
+                                isActive ? 'text-black/70' : 'text-[#71717a]'
+                              }`}
+                            >
+                              {chip.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Second Row: All Apps Picker Button + Country Filter Dropdown */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsAllAppsOpen((prev) => !prev)}
+                          className={`w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${
+                            otpAppFilter.startsWith('app:')
+                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                              : 'bg-[#181820] border-[#262630] text-[#d4d4d8] hover:border-[#3a3a4a]'
+                          }`}
+                        >
+                          <span className="truncate">
+                            App: {otpFilterMeta.activeAppLabel} ({otpFilterMeta.allUniqueApps.length})
+                          </span>
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 shrink-0 transition-transform ${
+                              isAllAppsOpen ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+
+                        {/* Inline Searchable All-Apps Popover */}
+                        {isAllAppsOpen && (
+                          <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-[#181822] border border-[#323244] rounded-xl shadow-2xl p-2 space-y-1.5">
+                            <input
+                              type="text"
+                              value={allAppsSearch}
+                              onChange={(e) => setAllAppsSearch(e.target.value)}
+                              placeholder="Find any app (Uber, Tinder, PayPal...)"
+                              className="w-full bg-[#121217] border border-[#262630] rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder-[#71717a] outline-none"
+                              autoFocus
+                            />
+                            <div className="max-h-40 overflow-y-auto divide-y divide-[#232330]">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOtpAppFilter('all');
+                                  setIsAllAppsOpen(false);
+                                  setAllAppsSearch('');
+                                }}
+                                className="w-full text-left px-2 py-1.5 text-[11px] font-bold text-amber-400 hover:bg-[#232330] rounded"
+                              >
+                                All Apps
+                              </button>
+                              {filteredAllApps.map((app) => (
+                                <button
+                                  key={app.key}
+                                  type="button"
+                                  onClick={() => {
+                                    setOtpAppFilter(app.key);
+                                    setIsAllAppsOpen(false);
+                                    setAllAppsSearch('');
+                                  }}
+                                  className={`w-full flex items-center justify-between px-2 py-1.5 text-[11px] hover:bg-[#232330] rounded text-left ${
+                                    otpAppFilter === app.key
+                                      ? 'text-amber-300 font-bold'
+                                      : 'text-white'
+                                  }`}
+                                >
+                                  <span className="truncate pr-2">{app.label}</span>
+                                  <span className="text-[10px] font-mono text-[#71717a] shrink-0">
+                                    {app.count}
+                                  </span>
+                                </button>
+                              ))}
+                              {filteredAllApps.length === 0 && (
+                                <div className="p-2 text-center text-[10px] text-[#71717a]">
+                                  No matching app
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Country Filter Select */}
+                      <div className="relative">
+                        <Globe className="w-3.5 h-3.5 text-[#71717a] absolute left-2.5 top-2 pointer-events-none" />
+                        <select
+                          value={otpCountryFilter}
+                          onChange={(e) => setOtpCountryFilter(e.target.value)}
+                          aria-label="Filter by country"
+                          className="w-full bg-[#181820] border border-[#262630] focus:border-amber-500/60 rounded-lg pl-8 pr-6 py-1.5 text-[11px] font-semibold text-white outline-none appearance-none cursor-pointer truncate"
+                        >
+                          <option value="all">
+                            All Countries ({otpFilterMeta.countries.length})
+                          </option>
+                          {otpFilterMeta.countries.map((c) => (
+                            <option key={c.name} value={c.name}>
+                              {c.name} ({c.count})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-[#71717a] absolute right-2 top-2 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* === SERVER 5 FILTERS (Platform Chips + Category Selector) === */}
+                {activeServer === 5 && (
+                  <div className="space-y-2 bg-[#121217] p-2.5 rounded-xl border border-[#262630]">
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                      {SMM_PLATFORMS.map((p) => {
+                        const isActive = s5Platform === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setS5Platform(p.id);
+                              setS5Category('all');
+                            }}
+                            className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                              isActive
+                                ? 'bg-amber-500 text-black border-amber-500'
+                                : 'bg-[#181820] text-[#a1a1aa] border-[#262630] hover:text-white'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {filteredS5Categories.length > 0 && (
+                      <div className="relative">
+                        <Filter className="w-3.5 h-3.5 text-[#71717a] absolute left-2.5 top-2 pointer-events-none" />
+                        <select
+                          value={s5Category}
+                          onChange={(e) => setS5Category(e.target.value)}
+                          aria-label="Filter by SMM category"
+                          className="w-full bg-[#181820] border border-[#262630] focus:border-amber-500/60 rounded-lg pl-8 pr-6 py-1.5 text-[11px] font-semibold text-white outline-none appearance-none cursor-pointer truncate"
+                        >
+                          <option value="all">
+                            All Categories ({filteredS5Categories.length})
+                          </option>
+                          {filteredS5Categories.map((cat) => (
+                            <option key={cat.category} value={cat.category}>
+                              {cat.category} ({cat.count})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-[#71717a] absolute right-2 top-2 pointer-events-none" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Catalog List (Scrollable with Automatic Infinite Scroll + Load More Fallback) */}
+                <div
+                  ref={listScrollRef}
+                  onScroll={handleListScroll}
+                  className="max-h-60 overflow-y-auto rounded-xl border border-[#262630] bg-[#121217] divide-y divide-[#20202a]"
+                >
                   {isServerLoading ? (
                     <div className="p-8 text-center text-xs text-[#a1a1aa] flex flex-col items-center justify-center gap-2">
                       <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
-                      <span>Loading Server {activeServer} inventory...</span>
+                      <span>Loading full Server {activeServer} catalog...</span>
                     </div>
-                  ) : filteredCatalog.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-[#71717a]">
-                      No services found for "{searchQuery}". Try another keyword or switch server.
+                  ) : displayedCatalog.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-[#71717a] space-y-2">
+                      <p>
+                        No services found
+                        {searchQuery ? ` for "${searchQuery}"` : ' matching your active filters'}.
+                      </p>
+                      {hasActiveFilters && (
+                        <button
+                          type="button"
+                          onClick={resetFiltersForServer}
+                          className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold underline"
+                        >
+                          Reset all filters
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <>
-                      {filteredCatalog.map((item, idx) => {
+                      {displayedCatalog.map((item, idx) => {
                         const isSelected =
                           selectedService?.server_no === item.server_no &&
                           String(selectedService?.service_id).trim().toLowerCase() ===
@@ -636,7 +1357,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                           >
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-bold text-white truncate max-w-[280px]">
+                                <span className="text-xs font-bold text-white truncate max-w-[320px]">
                                   {item.service_name}
                                 </span>
                                 {isItemPinned && (
@@ -650,7 +1371,13 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                                 {item.category_name && <span>• {item.category_name}</span>}
                                 {item.country_name && <span>• {item.country_name}</span>}
                                 {item.stock !== undefined && (
-                                  <span className="text-emerald-400">• Stock: {item.stock}</span>
+                                  <span
+                                    className={
+                                      item.stock > 0 ? 'text-emerald-400' : 'text-zinc-500'
+                                    }
+                                  >
+                                    • Stock: {item.stock}
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -675,7 +1402,28 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                         );
                       })}
 
-                      {/* Server 5 Load More Action */}
+                      {/* Progressive Load More Footer for Servers 1–4 */}
+                      {hasMoreClientItems && (
+                        <div className="p-2.5 text-center bg-[#14141a]">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVisibleCount((prev) =>
+                                Math.min(prev + PAGE_CHUNK_SIZE, filteredCatalog.length)
+                              )
+                            }
+                            className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center justify-center gap-1.5 mx-auto py-1 px-3 rounded-lg hover:bg-amber-500/10 transition-colors"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5" />
+                            <span>
+                              Scroll or Click to Load More (Showing {displayedCatalog.length.toLocaleString()} of{' '}
+                              {filteredCatalog.length.toLocaleString()})
+                            </span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Server 5 Paginated Load More Footer */}
                       {activeServer === 5 && hasMoreS5 && (
                         <div className="p-2.5 text-center bg-[#14141a]">
                           <button
@@ -692,7 +1440,10 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                             ) : (
                               <>
                                 <ChevronDown className="w-3.5 h-3.5" />
-                                <span>Load More (Page {s5Page + 1})</span>
+                                <span>
+                                  Load More (Showing {s5Results.length.toLocaleString()} of{' '}
+                                  {s5Total.toLocaleString()})
+                                </span>
                               </>
                             )}
                           </button>
@@ -743,7 +1494,9 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-[#a1a1aa] block mb-1">Category (optional)</label>
+                    <label className="text-[10px] text-[#a1a1aa] block mb-1">
+                      Category (optional)
+                    </label>
                     <input
                       type="text"
                       value={selectedService?.category_name || ''}
@@ -758,7 +1511,9 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#a1a1aa] block mb-1">Country (optional)</label>
+                    <label className="text-[10px] text-[#a1a1aa] block mb-1">
+                      Country (optional)
+                    </label>
                     <input
                       type="text"
                       value={selectedService?.country_name || ''}
@@ -789,9 +1544,11 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                 </span>
               </div>
               <h4 className="text-xs font-bold text-white">{selectedService.service_name}</h4>
-              <p className="text-[10px] text-[#a1a1aa] flex items-center gap-2">
+              <p className="text-[10px] text-[#a1a1aa] flex items-center gap-2 flex-wrap">
                 <span>Server {selectedService.server_no}</span>
-                <span>• ID: <code className="text-[#38bdf8]">{selectedService.service_id}</code></span>
+                <span>
+                  • ID: <code className="text-[#38bdf8]">{selectedService.service_id}</code>
+                </span>
                 {selectedService.category_name && <span>• {selectedService.category_name}</span>}
                 {selectedService.country_name && <span>• {selectedService.country_name}</span>}
               </p>
