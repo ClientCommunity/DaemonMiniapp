@@ -21,7 +21,9 @@ import {
   ChevronDown,
   ArrowUpDown,
   RotateCcw,
+  RefreshCw,
   Filter,
+  AlertCircle,
 } from 'lucide-react';
 
 export interface PreselectedServiceInfo {
@@ -88,7 +90,7 @@ const POPULAR_OTP_APPS: Array<{
   {
     code: 'ig',
     label: 'Instagram',
-    match: (c, n) => c === 'ig' || n.includes('instagram') || n.includes('insta'),
+    match: (c, n) => c === 'ig' || n.includes('instagram') || /\binsta\b/.test(n),
   },
   {
     code: 'go',
@@ -98,7 +100,7 @@ const POPULAR_OTP_APPS: Array<{
   {
     code: 'snap',
     label: 'Snapchat',
-    match: (c, n) => c === 'snap' || c === 'fu' || n.includes('snapchat') || n.includes('snap'),
+    match: (c, n) => c === 'snap' || c === 'fu' || n.includes('snapchat') || /\bsnap\b/.test(n),
   },
   {
     code: 'fb',
@@ -145,6 +147,8 @@ const SMM_PLATFORMS = [
 ];
 
 const PAGE_CHUNK_SIZE = 60;
+const DARK_SELECT_STYLE: React.CSSProperties = { colorScheme: 'dark' };
+const DARK_OPTION_CLASS = 'bg-[#181820] text-white';
 
 function matchesOtpAppFilter(item: UniformCatalogItem, selectedApp: string): boolean {
   if (!selectedApp || selectedApp === 'all') return true;
@@ -165,7 +169,10 @@ function matchesOtpAppFilter(item: UniformCatalogItem, selectedApp: string): boo
   return appNameLower.includes(selectedApp.toLowerCase());
 }
 
-function matchesMultiWordQuery(haystackParts: Array<string | number | undefined>, query: string): boolean {
+function matchesMultiWordQuery(
+  haystackParts: Array<string | number | undefined>,
+  query: string
+): boolean {
   const tokens = query
     .trim()
     .toLowerCase()
@@ -189,9 +196,15 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
 }) => {
   const { addToast } = useApp();
   const listScrollRef = useRef<HTMLDivElement | null>(null);
+  const allAppsContainerRef = useRef<HTMLDivElement | null>(null);
+  const fetchedServersRef = useRef<Record<number, boolean>>({});
+  const s5RequestSeqRef = useRef<number>(0);
+  const pinnedListRef = useRef<PinnedServiceItem[]>(pinnedList);
+  pinnedListRef.current = pinnedList;
 
   const [activeServer, setActiveServer] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedService, setSelectedService] = useState<PreselectedServiceInfo | null>(null);
   const [badge, setBadge] = useState('Hot');
   const [displayOrder, setDisplayOrder] = useState('0');
@@ -220,7 +233,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   // Progressive rendering / infinite scroll count for client-side catalogs (S1–S4)
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_CHUNK_SIZE);
 
-  // Full cached catalogs for Servers 1, 2, 3, 4
+  // Full cached catalogs + load error/refresh state
   const [modalServer1, setModalServer1] = useState<UniformCatalogItem[]>([]);
   const [modalServer2, setModalServer2] = useState<UniformCatalogItem[]>([]);
   const [modalServer3, setModalServer3] = useState<UniformCatalogItem[]>([]);
@@ -229,6 +242,8 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   const [isLoadingS2, setIsLoadingS2] = useState(false);
   const [isLoadingS3, setIsLoadingS3] = useState(false);
   const [isLoadingS4, setIsLoadingS4] = useState(false);
+  const [loadErrorByServer, setLoadErrorByServer] = useState<Record<number, string | null>>({});
+  const [refreshNonce, setRefreshNonce] = useState<number>(0);
 
   // Server 5 paginated server-side results
   const [s5Results, setS5Results] = useState<UniformCatalogItem[]>([]);
@@ -238,8 +253,45 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
   const [hasMoreS5, setHasMoreS5] = useState(false);
   const [isLoadingMoreS5, setIsLoadingMoreS5] = useState(false);
 
+  // Debounce search input (150ms) so fast typing on mobile over 8,000+ rows stays smooth
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Close All-Apps popover on outside click or Escape key
+  useEffect(() => {
+    if (!isAllAppsOpen) return;
+
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (
+        allAppsContainerRef.current &&
+        !allAppsContainerRef.current.contains(e.target as Node)
+      ) {
+        setIsAllAppsOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsAllAppsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isAllAppsOpen]);
+
   const resetFiltersForServer = useCallback(() => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setSortOrder('default');
     setS1InStockOnly(false);
     setS2Tier('all');
@@ -257,74 +309,123 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     }
   }, []);
 
-  // Sync initial service when modal opens
+  const handleRefreshActiveServer = useCallback(() => {
+    delete fetchedServersRef.current[activeServer];
+    setLoadErrorByServer((prev) => ({ ...prev, [activeServer]: null }));
+    if (activeServer === 1) setModalServer1([]);
+    else if (activeServer === 2) setModalServer2([]);
+    else if (activeServer === 3) setModalServer3([]);
+    else if (activeServer === 4) setModalServer4([]);
+    else if (activeServer === 5) {
+      setS5CategoriesList([]);
+      setS5Results([]);
+    }
+    setRefreshNonce((n) => n + 1);
+  }, [activeServer]);
+
+  // Sync initial service when modal opens (reset stale filters in BOTH create & edit flows)
   useEffect(() => {
-    if (isOpen) {
-      if (initialService) {
-        setActiveServer(initialService.server_no);
-        setSelectedService(initialService);
-        if (initialService.badge) setBadge(initialService.badge);
-      } else {
-        if (defaultServer && defaultServer >= 1 && defaultServer <= 5) {
-          setActiveServer(defaultServer);
-        }
-        setSelectedService(null);
-        setBadge('Hot');
-        setDisplayOrder('0');
-        setIsManualMode(false);
-        resetFiltersForServer();
+    if (!isOpen) return;
+
+    resetFiltersForServer();
+    setIsManualMode(false);
+
+    if (initialService) {
+      setActiveServer(initialService.server_no);
+      setSelectedService(initialService);
+      const selId = String(initialService.service_id).trim().toLowerCase();
+      const matchedPin = pinnedListRef.current.find(
+        (p) =>
+          p.server_no === initialService.server_no &&
+          String(p.service_id).trim().toLowerCase() === selId
+      );
+      setBadge(initialService.badge || matchedPin?.badge || 'Hot');
+      setDisplayOrder(
+        matchedPin?.display_order !== undefined && matchedPin?.display_order !== null
+          ? String(matchedPin.display_order)
+          : '0'
+      );
+    } else {
+      if (defaultServer && defaultServer >= 1 && defaultServer <= 5) {
+        setActiveServer(defaultServer);
       }
+      setSelectedService(null);
+      setBadge('Hot');
+      setDisplayOrder('0');
     }
   }, [isOpen, initialService, defaultServer, resetFiltersForServer]);
 
-  // Reset visible scroll window whenever active filters or search change
+  // Reset visible scroll window whenever active filters or debounced search change
   useEffect(() => {
     setVisibleCount(PAGE_CHUNK_SIZE);
     if (listScrollRef.current) {
       listScrollRef.current.scrollTop = 0;
     }
-  }, [activeServer, searchQuery, sortOrder, s1InStockOnly, s2Tier, s2Year, otpAppFilter, otpCountryFilter]);
+  }, [
+    activeServer,
+    debouncedSearch,
+    sortOrder,
+    s1InStockOnly,
+    s2Tier,
+    s2Year,
+    otpAppFilter,
+    otpCountryFilter,
+  ]);
 
   // 1. Load Server 1 Full Catalog (all 153 countries) once on-demand
   useEffect(() => {
-    if (!isOpen || activeServer !== 1 || modalServer1.length > 0) return;
+    if (!isOpen || activeServer !== 1 || fetchedServersRef.current[1]) return;
     let cancelled = false;
     setIsLoadingS1(true);
+    setLoadErrorByServer((prev) => ({ ...prev, 1: null }));
     storeApi
       .getServer1()
       .then((res) => {
-        if (!cancelled && res?.items && Array.isArray(res.items)) {
-          const adapted = res.items.map(adaptServer1Item).map((item) => ({
-            server_no: 1,
-            service_id: item.countryCode || item.country,
-            service_name: `${item.country} Account`,
-            category_name: 'Telegram Global',
-            country_name: item.country,
-            country_code: item.countryCode,
-            price: item.priceInr,
-            stock: item.stockCount,
-          }));
-          setModalServer1(adapted);
+        if (!cancelled) {
+          if (res?.items && Array.isArray(res.items)) {
+            const adapted = res.items.map(adaptServer1Item).map((item) => ({
+              server_no: 1,
+              service_id: item.countryCode || item.country,
+              service_name: `${item.country} Account`,
+              category_name: 'Telegram Global',
+              country_name: item.country,
+              country_code: item.countryCode,
+              price: item.priceInr,
+              stock: item.stockCount,
+            }));
+            setModalServer1(adapted);
+            fetchedServersRef.current[1] = true;
+          } else {
+            setLoadErrorByServer((prev) => ({
+              ...prev,
+              1: 'Failed to load Server 1 catalog.',
+            }));
+          }
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) {
+          setLoadErrorByServer((prev) => ({
+            ...prev,
+            1: 'Network error loading Server 1 catalog. Please retry.',
+          }));
+        }
+      })
       .finally(() => {
         if (!cancelled) setIsLoadingS1(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [isOpen, activeServer, modalServer1.length]);
+  }, [isOpen, activeServer, refreshNonce]);
 
   // 2. Load Server 2 Full Catalog (Good + Cheap) once on-demand
   useEffect(() => {
-    if (!isOpen || activeServer !== 2 || modalServer2.length > 0) return;
+    if (!isOpen || activeServer !== 2 || fetchedServersRef.current[2]) return;
     let cancelled = false;
     setIsLoadingS2(true);
-    Promise.all([
-      storeApi.getServer2('good').catch(() => ({ items: [] })),
-      storeApi.getServer2('cheap').catch(() => ({ items: [] })),
-    ])
+    setLoadErrorByServer((prev) => ({ ...prev, 2: null }));
+    Promise.all([storeApi.getServer2('good'), storeApi.getServer2('cheap')])
       .then(([goodRes, cheapRes]) => {
         if (!cancelled) {
           const combinedRaw = [
@@ -347,93 +448,144 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
               account_year: item.accountYear,
             }))
           );
+          fetchedServersRef.current[2] = true;
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) {
+          setLoadErrorByServer((prev) => ({
+            ...prev,
+            2: 'Network error loading Server 2 stock. Please retry.',
+          }));
+        }
+      })
       .finally(() => {
         if (!cancelled) setIsLoadingS2(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [isOpen, activeServer, modalServer2.length]);
+  }, [isOpen, activeServer, refreshNonce]);
 
-  // 3. Load Server 3 FULL Cached Catalog once on-demand (no limit -> uses backend 60s RAM cache!)
+  // 3. Load Server 3 FULL Cached Catalog once on-demand (no limit -> uses backend 60s RAM cache)
   useEffect(() => {
-    if (!isOpen || activeServer !== 3 || modalServer3.length > 0) return;
+    if (!isOpen || activeServer !== 3 || fetchedServersRef.current[3]) return;
     let cancelled = false;
     setIsLoadingS3(true);
+    setLoadErrorByServer((prev) => ({ ...prev, 3: null }));
     storeApi
       .getServer3()
       .then((res) => {
-        if (!cancelled && res?.items && Array.isArray(res.items)) {
-          setModalServer3(
-            res.items.map((it) => {
-              const rawName = (it.name || it.service_code || 'Service').trim();
-              const country = (it.country || 'India').trim();
-              return {
-                server_no: 3,
-                service_id: `${it.service_code}_${it.server_code}`,
-                service_name: `${rawName} (${country})`,
-                app_name: rawName,
-                service_code: it.service_code,
-                category_name: `${rawName} OTP`,
-                country_name: country,
-                country_code: it.server_code,
-                price: it.price,
-                stock: undefined,
-              };
-            })
-          );
+        if (!cancelled) {
+          if (res?.items && Array.isArray(res.items)) {
+            setModalServer3(
+              res.items.map((it) => {
+                const rawName = (it.name || it.service_code || 'Service').trim();
+                const country = (it.country || 'India').trim();
+                const sCode = (it.service_code || '').trim();
+                const srvCode = (it.server_code || '').trim();
+                const serviceId =
+                  sCode && srvCode ? `${sCode}_${srvCode}` : it.id || sCode || rawName;
+                return {
+                  server_no: 3,
+                  service_id: serviceId,
+                  service_name: `${rawName} (${country})`,
+                  app_name: rawName,
+                  service_code: sCode,
+                  category_name: `${rawName} OTP`,
+                  country_name: country,
+                  country_code: srvCode,
+                  price: it.price,
+                  stock: undefined,
+                };
+              })
+            );
+            fetchedServersRef.current[3] = true;
+          } else {
+            setLoadErrorByServer((prev) => ({
+              ...prev,
+              3: 'Failed to load Server 3 catalog.',
+            }));
+          }
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) {
+          setLoadErrorByServer((prev) => ({
+            ...prev,
+            3: 'Network error loading Server 3 catalog. Please retry.',
+          }));
+        }
+      })
       .finally(() => {
         if (!cancelled) setIsLoadingS3(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [isOpen, activeServer, modalServer3.length]);
+  }, [isOpen, activeServer, refreshNonce]);
 
-  // 4. Load Server 4 FULL Cached Catalog once on-demand (no limit -> uses backend 60s RAM cache!)
+  // 4. Load Server 4 FULL Cached Catalog once on-demand (no limit -> uses backend 60s RAM cache)
   useEffect(() => {
-    if (!isOpen || activeServer !== 4 || modalServer4.length > 0) return;
+    if (!isOpen || activeServer !== 4 || fetchedServersRef.current[4]) return;
     let cancelled = false;
     setIsLoadingS4(true);
+    setLoadErrorByServer((prev) => ({ ...prev, 4: null }));
     storeApi
       .getServer4()
       .then((res) => {
-        if (!cancelled && res?.items && Array.isArray(res.items)) {
-          setModalServer4(
-            res.items.map((it) => {
-              const rawTitle = (it.name || 'Service').trim();
-              const cleanApp = rawTitle.replace(/\s*\([^)]*\)\s*$/, '').trim() || rawTitle;
-              const country = (it.country || 'Global').trim();
-              return {
-                server_no: 4,
-                service_id: `${it.service_code}_${it.country_code}`,
-                service_name: rawTitle,
-                app_name: cleanApp,
-                service_code: it.service_code,
-                category_name: 'Carrier OTP',
-                country_name: country,
-                country_code: it.country_code,
-                price: it.price,
-                stock: it.stock,
-              };
-            })
-          );
+        if (!cancelled) {
+          if (res?.items && Array.isArray(res.items)) {
+            setModalServer4(
+              res.items.map((it) => {
+                const rawTitle = (it.name || 'Service').trim();
+                const country = (it.country || 'Global').trim();
+                const countrySuffix = ` (${country})`;
+                const cleanApp = rawTitle.endsWith(countrySuffix)
+                  ? rawTitle.slice(0, -countrySuffix.length).trim() || rawTitle
+                  : rawTitle.replace(/\s*\([^)]*\)\s*$/, '').trim() || rawTitle;
+                const sCode = (it.service_code || '').trim();
+                const cCode = (it.country_code || '').trim();
+                const serviceId =
+                  sCode && cCode ? `${sCode}_${cCode}` : it.id || sCode || rawTitle;
+                return {
+                  server_no: 4,
+                  service_id: serviceId,
+                  service_name: rawTitle,
+                  app_name: cleanApp,
+                  service_code: sCode,
+                  category_name: 'Carrier OTP',
+                  country_name: country,
+                  country_code: cCode,
+                  price: it.price,
+                  stock: it.stock,
+                };
+              })
+            );
+            fetchedServersRef.current[4] = true;
+          } else {
+            setLoadErrorByServer((prev) => ({
+              ...prev,
+              4: 'Failed to load Server 4 catalog.',
+            }));
+          }
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) {
+          setLoadErrorByServer((prev) => ({
+            ...prev,
+            4: 'Network error loading Server 4 catalog. Please retry.',
+          }));
+        }
+      })
       .finally(() => {
         if (!cancelled) setIsLoadingS4(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [isOpen, activeServer, modalServer4.length]);
+  }, [isOpen, activeServer, refreshNonce]);
 
   // 5a. Load Server 5 Categories once on-demand
   useEffect(() => {
@@ -450,13 +602,16 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, activeServer, s5CategoriesList.length]);
+  }, [isOpen, activeServer, s5CategoriesList.length, refreshNonce]);
 
-  // 5b. Server 5 Server-Side Filtered & Paginated Search (Debounced across all 9,000+ SMM services)
+  // 5b. Server 5 Server-Side Filtered & Paginated Search (Race-safe via sequence counter)
   useEffect(() => {
     if (!isOpen || activeServer !== 5) return;
     let cancelled = false;
+    const reqSeq = ++s5RequestSeqRef.current;
     setIsSearchingS5(true);
+    setIsLoadingMoreS5(false);
+    setLoadErrorByServer((prev) => ({ ...prev, 5: null }));
     setS5Page(1);
 
     const apiSort =
@@ -472,29 +627,49 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
           search: searchQuery.trim() || undefined,
           sort: apiSort,
         });
-        if (!cancelled && res?.success && Array.isArray(res.items)) {
-          setS5Results(
-            res.items.map((item) => ({
-              server_no: 5,
-              service_id: String(item.id),
-              service_name: item.name || 'SMM Service',
-              category_name: item.category || 'SMM',
-              country_name: '',
-              country_code: '',
-              price: Number(item.price || 0),
-              stock: undefined,
-            }))
-          );
-          setS5Total(Number(res.total ?? res.items.length));
-          setHasMoreS5(Boolean(res.has_more));
-          if (listScrollRef.current) {
-            listScrollRef.current.scrollTop = 0;
+        if (!cancelled && reqSeq === s5RequestSeqRef.current) {
+          if (res?.success && Array.isArray(res.items)) {
+            setS5Results(
+              res.items.map((item) => ({
+                server_no: 5,
+                service_id: String(item.id),
+                service_name: item.name || 'SMM Service',
+                category_name: item.category || 'SMM',
+                country_name: '',
+                country_code: '',
+                price: Number(item.price || 0),
+                stock: undefined,
+              }))
+            );
+            setS5Total(Number(res.total ?? res.items.length));
+            setHasMoreS5(Boolean(res.has_more));
+            if (listScrollRef.current) {
+              listScrollRef.current.scrollTop = 0;
+            }
+          } else {
+            setS5Results([]);
+            setS5Total(0);
+            setHasMoreS5(false);
+            setLoadErrorByServer((prev) => ({
+              ...prev,
+              5: 'Failed to load Server 5 services.',
+            }));
           }
         }
       } catch {
-        // silent
+        if (!cancelled && reqSeq === s5RequestSeqRef.current) {
+          setS5Results([]);
+          setS5Total(0);
+          setHasMoreS5(false);
+          setLoadErrorByServer((prev) => ({
+            ...prev,
+            5: 'Network error loading Server 5 services. Please retry.',
+          }));
+        }
       } finally {
-        if (!cancelled) setIsSearchingS5(false);
+        if (!cancelled && reqSeq === s5RequestSeqRef.current) {
+          setIsSearchingS5(false);
+        }
       }
     }, 200);
 
@@ -502,10 +677,11 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [isOpen, activeServer, searchQuery, s5Platform, s5Category, sortOrder]);
+  }, [isOpen, activeServer, searchQuery, s5Platform, s5Category, sortOrder, refreshNonce]);
 
   const handleLoadMoreS5 = useCallback(async () => {
     if (isLoadingMoreS5 || !hasMoreS5) return;
+    const reqSeq = s5RequestSeqRef.current;
     setIsLoadingMoreS5(true);
     const nextPage = s5Page + 1;
     const apiSort =
@@ -520,6 +696,8 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         search: searchQuery.trim() || undefined,
         sort: apiSort,
       });
+      // Ignore stale pagination responses if user changed filters/search while loading
+      if (reqSeq !== s5RequestSeqRef.current) return;
       if (res?.success && Array.isArray(res.items)) {
         const nextItems: UniformCatalogItem[] = res.items.map((item) => ({
           server_no: 5,
@@ -537,9 +715,11 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         setHasMoreS5(Boolean(res.has_more));
       }
     } catch {
-      // silent
+      // keep existing loaded pages intact on transient Load More error
     } finally {
-      setIsLoadingMoreS5(false);
+      if (reqSeq === s5RequestSeqRef.current) {
+        setIsLoadingMoreS5(false);
+      }
     }
   }, [isLoadingMoreS5, hasMoreS5, s5Page, sortOrder, s5Platform, s5Category, searchQuery]);
 
@@ -569,7 +749,6 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
       };
     }
 
-    // Count popular apps
     const popularCounts = new Map<string, number>();
     const allAppsMap = new Map<string, { label: string; count: number }>();
 
@@ -607,7 +786,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
       }))
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
-    // Countries scoped to the selected App (so admin only sees countries that actually offer that App!)
+    // Countries scoped to the selected App
     const countryMap = new Map<string, number>();
     for (const item of source) {
       if (!matchesOtpAppFilter(item, otpAppFilter)) continue;
@@ -664,7 +843,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
       .slice(0, 80);
   }, [otpFilterMeta.allUniqueApps, allAppsSearch]);
 
-  // Uniform filtered & sorted catalog for currently active server
+  // Uniform filtered & sorted catalog for currently active server (uses debouncedSearch for S1–S4)
   const filteredCatalog = useMemo<UniformCatalogItem[]>(() => {
     const applySort = (items: UniformCatalogItem[]) => {
       if (sortOrder === 'default') return items;
@@ -684,7 +863,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
         if (s1InStockOnly && (item.stock ?? 0) <= 0) return false;
         return matchesMultiWordQuery(
           [item.country_name, item.country_code, item.service_name, item.service_id],
-          searchQuery
+          debouncedSearch
         );
       });
       return applySort(list);
@@ -703,7 +882,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
             item.service_name,
             item.service_id,
           ],
-          searchQuery
+          debouncedSearch
         );
       });
       return applySort(list);
@@ -723,7 +902,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
             item.service_code,
             item.service_id,
           ],
-          searchQuery
+          debouncedSearch
         );
       });
       return applySort(list);
@@ -736,7 +915,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     return [];
   }, [
     activeServer,
-    searchQuery,
+    debouncedSearch,
     sortOrder,
     s1InStockOnly,
     s2Tier,
@@ -808,6 +987,19 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
       country_code: item.country_code,
       price: item.price,
     });
+    // If selecting an already-pinned item, prefill its saved badge & display_order
+    const selId = String(item.service_id).trim().toLowerCase();
+    const matchedPin = pinnedList.find(
+      (p) => p.server_no === item.server_no && String(p.service_id).trim().toLowerCase() === selId
+    );
+    if (matchedPin) {
+      if (matchedPin.badge) setBadge(matchedPin.badge);
+      setDisplayOrder(
+        matchedPin.display_order !== undefined && matchedPin.display_order !== null
+          ? String(matchedPin.display_order)
+          : '0'
+      );
+    }
   };
 
   const handleSavePin = async (e: React.FormEvent) => {
@@ -875,6 +1067,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
     (activeServer === 4 && isLoadingS4) ||
     (activeServer === 5 && isSearchingS5);
 
+  const activeLoadError = loadErrorByServer[activeServer] || null;
   const totalAvailableCount = activeServer === 5 ? s5Total : filteredCatalog.length;
 
   if (!isOpen) return null;
@@ -955,7 +1148,7 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
             <div className="flex items-center justify-between mb-1.5 gap-2">
               <label className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
                 <span>Select Service from Server {activeServer}:</span>
-                {!isServerLoading && totalAvailableCount > 0 && (
+                {!isServerLoading && !activeLoadError && totalAvailableCount > 0 && (
                   <span className="text-[10px] text-amber-400 font-mono font-bold lowercase">
                     ({totalAvailableCount.toLocaleString()}{' '}
                     {activeServer === 1 ? 'countries' : 'services'})
@@ -963,6 +1156,18 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                 )}
               </label>
               <div className="flex items-center gap-2.5 shrink-0">
+                {!isManualMode && (
+                  <button
+                    type="button"
+                    onClick={handleRefreshActiveServer}
+                    disabled={isServerLoading}
+                    title={`Reload live Server ${activeServer} catalog`}
+                    className="flex items-center gap-1 text-[10px] text-[#a1a1aa] hover:text-white font-semibold disabled:opacity-40"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isServerLoading ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">Refresh</span>
+                  </button>
+                )}
                 {!isManualMode && hasActiveFilters && (
                   <button
                     type="button"
@@ -1009,7 +1214,10 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                     {searchQuery && (
                       <button
                         type="button"
-                        onClick={() => setSearchQuery('')}
+                        onClick={() => {
+                          setSearchQuery('');
+                          setDebouncedSearch('');
+                        }}
                         className="absolute right-2.5 top-2.5 text-xs text-[#71717a] hover:text-white"
                       >
                         <X className="w-4 h-4" />
@@ -1024,13 +1232,22 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                       value={sortOrder}
                       onChange={(e) => setSortOrder(e.target.value as SortOption)}
                       aria-label="Sort services"
+                      style={DARK_SELECT_STYLE}
                       className="bg-[#121217] border border-[#262630] focus:border-amber-500/60 rounded-xl pl-8 pr-6 py-2 text-[11px] font-semibold text-white outline-none appearance-none cursor-pointer"
                     >
-                      <option value="default">Default</option>
-                      <option value="price_asc">Price: Low → High</option>
-                      <option value="price_desc">Price: High → Low</option>
+                      <option value="default" className={DARK_OPTION_CLASS}>
+                        Default
+                      </option>
+                      <option value="price_asc" className={DARK_OPTION_CLASS}>
+                        Price: Low → High
+                      </option>
+                      <option value="price_desc" className={DARK_OPTION_CLASS}>
+                        Price: High → Low
+                      </option>
                       {(activeServer === 1 || activeServer === 2 || activeServer === 4) && (
-                        <option value="stock_desc">Stock: High → Low</option>
+                        <option value="stock_desc" className={DARK_OPTION_CLASS}>
+                          Stock: High → Low
+                        </option>
                       )}
                     </select>
                     <ChevronDown className="w-3 h-3 text-[#71717a] absolute right-2 top-3 pointer-events-none" />
@@ -1090,11 +1307,14 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                         <select
                           value={s2Year}
                           onChange={(e) => setS2Year(e.target.value)}
+                          style={DARK_SELECT_STYLE}
                           className="bg-[#181820] border border-[#262630] rounded-lg px-2 py-1 text-[10px] font-bold text-white outline-none cursor-pointer"
                         >
-                          <option value="all">All Years</option>
+                          <option value="all" className={DARK_OPTION_CLASS}>
+                            All Years
+                          </option>
                           {s2FilterMeta.years.map((yr) => (
-                            <option key={yr} value={String(yr)}>
+                            <option key={yr} value={String(yr)} className={DARK_OPTION_CLASS}>
                               {yr}
                             </option>
                           ))}
@@ -1104,8 +1324,8 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                   </div>
                 )}
 
-                {/* === SERVER 3 & 4 FILTERS (Popular App Chips + All Apps Picker + Country Dropdown) === */}
-                {(activeServer === 3 || activeServer === 4) && !isServerLoading && (
+                {/* === SERVER 3 & 4 FILTERS (Popular App Chips + Full-Width All Apps Picker + Country Dropdown) === */}
+                {(activeServer === 3 || activeServer === 4) && !isServerLoading && !activeLoadError && (
                   <div className="space-y-2 bg-[#121217] p-2.5 rounded-xl border border-[#262630]">
                     {/* Popular App Chips Row */}
                     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
@@ -1153,81 +1373,26 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                       })}
                     </div>
 
-                    {/* Second Row: All Apps Picker Button + Country Filter Dropdown */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setIsAllAppsOpen((prev) => !prev)}
-                          className={`w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${
-                            otpAppFilter.startsWith('app:')
-                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                              : 'bg-[#181820] border-[#262630] text-[#d4d4d8] hover:border-[#3a3a4a]'
+                    {/* Second Row: Full-width-popover All Apps Picker + Country Filter Dropdown */}
+                    <div ref={allAppsContainerRef} className="relative grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsAllAppsOpen((prev) => !prev)}
+                        className={`w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${
+                          otpAppFilter.startsWith('app:')
+                            ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                            : 'bg-[#181820] border-[#262630] text-[#d4d4d8] hover:border-[#3a3a4a]'
+                        }`}
+                      >
+                        <span className="truncate">
+                          App: {otpFilterMeta.activeAppLabel} ({otpFilterMeta.allUniqueApps.length})
+                        </span>
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 shrink-0 transition-transform ${
+                            isAllAppsOpen ? 'rotate-180' : ''
                           }`}
-                        >
-                          <span className="truncate">
-                            App: {otpFilterMeta.activeAppLabel} ({otpFilterMeta.allUniqueApps.length})
-                          </span>
-                          <ChevronDown
-                            className={`w-3.5 h-3.5 shrink-0 transition-transform ${
-                              isAllAppsOpen ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </button>
-
-                        {/* Inline Searchable All-Apps Popover */}
-                        {isAllAppsOpen && (
-                          <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-[#181822] border border-[#323244] rounded-xl shadow-2xl p-2 space-y-1.5">
-                            <input
-                              type="text"
-                              value={allAppsSearch}
-                              onChange={(e) => setAllAppsSearch(e.target.value)}
-                              placeholder="Find any app (Uber, Tinder, PayPal...)"
-                              className="w-full bg-[#121217] border border-[#262630] rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder-[#71717a] outline-none"
-                              autoFocus
-                            />
-                            <div className="max-h-40 overflow-y-auto divide-y divide-[#232330]">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOtpAppFilter('all');
-                                  setIsAllAppsOpen(false);
-                                  setAllAppsSearch('');
-                                }}
-                                className="w-full text-left px-2 py-1.5 text-[11px] font-bold text-amber-400 hover:bg-[#232330] rounded"
-                              >
-                                All Apps
-                              </button>
-                              {filteredAllApps.map((app) => (
-                                <button
-                                  key={app.key}
-                                  type="button"
-                                  onClick={() => {
-                                    setOtpAppFilter(app.key);
-                                    setIsAllAppsOpen(false);
-                                    setAllAppsSearch('');
-                                  }}
-                                  className={`w-full flex items-center justify-between px-2 py-1.5 text-[11px] hover:bg-[#232330] rounded text-left ${
-                                    otpAppFilter === app.key
-                                      ? 'text-amber-300 font-bold'
-                                      : 'text-white'
-                                  }`}
-                                >
-                                  <span className="truncate pr-2">{app.label}</span>
-                                  <span className="text-[10px] font-mono text-[#71717a] shrink-0">
-                                    {app.count}
-                                  </span>
-                                </button>
-                              ))}
-                              {filteredAllApps.length === 0 && (
-                                <div className="p-2 text-center text-[10px] text-[#71717a]">
-                                  No matching app
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                        />
+                      </button>
 
                       {/* Country Filter Select */}
                       <div className="relative">
@@ -1236,19 +1401,86 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                           value={otpCountryFilter}
                           onChange={(e) => setOtpCountryFilter(e.target.value)}
                           aria-label="Filter by country"
+                          style={DARK_SELECT_STYLE}
                           className="w-full bg-[#181820] border border-[#262630] focus:border-amber-500/60 rounded-lg pl-8 pr-6 py-1.5 text-[11px] font-semibold text-white outline-none appearance-none cursor-pointer truncate"
                         >
-                          <option value="all">
+                          <option value="all" className={DARK_OPTION_CLASS}>
                             All Countries ({otpFilterMeta.countries.length})
                           </option>
                           {otpFilterMeta.countries.map((c) => (
-                            <option key={c.name} value={c.name}>
+                            <option key={c.name} value={c.name} className={DARK_OPTION_CLASS}>
                               {c.name} ({c.count})
                             </option>
                           ))}
                         </select>
                         <ChevronDown className="w-3.5 h-3.5 text-[#71717a] absolute right-2 top-2 pointer-events-none" />
                       </div>
+
+                      {/* Full-Width Searchable All-Apps Popover (dismissible via outside click / Escape) */}
+                      {isAllAppsOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-[#181822] border border-[#323244] rounded-xl shadow-2xl p-2.5 space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            <div className="relative flex-1">
+                              <Search className="w-3.5 h-3.5 text-[#71717a] absolute left-2.5 top-2" />
+                              <input
+                                type="text"
+                                value={allAppsSearch}
+                                onChange={(e) => setAllAppsSearch(e.target.value)}
+                                placeholder="Find any app (Uber, Tinder, PayPal, Amazon...)"
+                                className="w-full bg-[#121217] border border-[#262630] focus:border-amber-500/60 rounded-lg pl-8 pr-2.5 py-1.5 text-[11px] text-white placeholder-[#71717a] outline-none"
+                                autoFocus
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsAllAppsOpen(false)}
+                              className="p-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#232330]"
+                              aria-label="Close app picker"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="max-h-44 overflow-y-auto divide-y divide-[#232330]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOtpAppFilter('all');
+                                setIsAllAppsOpen(false);
+                                setAllAppsSearch('');
+                              }}
+                              className="w-full text-left px-2.5 py-1.5 text-[11px] font-bold text-amber-400 hover:bg-[#232330] rounded"
+                            >
+                              All Apps
+                            </button>
+                            {filteredAllApps.map((app) => (
+                              <button
+                                key={app.key}
+                                type="button"
+                                onClick={() => {
+                                  setOtpAppFilter(app.key);
+                                  setIsAllAppsOpen(false);
+                                  setAllAppsSearch('');
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[11px] hover:bg-[#232330] rounded text-left ${
+                                  otpAppFilter === app.key
+                                    ? 'text-amber-300 font-bold'
+                                    : 'text-white'
+                                }`}
+                              >
+                                <span className="truncate pr-2">{app.label}</span>
+                                <span className="text-[10px] font-mono text-[#71717a] shrink-0">
+                                  {app.count}
+                                </span>
+                              </button>
+                            ))}
+                            {filteredAllApps.length === 0 && (
+                              <div className="p-2 text-center text-[10px] text-[#71717a]">
+                                No matching app
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1286,13 +1518,18 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                           value={s5Category}
                           onChange={(e) => setS5Category(e.target.value)}
                           aria-label="Filter by SMM category"
+                          style={DARK_SELECT_STYLE}
                           className="w-full bg-[#181820] border border-[#262630] focus:border-amber-500/60 rounded-lg pl-8 pr-6 py-1.5 text-[11px] font-semibold text-white outline-none appearance-none cursor-pointer truncate"
                         >
-                          <option value="all">
+                          <option value="all" className={DARK_OPTION_CLASS}>
                             All Categories ({filteredS5Categories.length})
                           </option>
                           {filteredS5Categories.map((cat) => (
-                            <option key={cat.category} value={cat.category}>
+                            <option
+                              key={cat.category}
+                              value={cat.category}
+                              className={DARK_OPTION_CLASS}
+                            >
                               {cat.category} ({cat.count})
                             </option>
                           ))}
@@ -1313,6 +1550,19 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                     <div className="p-8 text-center text-xs text-[#a1a1aa] flex flex-col items-center justify-center gap-2">
                       <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
                       <span>Loading full Server {activeServer} catalog...</span>
+                    </div>
+                  ) : activeLoadError ? (
+                    <div className="p-6 text-center text-xs text-rose-300 flex flex-col items-center justify-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-rose-400" />
+                      <p>{activeLoadError}</p>
+                      <button
+                        type="button"
+                        onClick={handleRefreshActiveServer}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 font-bold text-[11px] transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Retry
+                      </button>
                     </div>
                   ) : displayedCatalog.length === 0 ? (
                     <div className="p-6 text-center text-xs text-[#71717a] space-y-2">
@@ -1416,7 +1666,8 @@ export const PinServiceModal: React.FC<PinServiceModalProps> = ({
                           >
                             <ChevronDown className="w-3.5 h-3.5" />
                             <span>
-                              Scroll or Click to Load More (Showing {displayedCatalog.length.toLocaleString()} of{' '}
+                              Scroll or Click to Load More (Showing{' '}
+                              {displayedCatalog.length.toLocaleString()} of{' '}
                               {filteredCatalog.length.toLocaleString()})
                             </span>
                           </button>
