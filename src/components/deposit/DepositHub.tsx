@@ -669,7 +669,7 @@ export const DepositHub: React.FC = () => {
         : selectedMethod === 'fampay'
         ? fampayMinDeposit
         : cwalletMinDeposit;
-    if (payAmount > 0 && payAmount < requiredMin) {
+    if (!Number.isFinite(payAmount) || payAmount < requiredMin) {
       hapticFeedback.error();
       addToast(`Minimum deposit amount is ₹${requiredMin}.`, 'error', 'Invalid Amount');
       return;
@@ -758,8 +758,10 @@ export const DepositHub: React.FC = () => {
   const handleSelectScreenshotFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
+    const mime = (file.type || '').toLowerCase();
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const hasValidExt = /\.(jpe?g|png|webp)$/i.test(file.name || '');
+    if (mime ? !validTypes.includes(mime) : !hasValidExt) {
       hapticFeedback.error();
       addToast('Please upload a JPG, PNG, or WebP screenshot image.', 'error', 'Invalid File');
       e.target.value = '';
@@ -1140,6 +1142,13 @@ export const DepositHub: React.FC = () => {
             ) : (
               <div className="text-[10px] text-[#71717a] leading-relaxed">
                 12-digit UTR &amp; FamPay <span className="text-[#a1a1aa] font-mono">FMP...</span> IDs auto-verify in ≤60s. Any other payment ID goes straight to Admins for review.
+              </div>
+            )}
+
+            {!isUpiDirectAmountValid && utrNumber.trim() && (
+              <div className="text-[10px] font-semibold text-amber-400 flex items-center gap-1.5">
+                <AlertTriangle className="w-3 h-3 shrink-0" />
+                <span>Enter a deposit amount of at least ₹{upiMinDeposit} above to submit.</span>
               </div>
             )}
 

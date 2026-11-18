@@ -25,7 +25,7 @@ import {
 
 interface DepositProofThumbnailProps {
   depositId: number;
-  onOpenFull: (blobUrl: string) => void;
+  onOpenFull: () => void;
 }
 
 const DepositProofThumbnail: React.FC<DepositProofThumbnailProps> = ({ depositId, onOpenFull }) => {
@@ -74,7 +74,7 @@ const DepositProofThumbnail: React.FC<DepositProofThumbnailProps> = ({ depositId
         {blobUrl && (
           <button
             type="button"
-            onClick={() => onOpenFull(blobUrl)}
+            onClick={onOpenFull}
             className="inline-flex items-center gap-1 text-[10px] font-bold text-[#c4b5fd] hover:text-white bg-[#7c3aed]/20 hover:bg-[#7c3aed]/35 px-2 py-1 rounded-lg transition-colors cursor-pointer"
           >
             <ZoomIn className="w-3 h-3" />
@@ -95,7 +95,7 @@ const DepositProofThumbnail: React.FC<DepositProofThumbnailProps> = ({ depositId
       ) : (
         <button
           type="button"
-          onClick={() => onOpenFull(blobUrl)}
+          onClick={onOpenFull}
           className="w-full rounded-lg overflow-hidden bg-black/50 border border-[#262630] hover:border-[#7c3aed]/60 transition-all max-h-48 flex items-center justify-center cursor-pointer group relative"
         >
           <img
@@ -108,6 +108,104 @@ const DepositProofThumbnail: React.FC<DepositProofThumbnailProps> = ({ depositId
           </span>
         </button>
       )}
+    </div>
+  );
+};
+
+interface ProofLightboxModalProps {
+  depositId: number;
+  amount: number;
+  userId: number;
+  onClose: () => void;
+}
+
+const ProofLightboxModal: React.FC<ProofLightboxModalProps> = ({
+  depositId,
+  amount,
+  userId,
+  onClose,
+}) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<boolean>(false);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+    setLoading(true);
+    setError(false);
+
+    adminApi
+      .fetchDepositProofBlobUrl(depositId)
+      .then((url) => {
+        if (!active) {
+          window.URL.revokeObjectURL(url);
+          return;
+        }
+        createdUrl = url;
+        setBlobUrl(url);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+      if (createdUrl) {
+        window.URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [depositId]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl bg-[#14141c] border border-[#2d2d40] rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-4 py-3 border-b border-[#262635] flex items-center justify-between gap-2 bg-[#12121a]">
+          <div>
+            <h4 className="text-sm font-bold text-white">
+              Deposit #{depositId} — ₹{amount}
+            </h4>
+            <span className="text-[11px] font-mono text-[#a1a1aa]">
+              User #{userId} • Payment Screenshot Proof
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg bg-[#1f1f2b] hover:bg-[#2a2a3a] text-[#a1a1aa] hover:text-white cursor-pointer"
+            aria-label="Close screenshot viewer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-4 overflow-auto flex items-center justify-center bg-black/60 flex-1 min-h-[240px]">
+          {loading ? (
+            <div className="flex items-center gap-2 text-xs text-[#a1a1aa]">
+              <Loader2 className="w-5 h-5 animate-spin text-[#8b5cf6]" />
+              <span>Loading full screenshot...</span>
+            </div>
+          ) : error || !blobUrl ? (
+            <div className="text-xs text-rose-300">
+              Screenshot could not be loaded or has expired.
+            </div>
+          ) : (
+            <img
+              src={blobUrl}
+              alt={`Deposit #${depositId} full screenshot`}
+              className="max-w-full max-h-[75vh] object-contain rounded-lg"
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -126,7 +224,6 @@ export const PaymentsHubTab: React.FC = () => {
   const [rejectingDeposit, setRejectingDeposit] = useState<PendingDeposit | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('UTR verification failed / not credited');
   const [proofLightbox, setProofLightbox] = useState<{
-    url: string;
     depositId: number;
     amount: number;
     userId: number;
@@ -168,11 +265,17 @@ export const PaymentsHubTab: React.FC = () => {
       if (res?.success) {
         addToast(`Deposit #${depId} approved and credited ₹${dep.amount}!`, 'success');
         setPendingDeposits((prev) => prev.filter((d) => (d.deposit_id ?? (d as any).id) !== depId));
+        setProofLightbox((curr) => (curr?.depositId === depId ? null : curr));
       } else {
         addToast(res?.message || (res as any)?.error || 'Failed to approve deposit', 'error');
       }
-    } catch {
-      addToast('Error executing deposit approval', 'error');
+    } catch (err) {
+      const msg = err instanceof Error && err.message ? err.message : 'Error executing deposit approval';
+      addToast(msg, 'error');
+      if (/already|not found/i.test(msg)) {
+        setPendingDeposits((prev) => prev.filter((d) => (d.deposit_id ?? (d as any).id) !== depId));
+        setProofLightbox((curr) => (curr?.depositId === depId ? null : curr));
+      }
     } finally {
       setProcessingId(null);
     }
@@ -197,13 +300,21 @@ export const PaymentsHubTab: React.FC = () => {
       if (res?.success) {
         addToast(`Deposit #${depId} rejected.`, 'info');
         setPendingDeposits((prev) => prev.filter((d) => (d.deposit_id ?? (d as any).id) !== depId));
+        setProofLightbox((curr) => (curr?.depositId === depId ? null : curr));
         setRejectModalOpen(false);
         setRejectingDeposit(null);
       } else {
         addToast(res?.message || (res as any)?.error || 'Failed to reject deposit', 'error');
       }
-    } catch {
-      addToast('Error rejecting deposit', 'error');
+    } catch (err) {
+      const msg = err instanceof Error && err.message ? err.message : 'Error rejecting deposit';
+      addToast(msg, 'error');
+      if (/already|not found/i.test(msg)) {
+        setPendingDeposits((prev) => prev.filter((d) => (d.deposit_id ?? (d as any).id) !== depId));
+        setProofLightbox((curr) => (curr?.depositId === depId ? null : curr));
+        setRejectModalOpen(false);
+        setRejectingDeposit(null);
+      }
     } finally {
       setProcessingId(null);
     }
@@ -612,9 +723,8 @@ export const PaymentsHubTab: React.FC = () => {
                 {dep.has_proof_image && (
                   <DepositProofThumbnail
                     depositId={depId}
-                    onOpenFull={(blobUrl) =>
+                    onOpenFull={() =>
                       setProofLightbox({
-                        url: blobUrl,
                         depositId: depId,
                         amount: dep.amount,
                         userId: dep.user_id,
@@ -1103,41 +1213,12 @@ export const PaymentsHubTab: React.FC = () => {
 
       {/* Full-Resolution Screenshot Lightbox Modal */}
       {proofLightbox && (
-        <div
-          className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
-          onClick={() => setProofLightbox(null)}
-        >
-          <div
-            className="w-full max-w-2xl bg-[#14141c] border border-[#2d2d40] rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-4 py-3 border-b border-[#262635] flex items-center justify-between gap-2 bg-[#12121a]">
-              <div>
-                <h4 className="text-sm font-bold text-white">
-                  Deposit #{proofLightbox.depositId} — ₹{proofLightbox.amount}
-                </h4>
-                <span className="text-[11px] font-mono text-[#a1a1aa]">
-                  User #{proofLightbox.userId} • Payment Screenshot Proof
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setProofLightbox(null)}
-                className="p-1.5 rounded-lg bg-[#1f1f2b] hover:bg-[#2a2a3a] text-[#a1a1aa] hover:text-white cursor-pointer"
-                aria-label="Close screenshot viewer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4 overflow-auto flex items-center justify-center bg-black/60 flex-1">
-              <img
-                src={proofLightbox.url}
-                alt={`Deposit #${proofLightbox.depositId} full screenshot`}
-                className="max-w-full max-h-[75vh] object-contain rounded-lg"
-              />
-            </div>
-          </div>
-        </div>
+        <ProofLightboxModal
+          depositId={proofLightbox.depositId}
+          amount={proofLightbox.amount}
+          userId={proofLightbox.userId}
+          onClose={() => setProofLightbox(null)}
+        />
       )}
 
       {/* Reject Modal */}
