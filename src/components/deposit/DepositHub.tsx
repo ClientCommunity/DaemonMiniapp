@@ -38,6 +38,23 @@ interface EscalatedNoticeState {
   utr: string;
 }
 
+function extractApiError(
+  err: unknown,
+  fallbackNetworkMsg: string
+): { isNetwork: boolean; message: string } {
+  const raw = err instanceof Error ? err.message.trim() : '';
+  if (!raw || raw.startsWith('API Network Error:')) {
+    return { isNetwork: true, message: fallbackNetworkMsg };
+  }
+  if (raw === 'Unauthorized' || /failed with status 401\b/i.test(raw)) {
+    return {
+      isNetwork: false,
+      message: 'Session expired. Please reopen the app or sign in again.',
+    };
+  }
+  return { isNetwork: false, message: raw };
+}
+
 type DetectedRefKind = 'fampay_txn' | 'upi_utr' | 'upi_vpa' | 'invoice_ref' | 'short' | 'other';
 
 function inspectPaymentRef(
@@ -345,11 +362,19 @@ export const DepositHub: React.FC = () => {
           'Gateway Offline'
         );
       }
-    } catch {
+    } catch (err) {
+      const { isNetwork, message } = extractApiError(
+        err,
+        'Unable to connect to UPI payment gateway. Please check connection or use manual deposit.'
+      );
+      if (!isNetwork && /offline|disabled|unconfigured|maintenance/i.test(message)) {
+        setFampayEnabled(false);
+        setSelectedMethod('upi_direct');
+      }
       addToast(
-        'Unable to connect to UPI payment gateway. Please check connection or use manual deposit.',
+        message,
         'error',
-        'Connection Error'
+        isNetwork ? 'Connection Error' : 'Invoice Failed'
       );
     } finally {
       setIsGenerating(false);
@@ -510,8 +535,33 @@ export const DepositHub: React.FC = () => {
           }
         }
       }
-    } catch {
-      addToast('Network error cancelling active check. Please try again.', 'error', 'Error');
+    } catch (err) {
+      const { isNetwork, message } = extractApiError(
+        err,
+        'Network error cancelling active check. Please try again.'
+      );
+      if (!isNetwork) {
+        // Backend returned HTTP 400 (e.g. already processed): sync latest deposit status immediately
+        const st = await depositApi.getManualStatus(verifyingDeposit.depositId).catch(() => null);
+        if (st && st.status === 'success') {
+          await refreshUser();
+          setVerifyingDeposit(null);
+          setActiveInvoice(null);
+          setUtrNumber('');
+          addToast(
+            `Payment verified! ₹${st.amount || verifyingDeposit.amount} already credited.`,
+            'success',
+            'Auto-Verified'
+          );
+        } else {
+          addToast(message, 'warning', 'Unable to Edit');
+          if (st && st.status !== 'verifying') {
+            setVerifyingDeposit(null);
+          }
+        }
+      } else {
+        addToast(message, 'error', 'Connection Error');
+      }
     } finally {
       setIsCancellingVerify(false);
     }
@@ -519,6 +569,7 @@ export const DepositHub: React.FC = () => {
 
   const handleUtrSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isVerifying) return;
     if (verifyingDeposit) {
       addToast('A verification check is already running. Wait or tap Edit & Retry.', 'info', 'Verifying');
       return;
@@ -614,12 +665,16 @@ export const DepositHub: React.FC = () => {
           'Submission Failed'
         );
       }
-    } catch {
+    } catch (err) {
       hapticFeedback.error();
+      const { isNetwork, message } = extractApiError(
+        err,
+        'Network error while submitting reference. Please verify your connection.'
+      );
       addToast(
-        'Network error while submitting reference. Please verify your connection.',
+        message,
         'error',
-        'Submission Error'
+        isNetwork ? 'Connection Error' : 'Submission Failed'
       );
     } finally {
       setIsVerifying(false);
