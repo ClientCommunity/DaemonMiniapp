@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
-import { BadgeCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Sparkles, Store, Sun, Moon, ChevronDown } from 'lucide-react';
+import { BadgeCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Sparkles, Store, Sun, Moon, ChevronDown, Bell } from 'lucide-react';
 import { hapticFeedback } from '../utils/haptics';
 import { ProfileDropdownCard } from './common/ProfileDropdownCard';
+import { useWebsiteNotifications } from '../context/WebsiteNotificationsContext';
 
 const LOGO_URL = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
 
@@ -53,6 +54,12 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
     enterAdminMode,
     enterUserMode,
   } = useAdmin();
+
+  const {
+    isEnabled: isWebNotificationsEnabled,
+    unreadCount,
+    openInbox,
+  } = useWebsiteNotifications();
 
   const handleToggleCurrency = () => {
     hapticFeedback.selection();
@@ -246,6 +253,28 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
               <Moon className="w-3.5 h-3.5 text-[#7c3aed] hover:-rotate-12 transition-transform" />
             )}
           </button>
+
+          {/* Desktop Website Notification Bell (hidden on congested mobile view where Account red-dot guides user) */}
+          {isWeb && isWebNotificationsEnabled && (
+            <button
+              type="button"
+              onClick={openInbox}
+              className={`hidden sm:flex relative min-h-[38px] min-w-[38px] items-center justify-center active:scale-95 border rounded-full transition-all shadow-sm cursor-pointer ${
+                isLight
+                  ? 'bg-[#FAF8FF] hover:bg-white border-[#E5DCF4] text-[#514364] hover:text-[#7c3aed]'
+                  : 'bg-[#181820] hover:bg-[#1f1f2a] border-[#262630] text-zinc-300 hover:text-white'
+              }`}
+              title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+              aria-label="Open notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-extrabold flex items-center justify-center ring-2 ring-[#121217] animate-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* User Profile on the Top Right for Web */}
           {isWeb && (

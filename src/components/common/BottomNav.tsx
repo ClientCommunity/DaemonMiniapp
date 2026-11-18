@@ -8,9 +8,11 @@ import {
   User,
 } from 'lucide-react';
 import { ProfileDropdownCard } from './ProfileDropdownCard';
+import { useWebsiteNotifications } from '../../context/WebsiteNotificationsContext';
 
 export const BottomNav: React.FC = () => {
   const { activeTab, setActiveTab } = useApp();
+  const { isEnabled: isWebNotificationsEnabled, unreadCount } = useWebsiteNotifications();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const navItems = [
@@ -60,6 +62,12 @@ export const BottomNav: React.FC = () => {
                     }`}
                     strokeWidth={isActive ? 2.3 : 1.8}
                   />
+                  {item.id === 'profile' && isWebNotificationsEnabled && unreadCount > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-[#121217] animate-pulse"
+                      aria-label={`${unreadCount} unread notifications`}
+                    />
+                  )}
                 </div>
 
                 <span

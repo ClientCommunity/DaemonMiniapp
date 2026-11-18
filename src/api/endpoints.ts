@@ -620,6 +620,38 @@ export const resellerApi = {
 };
 
 /**
+ * Website Notification Broadcasts & Browser Web Push
+ */
+export interface WebsiteBroadcastRecord {
+  id: number;
+  title: string;
+  message: string;
+  priority: 'normal' | 'info' | 'important' | 'offer' | string;
+  max_popup_views: number;
+  retention_hours: number;
+  created_at: string;
+  expires_at: string;
+}
+
+export const webBroadcastApi = {
+  getActive: () =>
+    api.get<{ success: boolean; broadcasts: WebsiteBroadcastRecord[]; error?: string }>(
+      '/api/web/broadcasts/active'
+    ),
+  getVapidPublicKey: () =>
+    api.get<{ success: boolean; enabled: boolean; public_key: string }>(
+      '/api/web/push/vapid-public-key'
+    ),
+  subscribePush: (subscription: {
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  }) =>
+    api.post<{ success: boolean; error?: string }>('/api/web/push/subscribe', subscription),
+  unsubscribePush: (endpoint: string) =>
+    api.post<{ success: boolean; removed?: boolean }>('/api/web/push/unsubscribe', { endpoint }),
+};
+
+/**
  * Activity History
  */
 export const historyApi = {

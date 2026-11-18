@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useWebsiteNotifications } from '../../context/WebsiteNotificationsContext';
 import { isTelegramWebApp, setWebUserToken } from '../../api/client';
 import {
   User,
@@ -26,6 +27,7 @@ export const ProfileDropdownCard: React.FC<ProfileDropdownCardProps> = ({
   className = '',
 }) => {
   const { user, activeTab, setActiveTab, formatPrice, addToast, theme } = useApp();
+  const { isEnabled: isWebNotificationsEnabled, unreadCount } = useWebsiteNotifications();
   const cardRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = React.useState(false);
 
@@ -207,7 +209,15 @@ export const ProfileDropdownCard: React.FC<ProfileDropdownCardProps> = ({
               <User className="w-4 h-4" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold leading-tight">Account Overview</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold leading-tight">Account Overview</span>
+                {!isTg && isWebNotificationsEnabled && unreadCount > 0 && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-extrabold leading-none">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
               <span
                 className={`text-[10px] leading-tight truncate ${
                   activeTab === 'profile' ? 'text-white/80' : isLight ? 'text-[#74638B]' : 'text-zinc-500'

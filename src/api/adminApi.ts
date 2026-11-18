@@ -870,4 +870,69 @@ export const adminApi = {
       button_label: buttonLabel,
     });
   },
+
+  // --- Tab 6: Dedicated Website Notification Broadcasts ---
+
+  getWebsiteBroadcasts: async (): Promise<{
+    success: boolean;
+    broadcasts: AdminWebsiteBroadcastItem[];
+    push_subscriber_count: number;
+    push_ready: boolean;
+    default_retention_hours: number;
+    error?: string;
+  }> => {
+    return api.get('/api/admin/broadcasts');
+  },
+
+  publishWebsiteBroadcast: async (
+    payload: PublishWebsiteBroadcastPayload
+  ): Promise<{
+    success: boolean;
+    broadcast?: AdminWebsiteBroadcastItem;
+    push_dispatched?: boolean;
+    push_subscriber_count?: number;
+    error?: string;
+  }> => {
+    return api.post('/api/admin/broadcasts', payload);
+  },
+
+  deleteWebsiteBroadcast: async (
+    id: number
+  ): Promise<{ success: boolean; deleted_id?: number; error?: string }> => {
+    return api.delete(`/api/admin/broadcasts/${id}`);
+  },
+
+  updateBroadcastSettings: async (
+    defaultRetentionHours: number
+  ): Promise<{ success: boolean; default_retention_hours?: number; error?: string }> => {
+    return api.post('/api/admin/broadcasts/settings', {
+      default_retention_hours: defaultRetentionHours,
+    });
+  },
 };
+
+export interface AdminWebsiteBroadcastItem {
+  id: number;
+  title: string;
+  message: string;
+  priority: 'normal' | 'info' | 'important' | 'offer' | string;
+  max_popup_views: number;
+  retention_hours: number;
+  expires_at: string;
+  send_push: number;
+  push_sent_count: number;
+  push_failed_count: number;
+  is_active: number;
+  created_by: number;
+  created_at: string;
+}
+
+export interface PublishWebsiteBroadcastPayload {
+  title: string;
+  message: string;
+  priority: 'normal' | 'info' | 'important' | 'offer';
+  max_popup_views: 1 | 2;
+  retention_hours: number;
+  send_push: boolean;
+  save_as_default_retention?: boolean;
+}

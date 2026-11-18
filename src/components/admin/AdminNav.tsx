@@ -5,6 +5,7 @@ import {
   Server,
   CreditCard,
   Users,
+  BellRing,
   Megaphone,
 } from 'lucide-react';
 
@@ -40,6 +41,12 @@ const TABS: TabItem[] = [
     label: 'Users & Wallets',
     shortLabel: 'Users',
     icon: Users,
+  },
+  {
+    id: 'broadcasts',
+    label: 'Web Broadcasts',
+    shortLabel: 'Broadcasts',
+    icon: BellRing,
   },
   {
     id: 'marketing',

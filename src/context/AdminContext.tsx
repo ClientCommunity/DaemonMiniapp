@@ -8,7 +8,7 @@ const AdminPassphraseModal = React.lazy(() =>
   import('../components/admin/AdminPassphraseModal').then((m) => ({ default: m.AdminPassphraseModal }))
 );
 
-export type AdminTab = 'overview' | 'servers' | 'payments' | 'users' | 'marketing';
+export type AdminTab = 'overview' | 'servers' | 'payments' | 'users' | 'broadcasts' | 'marketing';
 
 const ADMIN_ENTRY_CHOICE_KEY = 'krish_admin_entry_choice';
 const KNOWN_MASTER_ADMIN_IDS = ['7507183871', '1928631932'];

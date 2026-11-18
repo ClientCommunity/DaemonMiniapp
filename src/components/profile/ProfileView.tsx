@@ -16,11 +16,18 @@ import {
   ShieldCheck,
   ExternalLink,
   Settings,
+  Bell,
 } from 'lucide-react';
 import { isTelegramWebApp, setWebUserToken } from '../../api/client';
+import { useWebsiteNotifications } from '../../context/WebsiteNotificationsContext';
 
 export const ProfileView: React.FC = () => {
   const { user, transferableBalance, formatPrice, addToast, theme, toggleTheme, setActiveTab } = useApp();
+  const {
+    isEnabled: isWebNotificationsEnabled,
+    unreadCount,
+    openInbox,
+  } = useWebsiteNotifications();
 
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -109,25 +116,45 @@ export const ProfileView: React.FC = () => {
             </div>
           </div>
 
-          {/* Copy User ID button */}
-          <button
-            type="button"
-            onClick={handleCopyId}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1f1f2a] border border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#38384a] active:scale-95 transition-all shadow-sm shrink-0"
-            title="Copy User ID"
-          >
-            {copiedId ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-[#22c55e]" />
-                <span className="text-[11px] font-bold text-[#22c55e]">Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-[#71717a]" />
-                <span className="text-[11px] font-mono font-bold text-white">Copy ID</span>
-              </>
+          {/* Right-side Hero Actions: Website Notification Icon + Copy User ID */}
+          <div className="flex items-center gap-2 shrink-0">
+            {!isTelegramWebApp() && isWebNotificationsEnabled && (
+              <button
+                type="button"
+                onClick={openInbox}
+                className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-[#1f1f2a] border border-[#262630] text-[#d4d4d8] hover:text-white hover:border-[#7c3aed]/60 active:scale-95 transition-all shadow-sm cursor-pointer"
+                title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+                aria-label="Open notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-extrabold flex items-center justify-center ring-2 ring-[#181820] animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
             )}
-          </button>
+
+            {/* Copy User ID button */}
+            <button
+              type="button"
+              onClick={handleCopyId}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1f1f2a] border border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#38384a] active:scale-95 transition-all shadow-sm shrink-0"
+              title="Copy User ID"
+            >
+              {copiedId ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-[#22c55e]" />
+                  <span className="text-[11px] font-bold text-[#22c55e]">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-[#71717a]" />
+                  <span className="text-[11px] font-mono font-bold text-white">Copy ID</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Stats Row */}

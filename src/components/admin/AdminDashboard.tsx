@@ -16,6 +16,9 @@ const PaymentsHubTab = React.lazy(() =>
 const UserManagementTab = React.lazy(() =>
   import('./tabs/UserManagementTab').then((m) => ({ default: m.UserManagementTab }))
 );
+const WebsiteBroadcastsTab = React.lazy(() =>
+  import('./tabs/WebsiteBroadcastsTab').then((m) => ({ default: m.WebsiteBroadcastsTab }))
+);
 const MarketingSettingsTab = React.lazy(() =>
   import('./tabs/MarketingSettingsTab').then((m) => ({ default: m.MarketingSettingsTab }))
 );
@@ -51,6 +54,7 @@ export const AdminDashboard: React.FC = () => {
           {activeAdminTab === 'servers' && <ServerManagementTab />}
           {activeAdminTab === 'payments' && <PaymentsHubTab />}
           {activeAdminTab === 'users' && <UserManagementTab />}
+          {activeAdminTab === 'broadcasts' && <WebsiteBroadcastsTab />}
           {activeAdminTab === 'marketing' && <MarketingSettingsTab />}
         </Suspense>
       </main>

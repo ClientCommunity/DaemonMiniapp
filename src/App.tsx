@@ -15,6 +15,9 @@ const LandingPage = React.lazy(() =>
 import { isTelegramWebApp, getWebUserToken, setWebUserToken } from './api/client';
 import { downloadApi, webAuthApi } from './api/endpoints';
 import { MergeCelebrationModal } from './components/common/MergeCelebrationModal';
+import { WebsiteNotificationsProvider } from './context/WebsiteNotificationsContext';
+import { WebsiteBroadcastPopup } from './components/common/WebsiteBroadcastPopup';
+import { NotificationInboxModal } from './components/common/NotificationInboxModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -288,13 +291,15 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <>
+    <WebsiteNotificationsProvider>
       <MergeCelebrationModal
         isOpen={Boolean(mergeCelebration)}
         onClose={() => setMergeCelebration(null)}
         telegramId={mergeCelebration?.telegramId || ''}
         message={mergeCelebration?.message}
       />
+      <WebsiteBroadcastPopup />
+      <NotificationInboxModal />
       <WebShell
         isTransferModalOpen={isTransferModalOpen}
         onOpenTransferModal={() => setIsTransferModalOpen(true)}
@@ -302,7 +307,7 @@ const AppContent: React.FC = () => {
         hasAcceptedTerms={hasAcceptedTerms}
         onAcceptTerms={handleAcceptTerms}
       />
-    </>
+    </WebsiteNotificationsProvider>
   );
 };
 
