@@ -27,8 +27,11 @@ export const RecentActivity: React.FC = () => {
   const getTitleIcon = (item: HistoryItem) => {
     const raw = item.title;
     if (raw.includes('💳') || item.category === 'deposit') {
-      const isDeclined = item.status === 'rejected' || item.status === 'failed';
-      return <CreditCard className={`w-3.5 h-3.5 ${isDeclined ? 'text-red-400' : 'text-[#22c55e]'} shrink-0`} />;
+      const isDeclined = item.status === 'rejected' || item.status === 'failed' || item.status === 'cancelled';
+      const isPending = item.status === 'waiting';
+      const isInProg = item.status === 'in_progress';
+      const color = isDeclined ? 'text-red-400' : isPending ? 'text-amber-400' : isInProg ? 'text-blue-400' : 'text-[#22c55e]';
+      return <CreditCard className={`w-3.5 h-3.5 ${color} shrink-0`} />;
     }
     if (raw.includes('📤') || (item.category === 'transfer' && item.amountInr < 0)) {
       return <Send className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
@@ -70,8 +73,13 @@ export const RecentActivity: React.FC = () => {
         return <ShoppingBag className="w-4 h-4 text-blue-400" />;
       case 'smm_order':
         return <Rocket className="w-4 h-4 text-[#f59e0b]" />;
-      case 'deposit':
-        return <Wallet className={`w-4 h-4 ${item.status === 'rejected' || item.status === 'failed' ? 'text-red-400' : 'text-[#22c55e]'}`} />;
+      case 'deposit': {
+        const isDeclined = item.status === 'rejected' || item.status === 'failed' || item.status === 'cancelled';
+        const isPending = item.status === 'waiting';
+        const isInProg = item.status === 'in_progress';
+        const color = isDeclined ? 'text-red-400' : isPending ? 'text-amber-400' : isInProg ? 'text-blue-400' : 'text-[#22c55e]';
+        return <Wallet className={`w-4 h-4 ${color}`} />;
+      }
       case 'transfer':
         return <Send className="w-4 h-4 text-purple-400" />;
     }
@@ -100,11 +108,20 @@ export const RecentActivity: React.FC = () => {
         ) : (
           recentItems.map((item) => {
             const isRejected = item.status === 'rejected';
+            const isCancelled = item.status === 'cancelled';
             const isFailed = item.status === 'failed';
             const isSuccess = item.status === 'success';
-            const isWaiting = item.status === 'waiting' || item.status === 'in_progress';
-            const isRefunded = item.status === 'refunded' || item.status === 'cancelled';
-            const isDeposit = item.amountInr > 0 && !isRejected && !isFailed;
+            const isWaiting = item.status === 'waiting';
+            const isInProgress = item.status === 'in_progress';
+            const isRefunded = item.status === 'refunded';
+            const isDeclinedOrNotCredited = isRejected || isFailed || isCancelled;
+
+            // Real balance credit: successful deposit, transfer received, or positive refund
+            const isCredited = !isDeclinedOrNotCredited && (
+              (item.category === 'deposit' && isSuccess) ||
+              (item.category === 'transfer' && item.amountInr > 0) ||
+              (isRefunded && item.amountInr > 0)
+            );
 
             return (
               <div
@@ -132,29 +149,53 @@ export const RecentActivity: React.FC = () => {
                 <div className="flex flex-col items-end shrink-0 ml-3">
                   <span
                     className={`text-xs font-bold font-mono ${
-                      isRejected || isFailed
+                      isDeclinedOrNotCredited
                         ? 'text-[#a1a1aa]'
-                        : isDeposit
+                        : isCredited
                         ? 'text-[#22c55e]'
+                        : isWaiting
+                        ? 'text-amber-400'
+                        : isInProgress
+                        ? 'text-blue-400'
                         : 'text-white'
                     }`}
                   >
-                    {item.amountInr > 0 ? `+${formatPrice(item.amountInr)}` : formatPrice(item.amountInr)}
+                    {isCredited
+                      ? `+${formatPrice(item.amountInr)}`
+                      : formatPrice(item.amountInr)}
                   </span>
                   <span
                     className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 border ${
-                      isRejected || isFailed
+                      isRejected || isFailed || isCancelled
                         ? 'bg-red-500/15 text-red-400 border-red-500/30'
                         : isSuccess
                         ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
                         : isWaiting
                         ? 'bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30 animate-pulse'
+                        : isInProgress
+                        ? 'bg-blue-500/15 text-blue-400 border-blue-500/30 animate-pulse'
                         : isRefunded
                         ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
                         : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                     }`}
                   >
-                    {isRejected ? 'Rejected' : isFailed ? 'Failed' : isRefunded ? 'Refunded' : isWaiting ? 'Active' : isDeposit ? 'Credited' : 'Delivered'}
+                    {isRejected
+                      ? 'Rejected'
+                      : isFailed
+                      ? 'Failed'
+                      : isCancelled
+                      ? 'Cancelled'
+                      : isRefunded
+                      ? 'Refunded'
+                      : isWaiting
+                      ? (item.category === 'deposit' ? 'Pending' : item.category === 'smm_order' ? 'Pending' : 'Active')
+                      : isInProgress
+                      ? (item.category === 'deposit' ? 'Verifying' : 'In Progress')
+                      : item.category === 'deposit'
+                      ? 'Credited'
+                      : item.category === 'transfer'
+                      ? (item.amountInr > 0 ? 'Received' : 'Sent')
+                      : 'Delivered'}
                   </span>
                 </div>
               </div>

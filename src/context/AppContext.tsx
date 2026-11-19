@@ -447,11 +447,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const formatPrice = useCallback(
     (amountInr: number): string => {
+      const isNegative = amountInr < 0;
+      const absAmount = Math.abs(amountInr);
+      const sign = isNegative ? '-' : '';
       if (currency === 'INR') {
-        return `₹${amountInr.toLocaleString('en-IN')}`;
+        return `${sign}₹${absAmount.toLocaleString('en-IN')}`;
       }
-      const usdtAmount = amountInr / user.exchangeRateUsdt;
-      return `$${usdtAmount.toFixed(2)}`;
+      const usdtAmount = absAmount / (user.exchangeRateUsdt || 87);
+      return `${sign}$${usdtAmount.toFixed(2)}`;
     },
     [currency, user.exchangeRateUsdt]
   );

@@ -511,13 +511,19 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
 
   if (explicitStatus === 'rejected' || detailsLower.includes('reject') || detailsLower.includes('decline')) {
     status = 'rejected';
-  } else if (type === 'refund' || item.refunded || explicitStatus === 'cancelled' || explicitStatus === 'canceled' || explicitStatus === 'refunded') {
+  } else if (
+    explicitStatus === 'cancelled' ||
+    explicitStatus === 'canceled' ||
+    detailsLower.includes('cancel')
+  ) {
+    status = category === 'deposit' ? 'cancelled' : 'refunded';
+  } else if (type === 'refund' || item.refunded || explicitStatus === 'refunded' || detailsLower.includes('refund')) {
     status = 'refunded';
   } else if (explicitStatus === 'failed' || detailsLower.includes('fail') || detailsLower.includes('not placed')) {
     status = 'failed';
   } else if (explicitStatus === 'waiting' || explicitStatus === 'pending' || detailsLower.includes('waiting') || detailsLower.includes('pending')) {
     status = 'waiting';
-  } else if (explicitStatus === 'processing' || explicitStatus === 'inprogress' || explicitStatus === 'in_progress' || detailsLower.includes('progress') || detailsLower.includes('verif')) {
+  } else if (explicitStatus === 'processing' || explicitStatus === 'inprogress' || explicitStatus === 'in_progress' || explicitStatus === 'verifying' || detailsLower.includes('progress') || detailsLower.includes('verif')) {
     status = 'in_progress';
   } else if (explicitStatus === 'archived') {
     status = otpCode ? 'success' : (item.refunded ? 'refunded' : 'failed');

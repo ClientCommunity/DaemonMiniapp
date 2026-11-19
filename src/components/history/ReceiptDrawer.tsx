@@ -39,11 +39,20 @@ export const ReceiptDrawer: React.FC = () => {
 
   const item = selectedReceiptItem;
   const isRejected = item.status === 'rejected';
+  const isCancelled = item.status === 'cancelled';
   const isFailed = item.status === 'failed';
   const isSuccess = item.status === 'success';
-  const isWaiting = item.status === 'waiting' || item.status === 'in_progress';
-  const isRefunded = item.status === 'refunded' || item.status === 'cancelled';
-  const isDeposit = item.amountInr > 0 && !isRejected && !isFailed;
+  const isWaiting = item.status === 'waiting';
+  const isInProgress = item.status === 'in_progress';
+  const isRefunded = item.status === 'refunded';
+  const isDeposit = item.category === 'deposit';
+  const isDeclinedOrNotCredited = isRejected || isFailed || isCancelled;
+
+  const isCredited = !isDeclinedOrNotCredited && (
+    (item.category === 'deposit' && isSuccess) ||
+    (item.category === 'transfer' && item.amountInr > 0) ||
+    (isRefunded && item.amountInr > 0)
+  );
 
   const handleCopy = (text: string, type: 'phone' | 'otp' | 'orderId') => {
     navigator.clipboard?.writeText(text);
@@ -194,28 +203,61 @@ export const ReceiptDrawer: React.FC = () => {
           <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2 bg-[#181820]">
             {isSuccess && <CheckCircle2 className="w-6 h-6 text-[#22c55e]" />}
             {isWaiting && <Clock className="w-6 h-6 text-[#f59e0b] animate-spin" />}
+            {isInProgress && <RefreshCw className="w-6 h-6 text-blue-400 animate-spin" />}
             {isRefunded && <RefreshCw className="w-6 h-6 text-purple-400" />}
-            {(isFailed || isRejected) && <XCircle className="w-6 h-6 text-red-400" />}
+            {(isFailed || isRejected || isCancelled) && <XCircle className="w-6 h-6 text-red-400" />}
           </div>
 
-          <span className={`text-2xl font-extrabold font-mono ${isRejected || isFailed ? 'text-[#a1a1aa]' : 'text-white'}`}>
-            {item.amountInr > 0 ? `+${formatPrice(item.amountInr)}` : formatPrice(item.amountInr)}
+          <span
+            className={`text-2xl font-extrabold font-mono ${
+              isDeclinedOrNotCredited
+                ? 'text-[#a1a1aa]'
+                : isCredited
+                ? 'text-[#22c55e]'
+                : isWaiting
+                ? 'text-amber-400'
+                : isInProgress
+                ? 'text-blue-400'
+                : 'text-white'
+            }`}
+          >
+            {isCredited
+              ? `+${formatPrice(item.amountInr)}`
+              : formatPrice(item.amountInr)}
           </span>
 
           <span
             className={`text-xs px-2.5 py-0.5 rounded-full font-bold mt-2 uppercase border ${
-              isFailed || isRejected
+              isFailed || isRejected || isCancelled
                 ? 'bg-red-500/15 text-red-400 border-red-500/30'
                 : isSuccess
                 ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
                 : isWaiting
                 ? 'bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30'
+                : isInProgress
+                ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
                 : isRefunded
                 ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
                 : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
             }`}
           >
-            {isRejected ? 'Rejected' : isFailed ? 'Failed' : isRefunded ? 'Refunded' : isWaiting ? 'In Progress' : isDeposit ? 'Credited' : 'Completed'}
+            {isRejected
+              ? 'Rejected'
+              : isFailed
+              ? 'Failed'
+              : isCancelled
+              ? 'Cancelled'
+              : isRefunded
+              ? 'Refunded'
+              : isWaiting
+              ? (item.category === 'deposit' ? 'Pending' : item.category === 'smm_order' ? 'Pending' : 'Active')
+              : isInProgress
+              ? (item.category === 'deposit' ? 'Verifying' : 'In Progress')
+              : item.category === 'deposit'
+              ? 'Credited'
+              : item.category === 'transfer'
+              ? (item.amountInr > 0 ? 'Received' : 'Sent')
+              : (item.category === 'smm_order' ? 'Completed' : 'Delivered')}
           </span>
         </div>
 
@@ -373,7 +415,7 @@ export const ReceiptDrawer: React.FC = () => {
             </div>
           )}
 
-          {item.subtitle && (isFailed || isRejected || isRefunded || item.category === 'smm_order') && (
+          {item.subtitle && (isFailed || isRejected || isRefunded || isCancelled || item.category === 'smm_order') && (
             <div className="flex flex-col gap-1 pb-2 border-b border-[#262630]">
               <span className="text-[#a1a1aa]">Status Details</span>
               <span className="text-zinc-200 text-[11px] leading-relaxed break-words">{item.subtitle}</span>
