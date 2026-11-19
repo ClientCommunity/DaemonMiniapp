@@ -1,5 +1,8 @@
 import React from 'react';
 import { Sparkles, ArrowRight, ShieldCheck, Zap, Lock } from 'lucide-react';
+import { DEAMON_BRAND_LOGO } from '../../../assets/brandLogo';
+
+const LOGO_FALLBACK = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
 
 interface CallToActionSectionProps {
   onGetStarted: () => void;
@@ -22,6 +25,18 @@ export const CallToActionSection: React.FC<CallToActionSectionProps> = ({
       />
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        {/* Brand Logo Badge */}
+        <div className="w-14 h-14 rounded-2xl bg-black flex items-center justify-center p-2.5 shadow-md mx-auto mb-6 shrink-0 overflow-hidden ring-4 ring-[#EDE9FE]">
+          <img
+            src={DEAMON_BRAND_LOGO}
+            alt="Daemon OTP Logo"
+            className="w-full h-full object-contain"
+            onError={(e) => {
+              e.currentTarget.src = LOGO_FALLBACK;
+            }}
+          />
+        </div>
+
         {/* Trust pill */}
         <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] mb-6">
           <Sparkles className="w-3.5 h-3.5" />

@@ -1,5 +1,8 @@
 import React from 'react';
 import { ShieldCheck, Mail, Send } from 'lucide-react';
+import { DEAMON_BRAND_LOGO } from '../../../assets/brandLogo';
+
+const LOGO_FALLBACK = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
 
 interface LandingFooterProps {
   onOpenTermsModal: () => void;
@@ -22,14 +25,16 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
           {/* Column 1: Brand & Status (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
-              <img
-                src="/deamon-logo.png"
-                alt="Daemon OTP Logo"
-                className="w-8 h-8 rounded-xl object-contain shadow-xs border border-[#E5DCF4]"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+              <div className="w-8 h-8 rounded-xl bg-black flex items-center justify-center p-1 shadow-xs border border-[#E5DCF4] overflow-hidden">
+                <img
+                  src={DEAMON_BRAND_LOGO}
+                  alt="Daemon OTP Logo"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.src = LOGO_FALLBACK;
+                  }}
+                />
+              </div>
               <span className="text-xl font-extrabold text-[#211536] tracking-tight">
                 Daemon<span className="text-[#6D28D9]">OTP</span>
               </span>

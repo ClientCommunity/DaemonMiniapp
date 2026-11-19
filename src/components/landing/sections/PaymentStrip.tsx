@@ -10,33 +10,35 @@ interface Gateway {
   iconClass?: string;
 }
 
+const BASE_PATH = ((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '');
+
 const GATEWAYS: Gateway[] = [
   {
     id: 'gpay',
     name: 'Google Pay',
     subtext: 'Instant UPI',
-    icon: '/icons/gpay.svg',
+    icon: `${BASE_PATH}/icons/gpay.svg`,
     iconClass: 'h-5 w-auto',
   },
   {
     id: 'phonepe',
     name: 'PhonePe',
     subtext: 'Auto Credited',
-    icon: '/icons/phonepe.svg',
+    icon: `${BASE_PATH}/icons/phonepe.svg`,
     iconClass: 'w-5 h-5 rounded-full object-contain',
   },
   {
     id: 'paytm',
     name: 'Paytm UPI',
     subtext: 'Fast Verification',
-    icon: '/icons/paytm.svg',
+    icon: `${BASE_PATH}/icons/paytm.svg`,
     iconClass: 'h-4 w-auto',
   },
   {
     id: 'upi',
     name: 'BHIM UPI',
     subtext: 'Any Bank App',
-    icon: '/icons/upi.svg',
+    icon: `${BASE_PATH}/icons/upi.svg`,
     badge: 'Popular',
     iconClass: 'h-4.5 w-auto',
   },
@@ -44,7 +46,7 @@ const GATEWAYS: Gateway[] = [
     id: 'usdt',
     name: 'USDT Crypto',
     subtext: 'TRC-20 & BEP-20',
-    icon: '/icons/tether.svg',
+    icon: `${BASE_PATH}/icons/tether.svg`,
     badge: 'Global',
     iconClass: 'w-5 h-5 rounded-full object-contain',
   },
@@ -52,7 +54,7 @@ const GATEWAYS: Gateway[] = [
     id: 'fampay',
     name: 'FamPay',
     subtext: 'Direct UPI Pay',
-    icon: '/icons/fampay.svg',
+    icon: `${BASE_PATH}/icons/fampay.svg`,
     iconClass: 'w-5 h-5 object-contain',
   },
 ];

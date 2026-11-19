@@ -5,6 +5,9 @@ import {
   ArrowRight,
   ExternalLink,
 } from 'lucide-react';
+import { DEAMON_BRAND_LOGO } from '../../../assets/brandLogo';
+
+const LOGO_FALLBACK = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
 
 interface LandingHeaderProps {
   onOpenSignIn?: () => void;
@@ -51,13 +54,20 @@ export const LandingHeader: React.FC<LandingHeaderProps> = ({
         {/* Brand Logo & Title */}
         <a href="#" className="flex items-center gap-2.5 group">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-base shadow-sm group-hover:scale-105 transition-transform"
+            className="w-9 h-9 rounded-xl flex items-center justify-center p-1 shadow-sm group-hover:scale-105 transition-transform overflow-hidden"
             style={{
-              backgroundColor: '#6D28D9',
-              boxShadow: '0 2px 8px rgba(109, 40, 217, 0.3)',
+              backgroundColor: '#000000',
+              boxShadow: '0 2px 8px rgba(109, 40, 217, 0.25)',
             }}
           >
-            D
+            <img
+              src={DEAMON_BRAND_LOGO}
+              alt="Daemon OTP Logo"
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                e.currentTarget.src = LOGO_FALLBACK;
+              }}
+            />
           </div>
           <div className="flex flex-col">
             <span
