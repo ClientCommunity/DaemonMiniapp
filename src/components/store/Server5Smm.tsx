@@ -682,7 +682,7 @@ export const Server5Smm: React.FC = () => {
         subtitle={modalService?.name}
       >
         {modalService && (
-          <form onSubmit={handleModalSubmit} className="flex flex-col gap-3.5 pt-1">
+          <form onSubmit={handleModalSubmit} noValidate className="flex flex-col gap-3.5 pt-1">
             {/* Service Summary Header Card */}
             <div className="p-3 rounded-xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -780,7 +780,7 @@ export const Server5Smm: React.FC = () => {
                   onBlur={handleModalQuantityBlur}
                   min={modalService.minQuantity}
                   max={modalService.maxQuantity}
-                  step={100}
+                  step={1}
                   placeholder={String(modalService.minQuantity || 100)}
                   className="flex-1 bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2 text-xs text-center font-mono font-bold text-white focus:outline-none focus:border-[#7c3aed]"
                 />
