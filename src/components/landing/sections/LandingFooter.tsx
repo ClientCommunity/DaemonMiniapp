@@ -23,7 +23,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
               <img
-                src="/deamon.png"
+                src="/deamon-logo.png"
                 alt="Daemon OTP Logo"
                 className="w-8 h-8 rounded-xl object-contain shadow-xs border border-[#E5DCF4]"
                 onError={(e) => {

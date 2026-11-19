@@ -38,7 +38,10 @@ interface AuthModalProps {
   onOpenTermsModal: () => void;
 }
 
-const GOOGLE_CLIENT_ID = '38062839257-2j85r7j3tqfom9005934444o6g7l1ekb.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID =
+  (import.meta as unknown as { env?: Record<string, string | undefined> })?.env
+    ?.VITE_GOOGLE_CLIENT_ID ||
+  '844840577527-7qf3v11h62n199csg65dv9s0umbqethh.apps.googleusercontent.com';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -74,7 +77,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
-      setNotice(null);
+      try {
+        const hasMerge = Boolean(
+          sessionStorage.getItem('krish_merge_token') || localStorage.getItem('krish_merge_token')
+        );
+        if (hasMerge) {
+          setNotice({
+            type: 'info',
+            text: 'Fast Connect Active: Sign in or register to link your Telegram account & combine balances!',
+          });
+        } else {
+          setNotice(null);
+        }
+      } catch {
+        setNotice(null);
+      }
     }
   }, [isOpen, initialMode]);
 

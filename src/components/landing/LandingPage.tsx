@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Sparkles, X } from 'lucide-react';
 import { LandingPageProps, ServiceItem } from './types';
 import { LandingHeader } from './sections/LandingHeader';
 import { HeroSection } from './sections/HeroSection';
@@ -32,6 +33,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
   const [isForgotModalOpen, setIsForgotModalOpen] = useState<boolean>(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState<boolean>(false);
   const [resetToken, setResetToken] = useState<string>('');
+
+  // 1-Click Fast Connect Detected Banner state
+  const [hasPendingMergeToken, setHasPendingMergeToken] = useState<boolean>(() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      return Boolean(
+        sessionStorage.getItem('krish_merge_token') ||
+        localStorage.getItem('krish_merge_token') ||
+        new URLSearchParams(window.location.search).get('merge_token')
+      );
+    } catch {
+      return false;
+    }
+  });
 
   // Pending intent state (Carry-Over Intent Pattern)
   const [pendingBuyItem, setPendingBuyItem] = useState<{
@@ -167,6 +182,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         onOpenAuth={handleOpenAuth}
         onOpenTerms={() => setIsTermsModalOpen(true)}
       />
+
+      {/* 1-Click Fast Connect Detected Banner */}
+      {hasPendingMergeToken && (
+        <div className="w-full bg-gradient-to-r from-[#6D28D9] to-[#4F46E5] text-white px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-md relative z-40">
+          <div className="max-w-6xl mx-auto flex items-center gap-2 justify-center flex-1">
+            <Sparkles className="w-4 h-4 shrink-0 text-amber-300 animate-pulse" />
+            <span>
+              <strong>Fast Connect Active:</strong> Sign in or register below to automatically link your Telegram bot account &amp; combine balances!
+            </span>
+          </div>
+          <button
+            onClick={() => setHasPendingMergeToken(false)}
+            className="p-1 hover:bg-white/20 rounded-lg transition-colors text-white/80 hover:text-white cursor-pointer"
+            title="Dismiss notification"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1">

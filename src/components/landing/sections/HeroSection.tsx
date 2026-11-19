@@ -15,7 +15,10 @@ interface HeroSectionProps {
   onGoogleSuccess?: (credential: string) => void;
 }
 
-const GOOGLE_CLIENT_ID = '38062839257-2j85r7j3tqfom9005934444o6g7l1ekb.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID =
+  (import.meta as unknown as { env?: Record<string, string | undefined> })?.env
+    ?.VITE_GOOGLE_CLIENT_ID ||
+  '844840577527-7qf3v11h62n199csg65dv9s0umbqethh.apps.googleusercontent.com';
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onOpenAuth,
