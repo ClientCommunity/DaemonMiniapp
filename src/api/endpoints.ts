@@ -398,7 +398,7 @@ export interface WebSettingsResponse {
  * Web Authentication & Account Credentials
  */
 export const webAuthApi = {
-  register: (data: { email: string; password: string; whatsapp?: string; username?: string }) =>
+  register: (data: { email: string; password: string; whatsapp?: string; username?: string; telegram_username?: string }) =>
     api.post<WebRegisterResponse>('/api/web/auth/register', data),
   verifyOtp: (data: { email: string; otp: string }) =>
     api.post<WebAuthResponse>('/api/web/auth/verify-otp', data),

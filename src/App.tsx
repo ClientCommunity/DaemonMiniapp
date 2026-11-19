@@ -23,6 +23,7 @@ const AppContent: React.FC = () => {
   const {
     activeTab,
     setActiveTab,
+    setSelectedServer,
     isInitialLoading,
     initialLoadingStep,
     initialLoadingMessage,
@@ -88,9 +89,32 @@ const AppContent: React.FC = () => {
     targetTab?: 'home' | 'store' | 'deposit' | 'history' | 'profile'
   ) => {
     setWebToken(token);
-    if (targetTab) {
-      setActiveTab(targetTab);
+
+    // Carry-Over Intent Resolution: Check if user staged a purchase from landing page
+    try {
+      const pendingRaw = sessionStorage.getItem('deamon_pending_buy_intent');
+      if (pendingRaw) {
+        const intent = JSON.parse(pendingRaw);
+        if (intent?.item?.category === 'session') {
+          setSelectedServer(2);
+        } else if (intent?.item?.category === 'otp') {
+          setSelectedServer(3);
+        } else if (intent?.item?.category === 'smm') {
+          setSelectedServer(5);
+        } else {
+          setSelectedServer(1);
+        }
+        setActiveTab('store');
+        sessionStorage.removeItem('deamon_pending_buy_intent');
+      } else if (targetTab) {
+        setActiveTab(targetTab);
+      }
+    } catch {
+      if (targetTab) {
+        setActiveTab(targetTab);
+      }
     }
+
     // Check if login/register auto-merged a Telegram account
     const userObj = _user as any;
     const mergeData = userObj?.account_merged || userObj?.user?.account_merged;
