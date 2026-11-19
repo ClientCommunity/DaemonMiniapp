@@ -157,7 +157,7 @@ function decodeHtmlEntities(raw: string): string {
 }
 
 export const DepositHub: React.FC = () => {
-  const { submitDeposit, addToast, activeInvoice, setActiveInvoice, refreshUser } = useApp();
+  const { submitDeposit, addToast, activeInvoice, setActiveInvoice, refreshUser, refreshHistory } = useApp();
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>(() => {
     try {
@@ -515,6 +515,7 @@ export const DepositHub: React.FC = () => {
           if (st.status === 'rejected') {
             hapticFeedback.error();
             addToast('Deposit request was declined during verification.', 'error', 'Declined');
+            refreshHistory().catch(() => {});
           }
         } else if (typeof st.remaining_seconds === 'number') {
           const syncedExpires = Date.now() + st.remaining_seconds * 1000;

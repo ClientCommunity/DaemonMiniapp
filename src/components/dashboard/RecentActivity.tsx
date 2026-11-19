@@ -27,7 +27,8 @@ export const RecentActivity: React.FC = () => {
   const getTitleIcon = (item: HistoryItem) => {
     const raw = item.title;
     if (raw.includes('💳') || item.category === 'deposit') {
-      return <CreditCard className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />;
+      const isDeclined = item.status === 'rejected' || item.status === 'failed';
+      return <CreditCard className={`w-3.5 h-3.5 ${isDeclined ? 'text-red-400' : 'text-[#22c55e]'} shrink-0`} />;
     }
     if (raw.includes('📤') || (item.category === 'transfer' && item.amountInr < 0)) {
       return <Send className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
@@ -70,7 +71,7 @@ export const RecentActivity: React.FC = () => {
       case 'smm_order':
         return <Rocket className="w-4 h-4 text-[#f59e0b]" />;
       case 'deposit':
-        return <Wallet className="w-4 h-4 text-[#22c55e]" />;
+        return <Wallet className={`w-4 h-4 ${item.status === 'rejected' || item.status === 'failed' ? 'text-red-400' : 'text-[#22c55e]'}`} />;
       case 'transfer':
         return <Send className="w-4 h-4 text-purple-400" />;
     }
@@ -98,11 +99,12 @@ export const RecentActivity: React.FC = () => {
           </div>
         ) : (
           recentItems.map((item) => {
-            const isDeposit = item.amountInr > 0;
+            const isRejected = item.status === 'rejected';
             const isFailed = item.status === 'failed';
             const isSuccess = item.status === 'success';
             const isWaiting = item.status === 'waiting' || item.status === 'in_progress';
             const isRefunded = item.status === 'refunded' || item.status === 'cancelled';
+            const isDeposit = item.amountInr > 0 && !isRejected && !isFailed;
 
             return (
               <div
@@ -130,23 +132,29 @@ export const RecentActivity: React.FC = () => {
                 <div className="flex flex-col items-end shrink-0 ml-3">
                   <span
                     className={`text-xs font-bold font-mono ${
-                      isDeposit ? 'text-[#22c55e]' : isFailed ? 'text-[#a1a1aa]' : 'text-white'
+                      isRejected || isFailed
+                        ? 'text-[#a1a1aa]'
+                        : isDeposit
+                        ? 'text-[#22c55e]'
+                        : 'text-white'
                     }`}
                   >
-                    {isDeposit ? `+${formatPrice(item.amountInr)}` : formatPrice(item.amountInr)}
+                    {item.amountInr > 0 ? `+${formatPrice(item.amountInr)}` : formatPrice(item.amountInr)}
                   </span>
                   <span
                     className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 border ${
-                      isFailed
+                      isRejected || isFailed
                         ? 'bg-red-500/15 text-red-400 border-red-500/30'
                         : isSuccess
                         ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
                         : isWaiting
                         ? 'bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30 animate-pulse'
+                        : isRefunded
+                        ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
                         : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                     }`}
                   >
-                    {isFailed ? 'Failed' : isRefunded ? 'Refunded' : isWaiting ? 'Active' : isDeposit ? 'Credited' : 'Delivered'}
+                    {isRejected ? 'Rejected' : isFailed ? 'Failed' : isRefunded ? 'Refunded' : isWaiting ? 'Active' : isDeposit ? 'Credited' : 'Delivered'}
                   </span>
                 </div>
               </div>

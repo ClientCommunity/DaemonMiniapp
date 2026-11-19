@@ -161,7 +161,7 @@ export interface ActiveInvoice {
 
 // Order & Transaction History
 export type OrderCategory = 'otp_activation' | 'account_purchase' | 'smm_order' | 'deposit' | 'transfer';
-export type OrderStatus = 'success' | 'waiting' | 'in_progress' | 'cancelled' | 'refunded' | 'failed';
+export type OrderStatus = 'success' | 'waiting' | 'in_progress' | 'cancelled' | 'refunded' | 'failed' | 'rejected';
 
 export interface SmmOrderResult {
   success: boolean;

@@ -509,13 +509,15 @@ export function adaptHistoryItem(item: BackendHistoryItem, index: number): Histo
   const detailsLower = details.toLowerCase();
   const explicitStatus = String(item.status || '').trim().toLowerCase();
 
-  if (type === 'refund' || item.refunded || explicitStatus === 'cancelled' || explicitStatus === 'canceled' || explicitStatus === 'refunded') {
+  if (explicitStatus === 'rejected' || detailsLower.includes('reject') || detailsLower.includes('decline')) {
+    status = 'rejected';
+  } else if (type === 'refund' || item.refunded || explicitStatus === 'cancelled' || explicitStatus === 'canceled' || explicitStatus === 'refunded') {
     status = 'refunded';
   } else if (explicitStatus === 'failed' || detailsLower.includes('fail') || detailsLower.includes('not placed')) {
     status = 'failed';
   } else if (explicitStatus === 'waiting' || explicitStatus === 'pending' || detailsLower.includes('waiting') || detailsLower.includes('pending')) {
     status = 'waiting';
-  } else if (explicitStatus === 'processing' || explicitStatus === 'inprogress' || explicitStatus === 'in_progress' || detailsLower.includes('progress')) {
+  } else if (explicitStatus === 'processing' || explicitStatus === 'inprogress' || explicitStatus === 'in_progress' || detailsLower.includes('progress') || detailsLower.includes('verif')) {
     status = 'in_progress';
   } else if (explicitStatus === 'archived') {
     status = otpCode ? 'success' : (item.refunded ? 'refunded' : 'failed');
