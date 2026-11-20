@@ -24,7 +24,6 @@ import {
   Image as ImageIcon,
   Upload,
   Send,
-  Hash,
 } from 'lucide-react';
 import { hapticFeedback } from '../../utils/haptics';
 
@@ -211,9 +210,8 @@ export const DepositHub: React.FC = () => {
   const [copiedText, setCopiedText] = useState(false);
   const [qrImgError, setQrImgError] = useState(false);
 
-  // UPI Direct mutually exclusive proof mode (ID vs Screenshot) — FamPay Auto untouched
+  // UPI Direct screenshot proof upload — FamPay Auto untouched
   const isTg = isTelegramWebApp();
-  const [upiProofMode, setUpiProofMode] = useState<'id' | 'screenshot'>('id');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreviewUrl, setScreenshotPreviewUrl] = useState<string | null>(null);
   const [screenshotConfirmOpen, setScreenshotConfirmOpen] = useState(false);
@@ -857,8 +855,6 @@ export const DepositHub: React.FC = () => {
     currentPayAmount,
     selectedMethod === 'upi_direct'
   );
-  const isUpiDirectAutoRef =
-    currentRefInspection.kind === 'upi_utr' || currentRefInspection.kind === 'fampay_txn';
 
   const renderUpiVerificationSection = (isDynamicInvoice: boolean) => {
     const buttonPayAmount = isDynamicInvoice && activeInvoice ? activeInvoice.amount : amount;
@@ -1003,302 +999,132 @@ export const DepositHub: React.FC = () => {
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-[11px] font-bold text-[#22c55e] uppercase tracking-wider flex items-center gap-1.5">
             <span className="w-4 h-4 rounded-full bg-[#22c55e] text-black flex items-center justify-center text-[10px] font-bold">2</span>
-            <span>Step 2: Submit Payment Proof</span>
+            <span>Step 2: Submit Payment Screenshot</span>
           </span>
           <span className="text-[10px] font-mono text-[#a1a1aa]">
-            {upiProofMode === 'id' ? 'Auto or Admin Review' : 'Manual Admin Review'}
+            Manual Admin Review
           </span>
         </div>
 
-        {/* Mutually Exclusive Mode Toggle: Txn ID / UTR vs Payment Screenshot */}
-        {!verifyingDeposit && (
-          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#0b0b0e] border border-[#262630]">
-            <button
-              type="button"
-              onClick={() => setUpiProofMode('id')}
-              className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                upiProofMode === 'id'
-                  ? 'bg-[#7c3aed] text-white shadow'
-                  : 'text-[#a1a1aa] hover:text-white'
-              }`}
-            >
-              <Hash className="w-3.5 h-3.5 shrink-0" />
-              <span>Txn ID / UTR</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setUpiProofMode('screenshot')}
-              className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                upiProofMode === 'screenshot'
-                  ? 'bg-[#7c3aed] text-white shadow'
-                  : 'text-[#a1a1aa] hover:text-white'
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5 shrink-0" />
-              <span>Payment Screenshot</span>
-            </button>
-          </div>
-        )}
-
-        {verifyingDeposit ? (
-          <div className="bg-[#0b0b0e] border border-[#7c3aed]/50 rounded-xl p-3.5 space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Loader2 className="w-4 h-4 text-[#a78bfa] animate-spin shrink-0" />
-                <span className="text-xs font-bold text-white truncate">
-                  Trying to Verify Payment...
-                </span>
+        {/* Payment Screenshot Submission (Website direct upload & Mini App bot handoff) */}
+        <div className="space-y-3">
+          {!isUpiDirectAmountValid ? (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <div className="font-bold text-amber-300">Enter Deposit Amount First</div>
+                <p className="text-[11px] text-amber-100/80 leading-relaxed">
+                  Please select or type a deposit amount of at least <b>₹{upiMinDeposit}</b> above to unlock Screenshot submission.
+                </p>
               </div>
-              <span className="text-xs font-mono font-extrabold text-[#a78bfa] bg-[#7c3aed]/15 border border-[#7c3aed]/30 px-2 py-0.5 rounded-full shrink-0">
-                {verifySecondsLeft}s
-              </span>
             </div>
-
-            <div className="flex items-center justify-between text-[11px] bg-[#14141b] border border-[#262630] rounded-lg px-2.5 py-1.5">
-              <span className="text-[#a1a1aa] truncate">
-                Ref: <code className="text-white font-mono">{verifyingDeposit.utr}</code>
-              </span>
-              <span className="font-mono font-bold text-[#22c55e] shrink-0">
-                ₹{verifyingDeposit.amount}
-              </span>
-            </div>
-
-            <p className="text-[11px] text-[#a1a1aa] leading-relaxed">
-              Checking bank / FamPay confirmation email automatically every 5 seconds. Please do not re-submit.
-            </p>
-
-            <button
-              type="button"
-              onClick={handleCancelVerifying}
-              disabled={isCancellingVerify}
-              className="w-full min-h-[36px] py-1.5 px-3 rounded-lg bg-[#181820] hover:bg-[#22222d] border border-[#2e2e3d] text-[11px] font-semibold text-[#e4e4e7] transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {isCancellingVerify ? 'Releasing...' : 'Wrong ID? Edit & Retry'}
-            </button>
-          </div>
-        ) : upiProofMode === 'id' ? (
-          <form onSubmit={handleUtrSubmit} className="flex flex-col gap-2.5">
-            {escalatedNotice && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 text-[11px] text-amber-200 flex items-start justify-between gap-2">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-amber-300">
-                    Priority Verification Queued (#{escalatedNotice.depositId})
-                  </div>
-                  <div className="text-amber-100/80 leading-relaxed">
-                    Email hasn&apos;t arrived within 60s for ₹{escalatedNotice.amount} (
-                    <code className="font-mono">{escalatedNotice.utr}</code>). Still checking automatically &amp; queued for admin review.
-                  </div>
+          ) : isTg ? (
+            /* Telegram Mini App: Handoff to Bot Chat with Temporary Close Confirmation */
+            <div className="space-y-2.5">
+              <div className="bg-[#0b0b0e] border border-[#262630] rounded-xl p-3 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-white flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-[#a78bfa]" />
+                    <span>Upload Payment Screenshot via Bot</span>
+                  </span>
+                  <span className="font-mono font-extrabold text-[#22c55e]">₹{cleanAmt}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setEscalatedNotice(null)}
-                  className="text-amber-300 hover:text-white p-0.5 shrink-0 cursor-pointer"
-                  aria-label="Dismiss notice"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                <p className="text-[11px] text-[#a1a1aa] leading-relaxed">
+                  No need to type any Txn ID. Tap below to temporarily close the Mini App and send your payment screenshot directly to the bot chat.
+                </p>
               </div>
-            )}
 
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                value={utrNumber}
-                onChange={(e) => setUtrNumber(e.target.value)}
-                placeholder="Paste any Transaction ID, FamPay ID (FMP...) or 12-digit UTR"
-                maxLength={64}
-                className="w-full bg-[#0b0b0e] border border-[#262630] focus:border-[#7c3aed] rounded-xl pl-3.5 pr-20 py-3 text-xs font-mono text-white placeholder-[#71717a] focus:outline-none transition-colors"
-                required
-              />
               <button
                 type="button"
-                onClick={handlePasteUtr}
-                className="absolute right-2 min-h-[34px] px-2.5 py-1 rounded-lg bg-[#1f1f2a] hover:bg-[#2a2a38] active:scale-95 text-[11px] font-semibold text-[#a78bfa] border border-[#38384a] flex items-center gap-1 transition-all cursor-pointer"
-                title="Paste payment ID or UTR from clipboard"
+                onClick={handleRequestScreenshotSubmit}
+                disabled={isSubmittingScreenshot}
+                className="w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] text-white font-extrabold text-xs shadow-violet-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
-                <Clipboard className="w-3.5 h-3.5" />
-                <span>Paste</span>
+                <Send className="w-4 h-4" />
+                <span>Submit Payment Screenshot (₹{cleanAmt})</span>
               </button>
             </div>
+          ) : (
+            /* Website Version: Direct Image Upload + Live Preview */
+            <div className="space-y-2.5">
+              <input
+                ref={screenshotInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleSelectScreenshotFile}
+                className="hidden"
+              />
 
-            {utrNumber.trim() ? (
-              <div
-                className={`text-[10px] font-medium flex items-center gap-1.5 ${
-                  currentRefInspection.isWarning
-                    ? 'text-amber-400'
-                    : isUpiDirectAutoRef
-                    ? 'text-[#22c55e]'
-                    : currentRefInspection.kind === 'short'
-                    ? 'text-[#a1a1aa]'
-                    : 'text-[#a78bfa]'
-                }`}
-              >
-                {currentRefInspection.isWarning ? (
-                  <AlertTriangle className="w-3 h-3 shrink-0" />
-                ) : (
-                  <Check className="w-3 h-3 shrink-0" />
-                )}
-                <span>{currentRefInspection.hint}</span>
-              </div>
-            ) : (
-              <div className="text-[10px] text-[#71717a] leading-relaxed">
-                12-digit UTR &amp; FamPay <span className="text-[#a1a1aa] font-mono">FMP...</span> IDs auto-verify in ≤60s. Any other payment ID goes straight to Admins for review.
-              </div>
-            )}
-
-            {!isUpiDirectAmountValid && utrNumber.trim() && (
-              <div className="text-[10px] font-semibold text-amber-400 flex items-center gap-1.5">
-                <AlertTriangle className="w-3 h-3 shrink-0" />
-                <span>Enter a deposit amount of at least ₹{upiMinDeposit} above to submit.</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isVerifying || !utrNumber.trim() || !isUpiDirectAmountValid}
-              className={`w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl font-extrabold text-xs transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer ${
-                !utrNumber.trim() || isUpiDirectAutoRef
-                  ? 'bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black shadow-green-glow'
-                  : 'bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] text-white shadow-violet-glow'
-              }`}
-            >
-              {!utrNumber.trim() || isUpiDirectAutoRef ? (
-                <Zap className="w-4 h-4 fill-black" />
+              {!screenshotFile ? (
+                <button
+                  type="button"
+                  onClick={() => screenshotInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-[#343448] hover:border-[#7c3aed] bg-[#0b0b0e] hover:bg-[#14141f] rounded-xl p-5 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#7c3aed]/15 border border-[#7c3aed]/30 flex items-center justify-center text-[#a78bfa]">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <div className="text-xs font-bold text-white">
+                    Tap to Select Payment Screenshot
+                  </div>
+                  <span className="text-[10px] text-[#71717a]">
+                    JPG, PNG or WebP • Max 5 MB • Skip typing Txn ID
+                  </span>
+                </button>
               ) : (
-                <Send className="w-4 h-4" />
+                <div className="bg-[#0b0b0e] border border-[#7c3aed]/40 rounded-xl p-3 space-y-2.5">
+                  {screenshotPreviewUrl && (
+                    <div className="relative rounded-lg overflow-hidden bg-black/40 border border-[#262630] max-h-56 flex items-center justify-center">
+                      <img
+                        src={screenshotPreviewUrl}
+                        alt="Payment screenshot preview"
+                        className="max-h-56 w-auto object-contain"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-white truncate">{screenshotFile.name}</div>
+                      <div className="text-[10px] text-[#71717a]">
+                        {(screenshotFile.size / 1024).toFixed(0)} KB • Ready to submit for ₹{cleanAmt}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => screenshotInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg bg-[#181820] hover:bg-[#232332] border border-[#2e2e3d] text-[10px] font-semibold text-[#e4e4e7] cursor-pointer"
+                      >
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScreenshotFile(null);
+                          if (screenshotInputRef.current) screenshotInputRef.current.value = '';
+                        }}
+                        className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 cursor-pointer"
+                        title="Remove screenshot"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
-              <span>
-                {isVerifying
-                  ? isUpiDirectAutoRef
-                    ? 'Verifying with Bank...'
-                    : 'Sending to Admins...'
-                  : !utrNumber.trim() || isUpiDirectAutoRef
-                  ? `Verify & Auto-Credit Balance (₹${cleanAmt})`
-                  : `Submit ID for Admin Review (₹${cleanAmt})`}
-              </span>
-            </button>
-          </form>
-        ) : (
-          /* Option B: Payment Screenshot Mode (No Txn ID typing required) */
-          <div className="space-y-3">
-            {!isUpiDirectAmountValid ? (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <div className="font-bold text-amber-300">Enter Deposit Amount First</div>
-                  <p className="text-[11px] text-amber-100/80 leading-relaxed">
-                    Please select or type a deposit amount of at least <b>₹{upiMinDeposit}</b> above to unlock Screenshot submission.
-                  </p>
-                </div>
-              </div>
-            ) : isTg ? (
-              /* Telegram Mini App: Handoff to Bot Chat with Temporary Close Confirmation */
-              <div className="space-y-2.5">
-                <div className="bg-[#0b0b0e] border border-[#262630] rounded-xl p-3 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-white flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-[#a78bfa]" />
-                      <span>Upload Payment Screenshot via Bot</span>
-                    </span>
-                    <span className="font-mono font-extrabold text-[#22c55e]">₹{cleanAmt}</span>
-                  </div>
-                  <p className="text-[11px] text-[#a1a1aa] leading-relaxed">
-                    No need to type any Txn ID. Tap below to temporarily close the Mini App and send your payment screenshot directly to the bot chat.
-                  </p>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleRequestScreenshotSubmit}
-                  disabled={isSubmittingScreenshot}
-                  className="w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] text-white font-extrabold text-xs shadow-violet-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>Submit Payment Screenshot (₹{cleanAmt})</span>
-                </button>
-              </div>
-            ) : (
-              /* Website Version: Direct Image Upload + Live Preview */
-              <div className="space-y-2.5">
-                <input
-                  ref={screenshotInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleSelectScreenshotFile}
-                  className="hidden"
-                />
-
-                {!screenshotFile ? (
-                  <button
-                    type="button"
-                    onClick={() => screenshotInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-[#343448] hover:border-[#7c3aed] bg-[#0b0b0e] hover:bg-[#14141f] rounded-xl p-5 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-[#7c3aed]/15 border border-[#7c3aed]/30 flex items-center justify-center text-[#a78bfa]">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    <div className="text-xs font-bold text-white">
-                      Tap to Select Payment Screenshot
-                    </div>
-                    <span className="text-[10px] text-[#71717a]">
-                      JPG, PNG or WebP • Max 5 MB • Skip typing Txn ID
-                    </span>
-                  </button>
-                ) : (
-                  <div className="bg-[#0b0b0e] border border-[#7c3aed]/40 rounded-xl p-3 space-y-2.5">
-                    {screenshotPreviewUrl && (
-                      <div className="relative rounded-lg overflow-hidden bg-black/40 border border-[#262630] max-h-56 flex items-center justify-center">
-                        <img
-                          src={screenshotPreviewUrl}
-                          alt="Payment screenshot preview"
-                          className="max-h-56 w-auto object-contain"
-                        />
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between gap-2 text-[11px]">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-white truncate">{screenshotFile.name}</div>
-                        <div className="text-[10px] text-[#71717a]">
-                          {(screenshotFile.size / 1024).toFixed(0)} KB • Ready to submit for ₹{cleanAmt}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => screenshotInputRef.current?.click()}
-                          className="px-2.5 py-1 rounded-lg bg-[#181820] hover:bg-[#232332] border border-[#2e2e3d] text-[10px] font-semibold text-[#e4e4e7] cursor-pointer"
-                        >
-                          Change
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setScreenshotFile(null);
-                            if (screenshotInputRef.current) screenshotInputRef.current.value = '';
-                          }}
-                          className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 cursor-pointer"
-                          title="Remove screenshot"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleRequestScreenshotSubmit}
-                  disabled={!screenshotFile || isSubmittingScreenshot}
-                  className="w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] text-white font-extrabold text-xs shadow-violet-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Submit Payment Screenshot (₹{cleanAmt})</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={handleRequestScreenshotSubmit}
+                disabled={!screenshotFile || isSubmittingScreenshot}
+                className="w-full min-h-[46px] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] text-white font-extrabold text-xs shadow-violet-glow transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Submit Payment Screenshot (₹{cleanAmt})</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
