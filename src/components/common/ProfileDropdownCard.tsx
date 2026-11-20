@@ -11,7 +11,10 @@ import {
   Wallet,
   Copy,
   Check,
+  Sun,
+  Moon,
 } from 'lucide-react';
+import { hapticFeedback } from '../../utils/haptics';
 
 export interface ProfileDropdownCardProps {
   isOpen: boolean;
@@ -26,7 +29,7 @@ export const ProfileDropdownCard: React.FC<ProfileDropdownCardProps> = ({
   align = 'right',
   className = '',
 }) => {
-  const { user, activeTab, setActiveTab, formatPrice, addToast, theme } = useApp();
+  const { user, activeTab, setActiveTab, formatPrice, addToast, theme, toggleTheme } = useApp();
   const { isEnabled: isWebNotificationsEnabled, unreadCount } = useWebsiteNotifications();
   const cardRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = React.useState(false);
@@ -266,6 +269,47 @@ export const ProfileDropdownCard: React.FC<ProfileDropdownCardProps> = ({
             </div>
           </div>
           <ChevronRight className="w-4 h-4 opacity-60 shrink-0 ml-1" />
+        </button>
+
+        {/* OPTION 3: Theme Toggle */}
+        <button
+          type="button"
+          onClick={() => {
+            hapticFeedback.selection();
+            toggleTheme();
+          }}
+          className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all cursor-pointer text-left ${
+            isLight
+              ? 'hover:bg-violet-50 text-[#514364] hover:text-[#211536]'
+              : 'hover:bg-[#1f1f2b] text-zinc-300 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                isLight ? 'bg-amber-100 text-amber-600' : 'bg-[#252536] text-amber-400'
+              }`}
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-[#f59e0b]" />
+              ) : (
+                <Moon className="w-4 h-4 text-[#7c3aed]" />
+              )}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold leading-tight">Appearance</span>
+              <span className={`text-[10px] leading-tight ${isLight ? 'text-[#74638B]' : 'text-zinc-500'}`}>
+                {theme === 'dark' ? 'Dark Theme' : 'Light Theme'}
+              </span>
+            </div>
+          </div>
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+              isLight ? 'bg-violet-100 text-[#7c3aed]' : 'bg-[#252536] text-zinc-300'
+            }`}
+          >
+            {theme === 'dark' ? 'Dark' : 'Light'}
+          </span>
         </button>
 
         {/* OPTION 3: Logout (ONLY shown on Website version, NEVER on Mini App!) */}

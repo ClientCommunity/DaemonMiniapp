@@ -87,8 +87,8 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
       <div className={`flex items-center justify-between gap-1 sm:gap-2 w-full ${isWeb ? 'max-w-7xl mx-auto' : 'max-w-full'}`}>
         {/* Left Side: Brand Logo & Title for Web, or User Profile for Mobile/Telegram */}
         {isWeb ? (
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black flex items-center justify-center p-1.5 shadow-sm shrink-0 overflow-hidden">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-black flex items-center justify-center p-1 sm:p-1.5 shadow-sm shrink-0 overflow-hidden border border-[#262630]">
               <img
                 src={LOGO_URL}
                 alt="Deamon OTP Logo"
@@ -105,8 +105,8 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
               <span className={`font-extrabold text-sm sm:text-base tracking-tight flex items-center gap-1.5 truncate ${
                 isLight ? 'text-[#211536]' : 'text-white'
               }`}>
-                Deamon OTP
-                <span className="text-[9px] font-mono font-bold bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30 px-1.5 py-0.2 rounded-full">
+                <span className="truncate">Deamon OTP</span>
+                <span className="hidden sm:inline-flex text-[9px] font-mono font-bold bg-[#22c55e]/15 text-[#22c55e] border border-[#22c55e]/30 px-1.5 py-0.2 rounded-full shrink-0">
                   STORE
                 </span>
               </span>
@@ -130,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
               title="Account & Settings"
             >
               <div className="relative shrink-0">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 ring-[#262630] overflow-hidden">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs text-white shadow-md ring-2 ring-[#262630] overflow-hidden">
                   {user.avatarUrl ? (
                     <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
                   ) : (
@@ -141,7 +141,7 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
 
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[280px]">
+                  <span className="font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-[95px] xs:max-w-[125px] sm:max-w-[170px] md:max-w-[280px]">
                     {user.firstName}
                   </span>
                   <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#22c55e] shrink-0" />
@@ -149,9 +149,9 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
                 </div>
                 <div className="flex items-center gap-1 text-[11px] text-[#a1a1aa]">
                   {user.username ? (
-                    <span className="font-mono truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">@{user.username}</span>
+                    <span className="font-mono truncate max-w-[85px] xs:max-w-[105px] sm:max-w-[130px] md:max-w-[200px]">@{user.username}</span>
                   ) : (
-                    <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[75px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[200px]">No username</span>
+                    <span className="font-sans text-[11px] text-[#71717a] truncate max-w-[85px] xs:max-w-[105px] sm:max-w-[130px] md:max-w-[200px]">No username</span>
                   )}
                   <span className="hidden sm:inline">•</span>
                   <span className="hidden sm:inline font-mono">ID: {user.telegramId}</span>
@@ -167,14 +167,14 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
           </div>
         )}
 
-        {/* Right Actions: Admin + Balance + Currency + Theme + (Web Profile) */}
+        {/* Right Actions: Admin + Unified Wallet Chip + Theme + Notifications + (Web Profile) */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Persistent Admin Mode Toggle Pill for Verified Admins */}
           {isAdmin && (
             <button
               type="button"
               onClick={handleToggleAdmin}
-              className={`min-h-[38px] flex items-center gap-1 px-2 py-1 sm:px-2.5 rounded-full text-[10px] font-semibold transition-all active:scale-95 shadow-sm cursor-pointer border ${
+              className={`h-9 flex items-center gap-1 px-2 sm:px-2.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95 shadow-sm cursor-pointer border ${
                 isAdminMode
                   ? 'bg-[#22c55e]/15 hover:bg-[#22c55e]/25 text-[#22c55e] border-[#22c55e]/30'
                   : 'bg-[#7c3aed]/20 hover:bg-[#7c3aed]/30 text-[#a78bfa] border-[#7c3aed]/40'
@@ -197,49 +197,64 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
             </button>
           )}
 
-          {/* Assets / Balance Pill with Sync */}
-          <button
-            type="button"
-            onClick={handleSyncBalance}
-            disabled={isSyncingBalance}
-            className={`min-h-[38px] flex items-center gap-1 sm:gap-1.5 active:scale-95 border rounded-full px-2.5 py-1 sm:px-3 transition-all shadow-sm cursor-pointer ${
+          {/* Unified Wallet & Currency Chip */}
+          <div
+            className={`h-9 flex items-center rounded-xl border transition-all shadow-sm ${
               isLight
-                ? 'bg-[#FAF8FF] hover:bg-white text-[#211536] border-[#E5DCF4]'
-                : 'bg-[#181820] hover:bg-[#1f1f2a] text-white border-[#262630]'
+                ? 'bg-[#FAF8FF] border-[#E5DCF4]'
+                : 'bg-[#181820] border-[#262630]'
             }`}
-            title="Click to sync wallet balance"
-            aria-label="Assets and Balance"
           >
-            <span className={`text-[10px] font-medium hidden sm:inline ${isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'}`}>Balance:</span>
-            <span className="text-xs font-bold font-mono text-[#22c55e]">
-              {formatPrice(user.balance)}
-            </span>
-            <RefreshCw className={`w-3 h-3 ${isSyncingBalance ? 'animate-spin text-[#8b5cf6]' : isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'}`} />
-          </button>
+            {/* Balance Portion: Click to Sync */}
+            <button
+              type="button"
+              onClick={handleSyncBalance}
+              disabled={isSyncingBalance}
+              className={`h-full flex items-center gap-1.5 px-2.5 text-left transition-colors cursor-pointer group active:scale-[0.98] ${
+                isLight ? 'hover:bg-violet-50/80 rounded-l-xl' : 'hover:bg-[#20202c] rounded-l-xl'
+              }`}
+              title="Click to sync balance"
+              aria-label="Wallet Balance - Click to sync"
+            >
+              <RefreshCw
+                className={`w-3 h-3 transition-colors shrink-0 ${
+                  isSyncingBalance
+                    ? 'animate-spin text-[#8b5cf6]'
+                    : isLight
+                    ? 'text-[#74638B] group-hover:text-[#7c3aed]'
+                    : 'text-[#71717a] group-hover:text-[#a78bfa]'
+                }`}
+              />
+              <span className="text-xs font-black font-mono text-[#22c55e] tracking-tight whitespace-nowrap">
+                {formatPrice(user.balance)}
+              </span>
+            </button>
 
-          {/* Currency Switcher */}
-          <button
-            type="button"
-            onClick={handleToggleCurrency}
-            className={`min-h-[38px] min-w-[38px] flex items-center justify-center gap-1 active:scale-95 border rounded-full px-2 py-1 transition-all shadow-sm cursor-pointer ${
-              isLight
-                ? 'bg-[#FAF8FF] hover:bg-white border-[#E5DCF4]'
-                : 'bg-[#181820] hover:bg-[#1f1f2a] border-[#262630]'
-            }`}
-            title="Switch Currency (INR / USDT)"
-            aria-label="Toggle currency between INR and USDT"
-          >
-            <ArrowLeftRight className="w-3 h-3 text-[#8b5cf6]" />
-            <span className="text-xs font-bold text-[#22c55e]">
-              {currency === 'INR' ? '₹' : '$'}
-            </span>
-          </button>
+            {/* Subtle Divider */}
+            <div className={`h-4 w-px shrink-0 ${isLight ? 'bg-[#E5DCF4]' : 'bg-[#2a2a38]'}`} />
 
-          {/* Theme Switcher Toggle */}
+            {/* Currency Switcher Portion */}
+            <button
+              type="button"
+              onClick={handleToggleCurrency}
+              className={`h-full flex items-center justify-center gap-1 px-2 transition-colors cursor-pointer group active:scale-[0.98] ${
+                isLight ? 'hover:bg-violet-50/80 rounded-r-xl' : 'hover:bg-[#20202c] rounded-r-xl'
+              }`}
+              title={`Switch Currency (Current: ${currency})`}
+              aria-label="Toggle currency between INR and USDT"
+            >
+              <span className="text-[10px] font-bold font-mono text-[#a78bfa] group-hover:text-[#c4b5fd] whitespace-nowrap">
+                {currency === 'INR' ? '₹ INR' : '$ USDT'}
+              </span>
+              <ArrowLeftRight className="w-2.5 h-2.5 text-[#71717a] group-hover:text-white transition-colors shrink-0" />
+            </button>
+          </div>
+
+          {/* Theme Switcher Toggle (Desktop only, mobile has it in Profile menu) */}
           <button
             type="button"
             onClick={handleToggleTheme}
-            className={`min-h-[38px] min-w-[38px] flex items-center justify-center active:scale-95 border rounded-full transition-all shadow-sm cursor-pointer ${
+            className={`hidden md:flex h-9 w-9 items-center justify-center active:scale-95 border rounded-xl transition-all shadow-sm cursor-pointer ${
               isLight
                 ? 'bg-[#FAF8FF] hover:bg-white border-[#E5DCF4]'
                 : 'bg-[#181820] hover:bg-[#1f1f2a] border-[#262630]'
@@ -259,7 +274,7 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
             <button
               type="button"
               onClick={openInbox}
-              className={`hidden md:flex relative min-h-[38px] min-w-[38px] items-center justify-center active:scale-95 border rounded-full transition-all shadow-sm cursor-pointer ${
+              className={`hidden md:flex relative h-9 w-9 items-center justify-center active:scale-95 border rounded-xl transition-all shadow-sm cursor-pointer ${
                 isLight
                   ? 'bg-[#FAF8FF] hover:bg-white border-[#E5DCF4] text-[#514364] hover:text-[#7c3aed]'
                   : 'bg-[#181820] hover:bg-[#1f1f2a] border-[#262630] text-zinc-300 hover:text-white'
@@ -289,34 +304,15 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
                   e.stopPropagation();
                   setIsProfileMenuOpen((prev) => !prev);
                 }}
-                className={`flex items-center gap-2 pl-2 sm:pl-2.5 border-l transition-all cursor-pointer rounded-xl py-1 px-1.5 hover:bg-violet-500/10 active:scale-95 ${
-                  isLight ? 'border-[#E5DCF4]' : 'border-[#262630]'
+                className={`h-9 flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2 rounded-xl border transition-all cursor-pointer hover:bg-violet-500/10 active:scale-95 ${
+                  isLight ? 'border-[#E5DCF4] bg-[#FAF8FF]' : 'border-[#262630] bg-[#181820]'
                 }`}
                 title="Account Menu"
+                aria-label="User Account Menu"
               >
-                <div className="hidden sm:flex flex-col items-end min-w-0">
-                  <div className="flex items-center gap-1">
-                    <span className={`font-bold text-xs sm:text-sm tracking-tight truncate max-w-[95px] md:max-w-[150px] ${
-                      isLight ? 'text-[#211536]' : 'text-white'
-                    }`}>
-                      {user.firstName}
-                    </span>
-                    <BadgeCheck className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
-                  </div>
-                  <div className={`flex items-center gap-1 text-[10px] ${isLight ? 'text-[#74638B]' : 'text-[#a1a1aa]'}`}>
-                    {user.username ? (
-                      <span className="font-mono truncate max-w-[85px] md:max-w-[130px]">@{user.username}</span>
-                    ) : (
-                      <span className="font-sans text-[10px] text-[#71717a]">No username</span>
-                    )}
-                  </div>
-                </div>
-
                 {/* Avatar */}
                 <div className="relative shrink-0">
-                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-xs sm:text-sm text-white shadow-md ring-2 overflow-hidden ${
-                    isLight ? 'ring-[#E5DCF4]' : 'ring-[#262630]'
-                  }`}>
+                  <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center font-bold text-[11px] sm:text-xs text-white shadow-sm overflow-hidden`}>
                     {user.avatarUrl ? (
                       <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
                     ) : (
@@ -324,7 +320,19 @@ export const Header: React.FC<HeaderProps> = ({ isWeb = false }) => {
                     )}
                   </div>
                 </div>
-                <ChevronDown className={`w-3.5 h-3.5 text-[#a1a1aa] transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+
+                <div className="hidden sm:flex flex-col items-start min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className={`font-bold text-xs tracking-tight truncate max-w-[85px] md:max-w-[120px] ${
+                      isLight ? 'text-[#211536]' : 'text-white'
+                    }`}>
+                      {user.firstName}
+                    </span>
+                    <BadgeCheck className="w-3 h-3 text-[#22c55e] shrink-0" />
+                  </div>
+                </div>
+
+                <ChevronDown className={`w-3 h-3 text-[#a1a1aa] transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <ProfileDropdownCard
