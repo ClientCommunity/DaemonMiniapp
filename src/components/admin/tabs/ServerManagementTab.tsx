@@ -413,6 +413,51 @@ export const ServerManagementTab: React.FC = () => {
   };
 
   // ============================================================================
+  // GLOBAL CURRENCY EXCHANGE RATES STATE
+  // ============================================================================
+  const [usdtRateInput, setUsdtRateInput] = useState('93.0');
+  const [rubRateInput, setRubRateInput] = useState('1.05');
+  const [savingRates, setSavingRates] = useState(false);
+
+  const loadExchangeRates = useCallback(async () => {
+    try {
+      const res = await adminApi.getExchangeRates();
+      if (res?.success && res.rates) {
+        setUsdtRateInput(String(res.rates.usdt_rate || 93.0));
+        setRubRateInput(String(res.rates.rub_inr_rate || 1.05));
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const handleSaveExchangeRates = async () => {
+    const usdt = parseFloat(usdtRateInput);
+    const rub = parseFloat(rubRateInput);
+    if (isNaN(usdt) || usdt <= 0) {
+      addToast('Please enter a valid USD rate (e.g. 93.0)', 'error');
+      return;
+    }
+    setSavingRates(true);
+    try {
+      const res = await adminApi.updateExchangeRates({
+        usdt_rate: usdt,
+        rub_inr_rate: isNaN(rub) ? 1.05 : rub,
+      });
+      if (res?.success) {
+        addToast(`Exchange rates updated! 1 USD = ₹${usdt}`, 'success');
+        loadExchangeRates();
+      } else {
+        addToast('Failed to update exchange rates', 'error');
+      }
+    } catch {
+      addToast('Failed to update exchange rates', 'error');
+    } finally {
+      setSavingRates(false);
+    }
+  };
+
+  // ============================================================================
   // SERVER 5 STATE (SMM BOOST)
   // ============================================================================
   const [smmMasterEnabled, setSmmMasterEnabled] = useState(true);
@@ -578,9 +623,15 @@ export const ServerManagementTab: React.FC = () => {
   useEffect(() => {
     if (subTab === 'server1') loadServer1();
     if (subTab === 'server2') loadServer2Stock();
-    if (subTab === 'server3_4') loadServersConfig();
-    if (subTab === 'server5') loadServer5();
-  }, [subTab, loadServer1, loadServer2Stock, loadServersConfig, loadServer5]);
+    if (subTab === 'server3_4') {
+      loadServersConfig();
+      loadExchangeRates();
+    }
+    if (subTab === 'server5') {
+      loadServer5();
+      loadExchangeRates();
+    }
+  }, [subTab, loadServer1, loadServer2Stock, loadServersConfig, loadServer5, loadExchangeRates]);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
@@ -1361,6 +1412,71 @@ export const ServerManagementTab: React.FC = () => {
       {/* ===================================================================== */}
       {subTab === 'server3_4' && (
         <div className="space-y-5 animate-in fade-in duration-150">
+          {/* Global Currency Exchange Rates Card */}
+          <div className="bg-[#181820] border border-[#262630] rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#22c55e]/10 border border-[#22c55e]/20 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-[#22c55e]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Global Currency Exchange Rates</h3>
+                  <p className="text-[11px] text-[#a1a1aa]">
+                    Used automatically for Server 4 (TemporaSMS USD), SMM USD providers, and Server 1 (LZT RUB)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#121217] p-4 rounded-xl border border-[#262630]">
+              <div>
+                <label className="text-[11px] text-[#a1a1aa] block mb-1 font-semibold">
+                  USD to INR Rate (₹ / USD)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={usdtRateInput}
+                    onChange={(e) => setUsdtRateInput(e.target.value)}
+                    className="w-full bg-[#181820] border border-[#262630] rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#7c3aed]"
+                    placeholder="93.0"
+                  />
+                  <span className="absolute right-3 top-2 text-[10px] text-[#71717a] font-mono">INR per USD</span>
+                </div>
+                <p className="text-[10px] text-[#71717a] mt-1">Converts USD wholesale prices to INR before profit markup.</p>
+              </div>
+
+              <div>
+                <label className="text-[11px] text-[#a1a1aa] block mb-1 font-semibold">
+                  RUB to INR Rate (₹ / RUB)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={rubRateInput}
+                    onChange={(e) => setRubRateInput(e.target.value)}
+                    className="w-full bg-[#181820] border border-[#262630] rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-[#7c3aed]"
+                    placeholder="1.05"
+                  />
+                  <span className="absolute right-3 top-2 text-[10px] text-[#71717a] font-mono">INR per RUB</span>
+                </div>
+                <p className="text-[10px] text-[#71717a] mt-1">Used for Server 1 Lolzteam account conversion.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleSaveExchangeRates}
+                disabled={savingRates}
+                className="bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold px-5 py-2 rounded-xl text-xs transition-all shadow-sm disabled:opacity-50"
+              >
+                {savingRates ? 'Saving Rates...' : 'Save Exchange Rates'}
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {[3, 4].map((serverNo) => {
               const config = srvConfigs.find((c) => c.server_no === serverNo) || {
@@ -1435,6 +1551,17 @@ export const ServerManagementTab: React.FC = () => {
                       />
                     </div>
                   </div>
+
+                  {serverNo === 4 && (
+                    <div className="text-[11px] text-[#38bdf8] bg-[#38bdf8]/10 border border-[#38bdf8]/20 px-3 py-2 rounded-xl">
+                      ℹ️ <strong>Provider currency is USD ($)</strong>. Wholesale prices are converted to INR using the USD rate (₹{usdtRateInput}) before applying your profit markup below.
+                    </div>
+                  )}
+                  {serverNo === 3 && (
+                    <div className="text-[11px] text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/20 px-3 py-2 rounded-xl">
+                      ℹ️ <strong>Provider currency is INR (₹)</strong>. The profit markup below applies synchronously across both the Telegram Bot and the Mini App / Website.
+                    </div>
+                  )}
 
                   {/* Pricing Markups */}
                   <div className="grid grid-cols-2 gap-2 bg-[#121217] p-3 rounded-xl border border-[#262630]">
@@ -1685,11 +1812,19 @@ export const ServerManagementTab: React.FC = () => {
                     className="bg-[#181820] border border-[#262630] rounded-xl p-4 flex items-center justify-between"
                   >
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-xs text-white">{p.name}</span>
                         <span className="text-[10px] text-[#22c55e] font-semibold">
                           +{p.percent_markup}%
                         </span>
+                        <span className="text-[10px] text-[#a78bfa] bg-[#a78bfa]/10 px-1.5 py-0.5 rounded font-mono">
+                          {p.currency}
+                        </span>
+                        {p.currency === 'USD' && (
+                          <span className="text-[10px] text-[#38bdf8] font-mono">
+                            (₹{p.exchange_rate || usdtRateInput}/USD)
+                          </span>
+                        )}
                       </div>
                       <span className="text-[11px] text-[#71717a] font-mono truncate max-w-[200px] block">
                         {p.api_url}

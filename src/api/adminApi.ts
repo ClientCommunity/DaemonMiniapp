@@ -147,7 +147,14 @@ export interface SmmProvider {
   api_key: string;
   percent_markup: number;
   currency: string;
+  exchange_rate?: number;
   enabled: number;
+}
+
+export interface ExchangeRatesData {
+  usdt_rate: number;
+  rub_inr_rate: number;
+  smm_providers?: SmmProvider[];
 }
 
 export interface SmmCategory {
@@ -503,6 +510,19 @@ export const adminApi = {
       operator_code: operatorCode,
       service_code: serviceCode,
     });
+  },
+
+  getExchangeRates: async (): Promise<{ success: boolean; rates: ExchangeRatesData }> => {
+    return api.get<{ success: boolean; rates: ExchangeRatesData }>('/api/admin/exchange-rates');
+  },
+
+  updateExchangeRates: async (payload: {
+    usdt_rate?: number;
+    rub_inr_rate?: number;
+    smm_provider_id?: number;
+    smm_exchange_rate?: number;
+  }): Promise<{ success: boolean; message?: string }> => {
+    return api.post('/api/admin/exchange-rates', payload);
   },
 
   // --- Tab 2: Server 5 Management (SMM Services) ---
