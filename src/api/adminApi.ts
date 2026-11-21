@@ -137,6 +137,7 @@ export interface ManagedServerConfig {
   has_api_key?: boolean;
   percent_markup?: number;
   fixed_markup?: number;
+  minimum_price?: number;
   [key: string]: unknown;
 }
 
@@ -555,6 +556,13 @@ export const adminApi = {
     providerId: number
   ): Promise<{ success: boolean; provider_id: number; enabled: boolean }> => {
     return api.post(`/api/admin/server5/providers/${providerId}/toggle`);
+  },
+
+  updateSmmProvider: async (
+    providerId: number,
+    data: { percent_markup?: number; exchange_rate?: number; name?: string; api_url?: string; api_key?: string }
+  ): Promise<{ success: boolean; message?: string }> => {
+    return api.post(`/api/admin/server5/providers/${providerId}`, data);
   },
 
   deleteSmmProvider: async (

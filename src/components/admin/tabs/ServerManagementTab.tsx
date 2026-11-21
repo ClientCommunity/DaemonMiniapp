@@ -393,6 +393,7 @@ export const ServerManagementTab: React.FC = () => {
     serverNo: number,
     percentMarkup: number,
     fixedMarkup: number,
+    minimumPrice: number,
     apiUrl?: string,
     apiKey?: string
   ) => {
@@ -400,6 +401,7 @@ export const ServerManagementTab: React.FC = () => {
       const res = await adminApi.updateServerConfig(serverNo, {
         percent_markup: percentMarkup,
         fixed_markup: fixedMarkup,
+        minimum_price: minimumPrice,
         api_url: apiUrl,
         api_key: apiKey,
       });
@@ -616,6 +618,55 @@ export const ServerManagementTab: React.FC = () => {
       }
     } catch {
       addToast('Failed to add SMM provider', 'error');
+    }
+  };
+
+  const [editingProviderId, setEditingProviderId] = useState<number | null>(null);
+  const [editProvMarkup, setEditProvMarkup] = useState('');
+  const [editProvExchangeRate, setEditProvExchangeRate] = useState('');
+  const [savingProvEdit, setSavingProvEdit] = useState(false);
+
+  const handleStartEditProvider = (p: SmmProvider) => {
+    setEditingProviderId(p.id);
+    setEditProvMarkup(String(p.percent_markup ?? 20));
+    setEditProvExchangeRate(String(p.exchange_rate ?? usdtRateInput ?? '93.0'));
+  };
+
+  const handleSaveEditProvider = async (providerId: number) => {
+    const markup = parseFloat(editProvMarkup);
+    const rate = parseFloat(editProvExchangeRate);
+    if (isNaN(markup)) {
+      addToast('Please enter a valid markup %', 'error');
+      return;
+    }
+    setSavingProvEdit(true);
+    try {
+      const res = await adminApi.updateSmmProvider(providerId, {
+        percent_markup: markup,
+        exchange_rate: !isNaN(rate) && rate > 0 ? rate : undefined,
+      });
+      if (res?.success) {
+        addToast('SMM Provider updated', 'success');
+        setEditingProviderId(null);
+        loadServer5();
+      }
+    } catch {
+      addToast('Failed to update provider', 'error');
+    } finally {
+      setSavingProvEdit(false);
+    }
+  };
+
+  const handleDeleteSmmProvider = async (providerId: number, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete SMM provider "${name}"?`)) return;
+    try {
+      const res = await adminApi.deleteSmmProvider(providerId);
+      if (res?.success) {
+        addToast(`Provider "${name}" deleted`, 'success');
+        loadServer5();
+      }
+    } catch {
+      addToast('Failed to delete provider', 'error');
     }
   };
 
@@ -1564,14 +1615,14 @@ export const ServerManagementTab: React.FC = () => {
                   )}
 
                   {/* Pricing Markups */}
-                  <div className="grid grid-cols-2 gap-2 bg-[#121217] p-3 rounded-xl border border-[#262630]">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#121217] p-3 rounded-xl border border-[#262630]">
                     <div>
                       <label className="text-[10px] text-[#a1a1aa] block mb-1 font-semibold">
                         Percent Markup (%)
                       </label>
                       <input
                         type="number"
-                        defaultValue={config.percent_markup || 20}
+                        defaultValue={config.percent_markup ?? (serverNo === 3 ? 0 : 15)}
                         id={`s${serverNo}_percent`}
                         className="w-full bg-[#181820] border border-[#262630] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
                       />
@@ -1582,8 +1633,19 @@ export const ServerManagementTab: React.FC = () => {
                       </label>
                       <input
                         type="number"
-                        defaultValue={config.fixed_markup || 5}
+                        defaultValue={config.fixed_markup ?? 0}
                         id={`s${serverNo}_fixed`}
+                        className="w-full bg-[#181820] border border-[#262630] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#a1a1aa] block mb-1 font-semibold">
+                        Min Price Floor (₹)
+                      </label>
+                      <input
+                        type="number"
+                        defaultValue={config.minimum_price !== undefined ? config.minimum_price : (serverNo === 3 ? 10 : 15)}
+                        id={`s${serverNo}_min`}
                         className="w-full bg-[#181820] border border-[#262630] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
                       />
                     </div>
@@ -1595,12 +1657,14 @@ export const ServerManagementTab: React.FC = () => {
                       onClick={() => {
                         const pEl = document.getElementById(`s${serverNo}_percent`) as HTMLInputElement;
                         const fEl = document.getElementById(`s${serverNo}_fixed`) as HTMLInputElement;
+                        const mEl = document.getElementById(`s${serverNo}_min`) as HTMLInputElement;
                         const uEl = document.getElementById(`s${serverNo}_api_url`) as HTMLInputElement;
                         const kEl = document.getElementById(`s${serverNo}_api_key`) as HTMLInputElement;
                         handleUpdateManagedServerConfig(
                           serverNo,
-                          parseFloat(pEl?.value || '20'),
-                          parseFloat(fEl?.value || '5'),
+                          parseFloat(pEl?.value || '0'),
+                          parseFloat(fEl?.value || '0'),
+                          parseFloat(mEl?.value || (serverNo === 3 ? '10' : '15')),
                           uEl?.value?.trim() || undefined,
                           kEl?.value?.trim() || undefined
                         );
@@ -1806,43 +1870,108 @@ export const ServerManagementTab: React.FC = () => {
 
               {/* Providers List */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {smmProviders.map((p) => (
-                  <div
-                    key={p.id}
-                    className="bg-[#181820] border border-[#262630] rounded-xl p-4 flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-xs text-white">{p.name}</span>
-                        <span className="text-[10px] text-[#22c55e] font-semibold">
-                          +{p.percent_markup}%
-                        </span>
-                        <span className="text-[10px] text-[#a78bfa] bg-[#a78bfa]/10 px-1.5 py-0.5 rounded font-mono">
-                          {p.currency}
-                        </span>
-                        {p.currency === 'USD' && (
-                          <span className="text-[10px] text-[#38bdf8] font-mono">
-                            (₹{p.exchange_rate || usdtRateInput}/USD)
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-[#71717a] font-mono truncate max-w-[200px] block">
-                        {p.api_url}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => handleToggleSmmProvider(p.id)}
-                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-                        p.enabled
-                          ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
-                          : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30'
-                      }`}
+                {smmProviders.map((p) => {
+                  const isEditing = editingProviderId === p.id;
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-[#181820] border border-[#262630] rounded-xl p-4 flex flex-col justify-between gap-3"
                     >
-                      {p.enabled ? 'Active' : 'Disabled'}
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-xs text-white">{p.name}</span>
+                            <span className="text-[10px] text-[#22c55e] font-semibold">
+                              +{p.percent_markup}%
+                            </span>
+                            <span className="text-[10px] text-[#a78bfa] bg-[#a78bfa]/10 px-1.5 py-0.5 rounded font-mono">
+                              {p.currency}
+                            </span>
+                            {p.currency === 'USD' && (
+                              <span className="text-[10px] text-[#38bdf8] font-mono">
+                                (₹{p.exchange_rate || usdtRateInput}/USD)
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-[#71717a] font-mono truncate max-w-[200px] block mt-0.5">
+                            {p.api_url}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleToggleSmmProvider(p.id)}
+                            className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                              p.enabled
+                                ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30 hover:bg-[#22c55e]/25'
+                                : 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/30 hover:bg-[#ef4444]/25'
+                            }`}
+                          >
+                            {p.enabled ? 'Active' : 'Disabled'}
+                          </button>
+                          <button
+                            onClick={() => (isEditing ? setEditingProviderId(null) : handleStartEditProvider(p))}
+                            className="p-1 rounded-lg text-[#a1a1aa] hover:text-white bg-[#121217] border border-[#262630] transition-colors"
+                            title="Edit provider markup & rate"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSmmProvider(p.id, p.name)}
+                            className="p-1 rounded-lg text-[#ef4444] hover:text-red-400 bg-[#121217] border border-[#262630] transition-colors"
+                            title="Delete provider"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Inline Edit Form */}
+                      {isEditing && (
+                        <div className="pt-2 border-t border-[#262630] grid grid-cols-2 gap-2 bg-[#121217] p-2.5 rounded-lg">
+                          <div>
+                            <label className="text-[10px] text-[#a1a1aa] block mb-1 font-semibold">Markup %</label>
+                            <input
+                              type="number"
+                              value={editProvMarkup}
+                              onChange={(e) => setEditProvMarkup(e.target.value)}
+                              className="w-full bg-[#181820] border border-[#262630] rounded-md px-2 py-1 text-xs text-white outline-none"
+                            />
+                          </div>
+                          {p.currency === 'USD' ? (
+                            <div>
+                              <label className="text-[10px] text-[#a1a1aa] block mb-1 font-semibold">₹/USD Rate</label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={editProvExchangeRate}
+                                onChange={(e) => setEditProvExchangeRate(e.target.value)}
+                                className="w-full bg-[#181820] border border-[#262630] rounded-md px-2 py-1 text-xs text-white outline-none"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-end text-[11px] text-[#a1a1aa] pb-1">Direct INR provider</div>
+                          )}
+                          <div className="col-span-2 flex justify-end gap-2 mt-1">
+                            <button
+                              onClick={() => setEditingProviderId(null)}
+                              className="px-2.5 py-1 text-xs text-[#a1a1aa] hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              disabled={savingProvEdit}
+                              onClick={() => handleSaveEditProvider(p.id)}
+                              className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold px-3 py-1 rounded-md transition-all disabled:opacity-50"
+                            >
+                              {savingProvEdit ? 'Saving...' : 'Save Changes'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
