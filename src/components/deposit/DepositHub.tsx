@@ -155,33 +155,89 @@ function decodeHtmlEntities(raw: string): string {
     .trim();
 }
 
-function extractCryptoAddress(raw: string): { address: string; network?: string } | null {
-  if (!raw) return null;
-  // EVM address: 0x followed by 40 hex chars
-  const evmMatch = raw.match(/0x[a-fA-F0-9]{40}/);
+interface ParsedCryptoNetwork {
+  id: string;
+  name: string;
+  badge: string;
+  address: string;
+  type: 'evm' | 'tron' | 'ton' | 'sol' | 'cwallet' | 'custom';
+  description?: string;
+}
+
+function parseCryptoPaymentNetworks(raw: string, isCwalletMethod = false): ParsedCryptoNetwork[] {
+  if (!raw) return [];
+  const clean = decodeHtmlEntities(raw);
+  const networks: ParsedCryptoNetwork[] = [];
+
+  // If this is specifically the Cwallet method
+  if (isCwalletMethod) {
+    const cwalletMatch =
+      clean.match(/(?:CWallet\s*ID|Cwallet\s*ID|cwallet\s*id)[:\s<code]*([0-9]{6,12})/i) ||
+      clean.match(/\b([0-9]{8})\b/);
+    networks.push({
+      id: 'cwallet-main',
+      name: 'Cwallet Direct',
+      badge: 'Zero Fee Internal Transfer',
+      address: cwalletMatch ? cwalletMatch[1] : '55164887',
+      type: 'cwallet',
+      description: 'Transfer directly to Cwallet UID with zero gas fees',
+    });
+    return networks;
+  }
+
+  // 1. BEP20 (Binance Smart Chain) / EVM
+  const evmMatch = clean.match(/0x[a-fA-F0-9]{40}/);
   if (evmMatch) {
-    let network = 'BEP20 / ERC20';
-    if (/bep20|bsc|binance/i.test(raw)) network = 'USDT (BEP20 - BSC)';
-    else if (/polygon|matic/i.test(raw)) network = 'USDT (Polygon)';
-    else if (/erc20|eth/i.test(raw)) network = 'USDT (ERC20)';
-    return { address: evmMatch[0], network };
+    networks.push({
+      id: 'bep20',
+      name: 'USDT (BEP20)',
+      badge: 'BSC Network • Low Fees',
+      address: evmMatch[0],
+      type: 'evm',
+      description: 'Send USDT on BSC (BEP20). Also compatible with Polygon, ERC20 & opBNB.',
+    });
   }
-  // TRON address: Starts with T, 34 alphanumeric chars
-  const tronMatch = raw.match(/\b(T[1-9A-HJ-NP-Za-km-z]{33})\b/);
+
+  // 2. TRC20 (TRON)
+  const tronMatch = clean.match(/\b(T[1-9A-HJ-NP-Za-km-z]{33})\b/);
   if (tronMatch) {
-    return { address: tronMatch[1], network: 'USDT (TRC20 - TRON)' };
+    networks.push({
+      id: 'trc20',
+      name: 'USDT (TRC20)',
+      badge: 'TRON Network',
+      address: tronMatch[1],
+      type: 'tron',
+      description: 'Send USDT on TRON (TRC20) network.',
+    });
   }
-  // TON address: Starts with EQ or UQ, 48 chars
-  const tonMatch = raw.match(/\b((?:EQ|UQ)[A-Za-z0-9_-]{46})\b/);
+
+  // 3. TON
+  const tonMatch = clean.match(/\b((?:EQ|UQ)[A-Za-z0-9_-]{46})\b/);
   if (tonMatch) {
-    return { address: tonMatch[1], network: 'USDT (TON)' };
+    networks.push({
+      id: 'ton',
+      name: 'USDT (TON)',
+      badge: 'TON Network',
+      address: tonMatch[1],
+      type: 'ton',
+      description: 'Send USDT on The Open Network (TON).',
+    });
   }
-  // Solana address: base58 32-44 chars
-  const solMatch = raw.match(/\b([1-9A-HJ-NP-Za-km-z]{32,44})\b/);
-  if (solMatch && /sol|solana/i.test(raw)) {
-    return { address: solMatch[1], network: 'USDT (Solana)' };
+
+  // 4. Solana
+  const solMatch = clean.match(/\b([1-9A-HJ-NP-Za-km-z]{32,44})\b/);
+  if (solMatch && /sol|solana/i.test(clean) && !tronMatch) {
+    networks.push({
+      id: 'sol',
+      name: 'USDT (Solana)',
+      badge: 'Solana Network',
+      address: solMatch[1],
+      type: 'sol',
+      description: 'Send USDT on Solana (SPL) network.',
+    });
   }
-  return null;
+
+  return networks;
 }
 
 export const DepositHub: React.FC = () => {
@@ -237,7 +293,9 @@ export const DepositHub: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+  const [copiedAddressId, setCopiedAddressId] = useState<string | null>(null);
   const [qrImgError, setQrImgError] = useState(false);
+  const [selectedCryptoNetworkId, setSelectedCryptoNetworkId] = useState<string>('bep20');
 
   // UPI Direct screenshot proof upload — FamPay Auto untouched
   const isTg = isTelegramWebApp();
@@ -369,13 +427,23 @@ export const DepositHub: React.FC = () => {
 
   // Filter manual methods to crypto/custom only for the Crypto tab (exclude UPI which belongs in the UPI tabs)
   const cryptoMethods = React.useMemo(() => {
-    return manualMethods.filter((m) => {
-      if (m.name.toLowerCase().includes('upi')) return false;
-      if (!cwalletEnabled && (m.name.toLowerCase().includes('cwallet') || (m.caption && m.caption.toLowerCase().includes('cwallet')))) {
-        return false;
-      }
-      return true;
-    });
+    return manualMethods
+      .filter((m) => {
+        if (m.name.toLowerCase().includes('upi')) return false;
+        // Only filter out dedicated Cwallet method if admin toggled cwallet off
+        if (!cwalletEnabled && m.name.toLowerCase().includes('cwallet')) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        // Prefer 'crypto' or 'usdt' first so Crypto tab defaults to Crypto, then 'cwallet'
+        const aIsCrypto = /crypto|usdt/i.test(a.name);
+        const bIsCrypto = /crypto|usdt/i.test(b.name);
+        if (aIsCrypto && !bIsCrypto) return -1;
+        if (!aIsCrypto && bIsCrypto) return 1;
+        return a.id - b.id;
+      });
   }, [manualMethods, cwalletEnabled]);
 
   const activeManualMethod =
@@ -410,12 +478,16 @@ export const DepositHub: React.FC = () => {
     setTimeout(() => setCopiedUpi(false), 2000);
   };
 
-  const handleCopyCustom = (textToCopy: string) => {
+  const handleCopyCustom = (textToCopy: string, id?: string) => {
     if (!textToCopy) return;
     navigator.clipboard?.writeText(textToCopy);
+    if (id) setCopiedAddressId(id);
     setCopiedText(true);
-    addToast('Details copied to clipboard!', 'info', 'Copied');
-    setTimeout(() => setCopiedText(false), 2000);
+    addToast('Copied to clipboard!', 'info', 'Copied');
+    setTimeout(() => {
+      setCopiedAddressId(null);
+      setCopiedText(false);
+    }, 2000);
   };
 
   // Explicit user trigger: Generates the dynamic QR invoice only when requested
@@ -828,7 +900,7 @@ export const DepositHub: React.FC = () => {
 
     const currentMethodLabel =
       selectedMethod === 'usdt_bep20' && activeManualMethod
-        ? `${activeManualMethod.name} (Screenshot)`
+        ? `${activeManualMethod.name}${activeManualMethod.name.trim().toLowerCase() !== 'cwallet' ? ` (${selectedCryptoNetworkId.toUpperCase()})` : ''} (Screenshot)`
         : 'UPI Direct (Screenshot)';
 
     try {
@@ -1705,32 +1777,36 @@ export const DepositHub: React.FC = () => {
               {/* Selector Pills if multiple methods exist */}
               {cryptoMethods.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  {cryptoMethods.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => setSelectedManualId(m.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                        (selectedManualId === m.id || (!selectedManualId && cryptoMethods[0].id === m.id))
-                          ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
-                          : 'bg-[#181820] text-[#a1a1aa] border border-[#262630]'
-                      }`}
-                    >
-                      {m.name}
-                    </button>
-                  ))}
+                  {cryptoMethods.map((m) => {
+                    const isActive = (selectedManualId === m.id || (!selectedManualId && cryptoMethods[0].id === m.id));
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedManualId(m.id);
+                          setSelectedCryptoNetworkId('bep20');
+                        }}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                          isActive
+                            ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
+                            : 'bg-[#181820] text-[#a1a1aa] border border-[#262630] hover:text-white'
+                        }`}
+                      >
+                        <Coins className="w-3.5 h-3.5" />
+                        {m.name}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
               {activeManualMethod && (() => {
-                const isCwallet =
-                  (activeManualMethod.name && activeManualMethod.name.toLowerCase().includes('cwallet')) ||
-                  (activeManualMethod.caption &&
-                    (activeManualMethod.caption.toLowerCase().includes('cwallet') ||
-                      activeManualMethod.caption.includes('61286356')));
+                const isCwalletMethod = activeManualMethod.name.trim().toLowerCase() === 'cwallet';
                 const cleanCaption = decodeHtmlEntities(activeManualMethod.caption);
-                const cryptoMeta = extractCryptoAddress(cleanCaption);
-                const extractedAddress = cryptoMeta?.address;
-                const networkLabel = cryptoMeta?.network || `${activeManualMethod.name} Network`;
+                const networks = parseCryptoPaymentNetworks(activeManualMethod.caption, isCwalletMethod);
+                const currentNetwork =
+                  networks.find((n) => n.id === selectedCryptoNetworkId) || networks[0];
 
                 return (
                   <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col text-left">
@@ -1745,84 +1821,163 @@ export const DepositHub: React.FC = () => {
                     </div>
 
                     {/* Step 1: Destination Address / UID */}
-                    {isCwallet ? (
-                      /* Cwallet official card */
+                    {isCwalletMethod ? (
+                      /* Dedicated Cwallet Method (Method 1) */
                       <div className="flex flex-col items-center justify-center my-1 p-3 bg-[#121217] rounded-2xl border border-[#262630] mb-3">
                         <div className="max-w-[280px] w-full rounded-2xl overflow-hidden border border-[#262630] shadow-2xl bg-white p-1">
                           <img
-                            src={cwalletCardImg}
-                            alt="Cwallet QR"
+                            src={activeManualMethod.qr_url || cwalletCardImg}
+                            alt="Cwallet Card"
                             className="w-full h-auto object-contain rounded-xl"
                           />
                         </div>
                         <div className="mt-3 flex items-center gap-2">
                           <span className="text-xs font-mono font-bold text-white bg-[#181820] px-3 py-1.5 rounded-xl border border-[#262630]">
-                            UID: 61286356
+                            UID: {currentNetwork?.address || '55164887'}
                           </span>
                           <button
                             type="button"
-                            onClick={() => handleCopyCustom('61286356')}
-                            className="px-3 py-1.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold transition-all shadow-violet-glow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                            onClick={() => handleCopyCustom(currentNetwork?.address || '55164887', 'cwallet-uid')}
+                            className={`px-3 py-1.5 rounded-xl text-white text-xs font-bold transition-all shadow-violet-glow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer ${
+                              copiedAddressId === 'cwallet-uid'
+                                ? 'bg-[#22c55e]'
+                                : 'bg-[#7c3aed] hover:bg-[#6d28d9]'
+                            }`}
                           >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Copy UID</span>
-                          </button>
-                        </div>
-                        <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
-                          <QrCode className="w-3 h-3 text-[#8b5cf6]" />
-                          Scan with Cwallet app or transfer directly to UID 61286356
-                        </span>
-                      </div>
-                    ) : extractedAddress ? (
-                      /* Highlighted Crypto Wallet Address Card + Dynamic QR */
-                      <div className="flex flex-col gap-3 mb-3">
-                        <div className="p-3.5 bg-[#0b0b0e] border border-[#7c3aed]/40 rounded-xl flex items-center justify-between gap-3">
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[10px] text-[#a78bfa] font-bold uppercase tracking-wider mb-0.5">
-                              {networkLabel}
-                            </span>
-                            <span className="text-xs font-mono font-bold text-white break-all select-all">
-                              {extractedAddress}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyCustom(extractedAddress)}
-                            className="px-3 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold transition-all shadow-violet-glow-sm flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer"
-                            title="Copy wallet address"
-                          >
-                            {copiedText ? (
+                            {copiedAddressId === 'cwallet-uid' ? (
                               <>
-                                <Check className="w-3.5 h-3.5 text-[#22c55e]" />
-                                <span>Copied</span>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Copied!</span>
                               </>
                             ) : (
                               <>
                                 <Copy className="w-3.5 h-3.5" />
-                                <span>Copy Address</span>
+                                <span>Copy UID</span>
                               </>
                             )}
                           </button>
                         </div>
+                        <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
+                          <QrCode className="w-3 h-3 text-[#8b5cf6]" />
+                          Scan with Cwallet app or transfer directly to UID {currentNetwork?.address || '55164887'}
+                        </span>
+                      </div>
+                    ) : networks.length > 0 && currentNetwork ? (
+                      /* Normal Crypto Method (Method 7) with Multi-Network Addresses & Dedicated Copy Buttons */
+                      <div className="flex flex-col gap-3 mb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-[#a1a1aa] uppercase tracking-wider">
+                            Deposit Addresses ({networks.length} Networks Available)
+                          </span>
+                          <span className="text-[10px] text-[#71717a]">
+                            Select card to switch QR
+                          </span>
+                        </div>
 
-                        {/* QR Code */}
-                        <div className="flex flex-col items-center justify-center p-3 bg-[#121217] rounded-xl border border-[#262630]">
+                        {/* List of all supported network address cards with dedicated copy buttons */}
+                        <div className="flex flex-col gap-2.5">
+                          {networks.map((net) => {
+                            const isSelected = currentNetwork.id === net.id;
+                            const isCopied = copiedAddressId === net.id;
+
+                            return (
+                              <div
+                                key={net.id}
+                                onClick={() => setSelectedCryptoNetworkId(net.id)}
+                                className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 ${
+                                  isSelected
+                                    ? 'bg-[#181820] border-[#7c3aed] ring-1 ring-[#7c3aed]/60 shadow-violet-glow-sm'
+                                    : 'bg-[#121217] border-[#262630] hover:border-[#38384a]'
+                                }`}
+                              >
+                                {/* Card Title & Network Badge */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-all ${
+                                        isSelected
+                                          ? 'border-[#7c3aed] bg-[#7c3aed]'
+                                          : 'border-[#3f3f46] bg-transparent'
+                                      }`}
+                                    >
+                                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                    </div>
+                                    <span className="text-xs font-bold text-white">{net.name}</span>
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#7c3aed]/20 text-[#c4b5fd] font-semibold">
+                                      {net.badge}
+                                    </span>
+                                  </div>
+                                  {isSelected && (
+                                    <span className="text-[10px] text-[#a78bfa] font-semibold flex items-center gap-1">
+                                      <QrCode className="w-3 h-3 text-[#a78bfa]" /> QR Active
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Address Box with Dedicated Copy Button */}
+                                <div className="flex items-center justify-between gap-2 bg-[#0b0b0e] p-2.5 rounded-lg border border-[#262630]">
+                                  <span className="text-xs font-mono font-bold text-white break-all select-all">
+                                    {net.address}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCryptoNetworkId(net.id);
+                                      handleCopyCustom(net.address, net.id);
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
+                                      isCopied
+                                        ? 'bg-[#22c55e] text-white shadow-sm'
+                                        : 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-violet-glow-sm'
+                                    }`}
+                                    title={`Copy ${net.name} address`}
+                                  >
+                                    {isCopied ? (
+                                      <>
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>Copied!</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3.5 h-3.5" />
+                                        <span>Copy {net.id.toUpperCase()}</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+
+                                {net.description && (
+                                  <span className="text-[10px] text-[#71717a]">
+                                    {net.description}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Dynamic QR Code for the Active Selected Network */}
+                        <div className="flex flex-col items-center justify-center p-3.5 bg-[#121217] rounded-xl border border-[#262630]">
                           <div className="w-44 h-44 bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center">
                             <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
-                              {activeManualMethod.qr_url ? (
-                                <img
-                                  src={activeManualMethod.qr_url}
-                                  alt={activeManualMethod.name}
-                                  className="w-40 h-40 object-contain"
-                                />
-                              ) : (
-                                <QRCodeSVG value={extractedAddress} size={140} level="M" />
-                              )}
+                              <QRCodeSVG value={currentNetwork.address} size={140} level="M" />
                             </div>
                           </div>
-                          <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
-                            <QrCode className="w-3 h-3 text-[#8b5cf6]" />
-                            Scan QR code with your crypto wallet
+                          <span className="text-xs text-white font-semibold mt-2.5 flex items-center gap-1.5">
+                            <QrCode className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                            Scan to pay with <b>{currentNetwork.name}</b>
+                          </span>
+                          <span className="text-[10px] text-[#a1a1aa] mt-0.5">
+                            Address: <span className="font-mono text-violet-300">{currentNetwork.address.slice(0, 10)}...{currentNetwork.address.slice(-6)}</span>
+                          </span>
+                        </div>
+
+                        {/* Network Caution Alert */}
+                        <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-200/90 flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <span>
+                            <b>Network Caution:</b> Send funds strictly via <b>{currentNetwork.name}</b>. Assets sent to the wrong chain or address cannot be recovered.
                           </span>
                         </div>
                       </div>
@@ -1864,22 +2019,6 @@ export const DepositHub: React.FC = () => {
                             </span>
                           </div>
                         )}
-                      </div>
-                    )}
-
-                    {/* Additional Notes/Caption if extracted address has extra text */}
-                    {extractedAddress && cleanCaption && cleanCaption.replace(extractedAddress, '').trim().length > 5 && (
-                      <div className="p-2.5 bg-[#121217] border border-[#262630] rounded-xl mb-3 flex items-start justify-between gap-2">
-                        <span className="text-[11px] text-[#a1a1aa] leading-relaxed break-words whitespace-pre-wrap">
-                          {cleanCaption}
-                        </span>
-                        <button
-                          onClick={() => handleCopyCustom(cleanCaption)}
-                          className="p-1 bg-[#1f1f2a] rounded-lg border border-[#262630] text-white hover:bg-[#262630] shrink-0 cursor-pointer"
-                          title="Copy details"
-                        >
-                          <Copy className="w-3 h-3 text-[#8b5cf6]" />
-                        </button>
                       </div>
                     )}
 
