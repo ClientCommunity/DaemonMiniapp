@@ -178,7 +178,7 @@ function parseCryptoPaymentNetworks(raw: string, isCwalletMethod = false): Parse
       id: 'cwallet-main',
       name: 'Cwallet Direct',
       badge: 'Zero Fee Internal Transfer',
-      address: cwalletMatch ? cwalletMatch[1] : '55164887',
+      address: cwalletMatch ? cwalletMatch[1] : '61286356',
       type: 'cwallet',
       description: 'Transfer directly to Cwallet UID with zero gas fees',
     });
@@ -1833,11 +1833,11 @@ export const DepositHub: React.FC = () => {
                         </div>
                         <div className="mt-3 flex items-center gap-2">
                           <span className="text-xs font-mono font-bold text-white bg-[#181820] px-3 py-1.5 rounded-xl border border-[#262630]">
-                            UID: {currentNetwork?.address || '55164887'}
+                            UID: {currentNetwork?.address || '61286356'}
                           </span>
                           <button
                             type="button"
-                            onClick={() => handleCopyCustom(currentNetwork?.address || '55164887', 'cwallet-uid')}
+                            onClick={() => handleCopyCustom(currentNetwork?.address || '61286356', 'cwallet-uid')}
                             className={`px-3 py-1.5 rounded-xl text-white text-xs font-bold transition-all shadow-violet-glow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer ${
                               copiedAddressId === 'cwallet-uid'
                                 ? 'bg-[#22c55e]'
@@ -1859,7 +1859,7 @@ export const DepositHub: React.FC = () => {
                         </div>
                         <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
                           <QrCode className="w-3 h-3 text-[#8b5cf6]" />
-                          Scan with Cwallet app or transfer directly to UID {currentNetwork?.address || '55164887'}
+                          Scan with Cwallet app or transfer directly to UID {currentNetwork?.address || '61286356'}
                         </span>
                       </div>
                     ) : networks.length > 0 && currentNetwork ? (
