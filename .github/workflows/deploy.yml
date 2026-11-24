@@ -1,4 +1,4 @@
-name: Deploy Production (VPS & GitHub Pages)
+name: Deploy Production (Cloudflare & GitHub Pages)
 
 on:
   push:
@@ -25,33 +25,18 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # --- 1. VPS Production Deployment (Root Base Path /) ---
-      - name: Build for VPS (Root Path)
+      # --- 1. Cloudflare Workers Production Deployment (daemonx.in) ---
+      - name: Build for Cloudflare (Root Path)
         env:
           VITE_BASE_PATH: "/"
         run: npm run build
 
-      - name: Deploy to VPS via SCP
-        uses: appleboy/scp-action@v0.1.7
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: 22
-          source: "dist/*"
-          target: "/var/www/html"
-          strip_components: 1
-
-      - name: Configure VPS Symlinks & 404 Fallback
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: 22
-          script: |
-            cp /var/www/html/index.html /var/www/html/404.html
-            ln -sfn /var/www/html /var/www/html/DaemonMiniapp
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
 
       # --- 2. GitHub Pages Deployment (Subfolder /DaemonMiniapp/ Path) ---
       - name: Build for GitHub Pages (Subfolder Path)

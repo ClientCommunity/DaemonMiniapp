@@ -155,6 +155,35 @@ function decodeHtmlEntities(raw: string): string {
     .trim();
 }
 
+function extractCryptoAddress(raw: string): { address: string; network?: string } | null {
+  if (!raw) return null;
+  // EVM address: 0x followed by 40 hex chars
+  const evmMatch = raw.match(/0x[a-fA-F0-9]{40}/);
+  if (evmMatch) {
+    let network = 'BEP20 / ERC20';
+    if (/bep20|bsc|binance/i.test(raw)) network = 'USDT (BEP20 - BSC)';
+    else if (/polygon|matic/i.test(raw)) network = 'USDT (Polygon)';
+    else if (/erc20|eth/i.test(raw)) network = 'USDT (ERC20)';
+    return { address: evmMatch[0], network };
+  }
+  // TRON address: Starts with T, 34 alphanumeric chars
+  const tronMatch = raw.match(/\b(T[1-9A-HJ-NP-Za-km-z]{33})\b/);
+  if (tronMatch) {
+    return { address: tronMatch[1], network: 'USDT (TRC20 - TRON)' };
+  }
+  // TON address: Starts with EQ or UQ, 48 chars
+  const tonMatch = raw.match(/\b((?:EQ|UQ)[A-Za-z0-9_-]{46})\b/);
+  if (tonMatch) {
+    return { address: tonMatch[1], network: 'USDT (TON)' };
+  }
+  // Solana address: base58 32-44 chars
+  const solMatch = raw.match(/\b([1-9A-HJ-NP-Za-km-z]{32,44})\b/);
+  if (solMatch && /sol|solana/i.test(raw)) {
+    return { address: solMatch[1], network: 'USDT (Solana)' };
+  }
+  return null;
+}
+
 export const DepositHub: React.FC = () => {
   const { submitDeposit, addToast, activeInvoice, setActiveInvoice, refreshUser, refreshHistory } = useApp();
 
@@ -752,7 +781,9 @@ export const DepositHub: React.FC = () => {
     }
   };
 
-  const isUpiDirectAmountValid = Number.isFinite(amount) && amount >= upiMinDeposit;
+  const isProofAmountValid =
+    Number.isFinite(amount) &&
+    amount >= (selectedMethod === 'usdt_bep20' ? cwalletMinDeposit : upiMinDeposit);
 
   const handleSelectScreenshotFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -776,9 +807,10 @@ export const DepositHub: React.FC = () => {
   };
 
   const handleRequestScreenshotSubmit = () => {
-    if (!isUpiDirectAmountValid) {
+    const minRequired = selectedMethod === 'usdt_bep20' ? cwalletMinDeposit : upiMinDeposit;
+    if (!isProofAmountValid) {
       hapticFeedback.error();
-      addToast(`Please enter a deposit amount of ₹${upiMinDeposit} or greater first.`, 'error', 'Invalid Amount');
+      addToast(`Please enter a deposit amount of ₹${minRequired} or greater first.`, 'error', 'Invalid Amount');
       return;
     }
     if (!isTg && !screenshotFile) {
@@ -790,13 +822,18 @@ export const DepositHub: React.FC = () => {
   };
 
   const handleConfirmScreenshotAction = async () => {
-    if (isSubmittingScreenshot || !isUpiDirectAmountValid) return;
+    if (isSubmittingScreenshot || !isProofAmountValid) return;
     setIsSubmittingScreenshot(true);
     hapticFeedback.light();
 
+    const currentMethodLabel =
+      selectedMethod === 'usdt_bep20' && activeManualMethod
+        ? `${activeManualMethod.name} (Screenshot)`
+        : 'UPI Direct (Screenshot)';
+
     try {
       if (isTg) {
-        const res = await depositApi.startUpiDirectBotHandoff(Math.floor(amount));
+        const res = await depositApi.startUpiDirectBotHandoff(Math.floor(amount), currentMethodLabel);
         if (res?.success) {
           hapticFeedback.success();
           setScreenshotConfirmOpen(false);
@@ -817,7 +854,7 @@ export const DepositHub: React.FC = () => {
           addToast(res?.error || 'Could not start screenshot upload in bot chat.', 'error', 'Handoff Failed');
         }
       } else if (screenshotFile) {
-        const res = await depositApi.submitUpiDirectScreenshot(Math.floor(amount), screenshotFile);
+        const res = await depositApi.submitUpiDirectScreenshot(Math.floor(amount), screenshotFile, currentMethodLabel);
         if (res?.success) {
           hapticFeedback.success();
           setScreenshotConfirmOpen(false);
@@ -830,7 +867,7 @@ export const DepositHub: React.FC = () => {
             'success',
             'Screenshot Submitted'
           );
-          submitDeposit('upi_direct', Math.floor(amount), 'SCREENSHOT', true);
+          submitDeposit(selectedMethod, Math.floor(amount), 'SCREENSHOT', true);
         } else {
           hapticFeedback.error();
           addToast(res?.error || 'Failed to upload payment screenshot.', 'error', 'Upload Failed');
@@ -992,8 +1029,12 @@ export const DepositHub: React.FC = () => {
     );
   };
 
-  const renderUpiDirectProofSection = () => {
+  const renderProofSubmissionSection = (isCrypto = false) => {
     const cleanAmt = Number.isFinite(amount) ? Math.floor(amount) : 0;
+    const minRequired = isCrypto ? cwalletMinDeposit : upiMinDeposit;
+    const isValid = Number.isFinite(amount) && amount >= minRequired;
+    const methodName = isCrypto ? (activeManualMethod?.name || 'Crypto') : 'UPI Direct';
+
     return (
       <div className="w-full bg-[#121217] border border-[#262630] rounded-xl p-3 sm:p-3.5 text-left mb-3 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1008,13 +1049,13 @@ export const DepositHub: React.FC = () => {
 
         {/* Payment Screenshot Submission (Website direct upload & Mini App bot handoff) */}
         <div className="space-y-3">
-          {!isUpiDirectAmountValid ? (
+          {!isValid ? (
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <div className="space-y-0.5">
                 <div className="font-bold text-amber-300">Enter Deposit Amount First</div>
                 <p className="text-[11px] text-amber-100/80 leading-relaxed">
-                  Please select or type a deposit amount of at least <b>₹{upiMinDeposit}</b> above to unlock Screenshot submission.
+                  Please select or type a deposit amount of at least <b>₹{minRequired}</b> above to unlock Screenshot submission.
                 </p>
               </div>
             </div>
@@ -1030,7 +1071,7 @@ export const DepositHub: React.FC = () => {
                   <span className="font-mono font-extrabold text-[#22c55e]">₹{cleanAmt}</span>
                 </div>
                 <p className="text-[11px] text-[#a1a1aa] leading-relaxed">
-                  No need to type any Txn ID. Tap below to temporarily close the Mini App and send your payment screenshot directly to the bot chat.
+                  No need to type any Txn ID or Hash. Tap below to temporarily close the Mini App and send your {methodName} payment screenshot directly to the bot chat.
                 </p>
               </div>
 
@@ -1065,10 +1106,10 @@ export const DepositHub: React.FC = () => {
                     <Upload className="w-5 h-5" />
                   </div>
                   <div className="text-xs font-bold text-white">
-                    Tap to Select Payment Screenshot
+                    Tap to Select {methodName} Payment Screenshot
                   </div>
                   <span className="text-[10px] text-[#71717a]">
-                    JPG, PNG or WebP • Max 5 MB • Skip typing Txn ID
+                    JPG, PNG or WebP • Max 5 MB • Skip typing Txn Hash
                   </span>
                 </button>
               ) : (
@@ -1601,7 +1642,7 @@ export const DepositHub: React.FC = () => {
               </div>
             ) : null}
 
-            {renderUpiDirectProofSection()}
+            {renderProofSubmissionSection(false)}
           </div>
         </div>
         )
@@ -1680,108 +1721,173 @@ export const DepositHub: React.FC = () => {
                 </div>
               )}
 
-              {activeManualMethod && (
-                <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col text-left">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-bold text-white flex items-center gap-2">
-                      <Coins className="w-4 h-4 text-amber-400" />
-                      {activeManualMethod.name}
-                    </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e] font-semibold">
-                      Manual Verification
-                    </span>
-                  </div>
+              {activeManualMethod && (() => {
+                const isCwallet =
+                  (activeManualMethod.name && activeManualMethod.name.toLowerCase().includes('cwallet')) ||
+                  (activeManualMethod.caption &&
+                    (activeManualMethod.caption.toLowerCase().includes('cwallet') ||
+                      activeManualMethod.caption.includes('61286356')));
+                const cleanCaption = decodeHtmlEntities(activeManualMethod.caption);
+                const cryptoMeta = extractCryptoAddress(cleanCaption);
+                const extractedAddress = cryptoMeta?.address;
+                const networkLabel = cryptoMeta?.network || `${activeManualMethod.name} Network`;
 
-                  {/* Instructions / Caption */}
-                  {activeManualMethod.caption && (
-                    <div className="p-3 bg-[#121217] border border-[#262630] rounded-xl mb-3 flex items-start justify-between gap-2">
-                      <span className="text-xs text-[#e4e4e7] leading-relaxed break-words whitespace-pre-wrap">
-                        {decodeHtmlEntities(activeManualMethod.caption)}
+                return (
+                  <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col text-left">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-white flex items-center gap-2">
+                        <Coins className="w-4 h-4 text-amber-400" />
+                        {activeManualMethod.name}
                       </span>
-                      <button
-                        onClick={() => handleCopyCustom(decodeHtmlEntities(activeManualMethod.caption))}
-                        className="p-1.5 bg-[#1f1f2a] rounded-lg border border-[#262630] text-white hover:bg-[#262630] shrink-0"
-                        title="Copy instructions"
-                      >
-                        {copiedText ? (
-                          <Check className="w-3.5 h-3.5 text-[#22c55e]" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* QR Code image if exists */}
-                  {((activeManualMethod.name && activeManualMethod.name.toLowerCase().includes('cwallet')) || (activeManualMethod.caption && (activeManualMethod.caption.toLowerCase().includes('cwallet') || activeManualMethod.caption.includes('61286356')))) ? (
-                    <div className="flex flex-col items-center justify-center my-2 p-3 bg-[#121217] rounded-2xl border border-[#262630]">
-                      <div className="max-w-[280px] w-full rounded-2xl overflow-hidden border border-[#262630] shadow-2xl bg-white p-1">
-                        <img
-                          src={cwalletCardImg}
-                          alt="Cwallet QR"
-                          className="w-full h-auto object-contain rounded-xl"
-                        />
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-white bg-[#181820] px-3 py-1.5 rounded-xl border border-[#262630]">
-                          UID: 61286356
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyCustom('61286356')}
-                          className="px-3 py-1.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold transition-all shadow-violet-glow-sm flex items-center gap-1.5 active:scale-95"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy UID</span>
-                        </button>
-                      </div>
-                      <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
-                        <QrCode className="w-3 h-3 text-[#8b5cf6]" />
-                        Scan with Cwallet app or transfer to UID 61286356
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e] font-semibold">
+                        Manual Verification
                       </span>
                     </div>
-                  ) : activeManualMethod.qr_url ? (
-                    <div className="flex flex-col items-center justify-center my-2 p-3 bg-[#121217] rounded-xl border border-[#262630]">
-                      <div className="w-48 h-48 bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center">
-                        <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+
+                    {/* Step 1: Destination Address / UID */}
+                    {isCwallet ? (
+                      /* Cwallet official card */
+                      <div className="flex flex-col items-center justify-center my-1 p-3 bg-[#121217] rounded-2xl border border-[#262630] mb-3">
+                        <div className="max-w-[280px] w-full rounded-2xl overflow-hidden border border-[#262630] shadow-2xl bg-white p-1">
                           <img
-                            src={activeManualMethod.qr_url}
-                            alt={activeManualMethod.name}
-                            className="w-40 h-40 object-contain"
+                            src={cwalletCardImg}
+                            alt="Cwallet QR"
+                            className="w-full h-auto object-contain rounded-xl"
                           />
                         </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-white bg-[#181820] px-3 py-1.5 rounded-xl border border-[#262630]">
+                            UID: 61286356
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCustom('61286356')}
+                            className="px-3 py-1.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold transition-all shadow-violet-glow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy UID</span>
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
+                          <QrCode className="w-3 h-3 text-[#8b5cf6]" />
+                          Scan with Cwallet app or transfer directly to UID 61286356
+                        </span>
                       </div>
-                      <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
-                        <QrCode className="w-3 h-3 text-[#8b5cf6]" />
-                        Scan QR code with your {activeManualMethod.name} app
-                      </span>
-                    </div>
-                  ) : null}
+                    ) : extractedAddress ? (
+                      /* Highlighted Crypto Wallet Address Card + Dynamic QR */
+                      <div className="flex flex-col gap-3 mb-3">
+                        <div className="p-3.5 bg-[#0b0b0e] border border-[#7c3aed]/40 rounded-xl flex items-center justify-between gap-3">
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] text-[#a78bfa] font-bold uppercase tracking-wider mb-0.5">
+                              {networkLabel}
+                            </span>
+                            <span className="text-xs font-mono font-bold text-white break-all select-all">
+                              {extractedAddress}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCustom(extractedAddress)}
+                            className="px-3 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold transition-all shadow-violet-glow-sm flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer"
+                            title="Copy wallet address"
+                          >
+                            {copiedText ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-[#22c55e]" />
+                                <span>Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copy Address</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
 
-                  {/* Step 2: Submit Reference */}
-                  <span className="text-xs font-bold text-white mb-1 mt-2">
-                    Submit Transaction ID / Reference
-                  </span>
-                  <form onSubmit={handleUtrSubmit} className="flex flex-col gap-2.5">
-                    <input
-                      type="text"
-                      value={utrNumber}
-                      onChange={(e) => setUtrNumber(e.target.value)}
-                      placeholder="Enter Transaction ID / Hash / Reference"
-                      className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed]"
-                      required
-                    />
-                    <button
-                      type="submit"
-                      disabled={isVerifying}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold text-xs shadow-violet-glow transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      <Check className="w-4 h-4" />
-                      <span>{isVerifying ? 'Submitting Reference...' : `Submit Reference for ₹${amount}`}</span>
-                    </button>
-                  </form>
-                </div>
-              )}
+                        {/* QR Code */}
+                        <div className="flex flex-col items-center justify-center p-3 bg-[#121217] rounded-xl border border-[#262630]">
+                          <div className="w-44 h-44 bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center">
+                            <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+                              {activeManualMethod.qr_url ? (
+                                <img
+                                  src={activeManualMethod.qr_url}
+                                  alt={activeManualMethod.name}
+                                  className="w-40 h-40 object-contain"
+                                />
+                              ) : (
+                                <QRCodeSVG value={extractedAddress} size={140} level="M" />
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
+                            <QrCode className="w-3 h-3 text-[#8b5cf6]" />
+                            Scan QR code with your crypto wallet
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Fallback for other manual instructions */
+                      <div className="flex flex-col gap-3 mb-3">
+                        {cleanCaption && (
+                          <div className="p-3 bg-[#121217] border border-[#262630] rounded-xl flex items-start justify-between gap-2">
+                            <span className="text-xs text-[#e4e4e7] leading-relaxed break-words whitespace-pre-wrap">
+                              {cleanCaption}
+                            </span>
+                            <button
+                              onClick={() => handleCopyCustom(cleanCaption)}
+                              className="p-1.5 bg-[#1f1f2a] rounded-lg border border-[#262630] text-white hover:bg-[#262630] shrink-0 cursor-pointer"
+                              title="Copy details"
+                            >
+                              {copiedText ? (
+                                <Check className="w-3.5 h-3.5 text-[#22c55e]" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                        {activeManualMethod.qr_url && (
+                          <div className="flex flex-col items-center justify-center p-3 bg-[#121217] rounded-xl border border-[#262630]">
+                            <div className="w-44 h-44 bg-white p-2.5 rounded-2xl shadow-xl flex items-center justify-center">
+                              <div className="w-full h-full border-2 border-black flex flex-col items-center justify-center bg-white p-1">
+                                <img
+                                  src={activeManualMethod.qr_url}
+                                  alt={activeManualMethod.name}
+                                  className="w-40 h-40 object-contain"
+                                />
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-[#a1a1aa] mt-2 flex items-center gap-1">
+                              <QrCode className="w-3 h-3 text-[#8b5cf6]" />
+                              Scan QR code to pay
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Additional Notes/Caption if extracted address has extra text */}
+                    {extractedAddress && cleanCaption && cleanCaption.replace(extractedAddress, '').trim().length > 5 && (
+                      <div className="p-2.5 bg-[#121217] border border-[#262630] rounded-xl mb-3 flex items-start justify-between gap-2">
+                        <span className="text-[11px] text-[#a1a1aa] leading-relaxed break-words whitespace-pre-wrap">
+                          {cleanCaption}
+                        </span>
+                        <button
+                          onClick={() => handleCopyCustom(cleanCaption)}
+                          className="p-1 bg-[#1f1f2a] rounded-lg border border-[#262630] text-white hover:bg-[#262630] shrink-0 cursor-pointer"
+                          title="Copy details"
+                        >
+                          <Copy className="w-3 h-3 text-[#8b5cf6]" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Step 2: Submit Payment Screenshot (identical to UPI Direct) */}
+                    {renderProofSubmissionSection(true)}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1818,7 +1924,9 @@ export const DepositHub: React.FC = () => {
                     {isTg ? 'Confirm Screenshot Upload via Bot' : 'Confirm Payment Screenshot'}
                   </h3>
                   <p className="text-[11px] text-[#a1a1aa]">
-                    UPI Direct Manual Verification
+                    {selectedMethod === 'usdt_bep20'
+                      ? `${activeManualMethod?.name || 'Crypto'} Manual Verification`
+                      : 'UPI Direct Manual Verification'}
                   </p>
                 </div>
               </div>
@@ -1843,7 +1951,12 @@ export const DepositHub: React.FC = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[#a1a1aa]">Payment Method</span>
-                  <span className="font-bold text-white">UPI Direct (Screenshot)</span>
+                  <span className="font-bold text-white">
+                    {selectedMethod === 'usdt_bep20'
+                      ? activeManualMethod?.name || 'Crypto'
+                      : 'UPI Direct'}{' '}
+                    (Screenshot)
+                  </span>
                 </div>
               </div>
 
@@ -1854,7 +1967,12 @@ export const DepositHub: React.FC = () => {
                     1. The Mini App will <b>close temporarily</b>.
                   </p>
                   <p>
-                    2. Our bot will immediately send you a message in Telegram chat asking for your <b>₹{Math.floor(amount)}</b> payment screenshot.
+                    2. Our bot will immediately send you a message in Telegram chat asking for your{' '}
+                    <b>₹{Math.floor(amount)}</b>{' '}
+                    {selectedMethod === 'usdt_bep20'
+                      ? activeManualMethod?.name || 'crypto'
+                      : 'UPI'}{' '}
+                    payment screenshot.
                   </p>
                   <p>
                     3. Reply with the screenshot photo there — Admins will verify and credit your wallet!

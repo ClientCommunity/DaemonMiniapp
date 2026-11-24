@@ -627,18 +627,22 @@ export const depositApi = {
     api.post<ManualDepositCancelResponse>('/api/deposit/manual/cancel-verify', {
       deposit_id: depositId,
     }),
-  submitUpiDirectScreenshot: (amount: number, file: File) => {
+  submitUpiDirectScreenshot: (amount: number, file: File, method_label?: string) => {
     const formData = new FormData();
     formData.append('amount', String(amount));
     formData.append('screenshot', file, file.name);
+    if (method_label) {
+      formData.append('method_label', method_label);
+    }
     return apiRequest<UpiDirectScreenshotResponse>('/api/deposit/upi-direct/screenshot', {
       method: 'POST',
       body: formData,
     });
   },
-  startUpiDirectBotHandoff: (amount: number) =>
+  startUpiDirectBotHandoff: (amount: number, method_label?: string) =>
     api.post<UpiDirectBotHandoffResponse>('/api/deposit/upi-direct/bot-handoff', {
       amount,
+      ...(method_label ? { method_label } : {}),
     }),
 };
 
