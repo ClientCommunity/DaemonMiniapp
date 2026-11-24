@@ -35,7 +35,6 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
 
       # --- 2. GitHub Pages Deployment (Subfolder /DaemonMiniapp/ Path) ---
