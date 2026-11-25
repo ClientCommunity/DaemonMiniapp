@@ -1,4 +1,5 @@
 name: Deploy Production (Cloudflare & GitHub Pages)
+# Trigger CI/CD verification run
 
 on:
   push:
