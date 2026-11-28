@@ -65,12 +65,12 @@ export const DualBalanceCard: React.FC<DualBalanceCardProps> = ({ onOpenTransfer
               <div className="absolute inset-y-0 right-1/3 w-[1px] bg-amber-950/35" />
             </div>
           </div>
-          <Wifi className="w-4 h-4 text-[#a1a1aa] rotate-90 opacity-75" />
+          <Wifi className="w-4 h-4 atm-text-muted rotate-90 opacity-75" />
           <div className="flex flex-col leading-none">
-            <span className="text-[10px] font-extrabold tracking-[0.16em] text-[#a1a1aa] uppercase">
+            <span className="text-[10px] font-extrabold tracking-[0.16em] atm-text-muted uppercase">
               Deamon Pay
             </span>
-            <span className="text-[9px] font-mono text-[#71717a] mt-0.5">
+            <span className="text-[9px] font-mono atm-text-subtle mt-0.5">
               •••• {cardTail}
             </span>
           </div>
@@ -80,12 +80,12 @@ export const DualBalanceCard: React.FC<DualBalanceCardProps> = ({ onOpenTransfer
           <button
             type="button"
             onClick={togglePrivacy}
-            className="p-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/10 active:scale-90 transition-all flex items-center justify-center cursor-pointer"
+            className="p-1.5 rounded-lg atm-text-muted hover:text-white hover:bg-white/10 active:scale-90 transition-all flex items-center justify-center cursor-pointer"
             title={isPrivate ? 'Show balance' : 'Hide balance for privacy / screenshots'}
             aria-label={isPrivate ? 'Show balance' : 'Hide balance'}
           >
             {isPrivate ? (
-              <EyeOff className="w-3.5 h-3.5 text-[#8b5cf6]" />
+              <EyeOff className="w-3.5 h-3.5 text-[#a78bfa]" />
             ) : (
               <Eye className="w-3.5 h-3.5" />
             )}
@@ -99,11 +99,11 @@ export const DualBalanceCard: React.FC<DualBalanceCardProps> = ({ onOpenTransfer
 
       {/* Hero Balance Display */}
       <div className="mb-4">
-        <span className="text-[10px] font-semibold text-[#a1a1aa] uppercase tracking-[0.14em] block">
+        <span className="text-[10px] font-semibold atm-text-muted uppercase tracking-[0.14em] block">
           Available Balance
         </span>
         <div className="flex items-baseline justify-between gap-2 mt-0.5">
-          <div className="text-3xl sm:text-[34px] font-black text-white tracking-tight tabular-nums leading-none">
+          <div className="text-3xl sm:text-[34px] font-black atm-text-white tracking-tight tabular-nums leading-none">
             {isPrivate ? (
               <span className="font-mono text-2xl tracking-[0.25em] text-[#22c55e]/90">
                 ••••••
@@ -112,7 +112,7 @@ export const DualBalanceCard: React.FC<DualBalanceCardProps> = ({ onOpenTransfer
               formatPrice(user.balance)
             )}
           </div>
-          <span className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider truncate max-w-[120px]">
+          <span className="text-[10px] font-mono atm-text-subtle uppercase tracking-wider truncate max-w-[120px]">
             {user.firstName}
           </span>
         </div>
@@ -146,14 +146,14 @@ export const DualBalanceCard: React.FC<DualBalanceCardProps> = ({ onOpenTransfer
       {/* Segmented Card Strip (Clean Matte Cells — No Competing Borders + Glows) */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         {/* 1. Transferable Main Balance */}
-        <div className="bg-black/30 rounded-xl p-2.5 flex flex-col justify-between">
-          <div className="flex items-center gap-1 text-[10px] text-[#a1a1aa] mb-1">
+        <div className="bg-white/[0.06] rounded-xl p-2.5 flex flex-col justify-between">
+          <div className="flex items-center gap-1 text-[10px] atm-text-muted mb-1">
             <CheckCircle2 className="w-3 h-3 text-[#22c55e] shrink-0" />
             <span className="truncate">Transferable</span>
           </div>
-          <div className="text-xs sm:text-sm font-bold text-white tracking-tight tabular-nums">
+          <div className="text-xs sm:text-sm font-bold atm-text-white tracking-tight tabular-nums">
             {isPrivate ? (
-              <span className="font-mono text-xs tracking-wider text-[#a1a1aa]">••••</span>
+              <span className="font-mono text-xs tracking-wider atm-text-muted">••••</span>
             ) : (
               formatPrice(transferableBalance)
             )}
@@ -164,7 +164,7 @@ export const DualBalanceCard: React.FC<DualBalanceCardProps> = ({ onOpenTransfer
         </div>
 
         {/* 2. Locked Promo Balance */}
-        <div className="bg-black/30 rounded-xl p-2.5 flex flex-col justify-between relative">
+        <div className="bg-white/[0.06] rounded-xl p-2.5 flex flex-col justify-between relative">
           <div className="flex items-center justify-between text-[10px] text-[#f59e0b] mb-1">
             <div className="flex items-center gap-1 min-w-0">
               <Lock className="w-3 h-3 text-[#f59e0b] shrink-0" />
@@ -193,8 +193,8 @@ export const DualBalanceCard: React.FC<DualBalanceCardProps> = ({ onOpenTransfer
         </div>
 
         {/* 3. Sales / Reseller Profit */}
-        <div className="bg-black/30 rounded-xl p-2.5 flex flex-col justify-between">
-          <div className="flex items-center gap-1 text-[10px] text-[#a1a1aa] mb-1">
+        <div className="bg-white/[0.06] rounded-xl p-2.5 flex flex-col justify-between">
+          <div className="flex items-center gap-1 text-[10px] atm-text-muted mb-1">
             <TrendingUp className="w-3 h-3 text-[#a78bfa] shrink-0" />
             <span className="truncate">Profit</span>
           </div>
@@ -205,7 +205,7 @@ export const DualBalanceCard: React.FC<DualBalanceCardProps> = ({ onOpenTransfer
               formatPrice(user.salesBalance)
             )}
           </div>
-          <span className="text-[9px] text-[#a1a1aa] font-medium mt-0.5 truncate">
+          <span className="text-[9px] atm-text-muted font-medium mt-0.5 truncate">
             Affiliate
           </span>
         </div>

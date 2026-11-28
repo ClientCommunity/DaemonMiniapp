@@ -98,21 +98,21 @@ export const PinnedDealsSection: React.FC<PinnedDealsSectionProps> = ({
               key={item.id}
               type="button"
               onClick={() => handleSelectDeal(item)}
-              className="flex-shrink-0 snap-start bg-[#16161f] hover:bg-[#1d1d29] border border-amber-500/35 hover:border-amber-400/70 rounded-xl px-2.5 py-2 flex items-center gap-2.5 transition-all duration-150 active:scale-[0.98] cursor-pointer group text-left max-w-[300px]"
+              className="pinned-deal-pill flex-shrink-0 snap-start rounded-xl px-2.5 py-2 flex items-center gap-2.5 transition-all duration-150 active:scale-[0.98] cursor-pointer group text-left max-w-[300px]"
             >
               {/* Left Hot Tag */}
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-[9px] font-extrabold uppercase tracking-wider shrink-0">
-                <Zap className="w-2.5 h-2.5 text-amber-400" />
+              <span className="pinned-s-badge inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-[9px] font-extrabold uppercase tracking-wider shrink-0">
+                <Zap className="w-2.5 h-2.5 text-amber-500" />
                 S{item.server_no}
               </span>
 
               {/* Middle: Single-line Service + Subtle Tag */}
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors truncate max-w-[130px]">
+                  <span className="text-xs font-bold text-white group-hover:text-amber-500 transition-colors truncate max-w-[130px]">
                     {item.service_name}
                   </span>
-                  <span className="text-[9px] font-bold text-amber-400/90 uppercase shrink-0">
+                  <span className="pinned-hot-text text-[9px] font-bold text-amber-400/90 uppercase shrink-0">
                     • {badgeText}
                   </span>
                 </div>

@@ -631,21 +631,68 @@ html.light .btn-25d-secondary:active {
     0 2px 4px rgba(15, 23, 42, 0.06) !important;
 }
 
-/* ATM / Debit Card Surface */
+/* ATM / Debit Card Surface (Rich dark metallic card in both Dark & Light mode) */
 .atm-wallet-card {
   background:
-    radial-gradient(120% 90% at 95% 5%, rgba(124, 58, 237, 0.24) 0%, transparent 55%),
-    radial-gradient(90% 80% at 5% 100%, rgba(34, 197, 94, 0.12) 0%, transparent 55%),
-    linear-gradient(145deg, #1b1b27 0%, #12121a 55%, #0e0e14 100%);
-  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    radial-gradient(120% 90% at 95% 5%, rgba(124, 58, 237, 0.28) 0%, transparent 55%),
+    radial-gradient(90% 80% at 5% 100%, rgba(34, 197, 94, 0.14) 0%, transparent 55%),
+    linear-gradient(145deg, #1d1b2e 0%, #13121d 55%, #0d0d14 100%);
+  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 html.light .atm-wallet-card {
   background:
-    radial-gradient(120% 90% at 95% 5%, rgba(124, 58, 237, 0.14) 0%, transparent 55%),
-    radial-gradient(90% 80% at 5% 100%, rgba(34, 197, 94, 0.1) 0%, transparent 55%),
-    linear-gradient(145deg, #ffffff 0%, #f5f3ff 60%, #eef2ff 100%) !important;
-  box-shadow: 0 10px 24px -6px rgba(15, 23, 42, 0.12), inset 0 1px 0 #ffffff !important;
+    radial-gradient(120% 90% at 95% 5%, rgba(124, 58, 237, 0.32) 0%, transparent 55%),
+    radial-gradient(90% 80% at 5% 100%, rgba(34, 197, 94, 0.16) 0%, transparent 55%),
+    linear-gradient(145deg, #211d38 0%, #161426 55%, #0f0e1a 100%) !important;
+  box-shadow: 0 14px 30px -8px rgba(15, 23, 42, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+/* Protect light text inside the dark ATM card when html.light is active */
+html.light .atm-wallet-card .atm-text-white {
+  color: #ffffff !important;
+}
+html.light .atm-wallet-card .atm-text-muted {
+  color: #a1a1aa !important;
+}
+html.light .atm-wallet-card .atm-text-subtle {
+  color: #8f8fa3 !important;
+}
+html.light .atm-wallet-card .btn-25d-secondary {
+  background: linear-gradient(180deg, #2b2940 0%, #201e31 100%) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 3px 0 #0c0b14,
+    0 5px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Thin Pinned Deal Pill */
+.pinned-deal-pill {
+  background-color: #16161f;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.pinned-deal-pill:hover {
+  background-color: #1d1d29;
+  border-color: rgba(251, 191, 36, 0.7);
+}
+html.light .pinned-deal-pill {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(245, 158, 11, 0.55) !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+}
+html.light .pinned-deal-pill:hover {
+  background-color: #fffbeb !important;
+  border-color: #f59e0b !important;
+}
+html.light .pinned-deal-pill .pinned-s-badge {
+  background-color: #fef3c7 !important;
+  color: #b45309 !important;
+}
+html.light .pinned-deal-pill .pinned-hot-text {
+  color: #d97706 !important;
 }
 
 
