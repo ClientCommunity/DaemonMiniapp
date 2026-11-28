@@ -414,7 +414,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
               }`}
             >
               <span className="flex items-center gap-1.5 text-xs">
-                {qs.isServer ? <Server className="w-3 h-3" /> : <Globe className="w-3 h-3 text-[#8b5cf6]" />}
+                {qs.isServer ? <Server className="w-3 h-3" /> : <Globe className={`w-3 h-3 ${isSelected ? 'text-white' : 'text-[#8b5cf6]'}`} />}
                 <span>{qs.label}</span>
               </span>
             </button>

@@ -138,6 +138,14 @@ html.light .bg-\[\#1f1f2a\]\/50 {
 }
 
 /* Modern Dark Surfaces in Light Mode */
+html.light .bg-\[\#101016\],
+html.light .bg-\[\#12121a\] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light .bg-\[\#16161f\],
+html.light .bg-\[\#1b1b26\],
 html.light .bg-\[\#151520\],
 html.light .bg-\[\#151520\]\/80,
 html.light .bg-\[\#1a1a28\],
@@ -148,6 +156,15 @@ html.light .bg-\[\#20202c\],
 html.light .bg-\[\#222230\] {
   background-color: #ffffff !important;
   color: #0f172a !important;
+}
+
+html.light .text-\[\#d4d4d8\] {
+  color: #334155 !important;
+}
+
+html.light .btn-25d-primary,
+html.light .btn-25d-primary * {
+  color: #ffffff !important;
 }
 
 html.light .hover\:bg-\[\#1a1a28\]:hover {
