@@ -15,7 +15,6 @@ import {
   Link as LinkIcon,
   Clipboard,
   ShieldCheck,
-  Zap,
   Clock,
   ShoppingBag,
   Plus,
@@ -496,23 +495,7 @@ export const Server5Smm: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col pt-2">
-      {/* Banner */}
-      <div className="p-3 mb-3 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between">
-        <div className="flex flex-col">
-          <span className="text-xs font-bold text-white flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-[#8b5cf6]" />
-            Server 5: SMM Growth Hub
-          </span>
-          <span className="text-[11px] text-[#a1a1aa]">
-            Automated organic followers, members, views & engagement
-          </span>
-        </div>
-        <div className="px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[#22c55e] text-[10px] font-bold">
-          High Retention
-        </div>
-      </div>
-
+    <div className="w-full flex flex-col pt-1">
       {isLoadingPage && paginatedServices.length === 0 ? (
         <Server5SkeletonList count={6} />
       ) : !isLoadingPage && paginatedServices.length === 0 && !search && activePlatform === 'all' ? (

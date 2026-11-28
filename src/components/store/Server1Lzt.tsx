@@ -327,31 +327,8 @@ export const Server1Lzt: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col pt-2">
-      {/* Banner / Intro */}
-      <div className="py-2.5 px-3 mb-2 rounded-xl bg-[#181820] flex items-center justify-between gap-2 shadow-sm">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[11px] font-bold text-white truncate">Server 1: Global Accounts</span>
-          <span className="text-[10px] text-[#71717a] hidden xs:inline">• Global Aged Stock</span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={handleRefreshStock}
-            disabled={isRefreshingStock || isServerLoading[1]}
-            className="btn-25d-secondary flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold disabled:opacity-50 cursor-pointer"
-            title="Refresh Server 1 stock"
-          >
-            <RefreshCw className={`w-3 h-3 ${isRefreshingStock || isServerLoading[1] ? 'animate-spin text-[#a78bfa]' : 'text-[#c084fc]'}`} />
-            <span>{isRefreshingStock || isServerLoading[1] ? 'Refreshing...' : 'Refresh Stock'}</span>
-          </button>
-          <div className="px-2 py-0.5 rounded-md bg-[#22c55e]/15 text-[#22c55e] text-[9px] font-bold uppercase tracking-wider shrink-0">
-            High Trust
-          </div>
-        </div>
-      </div>
-
-      {/* Search Bar, Price Sort & Filters */}
+    <div className="w-full flex flex-col pt-1">
+      {/* Search Bar, Price Sort, Refresh & Filters */}
       <div className="flex items-center gap-2 mb-2">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-[#a1a1aa] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -379,6 +356,16 @@ export const Server1Lzt: React.FC = () => {
           )}
         </div>
         <PriceSortFilter value={priceSort} onChange={setPriceSort} />
+        <button
+          type="button"
+          onClick={handleRefreshStock}
+          disabled={isRefreshingStock || isServerLoading[1]}
+          className="btn-25d-secondary flex items-center justify-center p-2.5 rounded-xl shrink-0 disabled:opacity-50 cursor-pointer"
+          title="Refresh Server 1 stock"
+          aria-label="Refresh Server 1 stock"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingStock || isServerLoading[1] ? 'animate-spin text-[#a78bfa]' : 'text-[#c084fc]'}`} />
+        </button>
         <button
           type="button"
           onClick={openFilterModal}

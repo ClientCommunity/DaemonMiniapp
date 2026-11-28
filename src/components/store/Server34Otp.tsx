@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { OtpAppCode, VirtualOtpServiceItem } from '../../types';
 import { PlatformIcon } from '../common/PlatformIcon';
 import { PriceSortFilter, PriceSortOrder } from '../common/PriceSortFilter';
-import { Search, Zap, ShoppingBag, ShieldCheck, Radio, X, Globe, Sparkles, Layers, Check, Server } from 'lucide-react';
+import { Search, ShoppingBag, Radio, X, Globe, Sparkles, Layers, Check, Server } from 'lucide-react';
 import { ActiveOtpCard } from '../dashboard/ActiveOtpCard';
 import { Server34SkeletonList } from '../common/GlassSkeleton';
 
@@ -321,39 +321,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
   }, [visibleItems.length, sorted.length]);
 
   return (
-    <div className="w-full flex flex-col pt-2">
-      {/* Banner */}
-      <div className="p-3.5 mb-2 rounded-2xl bg-[#181820] flex items-center justify-between shadow-sm">
-        <div className="flex flex-col">
-          <span className="text-xs font-bold text-white flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-[#8b5cf6]" />
-            {isServer3 ? 'Server 3: Instant Virtual OTP' : 'Server 4: Fresh Carrier Numbers'}
-          </span>
-          <span className="text-[11px] text-[#a1a1aa]">
-            {isServer3
-              ? 'Ultra-fast SMS resolution (1-3s) for major platforms'
-              : 'Fresh carrier pool with 100% private virtual numbers'}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#7c3aed]/15 text-[#a78bfa] text-[10px] font-bold shrink-0">
-          <Radio className="w-3 h-3 text-[#22c55e] animate-pulse" />
-          <span>{isServer3 ? 'Fast Pool' : 'Fresh Pool'}</span>
-        </div>
-      </div>
-
-      {/* 100% Refund Guarantee Pill Banner (Top-level assurance) */}
-      <div className="mb-3 px-3 py-2 bg-[#181820] rounded-xl flex items-center justify-between gap-2 text-[11px] text-[#a1a1aa] shadow-sm">
-        <div className="flex items-center gap-2 min-w-0">
-          <ShieldCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
-          <span className="truncate">
-            Auto-refund: If no SMS arrives within 10 min, balance is 100% refunded.
-          </span>
-        </div>
-        <span className="text-[10px] font-bold text-[#22c55e] shrink-0 bg-[#22c55e]/15 px-2 py-0.5 rounded-md">
-          Protected
-        </span>
-      </div>
-
+    <div className="w-full flex flex-col pt-1">
       {/* Active OTP session widget if present */}
       <ActiveOtpCard />
 
