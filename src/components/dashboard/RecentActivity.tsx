@@ -127,10 +127,10 @@ export const RecentActivity: React.FC = () => {
               <div
                 key={item.id}
                 onClick={() => openReceiptDrawer(item)}
-                className="flex items-center justify-between p-3 rounded-xl bg-[#181820] border border-[#262630] hover:border-[#383848] active:scale-[0.99] transition-all cursor-pointer"
+                className="flex items-center justify-between p-3 rounded-xl bg-[#181820] hover:bg-[#1f1f2a] active:scale-[0.99] transition-all cursor-pointer shadow-sm"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-[#121217] border border-[#262630] flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#121217] flex items-center justify-center shrink-0">
                     {getItemIcon(item)}
                   </div>
                   <div className="flex flex-col min-w-0">
@@ -165,18 +165,18 @@ export const RecentActivity: React.FC = () => {
                       : formatPrice(item.amountInr)}
                   </span>
                   <span
-                    className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 border ${
+                    className={`text-[9px] px-2 py-0.5 rounded-full font-semibold mt-0.5 ${
                       isRejected || isFailed || isCancelled
-                        ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                        ? 'bg-red-500/15 text-red-400'
                         : isSuccess
-                        ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
+                        ? 'bg-[#22c55e]/15 text-[#22c55e]'
                         : isWaiting
-                        ? 'bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30 animate-pulse'
+                        ? 'bg-[#f59e0b]/15 text-[#f59e0b] animate-pulse'
                         : isInProgress
-                        ? 'bg-blue-500/15 text-blue-400 border-blue-500/30 animate-pulse'
+                        ? 'bg-blue-500/15 text-blue-400 animate-pulse'
                         : isRefunded
-                        ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        ? 'bg-purple-500/15 text-purple-300'
+                        : 'bg-emerald-500/10 text-emerald-400'
                     }`}
                   >
                     {isRejected

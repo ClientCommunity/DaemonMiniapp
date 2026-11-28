@@ -141,14 +141,13 @@ export const ResellerEngine: React.FC = () => {
   return (
     <div className="w-full flex flex-col pt-1 pb-4">
       {/* Reseller Banner */}
-      <div className="p-4 mb-4 rounded-2xl bg-gradient-to-r from-[#181820] to-[#121217] border border-[#262630] relative overflow-hidden shadow-lg">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#7c3aed]/15 rounded-full filter blur-2xl pointer-events-none" />
+      <div className="p-4 mb-4 rounded-2xl bg-gradient-to-r from-[#181820] to-[#121217] relative overflow-hidden shadow-md">
         <span className="text-[10px] font-bold text-[#8b5cf6] uppercase tracking-wider block mb-1">
           Custom Margin Engine
         </span>
-        <h2 className="text-base font-extrabold text-white tracking-tight flex items-center gap-1.5">
+        <h2 className="text-base font-extrabold text-white tracking-tight flex items-center gap-1.5 flex-wrap">
           <span>Reseller Bot Link Creator</span>
-          <span className="text-[10px] font-mono font-bold text-[#8b5cf6] bg-[#7c3aed]/20 px-2 py-0.5 rounded-full border border-[#8b5cf6]/30">
+          <span className="text-[10px] font-mono font-bold text-[#a78bfa] bg-[#7c3aed]/15 px-2.5 py-0.5 rounded-full">
             Multi-Server 1 URL
           </span>
         </h2>
@@ -160,7 +159,7 @@ export const ResellerEngine: React.FC = () => {
       {/* 3-Metric Performance Grid */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         {/* Metric 1 */}
-        <div className="p-3 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col">
+        <div className="p-3 rounded-2xl bg-[#181820] flex flex-col shadow-sm">
           <div className="flex items-center gap-1.5 text-[#a1a1aa] text-[10px] font-semibold mb-1">
             <Users className="w-3.5 h-3.5 text-blue-400" />
             <span>Customers</span>
@@ -172,7 +171,7 @@ export const ResellerEngine: React.FC = () => {
         </div>
 
         {/* Metric 2 */}
-        <div className="p-3 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col">
+        <div className="p-3 rounded-2xl bg-[#181820] flex flex-col shadow-sm">
           <div className="flex items-center gap-1.5 text-[#a1a1aa] text-[10px] font-semibold mb-1">
             <ShoppingBag className="w-3.5 h-3.5 text-[#f59e0b]" />
             <span>Orders</span>
@@ -184,7 +183,7 @@ export const ResellerEngine: React.FC = () => {
         </div>
 
         {/* Metric 3 */}
-        <div className="p-3 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col">
+        <div className="p-3 rounded-2xl bg-[#181820] flex flex-col shadow-sm">
           <div className="flex items-center gap-1.5 text-[#a1a1aa] text-[10px] font-semibold mb-1">
             <TrendingUp className="w-3.5 h-3.5 text-[#22c55e]" />
             <span>Profit</span>
@@ -197,24 +196,24 @@ export const ResellerEngine: React.FC = () => {
       </div>
 
       {/* Reseller Link Bar with 1-Click Copy and Bundled Server Badges */}
-      <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] mb-4">
+      <div className="p-4 rounded-2xl bg-[#181820] mb-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-[#8b5cf6]" />
             <span>Active Reseller Bot Link</span>
           </span>
-          <span className="text-[10px] font-mono font-bold text-[#22c55e] bg-[#22c55e]/15 px-2 py-0.5 rounded-full border border-[#22c55e]/30">
+          <span className="text-[10px] font-mono font-bold text-[#22c55e] bg-[#22c55e]/15 px-2.5 py-0.5 rounded-full">
             +{formatPrice(resellerConfig.marginInr)} Margin
           </span>
         </div>
 
-        <div className="flex items-center justify-between bg-[#0b0b0e] border border-[#262630] rounded-xl px-3 py-2">
+        <div className="flex items-center justify-between bg-[#0b0b0e] rounded-xl px-3 py-2">
           <span className="text-xs font-mono text-[#8b5cf6] truncate mr-2">
             {effectiveResellerLink}
           </span>
           <button
             onClick={handleCopyResellerLink}
-            className="shrink-0 flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-violet-glow-sm active:scale-95 transition-all"
+            className="btn-25d-primary shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer"
           >
             {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
@@ -222,7 +221,7 @@ export const ResellerEngine: React.FC = () => {
         </div>
 
         {/* Multiple Servers 1 URL indicator */}
-        <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2 border-t border-[#262630]/60">
+        <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2">
           <span className="text-[10px] text-[#a1a1aa] font-semibold flex items-center gap-1 mr-1">
             <Layers className="w-3 h-3 text-[#8b5cf6]" />
             <span>1 URL Bundled Servers ({selectedServerIds.length}/5):</span>
@@ -233,7 +232,7 @@ export const ResellerEngine: React.FC = () => {
             return (
               <span
                 key={s.id}
-                className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#7c3aed]/15 text-[#a78bfa] border border-[#7c3aed]/30 flex items-center gap-1"
+                className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#7c3aed]/15 text-[#a78bfa] flex items-center gap-1"
               >
                 <PlatformIcon platform={s.platformIcon || 'tg'} className="w-2.5 h-2.5" />
                 Server {s.id}
@@ -244,7 +243,7 @@ export const ResellerEngine: React.FC = () => {
       </div>
 
       {/* Custom Margin Creator & Price Simulator */}
-      <form onSubmit={handleSaveMargin} className="p-4 rounded-2xl bg-[#181820] border border-[#262630] mb-4 flex flex-col gap-3.5">
+      <form onSubmit={handleSaveMargin} className="p-4 rounded-2xl bg-[#181820] mb-4 flex flex-col gap-3.5 shadow-sm">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
             <Sliders className="w-4 h-4 text-[#7c3aed]" />
@@ -283,10 +282,10 @@ export const ResellerEngine: React.FC = () => {
                   key={s.id}
                   type="button"
                   onClick={() => toggleServer(s.id)}
-                  className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all active:scale-[0.98] ${
+                  className={`flex items-center justify-between p-2.5 rounded-xl text-left transition-all active:scale-[0.98] cursor-pointer ${
                     isSelected
-                      ? 'bg-[#7c3aed]/15 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/40'
-                      : 'bg-[#0b0b0e] border-[#262630] text-[#71717a] hover:border-[#383848] opacity-70'
+                      ? 'bg-[#7c3aed]/20 text-white'
+                      : 'bg-[#101016] text-[#71717a] hover:bg-[#14141c] opacity-75'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">

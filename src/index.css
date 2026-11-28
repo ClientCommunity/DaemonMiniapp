@@ -669,23 +669,22 @@ html.light .atm-wallet-card .btn-25d-secondary {
     0 5px 12px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* Thin Pinned Deal Pill */
+/* Thin Pinned Deal Pill (Borderless Elevated Surface) */
 .pinned-deal-pill {
-  background-color: #16161f;
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background-color: #1a1924;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .pinned-deal-pill:hover {
-  background-color: #1d1d29;
-  border-color: rgba(251, 191, 36, 0.7);
+  background-color: #211f2e;
 }
 html.light .pinned-deal-pill {
   background-color: #ffffff !important;
-  border: 1px solid rgba(245, 158, 11, 0.55) !important;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+  border: none !important;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.07), inset 0 1px 0 #ffffff !important;
 }
 html.light .pinned-deal-pill:hover {
   background-color: #fffbeb !important;
-  border-color: #f59e0b !important;
 }
 html.light .pinned-deal-pill .pinned-s-badge {
   background-color: #fef3c7 !important;

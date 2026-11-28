@@ -108,7 +108,7 @@ export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onCl
       {!showConfirmation ? (
         <form onSubmit={handleProceedClick} className="flex flex-col gap-3.5">
           {/* Transferable Balance Header Card */}
-          <div className="p-3.5 rounded-2xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-between">
+          <div className="p-3.5 rounded-2xl bg-[#12121a] flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-[10px] uppercase font-bold text-[#a1a1aa]">
                 Available Transferable Balance
@@ -120,14 +120,14 @@ export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onCl
             <button
               type="button"
               onClick={handleMaxClick}
-              className="px-2.5 py-1 rounded-lg bg-[#22c55e]/15 border border-[#22c55e]/30 text-[#22c55e] font-bold text-xs hover:bg-[#22c55e]/25 transition-colors"
+              className="btn-25d-emerald px-3 py-1.5 rounded-lg font-bold text-xs cursor-pointer"
             >
               USE MAX
             </button>
           </div>
 
           {/* Locked Promo Warning Callout */}
-          <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-300">
+          <div className="p-3 rounded-xl bg-amber-500/10 flex items-start gap-2.5 text-xs text-amber-300">
             <Lock className="w-4 h-4 text-[#f59e0b] shrink-0 mt-0.5" />
             <div className="flex flex-col leading-snug">
               <span className="font-bold text-[#f59e0b]">Promo Balance Locked</span>
@@ -149,13 +149,13 @@ export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onCl
                   setErrorText(null);
                 }}
                 placeholder="e.g. 7507183871 or @username"
-                className="w-full bg-[#181820] border border-[#262630] rounded-xl pl-3.5 pr-20 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed]"
+                className="w-full bg-[#181820] rounded-xl pl-3.5 pr-20 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/50"
                 required
               />
               <button
                 type="button"
                 onClick={handlePasteRecipient}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg bg-[#262630] hover:bg-[#323242] text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-1 transition-all active:scale-95"
+                className="btn-25d-secondary absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 title="Paste recipient"
               >
                 <Clipboard className="w-3.5 h-3.5 text-[#8b5cf6]" />

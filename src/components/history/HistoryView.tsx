@@ -119,20 +119,20 @@ export const HistoryView: React.FC = () => {
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col pt-2 pb-10">
       {/* Header */}
-      <div className="p-3 mb-3 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between">
+      <div className="p-3.5 mb-3 rounded-2xl bg-[#181820] flex items-center justify-between shadow-sm">
         <div className="flex flex-col">
           <span className="text-xs font-bold text-white">Order & Ledger History</span>
           <span className="text-[11px] text-[#a1a1aa]">
             All virtual numbers, account credentials, and top-ups
           </span>
         </div>
-        <span className="text-xs font-mono font-bold text-[#8b5cf6] bg-[#7c3aed]/15 px-2.5 py-1 rounded-full border border-[#7c3aed]/30">
+        <span className="text-xs font-mono font-bold text-[#a78bfa] bg-[#7c3aed]/15 px-2.5 py-1 rounded-full">
           {history.length} Records
         </span>
       </div>
 
       {/* Dedicated Section Switcher: Active Numbers vs Past Orders */}
-      <div className="grid grid-cols-2 gap-2 p-1 bg-[#121217] border border-[#262630] rounded-2xl mb-3">
+      <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#121217] rounded-2xl mb-3">
         <button
           onClick={() => {
             hapticFeedback.selection();
@@ -224,7 +224,7 @@ export const HistoryView: React.FC = () => {
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
                     isActive
                       ? 'btn-25d-primary'
-                      : 'bg-[#181820] border border-[#262630] text-[#a1a1aa] hover:text-white'
+                      : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
                   }`}
                 >
                   {tab.label}
@@ -241,14 +241,14 @@ export const HistoryView: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by order ID or product..."
-              className="w-full bg-[#181820] border border-[#262630] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#7c3aed] transition-colors"
+              className="w-full bg-[#181820] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/50 transition-all"
             />
           </div>
 
           {/* History Items List */}
           <div className="flex flex-col gap-2">
             {history.length === 0 ? (
-              <div className="p-10 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-3">
+              <div className="p-10 text-center bg-[#181820] rounded-2xl flex flex-col items-center justify-center gap-3">
                 <ShoppingBag className="w-8 h-8 text-[#71717a]" />
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-semibold text-white">No Orders Placed Yet</span>
@@ -258,7 +258,7 @@ export const HistoryView: React.FC = () => {
                 </div>
               </div>
             ) : filteredHistory.length === 0 ? (
-              <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl text-xs text-[#a1a1aa]">
+              <div className="p-8 text-center bg-[#181820] rounded-2xl text-xs text-[#a1a1aa]">
                 No transactions found for the selected filter.
               </div>
             ) : (
@@ -283,10 +283,10 @@ export const HistoryView: React.FC = () => {
                   <div
                     key={item.id}
                     onClick={() => openReceiptDrawer(item)}
-                    className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#383848] active:scale-[0.99] transition-all cursor-pointer"
+                    className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] hover:bg-[#1f1f2a] active:scale-[0.99] transition-all cursor-pointer shadow-sm"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-[#121217] border border-[#262630] flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-[#121217] flex items-center justify-center shrink-0">
                         {getItemIcon(item)}
                       </div>
                       <div className="flex flex-col min-w-0">
@@ -322,18 +322,18 @@ export const HistoryView: React.FC = () => {
                       </span>
                       <div className="flex items-center gap-1 mt-1">
                         <span
-                          className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase border ${
+                          className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
                             isRejected || isFailed || isCancelled
-                              ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                              ? 'bg-red-500/15 text-red-400'
                               : isSuccess
-                              ? 'bg-[#22c55e]/15 text-[#22c55e] border-[#22c55e]/30'
+                              ? 'bg-[#22c55e]/15 text-[#22c55e]'
                               : isWaiting
-                              ? 'bg-[#f59e0b]/15 text-[#f59e0b] border-[#f59e0b]/30 animate-pulse'
+                              ? 'bg-[#f59e0b]/15 text-[#f59e0b] animate-pulse'
                               : isInProgress
-                              ? 'bg-blue-500/15 text-blue-400 border-blue-500/30 animate-pulse'
+                              ? 'bg-blue-500/15 text-blue-400 animate-pulse'
                               : isRefunded
-                              ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              ? 'bg-purple-500/15 text-purple-300'
+                              : 'bg-emerald-500/10 text-emerald-400'
                           }`}
                         >
                           {isRejected

@@ -1245,8 +1245,7 @@ export const DepositHub: React.FC = () => {
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col pt-2 pb-10">
       {/* Header Banner */}
-      <div className="p-4 mb-4 rounded-2xl bg-gradient-to-r from-[#181820] to-[#121217] border border-[#262630] relative overflow-hidden shadow-lg">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#22c55e]/10 rounded-full filter blur-2xl pointer-events-none" />
+      <div className="p-4 mb-4 rounded-2xl bg-gradient-to-r from-[#181820] to-[#121217] relative overflow-hidden shadow-md">
         <span className="text-[10px] font-bold text-[#22c55e] uppercase tracking-wider block mb-1">
           Zero Fee Gateway
         </span>
@@ -1269,12 +1268,12 @@ export const DepositHub: React.FC = () => {
             }
             setSelectedMethod('fampay');
           }}
-          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
+          className={`flex flex-col items-center justify-center p-3 rounded-2xl text-center transition-all ${
             !fampayEnabled
-              ? 'bg-[#181820]/40 border-[#262630]/50 text-[#71717a] cursor-not-allowed opacity-60'
+              ? 'bg-[#181820]/40 text-[#71717a] cursor-not-allowed opacity-60'
               : selectedMethod === 'fampay'
-              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white cursor-pointer'
-              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white cursor-pointer'
+              ? 'bg-[#7c3aed]/20 text-white ring-2 ring-[#7c3aed] cursor-pointer'
+              : 'btn-25d-secondary text-[#a1a1aa] hover:text-white cursor-pointer'
           }`}
         >
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 ${
@@ -1297,12 +1296,12 @@ export const DepositHub: React.FC = () => {
             }
             setSelectedMethod('upi_direct');
           }}
-          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
+          className={`flex flex-col items-center justify-center p-3 rounded-2xl text-center transition-all ${
             !upiEnabled
-              ? 'bg-[#181820]/40 border-[#262630]/50 text-[#71717a] cursor-not-allowed opacity-60'
+              ? 'bg-[#181820]/40 text-[#71717a] cursor-not-allowed opacity-60'
               : selectedMethod === 'upi_direct'
-              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white cursor-pointer'
-              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white cursor-pointer'
+              ? 'bg-[#7c3aed]/20 text-white ring-2 ring-[#7c3aed] cursor-pointer'
+              : 'btn-25d-secondary text-[#a1a1aa] hover:text-white cursor-pointer'
           }`}
         >
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 ${
@@ -1319,10 +1318,10 @@ export const DepositHub: React.FC = () => {
         {/* Crypto / Manual */}
         <button
           onClick={() => setSelectedMethod('usdt_bep20')}
-          className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center p-3 rounded-2xl text-center transition-all cursor-pointer ${
             selectedMethod === 'usdt_bep20'
-              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white'
-              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+              ? 'bg-[#7c3aed]/20 text-white ring-2 ring-[#7c3aed]'
+              : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
           }`}
         >
           <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center mb-1.5">
@@ -1724,7 +1723,7 @@ export const DepositHub: React.FC = () => {
       {selectedMethod === 'usdt_bep20' && (
         <div className="flex flex-col gap-4">
           {/* Amount Selector Card */}
-          <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630]">
+          <div className="p-4 rounded-2xl bg-[#181820] shadow-sm">
             <label className="text-xs font-bold text-white block mb-2">
               Select Deposit Amount (INR)
             </label>
@@ -1733,10 +1732,10 @@ export const DepositHub: React.FC = () => {
                 <button
                   key={q}
                   onClick={() => setAmount(q)}
-                  className={`py-2 rounded-xl text-xs font-bold font-mono transition-all ${
+                  className={`py-2 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
                     amount === q
-                      ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
-                      : 'bg-[#121217] text-[#a1a1aa] border border-[#262630] hover:text-white'
+                      ? 'btn-25d-primary'
+                      : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
                   }`}
                 >
                   ₹{q}
@@ -1752,19 +1751,19 @@ export const DepositHub: React.FC = () => {
                 value={amount || ''}
                 onChange={(e) => setAmount(Number(e.target.value))}
                 placeholder={`Custom amount (Min ₹${cwalletMinDeposit})`}
-                className="w-full bg-[#0b0b0e] border border-[#262630] rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none focus:border-[#7c3aed] transition-colors"
+                className="w-full bg-[#101016] rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold font-mono text-white focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/50 transition-all"
               />
             </div>
           </div>
 
           {isLoadingManual ? (
-            <div className="p-8 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col items-center justify-center">
+            <div className="p-8 rounded-2xl bg-[#181820] flex flex-col items-center justify-center shadow-sm">
               <div className="w-6 h-6 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin mb-2" />
               <span className="text-xs text-[#a1a1aa]">Loading payment methods...</span>
             </div>
           ) : manualMethods.length === 0 ? (
-            <div className="p-6 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col items-center text-center">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3">
+            <div className="p-6 rounded-2xl bg-[#181820] flex flex-col items-center text-center shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-3">
                 <AlertTriangle className="w-6 h-6 text-amber-400" />
               </div>
               <span className="text-sm font-bold text-white">No Crypto Gateways Active</span>
@@ -1789,8 +1788,8 @@ export const DepositHub: React.FC = () => {
                         }}
                         className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                           isActive
-                            ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
-                            : 'bg-[#181820] text-[#a1a1aa] border border-[#262630] hover:text-white'
+                            ? 'btn-25d-primary'
+                            : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
                         }`}
                       >
                         <Coins className="w-3.5 h-3.5" />
@@ -1809,13 +1808,13 @@ export const DepositHub: React.FC = () => {
                   networks.find((n) => n.id === selectedCryptoNetworkId) || networks[0];
 
                 return (
-                  <div className="p-4 rounded-2xl bg-[#181820] border border-[#262630] flex flex-col text-left">
+                  <div className="p-4 rounded-2xl bg-[#181820] flex flex-col text-left shadow-sm">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-bold text-white flex items-center gap-2">
                         <Coins className="w-4 h-4 text-amber-400" />
                         {activeManualMethod.name}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e] font-semibold">
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#22c55e]/15 text-[#22c55e] font-semibold">
                         Manual Verification
                       </span>
                     </div>
@@ -1823,7 +1822,7 @@ export const DepositHub: React.FC = () => {
                     {/* Step 1: Destination Address / UID */}
                     {isCwalletMethod ? (
                       /* Dedicated Cwallet Method (Method 1) */
-                      <div className="flex flex-col items-center justify-center my-1 p-3 bg-[#121217] rounded-2xl border border-[#262630] mb-3">
+                      <div className="flex flex-col items-center justify-center my-1 p-3 bg-[#121217] rounded-2xl mb-3">
                         <div className="max-w-[280px] w-full rounded-2xl overflow-hidden border border-[#262630] shadow-2xl bg-white p-1">
                           <img
                             src={activeManualMethod.qr_url || cwalletCardImg}

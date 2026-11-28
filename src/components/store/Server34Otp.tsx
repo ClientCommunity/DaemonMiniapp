@@ -323,7 +323,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Banner */}
-      <div className="p-3 mb-2 rounded-2xl bg-[#181820] border border-[#262630] flex items-center justify-between">
+      <div className="p-3.5 mb-2 rounded-2xl bg-[#181820] flex items-center justify-between shadow-sm">
         <div className="flex flex-col">
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-[#8b5cf6]" />
@@ -335,21 +335,21 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
               : 'Fresh carrier pool with 100% private virtual numbers'}
           </span>
         </div>
-        <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#7c3aed]/20 border border-[#7c3aed]/40 text-[#8b5cf6] text-[10px] font-bold shrink-0">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#7c3aed]/15 text-[#a78bfa] text-[10px] font-bold shrink-0">
           <Radio className="w-3 h-3 text-[#22c55e] animate-pulse" />
           <span>{isServer3 ? 'Fast Pool' : 'Fresh Pool'}</span>
         </div>
       </div>
 
       {/* 100% Refund Guarantee Pill Banner (Top-level assurance) */}
-      <div className="mb-3 px-3 py-2 bg-[#181820]/80 border border-[#262630] rounded-xl flex items-center justify-between gap-2 text-[11px] text-[#a1a1aa]">
+      <div className="mb-3 px-3 py-2 bg-[#181820] rounded-xl flex items-center justify-between gap-2 text-[11px] text-[#a1a1aa] shadow-sm">
         <div className="flex items-center gap-2 min-w-0">
           <ShieldCheck className="w-4 h-4 text-[#22c55e] shrink-0" />
           <span className="truncate">
             Auto-refund: If no SMS arrives within 10 min, balance is 100% refunded.
           </span>
         </div>
-        <span className="text-[10px] font-bold text-[#22c55e] shrink-0 bg-[#22c55e]/10 border border-[#22c55e]/30 px-2 py-0.5 rounded-md">
+        <span className="text-[10px] font-bold text-[#22c55e] shrink-0 bg-[#22c55e]/15 px-2 py-0.5 rounded-md">
           Protected
         </span>
       </div>
@@ -372,7 +372,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                 ? 'Search by country, dial code (+91, +1, +44), or app (WhatsApp, Telegram)...'
                 : 'Search 21,000+ carrier services (WhatsApp, Telegram, Steam, Netflix)...'
             }
-            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none transition-all shadow-inner"
+            className="w-full bg-[#181820] rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/50 transition-all shadow-sm"
           />
           {search && (
             <button
@@ -407,10 +407,10 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                   setSearch(qs.query);
                 }
               }}
-              className={`px-2.5 py-1 rounded-lg shrink-0 border transition-all duration-150 active:scale-95 ${
+              className={`px-2.5 py-1 rounded-lg shrink-0 transition-all duration-150 cursor-pointer ${
                 isSelected
-                  ? 'bg-[#7c3aed] border-[#8b5cf6] text-white font-bold shadow-sm'
-                  : 'bg-[#15151c] hover:bg-[#1e1e28] border-[#262630] text-[#a1a1aa] hover:text-white'
+                  ? 'btn-25d-primary font-bold'
+                  : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
               }`}
             >
               <span className="flex items-center gap-1.5 text-xs">
@@ -434,7 +434,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
           <button
             type="button"
             onClick={() => setIsAppPickerOpen(true)}
-            className="flex items-center gap-1 text-[11px] font-semibold text-[#8b5cf6] hover:text-[#a78bfa] transition-colors py-0.5 px-2 rounded-lg bg-[#7c3aed]/10 border border-[#7c3aed]/30"
+            className="flex items-center gap-1 text-[11px] font-semibold text-[#a78bfa] hover:text-white transition-colors py-0.5 px-2.5 rounded-lg bg-[#7c3aed]/15 cursor-pointer"
           >
             <Layers className="w-3 h-3" />
             <span>All Apps ({allUniqueApps.length}) ▾</span>
@@ -447,7 +447,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
           <button
             type="button"
             onClick={() => setIsAppPickerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shrink-0 border bg-[#1c1b29] hover:bg-[#252338] border-[#7c3aed]/40 text-[#c4b5fd] transition-all duration-200 active:scale-95 shadow-sm"
+            className="btn-25d-secondary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shrink-0 text-[#c4b5fd] cursor-pointer"
           >
             <Layers className="w-3.5 h-3.5 text-[#8b5cf6]" />
             <span>Select App ▾</span>
@@ -462,10 +462,10 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                 onClick={() => {
                   setActiveCategory(isActive ? 'all' : chip.code);
                 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 active:scale-95 ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition-all duration-200 cursor-pointer ${
                   isActive
-                    ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
-                    : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#383848]'
+                    ? 'btn-25d-primary'
+                    : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
                 }`}
               >
                 <div className="w-4 h-4 flex items-center justify-center shrink-0">
@@ -559,11 +559,11 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
           visibleItems.map((service) => (
             <div
               key={service.id}
-              className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#383848] transition-all"
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-[#181820] hover:bg-[#1f1f2a] transition-all shadow-sm"
             >
               <div className="flex items-center gap-3 min-w-0">
                 {/* Authentic Platform SVG Badge */}
-                <div className="w-10 h-10 rounded-xl bg-[#0b0b0e] border border-[#262630] flex items-center justify-center p-2 shrink-0 shadow-inner">
+                <div className="w-10 h-10 rounded-xl bg-[#101016] flex items-center justify-center p-2 shrink-0">
                   <PlatformIcon platform={service.category || service.serviceCode} className="w-6 h-6" />
                 </div>
 
@@ -572,7 +572,7 @@ export const Server34Otp: React.FC<Server34OtpProps> = ({ serverId }) => {
                     <span className="text-xs font-bold text-white truncate">
                       {service.serviceName}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#d4d4d8] px-2 py-0.5 rounded-md bg-[#0b0b0e] border border-[#2a2a38]">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#d4d4d8] px-2 py-0.5 rounded-md bg-[#101016]">
                       {service.flag && <span className="text-xs leading-none">{service.flag}</span>}
                       <span>{service.country}</span>
                       {service.callingCode && (

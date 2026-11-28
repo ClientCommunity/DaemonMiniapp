@@ -755,8 +755,8 @@ export const SettingsView: React.FC = () => {
                   </div>
 
                   {settingsData?.account_link ? (
-                    <div className={`p-6 rounded-3xl border flex flex-col items-center text-center space-y-3 ${
-                      isLight ? 'bg-[#FAF8FF] border-emerald-500/30' : 'bg-[#1a1a24] border-emerald-500/30'
+                    <div className={`p-6 rounded-3xl flex flex-col items-center text-center space-y-3 ${
+                      isLight ? 'bg-emerald-50/70' : 'bg-emerald-500/[0.06]'
                     }`}>
                       <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
                         <CheckCircle2 className="w-6 h-6" />
@@ -769,8 +769,8 @@ export const SettingsView: React.FC = () => {
                           Connected to Telegram User ID: <span className="font-mono text-emerald-600 font-bold">{settingsData.account_link.telegram_user_id}</span>
                         </p>
                       </div>
-                      <div className={`p-4 rounded-2xl border text-xs text-left w-full space-y-1.5 ${
-                        isLight ? 'bg-white border-[#E5DCF4] text-[#514364]' : 'bg-[#14141b] border-[#2a2a38] text-zinc-400'
+                      <div className={`p-4 rounded-2xl text-xs text-left w-full space-y-1.5 ${
+                        isLight ? 'bg-white text-[#514364] shadow-sm' : 'bg-[#14141b] text-zinc-400'
                       }`}>
                         <p>&bull; Wallet balances are merged across both website and Telegram bot.</p>
                         <p>&bull; Order history and active OTP orders are visible across both platforms in real-time.</p>

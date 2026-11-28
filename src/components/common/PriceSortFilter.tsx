@@ -29,10 +29,10 @@ export const PriceSortFilter: React.FC<PriceSortFilterProps> = ({
         value={value}
         onChange={(e) => onChange(e.target.value as PriceSortOrder)}
         aria-label="Filter and sort by price"
-        className={`appearance-none rounded-xl pl-7 pr-6 py-2.5 text-[11px] sm:text-xs font-semibold focus:outline-none transition-all cursor-pointer shadow-inner border ${
+        className={`appearance-none rounded-xl pl-7 pr-6 py-2.5 text-[11px] sm:text-xs font-semibold focus:outline-none transition-all cursor-pointer shadow-sm ${
           isFiltered
-            ? 'bg-[#7c3aed]/15 border-[#7c3aed] text-white'
-            : 'bg-[#181820] border-[#262630] hover:border-[#38384a] text-[#a1a1aa] hover:text-white'
+            ? 'bg-[#7c3aed]/20 text-white'
+            : 'bg-[#181820] hover:bg-[#1f1f2a] text-[#a1a1aa] hover:text-white'
         }`}
       >
         <option value="default" className="bg-[#181820] text-white">
