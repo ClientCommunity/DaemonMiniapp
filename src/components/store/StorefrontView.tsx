@@ -215,7 +215,7 @@ export const StorefrontView: React.FC = () => {
               <div
                 key={srv.id}
                 onClick={() => handleOpenServer(srv.id)}
-                className="store-server-card relative overflow-hidden rounded-2xl cursor-pointer flex flex-col justify-between active:scale-[0.99] group"
+                className="store-server-card relative overflow-hidden rounded-2xl cursor-pointer flex flex-col justify-between group"
               >
                 {/* Crisp 3px Top Accent Bar */}
                 <div className={`h-[3px] w-full ${srv.accentBar}`} />
@@ -238,14 +238,12 @@ export const StorefrontView: React.FC = () => {
                         )}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-mono font-bold text-[#a1a1aa]">
-                            S{srv.id}
-                          </span>
-                          <span className="text-xs sm:text-[13px] font-extrabold text-white truncate">
-                            {srv.name}
-                          </span>
-                        </div>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#a1a1aa] leading-tight">
+                          {srv.id === 5 ? 'SMM' : `Server ${srv.id}`}
+                        </span>
+                        <span className="text-xs sm:text-[13px] font-extrabold text-white truncate">
+                          {srv.name}
+                        </span>
                         <span className="text-[11px] text-[#a1a1aa] truncate">
                           {srv.benefit}
                         </span>

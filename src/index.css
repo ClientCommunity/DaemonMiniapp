@@ -704,24 +704,53 @@ html.light .pinned-deal-pill:hover {
   background-color: #fffbeb !important;
 }
 
-/* Store Hub Server Cards (Non-glowing physical card feel in Dark & Light mode) */
+/* Store Hub Server Cards (2.5D physical card feel in Dark & Light mode) */
 .store-server-card {
-  background: linear-gradient(180deg, #1b1b26 0%, #14141c 100%);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  background: linear-gradient(180deg, #222230 0%, #171722 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 4px 0 #0a0a10,
+    0 10px 20px rgba(0, 0, 0, 0.42);
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.12s ease, background 0.15s ease;
 }
 .store-server-card:hover {
-  background: linear-gradient(180deg, #21212f 0%, #181822 100%);
+  background: linear-gradient(180deg, #272738 0%, #1b1b28 100%);
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    0 5px 0 #0a0a10,
+    0 14px 24px rgba(0, 0, 0, 0.48);
+}
+.store-server-card:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 0 #0a0a10,
+    0 4px 10px rgba(0, 0, 0, 0.35);
 }
 html.light .store-server-card {
-  background: linear-gradient(180deg, #ffffff 0%, #faf9fe 100%) !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06), inset 0 1px 0 #ffffff !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f6fb 100%) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 4px 0 #cbd5e1,
+    0 8px 18px rgba(15, 23, 42, 0.08) !important;
 }
 html.light .store-server-card:hover {
-  background: #ffffff !important;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1), inset 0 1px 0 #ffffff !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f8 100%) !important;
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 5px 0 #cbd5e1,
+    0 12px 24px rgba(15, 23, 42, 0.12) !important;
+}
+html.light .store-server-card:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 2px 0 #cbd5e1,
+    0 4px 8px rgba(15, 23, 42, 0.08) !important;
 }
 html.light .pinned-deal-pill .pinned-s-badge {
   background-color: #fef3c7 !important;
