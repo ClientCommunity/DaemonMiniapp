@@ -8,6 +8,11 @@ export const QuickActions: React.FC = () => {
 
   const handleAction = (tab: 'deposit' | 'store', serverId?: 1 | 2 | 3 | 4 | 5) => {
     hapticFeedback.light();
+    if (tab === 'store' && serverId) {
+      try {
+        sessionStorage.setItem('krish_store_open_server', '1');
+      } catch {}
+    }
     setActiveTab(tab);
     if (serverId) {
       setSelectedServer(serverId);

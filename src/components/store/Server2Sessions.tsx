@@ -148,58 +148,58 @@ export const Server2Sessions: React.FC = () => {
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Quality Tier Segmented Pill Control (Account Quality Split) */}
-      <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#121217] border border-[#262630] rounded-lg mb-1.5">
+      <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#121217] rounded-xl mb-2">
         <button
           onClick={() => setQualityTier('good')}
-          className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[10px] font-medium transition-all ${
+          className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
             qualityTier === 'good'
-              ? 'bg-emerald-500/20 text-[#22c55e] border border-emerald-500/50 shadow-green-glow/20'
+              ? 'btn-25d-emerald'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          <Shield className="w-3 h-3 text-[#22c55e] shrink-0" />
-          <span className="whitespace-nowrap">Good Quality Accounts</span>
+          <Shield className="w-3 h-3 shrink-0" />
+          <span className="whitespace-nowrap">Good Quality</span>
         </button>
 
         <button
           onClick={() => setQualityTier('cheap')}
-          className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[10px] font-medium transition-all ${
+          className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
             qualityTier === 'cheap'
-              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50 shadow-amber-glow/20'
+              ? 'btn-25d-amber'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
-          <Zap className="w-3 h-3 text-amber-400 shrink-0" />
-          <span className="whitespace-nowrap">Cheap Quality Accounts</span>
+          <Zap className="w-3 h-3 shrink-0" />
+          <span className="whitespace-nowrap">Cheap Quality</span>
         </button>
       </div>
 
       {/* Delivery Format Selector */}
-      <div className="flex items-center gap-1 mb-2 bg-[#181820] p-0.5 rounded-lg border border-[#262630]">
-        <span className="text-[8.5px] font-semibold text-[#71717a] uppercase px-1 shrink-0 tracking-wider">Delivery:</span>
+      <div className="flex items-center gap-1.5 mb-2 bg-[#181820] p-1 rounded-xl shadow-sm">
+        <span className="text-[9px] font-semibold text-[#71717a] uppercase px-1.5 shrink-0 tracking-wider">Delivery:</span>
         <button
           onClick={() => setDeliveryFormat('account')}
-          className={`flex-1 py-0.5 px-1 rounded-md text-[9.5px] font-medium transition-all ${
+          className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
             deliveryFormat === 'account'
-              ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
+              ? 'btn-25d-primary'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
           <span className="flex items-center justify-center gap-1">
-            <User className="w-2.5 h-2.5 shrink-0" />
+            <User className="w-3 h-3 shrink-0" />
             <span className="whitespace-nowrap">Single Account (OTP)</span>
           </span>
         </button>
         <button
           onClick={() => setDeliveryFormat('session')}
-          className={`flex-1 py-0.5 px-1 rounded-md text-[9.5px] font-medium transition-all ${
+          className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
             deliveryFormat === 'session'
-              ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
+              ? 'btn-25d-primary'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
           <span className="flex items-center justify-center gap-1">
-            <FolderArchive className="w-2.5 h-2.5 shrink-0" />
+            <FolderArchive className="w-3 h-3 shrink-0" />
             <span className="whitespace-nowrap">Session (.session / ZIP)</span>
           </span>
         </button>
@@ -212,10 +212,10 @@ export const Server2Sessions: React.FC = () => {
           <button
             key={String(y)}
             onClick={() => setSelectedYear(y)}
-            className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 border transition-all ${
+            className={`px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
               selectedYear === y
-                ? 'bg-[#7c3aed]/25 border-[#7c3aed] text-white'
-                : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+                ? 'btn-25d-primary'
+                : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
             }`}
           >
             {y === 'all' ? 'All Years' : y}
@@ -232,7 +232,7 @@ export const Server2Sessions: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter country (India, Vietnam, etc.)..."
-            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none transition-colors"
+            className="w-full bg-[#181820] rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/50 transition-all shadow-sm"
           />
           {search && (
             <button

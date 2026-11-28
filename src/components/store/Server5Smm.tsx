@@ -136,6 +136,66 @@ export const Server5Smm: React.FC = () => {
     { id: 'snapchat', label: 'Snapchat' },
   ];
 
+  const subCategoriesMap: Record<string, { id: string; label: string; keyword: string }[]> = {
+    telegram: [
+      { id: 'all', label: 'All Telegram', keyword: '' },
+      { id: 'member', label: 'Members', keyword: 'member' },
+      { id: 'view', label: 'Post Views', keyword: 'view' },
+      { id: 'reaction', label: 'Reactions', keyword: 'reaction' },
+      { id: 'bot', label: 'Bot Start', keyword: 'bot' },
+      { id: 'boost', label: 'Story / Boost', keyword: 'boost' },
+    ],
+    instagram: [
+      { id: 'all', label: 'All Instagram', keyword: '' },
+      { id: 'follower', label: 'Followers', keyword: 'follower' },
+      { id: 'like', label: 'Likes', keyword: 'like' },
+      { id: 'view', label: 'Views / Reels', keyword: 'view' },
+      { id: 'comment', label: 'Comments', keyword: 'comment' },
+    ],
+    youtube: [
+      { id: 'all', label: 'All YouTube', keyword: '' },
+      { id: 'view', label: 'Views', keyword: 'view' },
+      { id: 'subscriber', label: 'Subscribers', keyword: 'subscriber' },
+      { id: 'like', label: 'Likes', keyword: 'like' },
+      { id: 'watch', label: 'Watch Time', keyword: 'watch' },
+    ],
+    tiktok: [
+      { id: 'all', label: 'All TikTok', keyword: '' },
+      { id: 'follower', label: 'Followers', keyword: 'follower' },
+      { id: 'like', label: 'Likes', keyword: 'like' },
+      { id: 'view', label: 'Views', keyword: 'view' },
+    ],
+    twitter: [
+      { id: 'all', label: 'All Twitter', keyword: '' },
+      { id: 'follower', label: 'Followers', keyword: 'follower' },
+      { id: 'like', label: 'Likes', keyword: 'like' },
+      { id: 'retweet', label: 'Retweets', keyword: 'retweet' },
+      { id: 'view', label: 'Views', keyword: 'view' },
+    ],
+    facebook: [
+      { id: 'all', label: 'All Facebook', keyword: '' },
+      { id: 'follower', label: 'Followers', keyword: 'follower' },
+      { id: 'page', label: 'Page Likes', keyword: 'page' },
+      { id: 'like', label: 'Post Likes', keyword: 'like' },
+      { id: 'view', label: 'Views', keyword: 'view' },
+    ],
+    whatsapp: [
+      { id: 'all', label: 'All WhatsApp', keyword: '' },
+      { id: 'member', label: 'Channel Members', keyword: 'member' },
+      { id: 'reaction', label: 'Reactions', keyword: 'reaction' },
+    ],
+    snapchat: [
+      { id: 'all', label: 'All Snapchat', keyword: '' },
+      { id: 'follower', label: 'Followers', keyword: 'follower' },
+      { id: 'view', label: 'Views', keyword: 'view' },
+    ],
+  };
+
+  const [activeSubCategory, setActiveSubCategory] = useState<string>('all');
+  const activeSubList = activePlatform !== 'all' ? subCategoriesMap[activePlatform] || [] : [];
+  const activeSubKeyword =
+    activeSubList.find((s) => s.id === activeSubCategory)?.keyword || '';
+
   // Paginated live inventory state (loads batch-by-batch without memory starvation)
   const [paginatedServices, setPaginatedServices] = useState<SmmServiceItem[]>([]);
   const [page, setPage] = useState<number>(1);
@@ -165,10 +225,11 @@ export const Server5Smm: React.FC = () => {
   }, []);
 
   // Ref to track latest active query and prevent race condition during fast tab switches / pagination
-  const currentQueryRef = React.useRef({ platform: activePlatform, search, sort: priceSort });
-  currentQueryRef.current = { platform: activePlatform, search, sort: priceSort };
+  const effectiveBackendSearch = search.trim() || activeSubKeyword;
+  const currentQueryRef = React.useRef({ platform: activePlatform, search: effectiveBackendSearch, sort: priceSort });
+  currentQueryRef.current = { platform: activePlatform, search: effectiveBackendSearch, sort: priceSort };
 
-  // Fetch page 1 whenever activePlatform, search, or priceSort changes
+  // Fetch page 1 whenever activePlatform, search, sub-category, or priceSort changes
   useEffect(() => {
     let cancelled = false;
     setIsLoadingPage(true);
@@ -182,7 +243,7 @@ export const Server5Smm: React.FC = () => {
           page: 1,
           limit: 40,
           platform: activePlatform === 'all' ? undefined : activePlatform,
-          search: search.trim() || undefined,
+          search: effectiveBackendSearch || undefined,
           sort: sortParam,
         });
 
@@ -205,7 +266,7 @@ export const Server5Smm: React.FC = () => {
       cancelled = true;
       clearTimeout(debounceTimer);
     };
-  }, [activePlatform, search, priceSort]);
+  }, [activePlatform, effectiveBackendSearch, priceSort, search]);
 
   // Load next batch on scroll with query ref guard against race conditions
   const handleLoadMore = useCallback(async () => {
@@ -270,8 +331,16 @@ export const Server5Smm: React.FC = () => {
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, handleLoadMore]);
 
-  // Backend guarantees global sorting across all 9,000+ items
-  const sortedServices = paginatedServices;
+  // Apply client-side sub-category refinement when combined with custom search
+  const sortedServices = React.useMemo(() => {
+    if (!activeSubKeyword) return paginatedServices;
+    const kw = activeSubKeyword.toLowerCase();
+    return paginatedServices.filter(
+      (s) =>
+        s.name.toLowerCase().includes(kw) ||
+        (s.description && s.description.toLowerCase().includes(kw))
+    );
+  }, [paginatedServices, activeSubKeyword]);
 
   const presetIncrements = [500, 1000, 2500, 5000];
 
@@ -467,13 +536,13 @@ export const Server5Smm: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search all SMM services (Followers, Likes, Views, Members, Subscribers...)"
-                className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none transition-all shadow-inner"
+                className="w-full bg-[#181820] rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/50 transition-all shadow-sm"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#262632] hover:bg-[#323244] text-[#a1a1aa] hover:text-white flex items-center justify-center transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#262632] hover:bg-[#323244] text-[#a1a1aa] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
                   title="Clear search"
                 >
                   <X className="w-3 h-3" />
@@ -484,9 +553,9 @@ export const Server5Smm: React.FC = () => {
           </div>
 
           {/* Social Media Platform Selector Tabs */}
-          <div className="mb-3.5">
+          <div className="mb-3">
             <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider">
-              Select Platform
+              1. Select Platform
             </div>
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
               {platforms.map((p) => {
@@ -495,11 +564,15 @@ export const Server5Smm: React.FC = () => {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setActivePlatform(p.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 active:scale-95 ${
+                    onClick={() => {
+                      hapticFeedback.selection();
+                      setActivePlatform(p.id);
+                      setActiveSubCategory('all');
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition-all duration-150 cursor-pointer ${
                       isActive
-                        ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm ring-1 ring-[#8b5cf6]/50'
-                        : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#383848]'
+                        ? 'btn-25d-primary'
+                        : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
                     }`}
                   >
                     <div className="w-5 h-5 flex items-center justify-center shrink-0">
@@ -508,9 +581,9 @@ export const Server5Smm: React.FC = () => {
                     <span>{p.label} {platformCounts[p.id] !== undefined ? `(${platformCounts[p.id].toLocaleString()})` : ''}</span>
                     {p.badge && (
                       <span
-                        className={`text-[9px] px-1 py-0.2 rounded font-extrabold uppercase ${
+                        className={`text-[9px] px-1.5 py-0.2 rounded font-extrabold uppercase ${
                           isActive
-                            ? 'bg-[#7c3aed] text-white'
+                            ? 'bg-white/20 text-white'
                             : 'bg-[#262630] text-[#a1a1aa]'
                         }`}
                       >
@@ -523,6 +596,37 @@ export const Server5Smm: React.FC = () => {
             </div>
           </div>
 
+          {/* 2. Dynamic Sub-Category Tabs (e.g. Telegram -> Members, Post Views, Reactions, Bot Start) */}
+          {activeSubList.length > 0 && (
+            <div className="mb-3.5 animate-in fade-in duration-150">
+              <div className="text-[11px] font-bold text-[#a1a1aa] mb-1.5 px-0.5 uppercase tracking-wider">
+                2. Choose {activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)} Category
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
+                {activeSubList.map((sub) => {
+                  const isSubActive = activeSubCategory === sub.id;
+                  return (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => {
+                        hapticFeedback.selection();
+                        setActiveSubCategory(sub.id);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                        isSubActive
+                          ? 'btn-25d-primary'
+                          : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Service Packages List */}
           <div className="mb-3">
             <div className="text-[11px] font-bold text-[#a1a1aa] mb-2 px-0.5 uppercase tracking-wider flex items-center justify-between">
@@ -534,11 +638,11 @@ export const Server5Smm: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 w-full">
               {sortedServices.length === 0 ? (
-                <div className="p-8 text-center bg-[#181820] border border-[#262630] rounded-2xl flex flex-col items-center justify-center gap-2">
+                <div className="p-8 text-center bg-[#181820] rounded-2xl flex flex-col items-center justify-center gap-2 shadow-sm col-span-full">
                   <Rocket className="w-6 h-6 text-[#71717a]" />
                   <span className="text-xs font-semibold text-white">No services found</span>
                   <span className="text-[11px] text-[#a1a1aa]">
-                    No packages matching &quot;{search}&quot;
+                    No packages matching &quot;{search || activeSubKeyword}&quot;
                     {activePlatform !== 'all' ? ` in ${activePlatform.toUpperCase()}` : ''}.
                   </span>
                   <button
@@ -546,8 +650,9 @@ export const Server5Smm: React.FC = () => {
                     onClick={() => {
                       setSearch('');
                       setActivePlatform('all');
+                      setActiveSubCategory('all');
                     }}
-                    className="mt-2 px-3 py-1.5 rounded-lg bg-[#262632] hover:bg-[#323244] text-xs font-medium text-white transition-colors"
+                    className="btn-25d-secondary mt-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
                   >
                     Reset Filters &amp; View All
                   </button>
@@ -557,11 +662,11 @@ export const Server5Smm: React.FC = () => {
                 <div
                   key={service.id}
                   onClick={() => handleOpenBuyModal(service)}
-                  className="p-3.5 rounded-2xl bg-[#181820] border border-[#262630] hover:border-[#8b5cf6]/60 cursor-pointer transition-all active:scale-[0.99] shadow-sm hover:shadow-violet-glow-sm/20 flex flex-col gap-2.5"
+                  className="p-3.5 rounded-2xl bg-[#181820] hover:bg-[#1f1f2a] cursor-pointer transition-all active:scale-[0.99] shadow-sm flex flex-col justify-between gap-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2.5 min-w-0">
-                      <div className="mt-0.5 p-1.5 rounded-xl bg-[#0b0b0e] border border-[#262630] shrink-0">
+                      <div className="mt-0.5 p-1.5 rounded-xl bg-[#101016] shrink-0">
                         <PlatformIcon platform={service.platform} className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col min-w-0">
@@ -570,7 +675,7 @@ export const Server5Smm: React.FC = () => {
                             {service.name}
                           </span>
                           {service.refillDays > 0 && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-[#22c55e] border border-emerald-500/30 flex items-center gap-1">
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-[#22c55e] flex items-center gap-1">
                               <ShieldCheck className="w-2.5 h-2.5" />
                               {service.refillDays}d Auto-Refill
                             </span>
@@ -642,10 +747,10 @@ export const Server5Smm: React.FC = () => {
                         e.stopPropagation();
                         handleOpenBuyModal(service);
                       }}
-                      className="flex items-center gap-1 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold px-3 py-1 rounded-xl shadow-violet-glow-sm transition-all active:scale-95"
+                      className="btn-25d-primary flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-xl cursor-pointer"
                     >
                       <ShoppingBag className="w-3 h-3" />
-                      <span>Buy / Configure</span>
+                      <span>Order</span>
                     </button>
                   </div>
                 </div>

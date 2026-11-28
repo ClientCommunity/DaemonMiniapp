@@ -329,7 +329,7 @@ export const Server1Lzt: React.FC = () => {
   return (
     <div className="w-full flex flex-col pt-2">
       {/* Banner / Intro */}
-      <div className="py-2 px-3 mb-2 rounded-xl bg-[#181820] border border-[#262630] flex items-center justify-between gap-2">
+      <div className="py-2.5 px-3 mb-2 rounded-xl bg-[#181820] flex items-center justify-between gap-2 shadow-sm">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-[11px] font-bold text-white truncate">Server 1: Global Accounts</span>
           <span className="text-[10px] text-[#71717a] hidden xs:inline">• Global Aged Stock</span>
@@ -339,13 +339,13 @@ export const Server1Lzt: React.FC = () => {
             type="button"
             onClick={handleRefreshStock}
             disabled={isRefreshingStock || isServerLoading[1]}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#7c3aed]/15 hover:bg-[#7c3aed]/25 active:bg-[#7c3aed]/35 border border-[#7c3aed]/35 text-[#c084fc] hover:text-white text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50"
+            className="btn-25d-secondary flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold disabled:opacity-50 cursor-pointer"
             title="Refresh Server 1 stock"
           >
             <RefreshCw className={`w-3 h-3 ${isRefreshingStock || isServerLoading[1] ? 'animate-spin text-[#a78bfa]' : 'text-[#c084fc]'}`} />
             <span>{isRefreshingStock || isServerLoading[1] ? 'Refreshing...' : 'Refresh Stock'}</span>
           </button>
-          <div className="px-1.5 py-0.5 rounded-md bg-[#22c55e]/10 border border-[#22c55e]/25 text-[#22c55e] text-[9px] font-bold uppercase tracking-wider shrink-0">
+          <div className="px-2 py-0.5 rounded-md bg-[#22c55e]/15 text-[#22c55e] text-[9px] font-bold uppercase tracking-wider shrink-0">
             High Trust
           </div>
         </div>
@@ -360,7 +360,7 @@ export const Server1Lzt: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search country (e.g. India, USA)..."
-            className="w-full bg-[#181820] border border-[#262630] hover:border-[#38384a] focus:border-[#7c3aed] rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none transition-colors"
+            className="w-full bg-[#181820] rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/50 transition-all shadow-sm"
           />
           {search && (
             <button
@@ -382,10 +382,10 @@ export const Server1Lzt: React.FC = () => {
         <button
           type="button"
           onClick={openFilterModal}
-          className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-semibold shrink-0 transition-all active:scale-95 ${
+          className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer ${
             activeFilterCount > 0
-              ? 'bg-[#7c3aed]/25 border-[#8b5cf6] text-white shadow-violet-glow-sm'
-              : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white hover:border-[#38384a]'
+              ? 'btn-25d-primary'
+              : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
           }`}
           title="Configure Server 1 bot search filters"
         >

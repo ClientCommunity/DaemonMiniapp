@@ -60,6 +60,9 @@ export const PinnedDealsSection: React.FC<PinnedDealsSectionProps> = ({
       }
     } catch {}
 
+    try {
+      sessionStorage.setItem('krish_store_open_server', '1');
+    } catch {}
     setSelectedServer(item.server_no);
     setActiveTab('store');
     try {
