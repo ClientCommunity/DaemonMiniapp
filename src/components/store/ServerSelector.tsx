@@ -19,12 +19,12 @@ export const ServerSelector: React.FC = () => {
   const isLight = theme === 'light';
 
   const getBtnClasses = (isActive: boolean) =>
-    `relative flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl border transition-all duration-150 active:scale-[0.98] ${
+    `relative flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl transition-all duration-150 cursor-pointer ${
       isActive
-        ? 'bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] border-[#a78bfa]/60 text-white shadow-[0_0_16px_rgba(124,58,237,0.5)] font-bold'
+        ? 'btn-25d-primary font-bold'
         : isLight
-        ? 'bg-white border-[#e2e8f0] text-[#0f172a] hover:border-[#cbd5e1] hover:bg-[#f8fafc] shadow-sm'
-        : 'bg-[#151520]/80 border-[#252535] text-[#a1a1aa] hover:border-[#38384d] hover:text-white hover:bg-[#1a1a28]'
+        ? 'bg-white border border-[#e2e8f0] text-[#0f172a] hover:border-[#cbd5e1] hover:bg-[#f8fafc]'
+        : 'btn-25d-secondary text-[#a1a1aa] hover:text-white'
     }`;
 
   return (
@@ -39,7 +39,7 @@ export const ServerSelector: React.FC = () => {
         >
           <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_6px_#f59e0b]"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
           </span>
           <TelegramIcon
             className={`w-4 h-4 shrink-0 transition-colors ${
@@ -68,7 +68,7 @@ export const ServerSelector: React.FC = () => {
         >
           <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_#22c55e]"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
           <TelegramIcon
             className={`w-4 h-4 shrink-0 transition-colors ${
@@ -178,7 +178,7 @@ export const ServerSelector: React.FC = () => {
             {/* Yellow Notification Dot on top right */}
             <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_6px_#f59e0b]"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
             </span>
 
             <TelegramIcon
@@ -209,7 +209,7 @@ export const ServerSelector: React.FC = () => {
             {/* Green Notification Dot on top right */}
             <span className="absolute top-1.5 right-2 flex h-2 w-2 pointer-events-none">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_#22c55e]"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
 
             <TelegramIcon

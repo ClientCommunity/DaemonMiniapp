@@ -17,14 +17,14 @@ export const ToastContainer: React.FC = () => {
         return (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border backdrop-blur-xl shadow-2xl transition-all duration-300 animate-slide-up ${
+            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border backdrop-blur-xl shadow-xl transition-all duration-300 animate-slide-up ${
               isSuccess
-                ? 'bg-[#121217]/95 border-[#22c55e]/40 shadow-green-glow/20 text-white'
+                ? 'bg-[#121217]/95 border-[#22c55e]/40 text-white'
                 : isError
-                ? 'bg-[#121217]/95 border-[#ef4444]/40 shadow-[0_0_16px_rgba(239,68,68,0.25)] text-white'
+                ? 'bg-[#121217]/95 border-[#ef4444]/40 text-white'
                 : isWarning
-                ? 'bg-[#121217]/95 border-[#f59e0b]/40 shadow-amber-glow/20 text-white'
-                : 'bg-[#121217]/95 border-[#7c3aed]/40 shadow-violet-glow-sm text-white'
+                ? 'bg-[#121217]/95 border-[#f59e0b]/40 text-white'
+                : 'bg-[#121217]/95 border-[#7c3aed]/40 text-white'
             }`}
           >
             <div className="mt-0.5 shrink-0">

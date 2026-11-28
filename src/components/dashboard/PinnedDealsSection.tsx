@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { storeApi, PinnedServiceItem } from '../../api/endpoints';
-import { ArrowRight, Flame, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Flame, Zap } from 'lucide-react';
 
 interface PinnedDealsSectionProps {
   serverFilter?: 1 | 2 | 3 | 4 | 5;
@@ -68,78 +68,74 @@ export const PinnedDealsSection: React.FC<PinnedDealsSectionProps> = ({
   };
 
   return (
-    <div className="w-full mt-4 mb-2 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between mb-2.5 px-0.5">
+    <div className="w-full mt-2.5 mb-1.5 animate-in fade-in duration-200">
+      {/* Ultra-slim section label */}
+      <div className="flex items-center justify-between mb-1.5 px-0.5">
         <div className="flex items-center gap-1.5">
-          <div className="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-            <Flame className="w-3.5 h-3.5 text-amber-400" />
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
-              {title ? title.replace(/^[^\w\s]+/, '').trim() : 'Featured & Pinned Deals'}
-              <span className="text-[10px] font-mono text-amber-400 font-semibold px-1.5 py-0.2 rounded-full bg-amber-500/10 border border-amber-500/20">
-                {pinnedItems.length}
-              </span>
-            </h3>
-          </div>
+          <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="text-[11px] font-bold text-white tracking-wide uppercase">
+            {title ? title.replace(/^[^\w\s]+/, '').trim() : 'Hot Pinned Deals'}
+          </span>
+          <span className="text-[10px] font-mono font-bold text-amber-400">
+            ({pinnedItems.length})
+          </span>
         </div>
+        <span className="text-[10px] text-[#71717a] hidden sm:inline">
+          Tap any deal to jump right in
+        </span>
       </div>
 
-      {/* Horizontal Scrollable Carousel on mobile / Flex Grid on wider screens */}
-      <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
-        {pinnedItems.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => handleSelectDeal(item)}
-            className="flex-shrink-0 w-[240px] bg-gradient-to-b from-[#181820] to-[#121218] hover:from-[#1d1d2b] hover:to-[#161620] border border-[#262638] hover:border-amber-500/40 rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-200 cursor-pointer snap-start shadow-lg shadow-black/20 group relative overflow-hidden active:scale-[0.98]"
-          >
-            {/* Top ambient glow */}
-            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-amber-500/10 transition-colors" />
+      {/* Thin, high-hook horizontal strip (single-row compact pills) */}
+      <div className="flex gap-2 overflow-x-auto pb-1.5 no-scrollbar snap-x snap-mandatory">
+        {pinnedItems.map((item) => {
+          const badgeText = item.badge
+            ? item.badge.replace(/[^\w\s%+-]/g, '').trim() || 'HOT'
+            : 'HOT';
+          const subText = item.category_name || item.country_name || item.subtitle;
 
-            <div>
-              {/* Header: Server Pill + Custom Badge */}
-              <div className="flex items-center justify-between gap-1 mb-2">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#20202e] border border-[#2c2c3e] text-[10px] font-medium text-[#a1a1aa]">
-                  <Zap className="w-3 h-3 text-[#8b5cf6]" />
-                  <span>Server {item.server_no}</span>
-                </span>
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => handleSelectDeal(item)}
+              className="flex-shrink-0 snap-start bg-[#16161f] hover:bg-[#1d1d29] border border-amber-500/35 hover:border-amber-400/70 rounded-xl px-2.5 py-2 flex items-center gap-2.5 transition-all duration-150 active:scale-[0.98] cursor-pointer group text-left max-w-[300px]"
+            >
+              {/* Left Hot Tag */}
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-[9px] font-extrabold uppercase tracking-wider shrink-0">
+                <Zap className="w-2.5 h-2.5 text-amber-400" />
+                S{item.server_no}
+              </span>
 
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300">
-                  <Sparkles className="w-2.5 h-2.5" />
-                  <span>{item.badge ? item.badge.replace(/[^\w\s%+-]/g, '').trim() || 'Hot' : 'Hot'}</span>
-                </span>
+              {/* Middle: Single-line Service + Subtle Tag */}
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors truncate max-w-[130px]">
+                    {item.service_name}
+                  </span>
+                  <span className="text-[9px] font-bold text-amber-400/90 uppercase shrink-0">
+                    • {badgeText}
+                  </span>
+                </div>
+                {subText && (
+                  <span className="text-[10px] text-[#71717a] truncate max-w-[170px] leading-tight">
+                    {subText}
+                  </span>
+                )}
               </div>
 
-              {/* Title & Category */}
-              <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-1 mb-0.5">
-                {item.service_name}
-              </h4>
-              <p className="text-[10px] text-[#71717a] line-clamp-1">
-                {item.category_name || item.country_name || item.subtitle || 'Instant Delivery'}
-              </p>
-            </div>
-
-            {/* Bottom: Price + Buy Action */}
-            <div className="mt-3 pt-2.5 border-t border-[#262638] flex items-center justify-between">
-              <div>
-                <span className="text-[9px] text-[#71717a] block leading-none mb-0.5">
-                  {item.server_no === 5 ? 'Per 1k' : 'Price'}
+              {/* Right: Price + 2.5D Hook Pill */}
+              <div className="flex items-center gap-2 pl-1 shrink-0">
+                <span className="text-xs font-extrabold text-[#22c55e] font-mono tabular-nums">
+                  {item.price ? `₹${item.price}` : 'View'}
                 </span>
-                <span className="text-xs font-extrabold text-[#22c55e] font-mono">
-                  {item.price ? `₹${item.price}` : 'Check Price'}
+                <span className="btn-25d-amber inline-flex items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-extrabold">
+                  <span>Get</span>
+                  <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
                 </span>
               </div>
-
-              <button
-                type="button"
-                className="flex items-center gap-1 bg-amber-500/15 group-hover:bg-amber-500 text-amber-300 group-hover:text-black border border-amber-500/30 group-hover:border-amber-400 font-bold px-2.5 py-1.5 rounded-xl text-[10px] transition-all duration-200"
-              >
-                <span>Buy</span>
-                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-              </button>
-            </div>
-          </div>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

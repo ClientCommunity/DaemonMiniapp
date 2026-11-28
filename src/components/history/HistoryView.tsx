@@ -138,9 +138,9 @@ export const HistoryView: React.FC = () => {
             hapticFeedback.selection();
             setHistorySection('active');
           }}
-          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
             historySection === 'active'
-              ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
+              ? 'btn-25d-primary'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
@@ -164,9 +164,9 @@ export const HistoryView: React.FC = () => {
             hapticFeedback.selection();
             setHistorySection('past');
           }}
-          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
             historySection === 'past'
-              ? 'bg-[#7c3aed] text-white shadow-violet-glow-sm'
+              ? 'btn-25d-primary'
               : 'text-[#a1a1aa] hover:text-white'
           }`}
         >
@@ -221,10 +221,10 @@ export const HistoryView: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveCategory(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 border transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-[#7c3aed] border-[#8b5cf6] text-white shadow-violet-glow-sm'
-                      : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
+                      ? 'btn-25d-primary'
+                      : 'bg-[#181820] border border-[#262630] text-[#a1a1aa] hover:text-white'
                   }`}
                 >
                   {tab.label}

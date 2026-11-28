@@ -43,10 +43,10 @@ export default {
         ],
       },
       boxShadow: {
-        "violet-glow": "0 0 20px rgba(124, 58, 237, 0.4)",
-        "violet-glow-sm": "0 0 10px rgba(124, 58, 237, 0.3)",
-        "green-glow": "0 0 16px rgba(34, 197, 94, 0.35)",
-        "amber-glow": "0 0 16px rgba(245, 158, 11, 0.35)",
+        "violet-glow": "0 3px 0 #4c1d95, 0 6px 14px rgba(0, 0, 0, 0.35)",
+        "violet-glow-sm": "0 2px 0 #4c1d95, 0 4px 10px rgba(0, 0, 0, 0.28)",
+        "green-glow": "0 3px 0 #15803d, 0 6px 14px rgba(0, 0, 0, 0.3)",
+        "amber-glow": "0 3px 0 #b45309, 0 6px 14px rgba(0, 0, 0, 0.3)",
       },
       keyframes: {
         "pulse-subtle": {

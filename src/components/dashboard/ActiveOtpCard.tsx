@@ -109,12 +109,12 @@ export const ActiveOtpCard: React.FC = () => {
         <div
           className={`h-full rounded-full transition-all duration-1000 ease-linear ${
             isReceived
-              ? 'bg-[#22c55e] shadow-[0_0_8px_rgba(34,197,94,0.6)]'
+              ? 'bg-[#22c55e]'
               : remainingSeconds > 120
-              ? 'bg-gradient-to-r from-emerald-500 to-green-400 shadow-[0_0_8px_rgba(34,197,94,0.6)]'
+              ? 'bg-gradient-to-r from-emerald-500 to-green-400'
               : remainingSeconds > 45
-              ? 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]'
-              : 'bg-gradient-to-r from-red-500 to-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.7)] animate-pulse'
+              ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
+              : 'bg-gradient-to-r from-red-500 to-rose-500 animate-pulse'
           }`}
           style={{ width: `${progressPercent}%` }}
         />
@@ -148,14 +148,14 @@ export const ActiveOtpCard: React.FC = () => {
             <CheckCircle2 className="w-3.5 h-3.5 text-[#22c55e]" />
             <span>SMS Code Received</span>
           </div>
-          <div className="text-3xl font-mono font-black text-white tracking-widest my-1.5 drop-shadow-[0_0_12px_rgba(34,197,94,0.6)]">
+          <div className="text-3xl font-mono font-black text-white tracking-widest my-1.5">
             {otpCode}
           </div>
 
           {/* 1-Tap Jumbo Copy Button */}
           <button
             onClick={handleCopyOtp}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-black text-sm tracking-wide shadow-[0_0_20px_rgba(34,197,94,0.4)] transition-all active:scale-[0.98] mt-2 mb-2"
+            className="btn-25d-emerald w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-black text-sm tracking-wide mt-2 mb-2 cursor-pointer"
           >
             {copiedOtp ? (
               <>

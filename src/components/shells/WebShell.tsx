@@ -83,7 +83,7 @@ export const WebShell: React.FC<WebShellProps> = ({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-[#7c3aed] text-white shadow-md shadow-[#7c3aed]/30 font-bold'
+                    ? 'btn-25d-primary font-bold'
                     : isLight
                     ? 'text-[#514364] hover:text-[#211536] hover:bg-[#F3EEFF]'
                     : 'text-[#a1a1aa] hover:text-white hover:bg-[#181820]'

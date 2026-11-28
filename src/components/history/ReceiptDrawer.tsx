@@ -359,7 +359,7 @@ export const ReceiptDrawer: React.FC = () => {
               <button
                 onClick={handleGetOtp}
                 disabled={isFetchingOtp}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white font-bold text-xs shadow-violet-glow-sm transition-all active:scale-98 disabled:opacity-50"
+                className="btn-25d-primary w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs disabled:opacity-50 cursor-pointer"
               >
                 {isFetchingOtp ? (
                   <>

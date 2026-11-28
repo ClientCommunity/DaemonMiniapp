@@ -48,16 +48,11 @@ export const BottomNav: React.FC = () => {
                 className="relative flex flex-col items-center justify-center w-full py-1 transition-all duration-200 group active:scale-95 cursor-pointer"
                 aria-label={item.label}
               >
-                {/* Active Backlight Glow */}
-                {isActive && (
-                  <div className="absolute inset-0 bg-[#7c3aed]/15 rounded-xl filter blur-sm pointer-events-none" />
-                )}
-
                 <div className="relative">
                   <Icon
                     className={`w-5 h-5 transition-transform duration-200 ${
                       isActive
-                        ? 'text-[#8b5cf6] scale-110 drop-shadow-[0_0_10px_rgba(124,58,237,0.7)]'
+                        ? 'text-[#8b5cf6] scale-110'
                         : 'text-[#a1a1aa] group-hover:text-white'
                     }`}
                     strokeWidth={isActive ? 2.3 : 1.8}
@@ -80,7 +75,7 @@ export const BottomNav: React.FC = () => {
 
                 {/* Active Indicator Bar */}
                 {isActive && (
-                  <div className="w-4 h-0.5 bg-[#7c3aed] rounded-full mt-0.5 shadow-[0_0_6px_#7c3aed]" />
+                  <div className="w-4 h-0.5 bg-[#7c3aed] rounded-full mt-0.5" />
                 )}
               </button>
 

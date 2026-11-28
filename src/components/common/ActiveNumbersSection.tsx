@@ -173,7 +173,7 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
       className={`p-4 rounded-2xl border transition-all shadow-xl relative overflow-hidden flex flex-col gap-3 ${
         isReceived
           ? 'bg-[#121217] border-[#22c55e]/50 shadow-green-glow/20'
-          : 'bg-[#181820] border-[#8b5cf6]/40 shadow-violet-glow-sm'
+          : 'bg-[#181820] border-[#8b5cf6]/50'
       }`}
     >
       {/* Background ambient glow */}
@@ -277,13 +277,13 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
             <CheckCircle2 className="w-3.5 h-3.5 text-[#22c55e]" />
             <span>Login Code (OTP) Arrived!</span>
           </div>
-          <div className="text-3xl font-mono font-black text-white tracking-widest my-1 drop-shadow-[0_0_12px_rgba(34,197,94,0.6)] select-all">
+          <div className="text-3xl font-mono font-black text-white tracking-widest my-1 select-all">
             {otpCode}
           </div>
 
           <button
             onClick={handleCopyOtp}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-black text-xs tracking-wide shadow-green-glow transition-all active:scale-[0.98] mt-2 cursor-pointer"
+            className="btn-25d-emerald w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-black text-xs tracking-wide mt-2 cursor-pointer"
           >
             {copiedOtp ? (
               <>
@@ -314,7 +314,7 @@ const ActiveNumberCard: React.FC<ActiveNumberCardProps> = ({ item }) => {
           <button
             onClick={handleGetOtp}
             disabled={isFetchingOtp || cooldown > 0}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#5b21b6] text-white font-black text-xs shadow-violet-glow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="btn-25d-primary w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-black text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isFetchingOtp ? (
               <>

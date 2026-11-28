@@ -1273,7 +1273,7 @@ export const DepositHub: React.FC = () => {
             !fampayEnabled
               ? 'bg-[#181820]/40 border-[#262630]/50 text-[#71717a] cursor-not-allowed opacity-60'
               : selectedMethod === 'fampay'
-              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm cursor-pointer'
+              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white cursor-pointer'
               : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white cursor-pointer'
           }`}
         >
@@ -1301,7 +1301,7 @@ export const DepositHub: React.FC = () => {
             !upiEnabled
               ? 'bg-[#181820]/40 border-[#262630]/50 text-[#71717a] cursor-not-allowed opacity-60'
               : selectedMethod === 'upi_direct'
-              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm cursor-pointer'
+              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white cursor-pointer'
               : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white cursor-pointer'
           }`}
         >
@@ -1321,7 +1321,7 @@ export const DepositHub: React.FC = () => {
           onClick={() => setSelectedMethod('usdt_bep20')}
           className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
             selectedMethod === 'usdt_bep20'
-              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white shadow-violet-glow-sm'
+              ? 'bg-[#7c3aed]/20 border-[#7c3aed] text-white'
               : 'bg-[#181820] border-[#262630] text-[#a1a1aa] hover:text-white'
           }`}
         >

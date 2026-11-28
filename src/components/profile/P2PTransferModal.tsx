@@ -206,7 +206,7 @@ export const P2PTransferModal: React.FC<P2PTransferModalProps> = ({ isOpen, onCl
           <button
             type="submit"
             disabled={isAmountOverTransferable || isAmountZeroOrNegative || !recipient.trim()}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold text-xs shadow-violet-glow transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none mt-2"
+            className="btn-25d-primary w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs disabled:opacity-40 disabled:pointer-events-none mt-2 cursor-pointer"
           >
             <Send className="w-4 h-4" />
             <span>Continue to Confirmation</span>
