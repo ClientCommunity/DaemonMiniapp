@@ -9,13 +9,22 @@ import { hapticFeedback } from '../../utils/haptics';
 import {
   ArrowLeft,
   ArrowRight,
-  FolderArchive,
-  Radio,
-  Rocket,
   ShieldCheck,
-  UserCheck,
+  Users,
   Zap,
 } from 'lucide-react';
+
+const TelegramIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+  </svg>
+);
+
+const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm5.79 14.15c-.24.68-1.39 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.42-.14-.96-.32-1.65-.62-2.91-1.26-4.81-4.2-4.96-4.4-.14-.19-1.19-1.58-1.19-3.02 0-1.44.75-2.14 1.02-2.43.27-.29.58-.36.78-.36.19 0 .39 0 .56.01.18.01.42-.07.65.49.24.58.82 2 .89 2.15.07.15.12.33.02.53-.1.19-.15.31-.3.48-.15.17-.31.38-.45.51-.15.14-.3.3-.13.6.17.29.77 1.27 1.65 2.05 1.13 1 2.08 1.31 2.38 1.45.29.15.46.13.63-.07.17-.2.73-.85.93-1.14.19-.29.39-.24.66-.14.27.1 1.7.8 1.99.95.29.14.49.22.56.34.07.12.07.72-.17 1.4z" />
+  </svg>
+);
 
 interface ServerMeta {
   id: 1 | 2 | 3 | 4 | 5;
@@ -25,71 +34,80 @@ interface ServerMeta {
   highlights: string[];
   badge: string;
   badgeColor: string;
+  accentBar: string;
   accentBg: string;
   iconColor: string;
+  dotColor?: string;
   icon: React.FC<{ className?: string }>;
 }
 
 const SERVERS: ServerMeta[] = [
   {
+    id: 5,
+    name: 'Server 5 · Social Media Service',
+    tagline: 'SMM Hub · TG, IG, YouTube & More',
+    description: 'Wholesale SMM growth packages — Telegram Members, Post Views, Reactions, Followers & Likes.',
+    highlights: ['Platform Sub-Categories', 'Wholesale Per-1k Rates'],
+    badge: 'SMM Hub',
+    badgeColor: 'bg-[#7c3aed]/15 text-[#a78bfa]',
+    accentBar: 'bg-[#7c3aed]',
+    accentBg: 'bg-[#7c3aed]/15',
+    iconColor: 'text-[#a78bfa]',
+    icon: Users,
+  },
+  {
     id: 1,
-    name: 'Server 1 · Budget Accounts',
+    name: 'Server 1 · Cheap Quality',
     tagline: 'Instant TG Credentials + OTP',
     description: 'Cheapest ready-to-login Telegram accounts with live spam, geoblock, and 2FA filtering.',
     highlights: ['Live Spam/Geo Filters', 'Instant Login + OTP'],
     badge: 'Lowest Price',
-    badgeColor: 'bg-amber-500/15 text-amber-400',
-    accentBg: 'bg-amber-500/15',
-    iconColor: 'text-amber-400',
-    icon: UserCheck,
+    badgeColor: 'bg-amber-500/15 text-amber-500',
+    accentBar: 'bg-[#229ED9]',
+    accentBg: 'bg-[#229ED9]/15',
+    iconColor: 'text-[#229ED9]',
+    dotColor: 'bg-amber-400',
+    icon: TelegramIcon,
   },
   {
     id: 2,
-    name: 'Server 2 · Aged & Bulk Sessions',
-    tagline: '2021–2025 High-Trust Stock',
+    name: 'Server 2 · Good Quality',
+    tagline: '2021–2025 Aged & Bulk Sessions',
     description: 'Aged Telegram accounts & bulk .session ZIP packs with Good and Cheap quality tiers.',
     highlights: ['Account or .session ZIP', 'Bulk Quantity Support'],
     badge: 'High Trust',
     badgeColor: 'bg-emerald-500/15 text-[#22c55e]',
-    accentBg: 'bg-emerald-500/15',
-    iconColor: 'text-[#22c55e]',
-    icon: FolderArchive,
+    accentBar: 'bg-emerald-500',
+    accentBg: 'bg-[#229ED9]/15',
+    iconColor: 'text-[#229ED9]',
+    dotColor: 'bg-emerald-500',
+    icon: TelegramIcon,
   },
   {
     id: 3,
     name: 'Server 3 · Instant Virtual OTP',
-    tagline: 'Ultra-Fast 1–3s SMS Delivery',
+    tagline: 'All Apps · Ultra-Fast 1–3s SMS',
     description: 'High-speed virtual numbers for Telegram, WhatsApp, Google, OpenAI & 500+ apps.',
     highlights: ['1–3s Resolution', '10-Min Auto-Refund'],
     badge: 'Fastest',
-    badgeColor: 'bg-[#7c3aed]/20 text-[#a78bfa]',
-    accentBg: 'bg-[#7c3aed]/15',
-    iconColor: 'text-[#a78bfa]',
+    badgeColor: 'bg-amber-500/15 text-amber-500',
+    accentBar: 'bg-[#eab308]',
+    accentBg: 'bg-amber-500/15',
+    iconColor: 'text-[#eab308]',
     icon: Zap,
   },
   {
     id: 4,
     name: 'Server 4 · Fresh Carrier Pool',
-    tagline: '21,000+ Private SIM Routes',
+    tagline: 'All Apps · 21,000+ Private SIMs',
     description: 'Fresh private carrier pool across 180+ countries with high SMS completion rate.',
     highlights: ['Private Carrier SIMs', '10-Min Auto-Refund'],
     badge: 'Fresh Pool',
-    badgeColor: 'bg-sky-500/15 text-sky-400',
-    accentBg: 'bg-sky-500/15',
-    iconColor: 'text-sky-400',
-    icon: Radio,
-  },
-  {
-    id: 5,
-    name: 'Server 5 · Social Media Boost',
-    tagline: 'TG, Instagram, YouTube & More',
-    description: 'Wholesale SMM growth packages — Members, Post Views, Reactions, Followers & Likes.',
-    highlights: ['Platform Sub-Categories', 'Wholesale Per-1k Rates'],
-    badge: 'SMM Hub',
-    badgeColor: 'bg-rose-500/15 text-rose-400',
-    accentBg: 'bg-rose-500/15',
-    iconColor: 'text-rose-400',
-    icon: Rocket,
+    badgeColor: 'bg-[#25D366]/15 text-[#25D366]',
+    accentBar: 'bg-[#25D366]',
+    accentBg: 'bg-[#25D366]/15',
+    iconColor: 'text-[#25D366]',
+    icon: WhatsAppIcon,
   },
 ];
 
@@ -101,7 +119,9 @@ export const StorefrontView: React.FC = () => {
     server2Items,
     server34Items,
     formatPrice,
+    theme,
   } = useApp();
+  const isLight = theme === 'light';
 
   const [viewMode, setViewMode] = useState<'hub' | 'server'>(() => {
     try {
@@ -174,7 +194,7 @@ export const StorefrontView: React.FC = () => {
   const activeMeta = SERVERS.find((s) => s.id === selectedServer) || SERVERS[0];
 
   // ============================================================================
-  // VIEW A: CLEAN STORE HUB (5-Server Directory)
+  // VIEW A: CLEAN STORE HUB (5-Server Directory, Server 5 on Top)
   // ============================================================================
   if (viewMode === 'hub') {
     return (
@@ -198,8 +218,8 @@ export const StorefrontView: React.FC = () => {
           </span>
         </div>
 
-        {/* Clean 5-Server Directory Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {/* Clean 5-Server Physical Card Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
           {SERVERS.map((srv) => {
             const Icon = srv.icon;
             const stat = serverStats[srv.id];
@@ -207,69 +227,81 @@ export const StorefrontView: React.FC = () => {
               <div
                 key={srv.id}
                 onClick={() => handleOpenServer(srv.id)}
-                className="p-4 rounded-2xl bg-[#181820] hover:bg-[#1e1e29] shadow-sm transition-all duration-150 cursor-pointer flex flex-col justify-between gap-3 active:scale-[0.99] group"
+                className="store-server-card relative overflow-hidden rounded-2xl cursor-pointer flex flex-col justify-between active:scale-[0.99] group"
               >
-                <div>
-                  {/* Top Row: Icon + Title + Status Badge */}
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-10 h-10 rounded-xl ${srv.accentBg} flex items-center justify-center shrink-0`}>
-                        <Icon className={`w-5 h-5 ${srv.iconColor}`} />
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs sm:text-sm font-extrabold text-white truncate">
-                          {srv.name}
-                        </span>
-                        <span className="text-[10px] font-medium text-[#a1a1aa] truncate">
-                          {srv.tagline}
-                        </span>
-                      </div>
-                    </div>
-                    <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full shrink-0 ${srv.badgeColor}`}>
-                      {srv.badge}
-                    </span>
-                  </div>
+                {/* Crisp Top Accent Bar (Zero Neon Glow) */}
+                <div className={`h-1 w-full ${srv.accentBar}`} />
 
-                  {/* Description */}
-                  <p className="text-[11px] text-[#a1a1aa] leading-relaxed mb-2.5">
-                    {srv.description}
-                  </p>
-
-                  {/* Feature Pills (No Borders) */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {srv.highlights.map((hl) => (
-                      <span
-                        key={hl}
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#121217] text-[#d4d4d8]"
-                      >
-                        {hl}
+                <div className="p-4 flex flex-col justify-between flex-1 gap-3">
+                  <div>
+                    {/* Top Row: Original Icon + Title + Status Badge */}
+                    <div className="flex items-start justify-between gap-2 mb-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`relative w-10 h-10 rounded-xl ${srv.accentBg} flex items-center justify-center shrink-0`}>
+                          <Icon className={`w-5 h-5 ${srv.iconColor}`} />
+                          {srv.dotColor && (
+                            <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${srv.dotColor} ring-2 ${isLight ? 'ring-white' : 'ring-[#181820]'}`} />
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs sm:text-sm font-extrabold text-white truncate">
+                            {srv.name}
+                          </span>
+                          <span className="text-[10px] font-medium text-[#a1a1aa] truncate">
+                            {srv.tagline}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full shrink-0 ${srv.badgeColor}`}>
+                        {srv.badge}
                       </span>
-                    ))}
-                  </div>
-                </div>
+                    </div>
 
-                {/* Bottom Row: Price/Stock + 2.5D Continue Button */}
-                <div className="pt-2.5 flex items-center justify-between gap-2">
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-[10px] text-[#71717a]">
-                      {stat.countLabel}
-                    </span>
-                    <span className="text-xs font-extrabold text-[#22c55e] font-mono tabular-nums">
-                      {stat.minPrice !== null ? `From ${formatPrice(stat.minPrice)}` : 'Wholesale Rates'}
-                    </span>
+                    {/* Description */}
+                    <p className="text-[11px] text-[#a1a1aa] leading-relaxed mb-2.5">
+                      {srv.description}
+                    </p>
+
+                    {/* Feature Chips */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {srv.highlights.map((hl) => (
+                        <span
+                          key={hl}
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                            isLight ? 'bg-slate-100 text-slate-700' : 'bg-white/[0.05] text-[#d4d4d8]'
+                          }`}
+                        >
+                          {hl}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenServer(srv.id);
-                    }}
-                    className="btn-25d-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer"
-                  >
-                    <span>Continue</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
+                  {/* Card Footer Strip: Price/Stock + 2.5D Continue Button */}
+                  <div className={`pt-2.5 mt-1 border-t flex items-center justify-between gap-2 ${
+                    isLight ? 'border-slate-100' : 'border-white/[0.06]'
+                  }`}>
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-[10px] text-[#71717a]">
+                        {stat.countLabel}
+                      </span>
+                      <span className="text-xs font-extrabold text-[#22c55e] font-mono tabular-nums">
+                        {stat.minPrice !== null ? `From ${formatPrice(stat.minPrice)}` : 'Wholesale Rates'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenServer(srv.id);
+                      }}
+                      className="btn-25d-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                    >
+                      <span>Continue</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );

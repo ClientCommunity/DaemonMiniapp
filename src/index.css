@@ -686,6 +686,26 @@ html.light .pinned-deal-pill {
 html.light .pinned-deal-pill:hover {
   background-color: #fffbeb !important;
 }
+
+/* Store Hub Server Cards (Non-glowing physical card feel in Dark & Light mode) */
+.store-server-card {
+  background: linear-gradient(180deg, #1b1b26 0%, #14141c 100%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.store-server-card:hover {
+  background: linear-gradient(180deg, #21212f 0%, #181822 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+html.light .store-server-card {
+  background: linear-gradient(180deg, #ffffff 0%, #faf9fe 100%) !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06), inset 0 1px 0 #ffffff !important;
+}
+html.light .store-server-card:hover {
+  background: #ffffff !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1), inset 0 1px 0 #ffffff !important;
+}
 html.light .pinned-deal-pill .pinned-s-badge {
   background-color: #fef3c7 !important;
   color: #b45309 !important;
