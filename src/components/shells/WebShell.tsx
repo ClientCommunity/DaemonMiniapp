@@ -55,8 +55,8 @@ export const WebShell: React.FC<WebShellProps> = ({
 
   return (
     <div
-      className={`relative w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-screen flex flex-col transition-colors duration-200 ${
-        isLight ? 'bg-[#FAF8FF] text-[#211536]' : 'bg-[#0b0b0e] text-white shadow-2xl'
+      className={`relative w-full px-3 sm:px-6 lg:px-8 min-h-screen flex flex-col transition-colors duration-200 ${
+        isLight ? 'bg-[#FAF8FF] text-[#211536]' : 'bg-[#0b0b0e] text-white'
       }`}
     >
       {/* Toast Notifications */}

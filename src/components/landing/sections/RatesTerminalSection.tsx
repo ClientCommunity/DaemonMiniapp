@@ -140,10 +140,6 @@ export const RatesTerminalSection: React.FC<RatesTerminalSectionProps> = ({ onBu
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] mb-3">
-              <Zap className="w-3.5 h-3.5" />
-              <span>Real-Time Rates &amp; Global Availability</span>
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#211536] tracking-tight">
               Live Service Terminal &amp; Instant Checkout
             </h2>
@@ -153,7 +149,7 @@ export const RatesTerminalSection: React.FC<RatesTerminalSectionProps> = ({ onBu
           </div>
 
           {/* Live Status Pill */}
-          <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-[#E5DCF4] shadow-xs text-xs self-start lg:self-auto">
+          <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl shadow-sm text-xs self-start lg:self-auto">
             <span className="flex h-2 w-2 relative">
               <span
                 className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
@@ -177,7 +173,7 @@ export const RatesTerminalSection: React.FC<RatesTerminalSectionProps> = ({ onBu
         </div>
 
         {/* TOP: Quick Rate Calculator & Bulk Estimator Card */}
-        <div className="bg-white rounded-2xl border border-[#E5DCF4] p-6 lg:p-8 shadow-xs mb-12 relative overflow-hidden">
+        <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm mb-12 relative overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             
             {/* Calculator Controls (7 cols) */}

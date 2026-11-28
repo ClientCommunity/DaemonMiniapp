@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ArrowRight, ShieldCheck, Zap, Lock } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Zap, Lock } from 'lucide-react';
 import { DEAMON_BRAND_LOGO } from '../../../assets/brandLogo';
 
 const LOGO_FALLBACK = `${((import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL || '/').replace(/\/$/, '')}/deamon-logo.png`;
@@ -37,12 +37,6 @@ export const CallToActionSection: React.FC<CallToActionSectionProps> = ({
           />
         </div>
 
-        {/* Trust pill */}
-        <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] mb-6">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Instant Setup • No Waiting Time</span>
-        </div>
-
         {/* Headline */}
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#211536] tracking-tight mb-6">
           Ready to Start Verifying in Under 60 Seconds?
@@ -58,7 +52,7 @@ export const CallToActionSection: React.FC<CallToActionSectionProps> = ({
           <button
             type="button"
             onClick={onGetStarted}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-[#6D28D9] hover:bg-[#5B21B6] text-white font-bold text-sm sm:text-base shadow-lg hover:shadow-xl transition-all transform active:scale-[0.99]"
+            className="btn-25d-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-sm sm:text-base cursor-pointer"
           >
             <span>Create Free Account</span>
             <ArrowRight className="w-5 h-5" />
@@ -67,7 +61,7 @@ export const CallToActionSection: React.FC<CallToActionSectionProps> = ({
           <button
             type="button"
             onClick={onExploreRates}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-[#FAF8FF] hover:bg-[#EDE9FE] border border-[#E5DCF4] text-[#211536] font-semibold text-sm sm:text-base transition-all"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-[#FAF8FF] hover:bg-[#EDE9FE] text-[#211536] font-semibold text-sm sm:text-base transition-all shadow-sm cursor-pointer"
           >
             <span>Browse Rates Catalog</span>
           </button>

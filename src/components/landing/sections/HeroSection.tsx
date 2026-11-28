@@ -106,17 +106,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           
           {/* LEFT COLUMN: High-Converting Value Proposition & Low-Friction CTAs */}
           <div className="lg:col-span-7 flex flex-col items-start text-left">
-            
-            {/* Live Infrastructure Trust Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#EDE9FE] border border-[#DDD6FE] text-[#6D28D9] text-xs font-semibold mb-6 shadow-xs animate-fade-in">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span>4 Enterprise Carrier Routes Online</span>
-              <span className="text-[#6D28D9]/40">•</span>
-              <span className="font-bold">99.8% SMS Delivery Rate</span>
-            </div>
 
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#211536] tracking-tight leading-[1.15] mb-5">

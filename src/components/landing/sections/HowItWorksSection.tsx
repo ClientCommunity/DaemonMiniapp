@@ -51,10 +51,6 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({ onGetStart
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] mb-3">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>The 4-Step Guarantee</span>
-          </div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#211536] tracking-tight mb-4">
             How It Works: Simple, Fast &amp; Guaranteed
           </h2>
@@ -73,8 +69,8 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({ onGetStart
             return (
               <div
                 key={step.step}
-                className={`relative bg-[#FAF8FF] rounded-2xl p-6 border transition-all duration-200 hover:shadow-md flex flex-col justify-between ${
-                  isLast ? 'border-emerald-300 bg-emerald-50/20' : 'border-[#E5DCF4] hover:border-[#6D28D9]'
+                className={`relative rounded-2xl p-6 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between ${
+                  isLast ? 'bg-emerald-50/70' : 'bg-[#FAF8FF]'
                 }`}
               >
                 <div>

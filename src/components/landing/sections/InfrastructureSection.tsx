@@ -26,10 +26,6 @@ export const InfrastructureSection: React.FC<InfrastructureSectionProps> = ({ on
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] mb-3">
-            <Server className="w-3.5 h-3.5" />
-            <span>Robust Infrastructure</span>
-          </div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#211536] tracking-tight mb-4">
             Built on 4 Specialized Enterprise Server Pipelines
           </h2>
@@ -46,13 +42,13 @@ export const InfrastructureSection: React.FC<InfrastructureSectionProps> = ({ on
             return (
               <div
                 key={srv.id}
-                className="bg-[#FAF8FF] rounded-2xl border border-[#E5DCF4] hover:border-[#6D28D9] p-7 transition-all duration-200 hover:shadow-md flex flex-col justify-between group"
+                className="bg-[#FAF8FF] rounded-2xl p-7 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between group"
               >
                 <div>
                   {/* Server Header */}
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-white border border-[#E5DCF4] flex items-center justify-center text-[#6D28D9] shadow-xs group-hover:bg-[#6D28D9] group-hover:text-white transition-all">
+                      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-[#6D28D9] shadow-sm group-hover:bg-[#6D28D9] group-hover:text-white transition-all">
                         <Icon className="w-6 h-6" />
                       </div>
                       <div>

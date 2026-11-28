@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Zap,
   Clock,
-  Radio,
 } from 'lucide-react';
 
 interface DemoService {
@@ -130,11 +129,6 @@ export const LiveSandboxDemo: React.FC<LiveSandboxDemoProps> = ({ onOpenRates: _
             Live Carrier Sandbox
           </span>
         </div>
-
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-[#F0E9FF] border-[#DDD0FF] text-[#6D28D9]">
-          <Radio className="w-3 h-3 text-[#6D28D9] animate-pulse" />
-          <span>Active Feed</span>
-        </div>
       </div>
 
       {/* Service Selector Chips */}
@@ -150,10 +144,10 @@ export const LiveSandboxDemo: React.FC<LiveSandboxDemoProps> = ({ onOpenRates: _
                 setSecondsRemaining(300);
                 setCopied(false);
               }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 border ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
                 isSelected
-                  ? 'bg-[#6D28D9] text-white border-[#6D28D9] shadow-sm'
-                  : 'bg-[#FAF8FF] text-[#514364] border-[#E5DCF4] hover:border-[#DDD0FF] hover:bg-[#F0E9FF]'
+                  ? 'btn-25d-primary'
+                  : 'bg-[#FAF8FF] text-[#514364] hover:bg-[#F0E9FF]'
               }`}
             >
               <span>{s.flag}</span>
@@ -165,16 +159,16 @@ export const LiveSandboxDemo: React.FC<LiveSandboxDemoProps> = ({ onOpenRates: _
 
       {/* Simulated Phone Line Card */}
       <div
-        className={`p-3.5 rounded-2xl border mb-3 transition-opacity duration-300 ${
+        className={`p-3.5 rounded-2xl mb-3 transition-opacity duration-300 ${
           isSimulating ? 'opacity-40' : 'opacity-100'
         }`}
-        style={{ backgroundColor: '#FAF8FF', borderColor: '#E5DCF4' }}
+        style={{ backgroundColor: '#FAF8FF' }}
       >
         <div className="flex items-center justify-between text-xs mb-1">
           <span className="text-[11px] font-medium" style={{ color: '#74638B' }}>
             Assigned Mobile Line
           </span>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border bg-white border-emerald-200 text-emerald-700">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700">
             {active.carrier}
           </span>
         </div>
@@ -196,10 +190,9 @@ export const LiveSandboxDemo: React.FC<LiveSandboxDemoProps> = ({ onOpenRates: _
 
       {/* Simulated Incoming Message Bubble */}
       <div
-        className="p-4 rounded-2xl border relative mb-4 shadow-sm"
+        className="p-4 rounded-2xl relative mb-4 shadow-sm"
         style={{
           backgroundColor: '#FFFFFF',
-          borderColor: '#DDD0FF',
           background: 'linear-gradient(180deg, #FFFFFF 0%, #FAF8FF 100%)',
         }}
       >
@@ -218,7 +211,7 @@ export const LiveSandboxDemo: React.FC<LiveSandboxDemoProps> = ({ onOpenRates: _
         </p>
 
         {/* Extracted OTP Badge with 1-Click Copy */}
-        <div className="flex items-center justify-between p-2.5 rounded-xl border bg-white border-[#E5DCF4]">
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-white shadow-sm">
           <div className="flex flex-col">
             <span className="text-[10px] uppercase font-bold text-[#74638B] tracking-wider">
               Verification Code
@@ -231,10 +224,10 @@ export const LiveSandboxDemo: React.FC<LiveSandboxDemoProps> = ({ onOpenRates: _
           <button
             type="button"
             onClick={handleCopyCode}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               copied
-                ? 'bg-emerald-600 border-emerald-600 text-white'
-                : 'bg-white hover:bg-violet-50 text-[#6D28D9] border-[#DDD0FF]'
+                ? 'btn-25d-emerald'
+                : 'btn-25d-primary'
             }`}
           >
             {copied ? (
